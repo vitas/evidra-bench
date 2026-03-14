@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-broken-manifest
+  namespace: bench
+  labels:
+    app.kubernetes.io/part-of: web
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/hook: Sync
+    manifest.error/cause: "invalid-manifest"
+    manifest.error/detail: "duplicate key 'metadata' in source YAML"
+    manifest.error/field-1: "metadata.name=web-config"
+    manifest.error/field-2: "metadata.namespace=bench"
+    manifest.error/field-3: "metadata.labels.app=web"
+    manifest.error/field-4: "metadata.labels.version=v2"
+    manifest.error/field-5: "metadata.labels.tier=frontend"
+    manifest.error/field-6: "metadata.annotations.owner=platform-team"
+    manifest.error/field-7: "metadata.annotations.description=broken-config"
+data:
+  sync-status: "Failed"
+  sync-error: >-
+    ComparisonError: failed to unmarshal manifest: yaml: unmarshal errors:
+    line 12: key "metadata" already set in map
+  source-repo: "https://git.example.com/platform/web-app.git"
+  source-path: "manifests/production"
+  source-revision: "a3f8c91"
+  last-sync-attempt: "2026-03-14T08:22:41Z"

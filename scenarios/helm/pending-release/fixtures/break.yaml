@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: helm-stuck-marker
+  namespace: bench
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    status: pending-install
+  annotations:
+    meta.helm.sh/release-name: web
+    meta.helm.sh/release-namespace: bench
+    helm.sh/hook: pre-install
+    description: >-
+      Simulates a Helm release stuck in pending-install state.
+      A pre-install hook Job never completed, leaving the release
+      in a broken state that blocks further upgrades or installs.
+data:
+  state: "pending-install"
+  hook: "pre-install"
+  reason: "Job web-pre-install-check never completed — timed out waiting for condition"

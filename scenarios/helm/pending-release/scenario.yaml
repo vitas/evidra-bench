@@ -1,0 +1,15 @@
+id: helm-pending-release
+title: Fix a Helm release stuck in pending state
+category: helm
+tags: [helm, hooks, pending]
+prompt: prompts/task.md
+timeout: "5m"
+break:
+  type: kubectl-apply
+  path: fixtures/break.yaml
+checks:
+  - type: helm-release
+    name: web
+    namespace: bench
+scope:
+  namespaces: [bench]

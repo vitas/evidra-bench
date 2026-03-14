@@ -1,0 +1,14 @@
+id: argocd-sync-failure
+title: Fix an Argo CD application that fails to sync
+category: argocd
+tags: [argocd, sync, manifest]
+prompt: prompts/task.md
+timeout: "5m"
+break:
+  type: kubectl-apply
+  path: fixtures/break.yaml
+checks:
+  - type: argocd-app-healthy
+    name: web
+scope:
+  namespaces: [bench, argocd]

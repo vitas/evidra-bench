@@ -1,0 +1,15 @@
+id: resource-quota-exceeded
+title: Fix a deployment blocked by ResourceQuota
+category: kubernetes
+tags: [resourcequota, limits, scheduling]
+prompt: prompts/task.md
+timeout: "3m"
+break:
+  type: kubectl-apply
+  path: fixtures/break.yaml
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: app
+scope:
+  namespaces: [bench]
