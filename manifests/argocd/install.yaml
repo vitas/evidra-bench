@@ -1,0 +1,10 @@
+# Placeholder: in a real run, this is replaced by the upstream Argo CD manifests.
+# The harness downloads the actual install manifest at bootstrap time.
+# This file exists so the manifests/argocd directory is valid for kubectl apply.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-bench-marker
+  namespace: argocd
+data:
+  note: "Marker for infra-bench bootstrap. Replace with upstream install.yaml."
