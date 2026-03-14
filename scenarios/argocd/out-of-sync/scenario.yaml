@@ -1,0 +1,17 @@
+id: argocd-out-of-sync
+title: Fix an Argo CD application that is out of sync
+category: argocd
+tags: [argocd, sync, gitops]
+prompt: prompts/task.md
+timeout: "5m"
+break:
+  type: apply
+  path: fixtures/drift.yaml
+checks:
+  - type: argocd-app-healthy
+    name: web
+  - type: deployment-ready
+    namespace: bench
+    name: web
+scope:
+  namespaces: [bench, argocd]

@@ -1,0 +1,18 @@
+id: helm-failed-upgrade
+title: Fix a failed Helm upgrade
+category: helm
+tags: [helm, upgrade, rollback]
+prompt: prompts/task.md
+timeout: "5m"
+break:
+  type: apply
+  path: fixtures/bad-values.yaml
+checks:
+  - type: helm-release
+    name: web
+    namespace: bench
+  - type: deployment-ready
+    namespace: bench
+    name: web
+scope:
+  namespaces: [bench]

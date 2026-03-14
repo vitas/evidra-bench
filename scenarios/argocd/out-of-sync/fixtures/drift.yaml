@@ -1,0 +1,15 @@
+# Direct cluster edit that causes drift from Argo CD desired state.
+# This changes the deployment replicas and image directly, making
+# the live state diverge from what Argo CD expects.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: bench
+spec:
+  replicas: 5
+  template:
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.25-alpine
