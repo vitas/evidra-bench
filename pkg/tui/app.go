@@ -24,6 +24,7 @@ const (
 	viewResult
 	viewConfig
 	viewHelp
+	viewHistory
 )
 
 // RunFinishedMsg is sent when a scenario run completes.
@@ -50,6 +51,9 @@ type App struct {
 	runResult    *harness.RunResult
 	runErr       error
 	harnessDeps  harness.Deps
+	runsDir      string
+	history      []RunRecord
+	statsMap     map[string]ScenarioStats
 }
 
 // NewApp creates a new TUI app.
@@ -63,7 +67,8 @@ func NewApp(scenariosDir, cfgPath string, cfg LabConfig, deps harness.Deps) (*Ap
 		return nil, fmt.Errorf("tui.NewApp: %w", err)
 	}
 	items := BuildCatalog(scenarios)
-	return &App{
+	runsDir := "runs"
+	app := &App{
 		allItems:     items,
 		filtered:     items,
 		cfg:          cfg,
@@ -71,7 +76,10 @@ func NewApp(scenariosDir, cfgPath string, cfg LabConfig, deps harness.Deps) (*Ap
 		scenariosDir: absDir,
 		view:         viewCatalog,
 		harnessDeps:  deps,
-	}, nil
+		runsDir:      runsDir,
+	}
+	app.refreshHistory()
+	return app, nil
 }
 
 func (a App) Init() tea.Cmd {
@@ -89,18 +97,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.runResult = msg.Result
 		a.runErr = msg.Err
 		a.view = viewResult
-		if msg.Result != nil {
-			for i := range a.allItems {
-				if a.allItems[i].Scenario.ID == msg.Result.ScenarioID {
-					if msg.Result.Passed {
-						a.allItems[i].LastResult = "pass"
-					} else {
-						a.allItems[i].LastResult = "fail"
-					}
-				}
-			}
-			a.applyFilter()
-		}
+		a.refreshHistory()
+		a.applyFilter()
 		return a, nil
 
 	case tea.KeyMsg:
@@ -122,6 +120,9 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		a.view = viewCatalog
 		return a, nil
 	case viewResult:
+		a.view = viewCatalog
+		return a, nil
+	case viewHistory:
 		a.view = viewCatalog
 		return a, nil
 	case viewConfig:
@@ -163,6 +164,10 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		_ = SaveLabConfig(a.cfgPath, a.cfg)
 	case "e":
 		a.view = viewConfig
+	case "h":
+		if len(a.filtered) > 0 {
+			a.view = viewHistory
+		}
 	case "?":
 		a.view = viewHelp
 	case "enter":
@@ -208,6 +213,21 @@ func (a *App) handleConfigKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		a.cfg.DryRun = !a.cfg.DryRun
 	}
 	return a, nil
+}
+
+func (a *App) refreshHistory() {
+	a.history = LoadHistory(a.runsDir)
+	a.statsMap = make(map[string]ScenarioStats)
+	for _, item := range a.allItems {
+		scenarioRuns := HistoryForScenario(a.history, item.Scenario.ID)
+		stats := ComputeStats(scenarioRuns)
+		a.statsMap[item.Scenario.ID] = stats
+	}
+	for i := range a.allItems {
+		if stats, ok := a.statsMap[a.allItems[i].Scenario.ID]; ok {
+			a.allItems[i].LastResult = stats.LastResult
+		}
+	}
 }
 
 func (a *App) applyFilter() {
@@ -274,6 +294,8 @@ func (a App) View() string {
 		return a.renderResult()
 	case viewConfig:
 		return a.renderConfig()
+	case viewHistory:
+		return a.renderHistory()
 	default:
 		return a.renderCatalog()
 	}
@@ -336,12 +358,18 @@ func (a App) renderCatalog() string {
 			idStyle = idStyle.Bold(true).Foreground(lipgloss.Color("86"))
 		}
 
-		line := fmt.Sprintf("%s%s %s %s %s",
+		runCount := ""
+		if stats, ok := a.statsMap[item.Scenario.ID]; ok && stats.TotalRuns > 0 {
+			runCount = dimStyle.Render(fmt.Sprintf(" (%d/%d)", stats.PassCount, stats.TotalRuns))
+		}
+
+		line := fmt.Sprintf("%s%s %s %s %s%s",
 			cursor,
 			badge,
 			evidraMark,
 			catStyle.Render(item.Scenario.Category),
 			idStyle.Render(item.Scenario.ID),
+			runCount,
 		)
 		b.WriteString(line)
 		b.WriteString("\n")
@@ -360,7 +388,7 @@ func (a App) renderCatalog() string {
 		b.WriteString(a.query)
 		b.WriteString("_")
 	} else {
-		b.WriteString(dimStyle.Render("j/k:nav  /:filter  t:category  d:dry-run  e:config  enter:run  ?:help  q:quit"))
+		b.WriteString(dimStyle.Render("j/k:nav  /:filter  t:category  h:history  d:dry-run  e:config  enter:run  ?:help  q:quit"))
 	}
 
 	return b.String()
@@ -484,6 +512,7 @@ func (a App) renderHelp() string {
 	b.WriteString("  /             Search by text (id, title, tags)\n")
 	b.WriteString("  t             Cycle category filter (all/kubernetes/helm/argocd)\n")
 	b.WriteString("  Enter         Run selected scenario\n")
+	b.WriteString("  h             Show run history for selected scenario\n")
 	b.WriteString("  d             Toggle dry-run mode\n")
 	b.WriteString("  e             Edit run configuration\n")
 	b.WriteString("  ?             Show this help\n")
@@ -496,6 +525,98 @@ func (a App) renderHelp() string {
 	b.WriteString("\n")
 	b.WriteString(dimStyle.Render("Press any key to return"))
 	return b.String()
+}
+
+func (a App) renderHistory() string {
+	var b strings.Builder
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("99"))
+	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+
+	if len(a.filtered) == 0 || a.cursor >= len(a.filtered) {
+		b.WriteString(dimStyle.Render("No scenario selected"))
+		return b.String()
+	}
+
+	s := a.filtered[a.cursor].Scenario
+	runs := HistoryForScenario(a.history, s.ID)
+	stats := ComputeStats(runs)
+
+	b.WriteString(headerStyle.Render(fmt.Sprintf("Run History: %s", s.ID)))
+	b.WriteString("\n\n")
+
+	b.WriteString(fmt.Sprintf("  Total runs: %d   Pass: %d   Fail: %d\n\n",
+		stats.TotalRuns, stats.PassCount, stats.FailCount))
+
+	if len(runs) == 0 {
+		b.WriteString(dimStyle.Render("  No runs yet\n"))
+	}
+
+	maxShow := 10
+	if len(runs) < maxShow {
+		maxShow = len(runs)
+	}
+	for i := 0; i < maxShow; i++ {
+		r := runs[i]
+		verdict := lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Render("PASS")
+		if !r.Passed {
+			verdict = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render("FAIL")
+		}
+		ts := r.StartTime.Format("2006-01-02 15:04:05")
+		dur := r.Duration().Round(time.Millisecond)
+		checkSummary := ""
+		if r.Checks != nil {
+			passCount := 0
+			for _, c := range r.Checks.Checks {
+				if c.Verdict == "pass" {
+					passCount++
+				}
+			}
+			checkSummary = dimStyle.Render(fmt.Sprintf("  checks: %d/%d", passCount, len(r.Checks.Checks)))
+		}
+
+		b.WriteString(fmt.Sprintf("  %s  %s  %s%s\n", verdict, ts, dimStyle.Render(dur.String()), checkSummary))
+
+		// Show check diff between this run and the previous one
+		if i < maxShow-1 && i+1 < len(runs) {
+			diff := checkDiff(runs[i+1], r)
+			if diff != "" {
+				b.WriteString(dimStyle.Render(diff))
+				b.WriteString("\n")
+			}
+		}
+	}
+
+	if len(runs) > maxShow {
+		b.WriteString(dimStyle.Render(fmt.Sprintf("\n  ... and %d more runs\n", len(runs)-maxShow)))
+	}
+
+	b.WriteString("\n")
+	b.WriteString(dimStyle.Render("Press any key to return"))
+	return b.String()
+}
+
+// checkDiff compares two runs and returns a summary of what changed.
+func checkDiff(prev, curr RunRecord) string {
+	if prev.Checks == nil || curr.Checks == nil {
+		return ""
+	}
+	prevMap := make(map[string]string)
+	for _, c := range prev.Checks.Checks {
+		prevMap[c.Name] = string(c.Verdict)
+	}
+	var changes []string
+	for _, c := range curr.Checks.Checks {
+		prevVerdict, existed := prevMap[c.Name]
+		if !existed {
+			changes = append(changes, fmt.Sprintf("    + %s: %s (new)", c.Name, c.Verdict))
+		} else if prevVerdict != string(c.Verdict) {
+			changes = append(changes, fmt.Sprintf("    ~ %s: %s -> %s", c.Name, prevVerdict, c.Verdict))
+		}
+	}
+	if len(changes) == 0 {
+		return ""
+	}
+	return strings.Join(changes, "\n")
 }
 
 func (a App) visibleRange() (int, int) {
