@@ -4,9 +4,34 @@ category: helm
 tags: [helm, hooks, pending]
 prompt: prompts/task.md
 timeout: "5m"
+bootstrap:
+  - name: install-web-release
+    type: helm-install
+    release: web
+    path: ../../../charts/web
+    namespace: bench
+    args:
+      - --create-namespace
+  - name: wait-for-release
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
 break:
-  type: kubectl-apply
-  path: fixtures/break.yaml
+  type: helm-upgrade
+  name: web
+  namespace: bench
+  chart: ../../../charts/web
+  path: fixtures/pending-values.yaml
+  allow_failure: true
+  args:
+    - --wait
+    - --timeout
+    - 5s
 checks:
   - type: helm-release
     name: web

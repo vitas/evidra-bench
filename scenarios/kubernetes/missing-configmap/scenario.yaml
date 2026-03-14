@@ -20,6 +20,10 @@ bootstrap:
 break:
   type: kubectl-apply
   path: fixtures/broken.yaml
+after_break:
+  - name: let-configmap-failure-manifest
+    type: sleep
+    duration: 8s
 baseline: manifests/baseline
 checks:
   - type: deployment-ready

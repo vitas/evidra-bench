@@ -1,14 +1,87 @@
 id: argocd-sync-wave-ordering
-title: Fix broken Argo CD sync wave ordering
+title: Fix broken Argo CD sync wave annotations
 category: argocd
 tags: [argocd, sync-waves, ordering]
 prompt: prompts/task.md
 timeout: "5m"
+bootstrap:
+  - name: ensure-argocd-namespace
+    type: kubectl-apply
+    path: ../../../manifests/argocd/namespace.yaml
+  - name: install-argocd
+    type: kubectl-apply
+    path: https://raw.githubusercontent.com/argoproj/argo-cd/v2.13.3/manifests/install.yaml
+    namespace: argocd
+  - name: wait-for-app-crd
+    type: kubectl
+    args:
+      - wait
+      - --for=condition=Established
+      - crd/applications.argoproj.io
+      - --timeout=180s
+  - name: wait-for-argocd-server
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/argocd-server
+      - -n
+      - argocd
+      - --timeout=180s
+  - name: wait-for-argocd-repo-server
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/argocd-repo-server
+      - -n
+      - argocd
+      - --timeout=180s
+  - name: wait-for-argocd-controller
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - statefulset/argocd-application-controller
+      - -n
+      - argocd
+      - --timeout=180s
+  - name: apply-sync-waves-app
+    type: kubectl-apply
+    path: ../../../manifests/argocd/apps/sync-waves.yaml
+  - name: let-sync-waves-status-appear
+    type: sleep
+    duration: 15s
+  - name: wait-for-sync-waves-sync
+    type: kubectl
+    args:
+      - wait
+      - --for=jsonpath={.status.sync.status}=Synced
+      - application/sync-waves
+      - -n
+      - argocd
+      - --timeout=180s
+  - name: wait-for-sync-waves-health
+    type: kubectl
+    args:
+      - wait
+      - --for=jsonpath={.status.health.status}=Healthy
+      - application/sync-waves
+      - -n
+      - argocd
+      - --timeout=180s
 break:
-  type: apply
+  type: kubectl-apply
   path: fixtures/wrong-waves.yaml
+after_break:
+  - name: let-argocd-detect-wave-drift
+    type: sleep
+    duration: 15s
 checks:
   - type: argocd-app-healthy
-    name: web
+    name: sync-waves
+  - type: service-endpoints
+    namespace: bench
+    name: frontend
 scope:
   namespaces: [bench, argocd]

@@ -5,10 +5,14 @@ tags: [helm, rollback, version]
 prompt: prompts/task.md
 timeout: "5m"
 bootstrap:
-  - name: deploy-baseline
-    type: kubectl-apply
-    path: ../../../manifests/baseline
-  - name: wait-for-baseline
+  - name: install-web-release
+    type: helm-install
+    release: web
+    path: ../../../charts/web
+    namespace: bench
+    args:
+      - --create-namespace
+  - name: wait-for-release
     type: kubectl
     args:
       - rollout
@@ -18,8 +22,16 @@ bootstrap:
       - bench
       - --timeout=120s
 break:
-  type: kubectl-apply
-  path: fixtures/broken.yaml
+  type: helm-upgrade
+  name: web
+  namespace: bench
+  chart: ../../../charts/web
+  path: ../failed-upgrade/fixtures/bad-values.yaml
+  allow_failure: true
+  args:
+    - --wait
+    - --timeout
+    - 5s
 checks:
   - type: helm-release
     name: web

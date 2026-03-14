@@ -1,0 +1,10 @@
+{{- if .Values.dependency.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.dependency.name }}
+data:
+{{- range $key, $value := .Values.dependency.data }}
+  {{ $key }}: {{ $value | quote }}
+{{- end }}
+{{- end }}

@@ -44,6 +44,21 @@ func TestBootstrapStep_KubectlApply(t *testing.T) {
 	}
 }
 
+func TestBootstrapStep_KubectlApply_WithNamespace(t *testing.T) {
+	t.Parallel()
+	step := BootstrapStep{
+		Name:      "install-argocd",
+		Type:      StepKubectlApply,
+		Path:      "https://example.com/install.yaml",
+		Namespace: "argocd",
+	}
+	args := step.CommandArgs("/tmp/kubeconfig")
+	got := strings.Join(args, " ")
+	if !containsAll(got, "kubectl", "--kubeconfig", "/tmp/kubeconfig", "-n", "argocd", "apply", "-f", "https://example.com/install.yaml") {
+		t.Fatalf("unexpected kubectl apply command: %s", got)
+	}
+}
+
 func TestBootstrapStep_Kubectl(t *testing.T) {
 	t.Parallel()
 	step := BootstrapStep{
@@ -80,6 +95,18 @@ func TestBootstrapStep_HelmInstallIsIdempotent(t *testing.T) {
 	}
 	if got == "" || !containsAll(got, "upgrade", "--install", "web", "/repo/charts/web", "-n", "bench") {
 		t.Fatalf("unexpected helm command: %s", got)
+	}
+}
+
+func TestBootstrapStep_SleepHasNoCommandArgs(t *testing.T) {
+	t.Parallel()
+	step := BootstrapStep{
+		Name:     "let-controller-reconcile",
+		Type:     StepSleep,
+		Duration: "5s",
+	}
+	if args := step.CommandArgs("/tmp/kubeconfig"); len(args) != 0 {
+		t.Fatalf("sleep step should not produce command args, got %v", args)
 	}
 }
 

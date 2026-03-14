@@ -13,13 +13,17 @@ bootstrap:
     args:
       - rollout
       - status
-      - deployment/web
+      - deployment/app
       - -n
       - bench
       - --timeout=120s
 break:
   type: kubectl-apply
   path: fixtures/broken.yaml
+after_break:
+  - name: let-pvc-failure-manifest
+    type: sleep
+    duration: 8s
 checks:
   - type: deployment-ready
     namespace: bench

@@ -26,5 +26,10 @@ spec:
               port: 80
             initialDelaySeconds: 2
             periodSeconds: 5
+{{- if .Values.dependency.required }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.dependency.name }}
+{{- end }}
           resources:
 {{ toYaml .Values.resources | indent 12 }}

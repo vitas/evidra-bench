@@ -1,7 +1,9 @@
-# Task: Resolve the Helm dependency conflict
+# Task: Resolve the Helm chart dependency issue
 
-The `web` Helm chart in the `bench` namespace has a dependency conflict that prevents `helm upgrade` from succeeding.
+The `web` Helm release in the `bench` namespace was upgraded with a chart configuration
+that enables a dependency on a ConfigMap which the chart no longer renders.
+The upgrade completed, but the workload is now failing because that dependency is unresolved.
 
-Diagnose the dependency issue and resolve it so that the Helm release can be upgraded successfully.
+Diagnose the dependency issue and restore the Helm release to a healthy deployed state.
 
 You have access to `kubectl` and `helm` with the provided kubeconfig.

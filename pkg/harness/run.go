@@ -106,6 +106,12 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			return nil, fmt.Errorf("harness.Run: inject break: %w", err)
 		}
 	}
+	if h.deps.Bootstrapper != nil && len(s.AfterBreak) > 0 {
+		plan := buildStepPlan(s.AfterBreak)
+		if err := h.deps.Bootstrapper.Execute(ctx, plan, handle.KubeconfigPath); err != nil {
+			return nil, fmt.Errorf("harness.Run: after_break: %w", err)
+		}
+	}
 
 	// Step 4: Execute agent.
 	promptContent := ""
@@ -120,6 +126,9 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	timeout := req.Config.Timeout
 	if s.Timeout.Duration > 0 {
 		timeout = s.Timeout.Duration
+	}
+	if err := os.MkdirAll(req.Config.RunsDir, 0755); err != nil {
+		return nil, fmt.Errorf("harness.Run: create runs dir: %w", err)
 	}
 
 	agentResult, err := h.deps.Adapter.Run(ctx, adapter.RunInput{
@@ -221,6 +230,10 @@ func (h *Harness) applyBreak(ctx context.Context, kubeconfigPath string, s *scen
 	}
 	cmd := makeCmd(args)
 	if _, err := runner.Run(ctx, cmd); err != nil {
+		if s.Break.AllowFailure {
+			log.Printf("[harness] break command failed as expected for scenario %s: %v", s.ID, err)
+			return nil
+		}
 		return fmt.Errorf("apply break fixture: %w", err)
 	}
 	return nil
@@ -234,13 +247,20 @@ func buildBootstrapPlan(s *scenario.Scenario, scenariosDir string) *environment.
 			plan.Steps[i].Path = filepath.Join(rootDir, plan.Steps[i].Path)
 		}
 	}
-	for _, step := range s.Bootstrap {
+	plan.Steps = append(plan.Steps, buildStepPlan(s.Bootstrap).Steps...)
+	return plan
+}
+
+func buildStepPlan(steps []scenario.BootstrapStep) *environment.BootstrapPlan {
+	plan := &environment.BootstrapPlan{}
+	for _, step := range steps {
 		plan.Steps = append(plan.Steps, environment.BootstrapStep{
 			Name:      step.Name,
 			Type:      environment.StepType(step.Type),
 			Path:      step.Path,
 			Release:   step.Release,
 			Namespace: step.Namespace,
+			Duration:  step.Duration,
 			Args:      append([]string(nil), step.Args...),
 		})
 	}

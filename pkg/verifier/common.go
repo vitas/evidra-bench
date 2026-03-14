@@ -2,6 +2,7 @@ package verifier
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -31,16 +32,57 @@ func (c *DeploymentReadyCheck) Check(ctx context.Context, kubeconfigPath string)
 		"--kubeconfig", kubeconfigPath,
 		"get", "deployment", c.Name,
 		"-n", c.Namespace,
-		"-o", "jsonpath={.status.readyReplicas}/{.spec.replicas}",
+		"-o", "json",
 	).CombinedOutput()
 	if err != nil {
 		return CheckResult{Name: name, Type: "deployment-ready", Verdict: VerdictFail, Message: string(out)}
 	}
-	parts := strings.Split(strings.TrimSpace(string(out)), "/")
-	if len(parts) != 2 || parts[0] != parts[1] || parts[0] == "" || parts[0] == "0" {
-		return CheckResult{Name: name, Type: "deployment-ready", Verdict: VerdictFail, Message: fmt.Sprintf("replicas: %s", out)}
+	var deployment deploymentStatus
+	if err := json.Unmarshal(out, &deployment); err != nil {
+		return CheckResult{Name: name, Type: "deployment-ready", Verdict: VerdictFail, Message: fmt.Sprintf("parse deployment status: %v", err)}
+	}
+	if message := deploymentReadyMessage(deployment); message != "" {
+		return CheckResult{Name: name, Type: "deployment-ready", Verdict: VerdictFail, Message: message}
 	}
 	return CheckResult{Name: name, Type: "deployment-ready", Verdict: VerdictPass}
+}
+
+type deploymentStatus struct {
+	Metadata struct {
+		Generation int64 `json:"generation"`
+	} `json:"metadata"`
+	Spec struct {
+		Replicas int32 `json:"replicas"`
+	} `json:"spec"`
+	Status struct {
+		ObservedGeneration  int64 `json:"observedGeneration"`
+		UpdatedReplicas     int32 `json:"updatedReplicas"`
+		ReadyReplicas       int32 `json:"readyReplicas"`
+		AvailableReplicas   int32 `json:"availableReplicas"`
+		UnavailableReplicas int32 `json:"unavailableReplicas"`
+	} `json:"status"`
+}
+
+func deploymentReadyMessage(d deploymentStatus) string {
+	if d.Spec.Replicas <= 0 {
+		return fmt.Sprintf("replicas: spec=%d", d.Spec.Replicas)
+	}
+	if d.Status.ObservedGeneration < d.Metadata.Generation {
+		return fmt.Sprintf("deployment generation not observed yet: observed=%d generation=%d", d.Status.ObservedGeneration, d.Metadata.Generation)
+	}
+	if d.Status.UpdatedReplicas != d.Spec.Replicas {
+		return fmt.Sprintf("updated replicas: %d/%d", d.Status.UpdatedReplicas, d.Spec.Replicas)
+	}
+	if d.Status.ReadyReplicas != d.Spec.Replicas {
+		return fmt.Sprintf("ready replicas: %d/%d", d.Status.ReadyReplicas, d.Spec.Replicas)
+	}
+	if d.Status.AvailableReplicas != d.Spec.Replicas {
+		return fmt.Sprintf("available replicas: %d/%d", d.Status.AvailableReplicas, d.Spec.Replicas)
+	}
+	if d.Status.UnavailableReplicas != 0 {
+		return fmt.Sprintf("unavailable replicas: %d", d.Status.UnavailableReplicas)
+	}
+	return ""
 }
 
 // ServiceEndpointsCheck verifies a service has at least one endpoint.
@@ -76,6 +118,48 @@ func (c *ServiceEndpointsCheck) Check(ctx context.Context, kubeconfigPath string
 		return CheckResult{Name: name, Type: "service-endpoints", Verdict: VerdictFail, Message: "no endpoints"}
 	}
 	return CheckResult{Name: name, Type: "service-endpoints", Verdict: VerdictPass}
+}
+
+// ServiceReachableCheck verifies a service is reachable from a probe pod inside the cluster.
+type ServiceReachableCheck struct {
+	Namespace string
+	Name      string
+	SourcePod string
+}
+
+// Validate checks that required fields are set.
+func (c *ServiceReachableCheck) Validate() error {
+	if c.Namespace == "" {
+		return fmt.Errorf("verifier.ServiceReachableCheck: namespace is required")
+	}
+	if c.Name == "" {
+		return fmt.Errorf("verifier.ServiceReachableCheck: name is required")
+	}
+	if c.SourcePod == "" {
+		c.SourcePod = "net-client"
+	}
+	return nil
+}
+
+// Check runs kubectl exec from the probe pod and verifies an HTTP request succeeds.
+func (c *ServiceReachableCheck) Check(ctx context.Context, kubeconfigPath string) CheckResult {
+	name := fmt.Sprintf("service-reachable/%s/%s", c.Namespace, c.Name)
+	target := fmt.Sprintf("http://%s.%s.svc.cluster.local", c.Name, c.Namespace)
+	out, err := exec.CommandContext(ctx, "kubectl",
+		"--kubeconfig", kubeconfigPath,
+		"exec",
+		"-n", c.Namespace,
+		c.SourcePod,
+		"--",
+		"wget", "-q", "-O", "-", "-T", "5", target,
+	).CombinedOutput()
+	if err != nil {
+		return CheckResult{Name: name, Type: "service-reachable", Verdict: VerdictFail, Message: string(out)}
+	}
+	if strings.TrimSpace(string(out)) == "" {
+		return CheckResult{Name: name, Type: "service-reachable", Verdict: VerdictFail, Message: "empty response"}
+	}
+	return CheckResult{Name: name, Type: "service-reachable", Verdict: VerdictPass}
 }
 
 // HelmReleaseCheck verifies a Helm release is deployed.
@@ -176,6 +260,12 @@ func BuildCheckers(checks []CheckDef) ([]Checker, error) {
 			checkers = append(checkers, c)
 		case "service-endpoints":
 			c := &ServiceEndpointsCheck{Namespace: cd.Namespace, Name: cd.Name}
+			if err := c.Validate(); err != nil {
+				return nil, err
+			}
+			checkers = append(checkers, c)
+		case "service-reachable":
+			c := &ServiceReachableCheck{Namespace: cd.Namespace, Name: cd.Name, SourcePod: cd.Condition}
 			if err := c.Validate(); err != nil {
 				return nil, err
 			}

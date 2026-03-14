@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"strings"
+	"time"
 )
 
 // StepType identifies the kind of bootstrap action.
@@ -14,6 +16,7 @@ const (
 	StepKubectlCreate StepType = "kubectl-create"
 	StepKubectl       StepType = "kubectl"
 	StepHelmInstall   StepType = "helm-install"
+	StepSleep         StepType = "sleep"
 )
 
 // BootstrapStep describes a single bootstrap action.
@@ -24,6 +27,7 @@ type BootstrapStep struct {
 	Feature   string
 	Release   string
 	Namespace string
+	Duration  string
 	Args      []string
 }
 
@@ -31,9 +35,17 @@ type BootstrapStep struct {
 func (s *BootstrapStep) CommandArgs(kubeconfigPath string) []string {
 	switch s.Type {
 	case StepKubectlApply:
-		return []string{"kubectl", "--kubeconfig", kubeconfigPath, "apply", "-f", s.Path}
+		args := []string{"kubectl", "--kubeconfig", kubeconfigPath}
+		if s.Namespace != "" {
+			args = append(args, "-n", s.Namespace)
+		}
+		args = append(args, "apply", "-f", s.Path)
+		return args
 	case StepKubectlCreate:
 		args := []string{"kubectl", "--kubeconfig", kubeconfigPath, "create"}
+		if s.Namespace != "" {
+			args = append(args, "-n", s.Namespace)
+		}
 		return append(args, s.Args...)
 	case StepKubectl:
 		args := []string{"kubectl", "--kubeconfig", kubeconfigPath}
@@ -44,6 +56,8 @@ func (s *BootstrapStep) CommandArgs(kubeconfigPath string) []string {
 			args = append(args, "-n", s.Namespace)
 		}
 		return append(args, s.Args...)
+	case StepSleep:
+		return nil
 	default:
 		return nil
 	}
@@ -91,13 +105,32 @@ func NewBootstrapper(runner CommandRunner) *Bootstrapper {
 // Execute runs all steps in the plan sequentially.
 func (b *Bootstrapper) Execute(ctx context.Context, plan *BootstrapPlan, kubeconfigPath string) error {
 	for _, step := range plan.Steps {
+		if step.Type == StepSleep {
+			duration, err := time.ParseDuration(step.Duration)
+			if err != nil {
+				return fmt.Errorf("environment.Bootstrapper.Execute: step %s: parse duration %q: %w", step.Name, step.Duration, err)
+			}
+			timer := time.NewTimer(duration)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return fmt.Errorf("environment.Bootstrapper.Execute: step %s: %w", step.Name, ctx.Err())
+			case <-timer.C:
+			}
+			continue
+		}
 		args := step.CommandArgs(kubeconfigPath)
 		if len(args) == 0 {
 			return fmt.Errorf("environment.Bootstrapper.Execute: no command for step %s", step.Name)
 		}
 		cmd := exec.CommandContext(ctx, args[0], args[1:]...)
-		if _, err := b.Runner.Run(ctx, cmd); err != nil {
-			return fmt.Errorf("environment.Bootstrapper.Execute: step %s: %w", step.Name, err)
+		out, err := b.Runner.Run(ctx, cmd)
+		if err != nil {
+			message := fmt.Sprintf("environment.Bootstrapper.Execute: step %s: %v", step.Name, err)
+			if trimmed := strings.TrimSpace(string(out)); trimmed != "" {
+				message = fmt.Sprintf("%s: %s", message, trimmed)
+			}
+			return fmt.Errorf("%s", message)
 		}
 	}
 	return nil

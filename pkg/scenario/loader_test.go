@@ -15,6 +15,9 @@ timeout: "3m"
 bootstrap:
   - type: kubectl-apply
     path: fixtures/baseline.yaml
+after_break:
+  - type: kubectl-apply
+    path: fixtures/observe.yaml
 break:
   type: apply
   path: fixtures/broken.yaml
@@ -86,6 +89,38 @@ func TestLoad_ResolvesBreakPath(t *testing.T) {
 	}
 }
 
+func TestLoad_PreservesRemoteBootstrapPath(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "scenario.yaml"), []byte(`id: remote-bootstrap
+title: Remote bootstrap
+category: argocd
+prompt: prompts/task.md
+bootstrap:
+  - type: kubectl-apply
+    path: https://example.com/install.yaml
+checks:
+  - type: argocd-app-healthy
+    name: web
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "prompts"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "prompts", "task.md"), []byte("Fix it."), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Bootstrap[0].Path; got != "https://example.com/install.yaml" {
+		t.Fatalf("bootstrap path = %q, want remote URL", got)
+	}
+}
+
 func TestLoad_ResolvesBootstrapPaths(t *testing.T) {
 	t.Parallel()
 	dir := writeTestScenario(t)
@@ -98,6 +133,21 @@ func TestLoad_ResolvesBootstrapPaths(t *testing.T) {
 	}
 	if !filepath.IsAbs(s.Bootstrap[0].Path) {
 		t.Fatalf("bootstrap path not resolved: %s", s.Bootstrap[0].Path)
+	}
+}
+
+func TestLoad_ResolvesAfterBreakPaths(t *testing.T) {
+	t.Parallel()
+	dir := writeTestScenario(t)
+	s, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.AfterBreak) != 1 {
+		t.Fatalf("expected 1 after_break step, got %d", len(s.AfterBreak))
+	}
+	if !filepath.IsAbs(s.AfterBreak[0].Path) {
+		t.Fatalf("after_break path not resolved: %s", s.AfterBreak[0].Path)
 	}
 }
 

@@ -1,21 +1,13 @@
-# Broken Argo CD application source that makes sync fail.
-apiVersion: argoproj.io/v1alpha1
-kind: Application
+# Live drift that makes the app OutOfSync but still repairable via Argo CD.
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: guestbook
-  namespace: argocd
+  name: guestbook-ui
+  namespace: bench
 spec:
-  project: default
-  source:
-    repoURL: https://github.com/argoproj/argocd-example-apps.git
-    targetRevision: HEAD
-    path: does-not-exist
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: bench
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: guestbook-ui
+          image: gcr.io/heptio-images/ks-guestbook-demo:0.2

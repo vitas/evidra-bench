@@ -17,3 +17,13 @@ resources:
     memory: 128Mi
 
 fullNameOverride: ""
+
+dependency:
+  enabled: false
+  required: false
+  name: dependency-config
+  data:
+    FEATURE_FLAG: "enabled"
+
+hooks:
+  preUpgradeSleepSeconds: 0

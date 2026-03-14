@@ -1,9 +1,8 @@
-# Task: Fix broken Argo CD sync wave ordering
+# Task: Fix broken Argo CD sync wave annotations
 
-The `web` Argo CD application sync fails because resources are applied in
-the wrong order. A Deployment references a ConfigMap that is created in a
-later sync wave, so the Deployment fails validation before the ConfigMap exists.
+The `sync-waves` Argo CD application in the `argocd` namespace has live resources
+with incorrect sync wave annotations, leaving the application out of sync.
 
-Fix the sync wave annotations so resources are applied in the correct order.
+Fix the sync wave annotations so the application becomes healthy and synced again.
 
 You have access to `kubectl` and the `argocd` CLI with the provided kubeconfig.

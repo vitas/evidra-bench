@@ -1,5 +1,5 @@
 id: argocd-out-of-sync
-title: Fix an Argo CD application with a broken source configuration
+title: Fix an Argo CD application that is out of sync
 category: argocd
 tags: [argocd, sync, gitops]
 prompt: prompts/task.md
@@ -11,6 +11,7 @@ bootstrap:
   - name: install-argocd
     type: kubectl-apply
     path: https://raw.githubusercontent.com/argoproj/argo-cd/v2.13.3/manifests/install.yaml
+    namespace: argocd
   - name: wait-for-app-crd
     type: kubectl
     args:
@@ -48,6 +49,9 @@ bootstrap:
   - name: apply-guestbook-app
     type: kubectl-apply
     path: ../../../manifests/argocd/apps/guestbook.yaml
+  - name: let-guestbook-status-appear
+    type: sleep
+    duration: 15s
   - name: wait-for-guestbook-sync
     type: kubectl
     args:
@@ -69,6 +73,10 @@ bootstrap:
 break:
   type: kubectl-apply
   path: fixtures/drift.yaml
+after_break:
+  - name: let-argocd-detect-drift
+    type: sleep
+    duration: 15s
 checks:
   - type: argocd-app-healthy
     name: guestbook

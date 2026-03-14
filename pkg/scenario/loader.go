@@ -34,18 +34,31 @@ func Load(dir string) (*Scenario, error) {
 
 	// Resolve relative break path.
 	if s.Break.Path != "" && !filepath.IsAbs(s.Break.Path) {
+		if strings.HasPrefix(s.Break.Path, "http://") || strings.HasPrefix(s.Break.Path, "https://") {
+			goto resolveChart
+		}
 		s.Break.Path = filepath.Join(dir, s.Break.Path)
 	}
+resolveChart:
 	if s.Break.Chart != "" && !filepath.IsAbs(s.Break.Chart) {
 		s.Break.Chart = filepath.Join(dir, s.Break.Chart)
 	}
-	for i := range s.Bootstrap {
-		if s.Bootstrap[i].Path != "" && !filepath.IsAbs(s.Bootstrap[i].Path) {
-			s.Bootstrap[i].Path = filepath.Join(dir, s.Bootstrap[i].Path)
-		}
-	}
+	resolveStepPaths(dir, s.Bootstrap)
+	resolveStepPaths(dir, s.AfterBreak)
 
 	return &s, nil
+}
+
+func resolveStepPaths(dir string, steps []BootstrapStep) {
+	for i := range steps {
+		if steps[i].Path == "" || filepath.IsAbs(steps[i].Path) {
+			continue
+		}
+		if strings.HasPrefix(steps[i].Path, "http://") || strings.HasPrefix(steps[i].Path, "https://") {
+			continue
+		}
+		steps[i].Path = filepath.Join(dir, steps[i].Path)
+	}
 }
 
 // LoadAll loads all scenarios under a base directory by walking subdirectories.

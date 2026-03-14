@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: web
+  name: guestbook-ui
   namespace: bench
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: web
+      app: guestbook-ui
   template:
     metadata:
       labels:
-        app: web
+        app: guestbook-ui
     spec:
       containers:
-        - name: nginx
-          image: nginx:99.99-broken
+        - name: guestbook-ui
+          image: gcr.io/heptio-images/ks-guestbook-demo:99.99-broken
           ports:
             - containerPort: 80

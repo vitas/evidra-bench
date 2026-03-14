@@ -20,6 +20,10 @@ bootstrap:
 break:
   type: kubectl-apply
   path: fixtures/broken.yaml
+after_break:
+  - name: let-endpoints-update
+    type: sleep
+    duration: 5s
 baseline: manifests/baseline
 checks:
   - type: service-endpoints
