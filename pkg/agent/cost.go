@@ -1,6 +1,9 @@
 package agent
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // ModelPricing holds per-token pricing for a model (USD per 1M tokens).
 type ModelPricing struct {
@@ -45,17 +48,21 @@ func EstimateCost(model string, usage Usage) CostEstimate {
 }
 
 // LookupPricing returns pricing for a model. Returns zero pricing for unknown models.
+// Uses longest-prefix-match to avoid ambiguity (e.g. "openai/gpt-4o-mini" matches
+// "openai/gpt-4o-mini" not "openai/gpt-4o").
 func LookupPricing(model string) ModelPricing {
 	if p, ok := pricingTable[model]; ok {
 		return p
 	}
-	// Try prefix matching for provider/model format
+	bestLen := 0
+	var bestPricing ModelPricing
 	for prefix, p := range pricingTable {
-		if len(model) > len(prefix) && model[:len(prefix)] == prefix {
-			return p
+		if len(prefix) > bestLen && strings.HasPrefix(model, prefix) {
+			bestLen = len(prefix)
+			bestPricing = p
 		}
 	}
-	return ModelPricing{}
+	return bestPricing
 }
 
 // pricingTable contains known model pricing (USD per 1M tokens).

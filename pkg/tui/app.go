@@ -67,7 +67,10 @@ func NewApp(scenariosDir, cfgPath string, cfg LabConfig, deps harness.Deps) (*Ap
 		return nil, fmt.Errorf("tui.NewApp: %w", err)
 	}
 	items := BuildCatalog(scenarios)
-	runsDir := "runs"
+	runsDir := cfg.RunsDir
+	if runsDir == "" {
+		runsDir = "runs"
+	}
 	app := &App{
 		allItems:     items,
 		filtered:     items,
@@ -297,7 +300,7 @@ func (a *App) runScenario() tea.Cmd {
 			EvidraBin:         a.cfg.EvidraBin,
 			Timeout:           a.cfg.TimeoutDuration(),
 			DryRun:            a.cfg.DryRun,
-			RunsDir:           "runs",
+			RunsDir:           a.runsDir,
 			ClusterName:       "infra-bench",
 			EvidraEvidenceDir: a.cfg.EvidraEvidenceDir,
 		}

@@ -97,6 +97,24 @@ func (e *ToolExecutor) Execute(ctx context.Context, tc ToolCall) string {
 	}
 }
 
+// allowedCommandPrefixes restricts which commands the LLM can execute.
+var allowedCommandPrefixes = []string{
+	"kubectl", "helm", "argocd", "kind",
+	"cat", "echo", "grep", "head", "tail", "wc",
+	"jq", "yq",
+}
+
+// validateCommand checks that a command starts with an allowed prefix.
+func validateCommand(command string) error {
+	trimmed := strings.TrimSpace(command)
+	for _, prefix := range allowedCommandPrefixes {
+		if trimmed == prefix || strings.HasPrefix(trimmed, prefix+" ") {
+			return nil
+		}
+	}
+	return fmt.Errorf("command %q not in allowlist (allowed: %v)", truncate(trimmed, 50), allowedCommandPrefixes)
+}
+
 func (e *ToolExecutor) runCommand(ctx context.Context, argsJSON string) string {
 	var args struct {
 		Command string `json:"command"`
@@ -106,6 +124,9 @@ func (e *ToolExecutor) runCommand(ctx context.Context, argsJSON string) string {
 	}
 	if args.Command == "" {
 		return "error: command is required"
+	}
+	if err := validateCommand(args.Command); err != nil {
+		return fmt.Sprintf("error: %v", err)
 	}
 
 	cmd := exec.CommandContext(ctx, "bash", "-c", args.Command)

@@ -33,13 +33,10 @@ func Load(dir string) (*Scenario, error) {
 	}
 
 	// Resolve relative break path.
-	if s.Break.Path != "" && !filepath.IsAbs(s.Break.Path) {
-		if strings.HasPrefix(s.Break.Path, "http://") || strings.HasPrefix(s.Break.Path, "https://") {
-			goto resolveChart
-		}
+	if s.Break.Path != "" && !filepath.IsAbs(s.Break.Path) &&
+		!strings.HasPrefix(s.Break.Path, "http://") && !strings.HasPrefix(s.Break.Path, "https://") {
 		s.Break.Path = filepath.Join(dir, s.Break.Path)
 	}
-resolveChart:
 	if s.Break.Chart != "" && !filepath.IsAbs(s.Break.Chart) {
 		s.Break.Chart = filepath.Join(dir, s.Break.Chart)
 	}

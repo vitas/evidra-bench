@@ -40,10 +40,6 @@ func RunLoop(ctx context.Context, cfg LoopConfig) (*LoopResult, error) {
 	if cfg.MaxTokens <= 0 {
 		cfg.MaxTokens = 4096
 	}
-	if cfg.MemoryWindow == 0 {
-		cfg.MemoryWindow = -1
-	}
-
 	start := time.Now()
 	tools := BenchTools()
 
@@ -143,8 +139,10 @@ func buildContextWindow(messages []Message, memoryWindow int) []Message {
 		return messages
 	}
 
-	// Always include system prompt (index 0) and task prompt (index 1)
-	base := messages[:2]
+	// Always include system prompt (index 0) and task prompt (index 1).
+	// Deep copy base to avoid aliasing the original slice.
+	base := make([]Message, 2)
+	copy(base, messages[:2])
 	conversation := messages[2:]
 
 	if memoryWindow == 0 {
