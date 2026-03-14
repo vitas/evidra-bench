@@ -14,6 +14,7 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/harness"
 	"samebits.com/evidra-infra-bench/pkg/report"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"samebits.com/evidra-infra-bench/pkg/tui"
 )
 
 var version = "dev"
@@ -73,7 +74,38 @@ with optional Evidra reporting for behavioral analysis.`,
 	f.StringVar(&cfg.EvidraAPIKey, "evidra-api-key", cfg.EvidraAPIKey, "Evidra API key")
 	f.StringVar(&cfg.EvidraEvidenceDir, "evidra-evidence-dir", cfg.EvidraEvidenceDir, "evidence directory for protocol verification")
 
-	root.AddCommand(runCmd, scenarioCmd)
+	labCfg := tui.DefaultLabConfig()
+	labCmd := &cobra.Command{
+		Use:   "lab",
+		Short: "Interactive TUI for browsing and running scenarios",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			scenariosDir, err := filepath.Abs(cfg.ScenariosDir)
+			if err != nil {
+				return fmt.Errorf("resolve scenarios dir: %w", err)
+			}
+			cfgPath := filepath.Join(cfg.RunsDir, ".lab-config.yaml")
+			labCfg = tui.LoadLabConfig(cfgPath)
+			if cmd.Flags().Changed("adapter") {
+				labCfg.Adapter = cfg.Adapter
+			}
+			if cmd.Flags().Changed("agent-command") {
+				labCfg.AgentCommand = cfg.AgentCommand
+			}
+			if cmd.Flags().Changed("dry-run") {
+				labCfg.DryRun = cfg.DryRun
+			}
+			deps := harness.Deps{}
+			return tui.Run(scenariosDir, cfgPath, labCfg, deps)
+		},
+	}
+	lf := labCmd.Flags()
+	lf.StringVar(&cfg.ScenariosDir, "scenarios-dir", cfg.ScenariosDir, "base directory for scenarios")
+	lf.StringVar(&cfg.RunsDir, "runs-dir", cfg.RunsDir, "output directory for run artifacts")
+	lf.StringVar(&cfg.Adapter, "adapter", cfg.Adapter, "agent adapter type (cli, mcp)")
+	lf.StringVar(&cfg.AgentCommand, "agent-command", cfg.AgentCommand, "command to invoke the agent")
+	lf.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "start in dry-run mode")
+
+	root.AddCommand(runCmd, scenarioCmd, labCmd)
 	return root
 }
 
