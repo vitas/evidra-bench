@@ -29,5 +29,14 @@ checks:
   - type: deployment-ready
     namespace: bench
     name: web
+evidra:
+  enabled: true
+  min_prescriptions: 1
+  min_reports: 1
+  orphaned_prescriptions: 0
+  protocol_violations: 0
+  all_reports_have_verdict: true
+  expected_risk_level: low
+  retry_loop_max: 5
 scope:
   namespaces: [bench]

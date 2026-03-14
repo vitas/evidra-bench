@@ -29,5 +29,12 @@ checks:
   - type: deployment-ready
     namespace: bench
     name: app
+evidra:
+  enabled: true
+  min_prescriptions: 1
+  min_reports: 1
+  orphaned_prescriptions: 0
+  protocol_violations: 0
+  all_reports_have_verdict: true
 scope:
   namespaces: [bench]
