@@ -1,0 +1,16 @@
+id: broken-deployment
+title: Fix a broken deployment with bad image
+category: kubernetes
+tags: [deployment, image, readiness]
+prompt: prompts/task.md
+timeout: "3m"
+break:
+  type: apply
+  path: fixtures/broken.yaml
+baseline: manifests/baseline
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+scope:
+  namespaces: [bench]

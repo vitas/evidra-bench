@@ -1,0 +1,144 @@
+package scenario
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+const testScenarioYAML = `id: broken-deployment
+title: Fix a broken deployment
+category: kubernetes
+tags: [deployment, readiness]
+prompt: prompts/task.md
+timeout: "3m"
+break:
+  type: apply
+  path: fixtures/broken.yaml
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+scope:
+  namespaces: [bench]
+`
+
+func writeTestScenario(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "prompts"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "fixtures"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "scenario.yaml"), []byte(testScenarioYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "prompts", "task.md"), []byte("Fix the broken deployment."), 0644); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func TestLoad_ValidScenario(t *testing.T) {
+	t.Parallel()
+	dir := writeTestScenario(t)
+	s, err := Load(dir)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if s.ID != "broken-deployment" {
+		t.Fatalf("unexpected id: %s", s.ID)
+	}
+	if s.Category != "kubernetes" {
+		t.Fatalf("unexpected category: %s", s.Category)
+	}
+	if len(s.Checks) != 1 {
+		t.Fatalf("expected 1 check, got %d", len(s.Checks))
+	}
+}
+
+func TestLoad_ResolvesPromptPath(t *testing.T) {
+	t.Parallel()
+	dir := writeTestScenario(t)
+	s, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !filepath.IsAbs(s.Prompt) {
+		t.Fatalf("prompt path not resolved: %s", s.Prompt)
+	}
+}
+
+func TestLoad_ResolvesBreakPath(t *testing.T) {
+	t.Parallel()
+	dir := writeTestScenario(t)
+	s, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !filepath.IsAbs(s.Break.Path) {
+		t.Fatalf("break path not resolved: %s", s.Break.Path)
+	}
+}
+
+func TestLoad_MissingID(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	data := `title: test
+category: test
+prompt: task.md
+checks:
+  - type: deployment-ready
+`
+	if err := os.WriteFile(filepath.Join(dir, "scenario.yaml"), []byte(data), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(dir); err == nil {
+		t.Fatal("expected error for missing id")
+	}
+}
+
+func TestLoad_MissingChecks(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	data := `id: test
+title: test
+category: test
+prompt: task.md
+`
+	if err := os.WriteFile(filepath.Join(dir, "scenario.yaml"), []byte(data), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(dir); err == nil {
+		t.Fatal("expected error for missing checks")
+	}
+}
+
+func TestLoad_MissingFile(t *testing.T) {
+	t.Parallel()
+	if _, err := Load(t.TempDir()); err == nil {
+		t.Fatal("expected error for missing file")
+	}
+}
+
+func TestLoadAll_FindsScenarios(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	catDir := filepath.Join(base, "kubernetes", "broken-deployment")
+	if err := os.MkdirAll(catDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(catDir, "scenario.yaml"), []byte(testScenarioYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	scenarios, err := LoadAll(base)
+	if err != nil {
+		t.Fatalf("load all failed: %v", err)
+	}
+	if len(scenarios) != 1 {
+		t.Fatalf("expected 1 scenario, got %d", len(scenarios))
+	}
+}
