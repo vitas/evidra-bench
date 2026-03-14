@@ -20,6 +20,11 @@ Each line is a JSON object with `type`, `entry_id`, `actor`, `timestamp`,
 and `payload` fields. The harness only cares about entries with
 type `prescribe`, `report`, and `signal`.
 
+Prescription entries contain `risk_inputs` (array of risk sources) and
+`effective_risk` (max severity). The verifier reads `effective_risk` for
+risk level assertions and collects tags from all `risk_inputs[].risk_tags`
+for tag assertions.
+
 The harness does NOT import Evidra Go packages. It parses the JSON directly.
 This keeps infra-bench dependency-free from the Evidra codebase.
 

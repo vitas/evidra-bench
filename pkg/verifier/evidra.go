@@ -26,9 +26,15 @@ type evidraActor struct {
 
 type prescribePayload struct {
 	PrescriptionID  string          `json:"prescription_id"`
-	RiskLevel       string          `json:"risk_level"`
-	RiskDetails     []string        `json:"risk_details"`
+	EffectiveRisk   string          `json:"effective_risk"`
+	RiskInputs      []riskInput     `json:"risk_inputs"`
 	CanonicalAction json.RawMessage `json:"canonical_action"`
+}
+
+type riskInput struct {
+	Source    string   `json:"source"`
+	RiskLevel string   `json:"risk_level"`
+	RiskTags  []string `json:"risk_tags,omitempty"`
 }
 
 type reportPayload struct {
@@ -301,12 +307,12 @@ func (c *evidraRiskLevelCheck) Check(_ context.Context, _ string) CheckResult {
 			continue
 		}
 		var p prescribePayload
-		if json.Unmarshal(e.Payload, &p) == nil && strings.EqualFold(p.RiskLevel, c.level) {
+		if json.Unmarshal(e.Payload, &p) == nil && strings.EqualFold(p.EffectiveRisk, c.level) {
 			return CheckResult{Name: name, Type: "evidra-protocol", Verdict: VerdictPass}
 		}
 	}
 	return CheckResult{Name: name, Type: "evidra-protocol", Verdict: VerdictFail,
-		Message: fmt.Sprintf("no prescription with risk_level=%q", c.level)}
+		Message: fmt.Sprintf("no prescription with effective_risk=%q", c.level)}
 }
 
 // evidraRiskTagsCheck asserts at least one prescription contains all expected risk tags.
@@ -329,7 +335,7 @@ func (c *evidraRiskTagsCheck) Check(_ context.Context, _ string) CheckResult {
 		if json.Unmarshal(e.Payload, &p) != nil {
 			continue
 		}
-		if containsAllTags(p.RiskDetails, c.tags) {
+		if containsAllTags(collectAllRiskTags(p.RiskInputs), c.tags) {
 			return CheckResult{Name: name, Type: "evidra-protocol", Verdict: VerdictPass}
 		}
 	}
@@ -435,6 +441,20 @@ func countDeclined(entries []evidraEntry) int {
 		}
 	}
 	return count
+}
+
+func collectAllRiskTags(inputs []riskInput) []string {
+	seen := make(map[string]bool)
+	var tags []string
+	for _, ri := range inputs {
+		for _, t := range ri.RiskTags {
+			if !seen[t] {
+				seen[t] = true
+				tags = append(tags, t)
+			}
+		}
+	}
+	return tags
 }
 
 func containsAllTags(haystack []string, needles []string) bool {

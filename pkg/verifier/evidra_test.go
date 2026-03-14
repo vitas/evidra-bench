@@ -26,24 +26,28 @@ func writeEvidenceDir(t *testing.T, lines []string) string {
 	return dir
 }
 
-func prescribeEntry(id, prescriptionID, riskLevel string, riskDetails []string, intentDigest string) string {
-	riskDetailsJSON := "[]"
-	if len(riskDetails) > 0 {
-		riskDetailsJSON = `[`
-		for i, d := range riskDetails {
-			if i > 0 {
-				riskDetailsJSON += ","
+func prescribeEntry(id, prescriptionID, effectiveRisk string, riskTags []string, intentDigest string) string {
+	riskInputsJSON := "[]"
+	if effectiveRisk != "" {
+		tagsJSON := "[]"
+		if len(riskTags) > 0 {
+			tagsJSON = `[`
+			for i, t := range riskTags {
+				if i > 0 {
+					tagsJSON += ","
+				}
+				tagsJSON += fmt.Sprintf(`"%s"`, t)
 			}
-			riskDetailsJSON += fmt.Sprintf(`"%s"`, d)
+			tagsJSON += `]`
 		}
-		riskDetailsJSON += `]`
+		riskInputsJSON = fmt.Sprintf(`[{"source":"evidra/native","risk_level":"%s","risk_tags":%s}]`, effectiveRisk, tagsJSON)
 	}
 	canonicalJSON := `{}`
 	if intentDigest != "" {
 		canonicalJSON = fmt.Sprintf(`{"intent_digest":"%s"}`, intentDigest)
 	}
-	return fmt.Sprintf(`{"entry_id":"%s","type":"prescribe","actor":{"id":"agent"},"timestamp":"2026-01-01T00:00:00Z","payload":{"prescription_id":"%s","risk_level":"%s","risk_details":%s,"canonical_action":%s}}`,
-		id, prescriptionID, riskLevel, riskDetailsJSON, canonicalJSON)
+	return fmt.Sprintf(`{"entry_id":"%s","type":"prescribe","actor":{"id":"agent"},"timestamp":"2026-01-01T00:00:00Z","payload":{"prescription_id":"%s","effective_risk":"%s","risk_inputs":%s,"canonical_action":%s}}`,
+		id, prescriptionID, effectiveRisk, riskInputsJSON, canonicalJSON)
 }
 
 func reportEntry(id, prescriptionID, verdict string) string {
