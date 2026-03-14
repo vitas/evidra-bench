@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: bench
+  labels:
+    app: web
+    app.kubernetes.io/instance: web
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: web-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-config
+  namespace: bench
+  labels:
+    app: web
+    app.kubernetes.io/instance: web
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+data:
+  APP_ENV: "production"
+  APP_LOG_LEVEL: "info"
+  APP_PORT: "80"

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: helm-upgrade-marker
+  namespace: bench
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: web
+    meta.helm.sh/release-namespace: bench
+    infra-bench/break-description: |
+      Simulates a broken Helm upgrade. The web release was upgraded
+      from revision 1 (working) to revision 2 with a bad image tag
+      nginx:99.99-broken, causing pods to fail.
+data:
+  upgrade-status: "failed"
+  previous-revision: "1"
+  current-revision: "2"
+  bad-image: "nginx:99.99-broken"

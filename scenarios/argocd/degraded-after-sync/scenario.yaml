@@ -1,0 +1,17 @@
+id: argocd-degraded-after-sync
+title: Fix an Argo CD app that is Degraded after sync
+category: argocd
+tags: [argocd, health, degraded]
+prompt: prompts/task.md
+timeout: "5m"
+break:
+  type: apply
+  path: fixtures/bad-deployment.yaml
+checks:
+  - type: argocd-app-healthy
+    name: web
+  - type: deployment-ready
+    namespace: bench
+    name: web
+scope:
+  namespaces: [bench, argocd]

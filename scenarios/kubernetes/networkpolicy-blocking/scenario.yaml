@@ -1,0 +1,31 @@
+id: networkpolicy-blocking
+title: Fix a NetworkPolicy blocking all traffic to a service
+category: kubernetes
+tags: [networkpolicy, networking, ingress]
+prompt: prompts/task.md
+timeout: "5m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+  - type: service-endpoints
+    namespace: bench
+    name: web
+scope:
+  namespaces: [bench]

@@ -1,0 +1,14 @@
+id: argocd-sync-wave-ordering
+title: Fix broken Argo CD sync wave ordering
+category: argocd
+tags: [argocd, sync-waves, ordering]
+prompt: prompts/task.md
+timeout: "5m"
+break:
+  type: apply
+  path: fixtures/wrong-waves.yaml
+checks:
+  - type: argocd-app-healthy
+    name: web
+scope:
+  namespaces: [bench, argocd]
