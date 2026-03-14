@@ -8,9 +8,10 @@ Standalone benchmark harness for testing infrastructure agents against realistic
 2. Bootstraps the healthy baseline declared by the scenario
 3. Injects a known failure or drift condition
 4. Executes your agent via a generic adapter (CLI or MCP)
-5. Verifies the outcome with declarative checks
-6. Writes a complete local artifact bundle
-7. Always writes local benchmark evidence and can optionally forward it to [Evidra](https://github.com/samebits/evidra)
+5. Verifies infrastructure outcome with declarative checks
+6. Verifies agent protocol compliance against Evidra evidence (opt-in)
+7. Writes a complete local artifact bundle
+8. Always writes local benchmark evidence and can optionally forward it to [Evidra](https://github.com/samebits/evidra)
 
 ## Prerequisites
 
@@ -99,6 +100,27 @@ Launches your agent as an external process with environment variables:
 
 Launches an MCP-capable agent process with the same environment variables plus `INFRA_BENCH_ADAPTER=mcp`.
 
+## Two-Dimensional Evaluation
+
+infra-bench evaluates agents on two independent axes:
+
+**Infrastructure outcome** — did the agent fix the problem?
+Declarative checks verify cluster state: deployment ready, service endpoints
+reachable, Helm release deployed, ArgoCD app healthy.
+
+**Protocol compliance** — did the agent follow the prescribe/report protocol?
+When `evidra:` expectations are declared in a scenario, the harness reads the
+Evidra evidence chain after the run and asserts: every mutation was prescribed
+before execution, every prescribe has exactly one report, risk levels match
+expectations, declined verdicts are recorded with context.
+
+A scenario can pass on infrastructure but fail on protocol (agent fixed it
+but skipped prescribe), or pass on protocol but fail on infrastructure
+(agent followed protocol perfectly but didn't solve the problem). Both
+dimensions matter for reliable AI infrastructure agents.
+
+Scenarios without `evidra:` block are evaluated on infrastructure outcome only.
+
 ## CLI Flags
 
 ```
@@ -111,6 +133,7 @@ Launches an MCP-capable agent process with the same environment variables plus `
 --dry-run           validate without executing
 --evidra-url        Evidra API URL for online reporting
 --evidra-api-key    Evidra API key
+--evidra-evidence-dir   evidence directory for protocol verification (default: <runs-dir>/evidence)
 ```
 
 ## Artifacts
