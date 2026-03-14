@@ -154,15 +154,21 @@ scenarios/
 
 ## Evidra Benchmark (home repo) Relationship
 
-The evidra home repo (`../evidra-benchmark`) has complementary benchmark data:
+The evidra home repo (`../evidra-benchmark`) focuses on two areas:
 
-| System                       | What it tests                    | Format              | Overlap |
-|------------------------------|----------------------------------|---------------------|---------|
-| `tests/benchmark/cases/`     | Risk classification accuracy     | expected.json + artifact ref | None — static analysis |
-| `experiments/results/`       | MCP protocol compliance          | result.json + summary.jsonl  | Signals overlap       |
-| **This repo** (`scenarios/`) | Agent remediation + protocol     | scenario.yaml + evidra expectations | Combined evaluation |
+| System | What it tests | Format |
+|--------|---------------|--------|
+| `tests/benchmark/cases/` | Risk classification accuracy (static artifact analysis) | expected.json + artifact ref |
+| `tests/signal-validation/` | Signal engine calibration (scripted evidence sequences) | expected-bands.json |
 
-Together they cover: classification accuracy + protocol compliance + remediation capability + **protocol-aware remediation** (agent fixes infrastructure while following the prescribe/report protocol).
+**This repo** (`evidra-infra-bench`) owns all execution-mode testing:
+
+| System | What it tests | Format |
+|--------|---------------|--------|
+| `scenarios/` (21 scenarios) | Agent remediation + protocol compliance | scenario.yaml + evidra expectations |
+| `--provider` runs | Real agent tool-use loop via Bifrost/Claude | run artifacts + evidence chains |
+
+Together they cover: classification accuracy (home repo) + signal engine correctness (home repo) + agent remediation capability + protocol-aware remediation (this repo).
 
 ---
 
