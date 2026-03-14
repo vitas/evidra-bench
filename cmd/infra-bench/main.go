@@ -76,6 +76,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	f.StringVar(&cfg.Model, "model", cfg.Model, "model for agent (e.g. sonnet, opus, haiku)")
 	f.StringVar(&cfg.Provider, "provider", cfg.Provider, "LLM provider for tool-use agent loop (bifrost, claude)")
 	f.StringVar(&cfg.EvidraBin, "evidra-bin", cfg.EvidraBin, "path to evidra binary for protocol tools")
+	f.IntVar(&cfg.MemoryWindow, "memory-window", -1, "agent memory window (-1=full, 0=stateless, N=last N exchanges)")
 
 	labCfg := tui.DefaultLabConfig()
 	labCmd := &cobra.Command{
@@ -116,7 +117,29 @@ with optional Evidra reporting for behavioral analysis.`,
 	lf.StringVar(&cfg.Model, "model", cfg.Model, "model for agent (e.g. sonnet, opus, haiku)")
 	lf.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "start in dry-run mode")
 
-	root.AddCommand(runCmd, scenarioCmd, labCmd)
+	reportCmd := &cobra.Command{
+		Use:   "report",
+		Short: "Generate HTML report from run artifacts",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			scenariosDir, err := filepath.Abs(cfg.ScenariosDir)
+			if err != nil {
+				return fmt.Errorf("resolve scenarios dir: %w", err)
+			}
+			outputPath := filepath.Join(cfg.RunsDir, "report.html")
+			if len(args) > 0 {
+				outputPath = args[0]
+			}
+			if err := report.GenerateHTML(scenariosDir, cfg.RunsDir, outputPath); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Report written to %s\n", outputPath)
+			return nil
+		},
+	}
+	reportCmd.Flags().StringVar(&cfg.ScenariosDir, "scenarios-dir", cfg.ScenariosDir, "base directory for scenarios")
+	reportCmd.Flags().StringVar(&cfg.RunsDir, "runs-dir", cfg.RunsDir, "runs directory to scan")
+
+	root.AddCommand(runCmd, scenarioCmd, labCmd, reportCmd)
 	return root
 }
 

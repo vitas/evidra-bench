@@ -25,6 +25,7 @@ type Config struct {
 	EvidraBin           string
 	Model               string
 	Provider            string
+	MemoryWindow        int
 }
 
 // Default returns a Config with sensible offline-first defaults.

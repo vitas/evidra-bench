@@ -14,6 +14,7 @@ type LoopConfig struct {
 	Executor     *ToolExecutor
 	Model        string
 	MaxTurns     int
+	MemoryWindow int // -1 = full history (default), 0 = stateless, N = keep last N exchanges
 	Temperature  float64
 	MaxTokens    int
 	SystemPrompt string
@@ -22,12 +23,13 @@ type LoopConfig struct {
 
 // LoopResult is the outcome of the agent loop.
 type LoopResult struct {
-	Turns       int
-	Messages    []Message
-	TotalUsage  Usage
-	FinalOutput string
-	Completed   bool
-	Duration    time.Duration
+	Turns        int
+	Messages     []Message
+	TotalUsage   Usage
+	FinalOutput  string
+	Completed    bool
+	Duration     time.Duration
+	MemoryWindow int
 }
 
 // RunLoop executes the multi-turn tool-use agent loop.
@@ -37,6 +39,9 @@ func RunLoop(ctx context.Context, cfg LoopConfig) (*LoopResult, error) {
 	}
 	if cfg.MaxTokens <= 0 {
 		cfg.MaxTokens = 4096
+	}
+	if cfg.MemoryWindow == 0 {
+		cfg.MemoryWindow = -1
 	}
 
 	start := time.Now()
@@ -53,7 +58,8 @@ func RunLoop(ctx context.Context, cfg LoopConfig) (*LoopResult, error) {
 		tools = filtered
 	}
 
-	messages := []Message{
+	// Full message history (kept for transcript)
+	allMessages := []Message{
 		{Role: "system", Content: cfg.SystemPrompt},
 		{Role: "user", Content: cfg.TaskPrompt},
 	}
@@ -63,11 +69,19 @@ func RunLoop(ctx context.Context, cfg LoopConfig) (*LoopResult, error) {
 	finalOutput := ""
 
 	for turn := 0; turn < cfg.MaxTurns; turn++ {
-		log.Printf("[agent-loop] turn %d/%d provider=%s model=%s", turn+1, cfg.MaxTurns, cfg.Provider.Name(), cfg.Model)
+		windowLabel := "full"
+		if cfg.MemoryWindow >= 0 {
+			windowLabel = fmt.Sprintf("window=%d", cfg.MemoryWindow)
+		}
+		log.Printf("[agent-loop] turn %d/%d provider=%s model=%s memory=%s",
+			turn+1, cfg.MaxTurns, cfg.Provider.Name(), cfg.Model, windowLabel)
+
+		// Build the context window the model sees
+		contextMessages := buildContextWindow(allMessages, cfg.MemoryWindow)
 
 		resp, err := cfg.Provider.Chat(ctx, ChatRequest{
 			Model:       cfg.Model,
-			Messages:    messages,
+			Messages:    contextMessages,
 			Tools:       tools,
 			Temperature: cfg.Temperature,
 			MaxTokens:   cfg.MaxTokens,
@@ -79,13 +93,13 @@ func RunLoop(ctx context.Context, cfg LoopConfig) (*LoopResult, error) {
 		totalUsage.PromptTokens += resp.Usage.PromptTokens
 		totalUsage.CompletionTokens += resp.Usage.CompletionTokens
 
-		// Append assistant message
+		// Append assistant message to full history
 		assistantMsg := Message{
 			Role:      "assistant",
 			Content:   resp.Content,
 			ToolCalls: resp.ToolCalls,
 		}
-		messages = append(messages, assistantMsg)
+		allMessages = append(allMessages, assistantMsg)
 
 		if resp.Done() {
 			completed = true
@@ -98,7 +112,7 @@ func RunLoop(ctx context.Context, cfg LoopConfig) (*LoopResult, error) {
 			log.Printf("[agent-loop] tool_call: %s(%s)", tc.Name, truncate(tc.Arguments, 100))
 			result := cfg.Executor.Execute(ctx, tc)
 			log.Printf("[agent-loop] tool_result: %s", truncate(result, 200))
-			messages = append(messages, Message{
+			allMessages = append(allMessages, Message{
 				Role:       "tool",
 				Content:    result,
 				ToolCallID: tc.ID,
@@ -107,13 +121,71 @@ func RunLoop(ctx context.Context, cfg LoopConfig) (*LoopResult, error) {
 	}
 
 	return &LoopResult{
-		Turns:       len(messages),
-		Messages:    messages,
-		TotalUsage:  totalUsage,
-		FinalOutput: finalOutput,
-		Completed:   completed,
-		Duration:    time.Since(start),
+		Turns:        len(allMessages),
+		Messages:     allMessages,
+		TotalUsage:   totalUsage,
+		FinalOutput:  finalOutput,
+		Completed:    completed,
+		Duration:     time.Since(start),
+		MemoryWindow: cfg.MemoryWindow,
 	}, nil
+}
+
+// buildContextWindow returns the messages the model should see for this turn.
+//
+// memoryWindow semantics:
+//
+//	-1 = full history (all messages)
+//	 0 = stateless (system + task + last tool result only)
+//	 N = keep system + task + last N assistant/tool exchange pairs
+func buildContextWindow(messages []Message, memoryWindow int) []Message {
+	if memoryWindow < 0 || len(messages) <= 2 {
+		return messages
+	}
+
+	// Always include system prompt (index 0) and task prompt (index 1)
+	base := messages[:2]
+	conversation := messages[2:]
+
+	if memoryWindow == 0 {
+		// Stateless: only the last tool result (if any)
+		if len(conversation) == 0 {
+			return base
+		}
+		// Find the last tool result message and the assistant message before it
+		result := make([]Message, len(base))
+		copy(result, base)
+		lastIdx := len(conversation) - 1
+		// Include from the last assistant message through end
+		for i := lastIdx; i >= 0; i-- {
+			if conversation[i].Role == "assistant" {
+				result = append(result, conversation[i:]...)
+				return result
+			}
+		}
+		// Fallback: just the last message
+		result = append(result, conversation[lastIdx])
+		return result
+	}
+
+	// Window of N: count assistant messages from the end
+	// Each "exchange" is an assistant message + its tool results
+	assistantCount := 0
+	cutoff := 0
+	for i := len(conversation) - 1; i >= 0; i-- {
+		if conversation[i].Role == "assistant" {
+			assistantCount++
+			if assistantCount >= memoryWindow {
+				cutoff = i
+				break
+			}
+		}
+	}
+
+	result := make([]Message, len(base))
+	copy(result, base)
+	result = append(result, conversation[cutoff:]...)
+	return result
 }
 
 func truncate(s string, n int) string {

@@ -346,6 +346,7 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		},
 		Model:        req.Config.Model,
 		MaxTurns:     25,
+		MemoryWindow: req.Config.MemoryWindow,
 		SystemPrompt: systemPrompt,
 		TaskPrompt:   promptContent,
 	})
