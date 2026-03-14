@@ -1,0 +1,29 @@
+id: crashloop-backoff
+title: Fix a pod stuck in CrashLoopBackOff
+category: kubernetes
+tags: [pod, crashloop, container]
+prompt: prompts/task.md
+timeout: "3m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/app
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+baseline: manifests/baseline
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: app
+scope:
+  namespaces: [bench]

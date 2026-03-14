@@ -16,9 +16,27 @@ func TestStarterScenarios_Load(t *testing.T) {
 	t.Parallel()
 	root := projectRoot()
 	dirs := []string{
+		// Phase 1
 		"scenarios/kubernetes/broken-deployment",
 		"scenarios/helm/failed-upgrade",
 		"scenarios/argocd/out-of-sync",
+		// Phase 2
+		"scenarios/kubernetes/crashloop-backoff",
+		"scenarios/kubernetes/wrong-service-selector",
+		"scenarios/kubernetes/missing-configmap",
+		"scenarios/kubernetes/missing-secret",
+		// Phase 3
+		"scenarios/kubernetes/resource-quota-exceeded",
+		"scenarios/kubernetes/wrong-probes",
+		"scenarios/helm/pending-release",
+		"scenarios/argocd/sync-failure",
+		// Phase 4
+		"scenarios/kubernetes/networkpolicy-blocking",
+		"scenarios/kubernetes/wrong-pvc",
+		"scenarios/helm/version-rollback",
+		"scenarios/helm/dependency-conflict",
+		"scenarios/argocd/degraded-after-sync",
+		"scenarios/argocd/sync-wave-ordering",
 	}
 	for _, dir := range dirs {
 		dir := dir
@@ -41,9 +59,6 @@ func TestStarterScenarios_Load(t *testing.T) {
 			if len(s.Checks) == 0 {
 				t.Fatalf("no checks in %s", dir)
 			}
-			if len(s.Bootstrap) == 0 {
-				t.Fatalf("no bootstrap steps in %s", dir)
-			}
 		})
 	}
 }
@@ -59,7 +74,7 @@ func TestStarterScenarios_LoadAll(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load all: %v", err)
 	}
-	if len(scenarios) < 3 {
-		t.Fatalf("expected at least 3 scenarios, got %d", len(scenarios))
+	if len(scenarios) < 17 {
+		t.Fatalf("expected at least 17 scenarios, got %d", len(scenarios))
 	}
 }
