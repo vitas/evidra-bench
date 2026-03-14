@@ -1,7 +1,8 @@
 package main
 
 import (
-	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -24,14 +25,71 @@ func TestRunCommand_MissingScenario(t *testing.T) {
 }
 
 func TestRunCommand_DryRun(t *testing.T) {
-	var buf bytes.Buffer
+	// Create a temporary scenario directory.
+	dir := t.TempDir()
+	scenarioDir := filepath.Join(dir, "kubernetes", "broken-deployment")
+	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	yamlContent := `id: broken-deployment
+title: Fix broken deployment
+category: kubernetes
+prompt: prompts/task.md
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "scenario.yaml"), []byte(yamlContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	var buf strings.Builder
 	cmd := newRootCommand()
 	cmd.SetOut(&buf)
-	cmd.SetArgs([]string{"run", "--scenario", "kubernetes/broken-deployment", "--dry-run"})
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{
+		"run",
+		"--scenario", "kubernetes/broken-deployment",
+		"--scenarios-dir", dir,
+		"--dry-run",
+	})
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("run failed: %v", err)
 	}
-	if !strings.Contains(buf.String(), "scenario=kubernetes/broken-deployment") {
+	if !strings.Contains(buf.String(), "broken-deployment") {
 		t.Fatalf("unexpected output: %s", buf.String())
+	}
+}
+
+func TestScenarioListCommand(t *testing.T) {
+	dir := t.TempDir()
+	scenarioDir := filepath.Join(dir, "kubernetes", "broken-deployment")
+	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	yamlContent := `id: broken-deployment
+title: Fix broken deployment
+category: kubernetes
+prompt: prompts/task.md
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "scenario.yaml"), []byte(yamlContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	var buf strings.Builder
+	cmd := newRootCommand()
+	cmd.SetOut(&buf)
+	cmd.SetArgs([]string{"scenario", "list", "--scenarios-dir", dir})
+	// The "scenario list" is a single command with Use: "scenario list",
+	// but cobra parses it as subcommand. Let me fix the approach.
+	// Actually with Use: "scenario list", cobra treats "scenario" as the command
+	// and "list" as the first arg. Let me update the test.
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("list failed: %v", err)
 	}
 }

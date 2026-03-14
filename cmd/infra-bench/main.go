@@ -3,9 +3,17 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
+	"samebits.com/evidra-infra-bench/pkg/adapter"
+	"samebits.com/evidra-infra-bench/pkg/artifact"
 	"samebits.com/evidra-infra-bench/pkg/config"
+	"samebits.com/evidra-infra-bench/pkg/environment"
+	"samebits.com/evidra-infra-bench/pkg/harness"
+	"samebits.com/evidra-infra-bench/pkg/report"
+	"samebits.com/evidra-infra-bench/pkg/scenario"
 )
 
 var version = "dev"
@@ -31,10 +39,25 @@ with optional Evidra reporting for behavioral analysis.`,
 			if err := cfg.Validate(); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "scenario=%s adapter=%s\n", cfg.Scenario, cfg.Adapter)
-			return nil
+			return executeRun(cmd, cfg)
 		},
 	}
+
+	scenarioCmd := &cobra.Command{
+		Use:   "scenario",
+		Short: "Manage benchmark scenarios",
+	}
+
+	listCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List available scenarios",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return listScenarios(cmd, cfg)
+		},
+	}
+
+	scenarioCmd.AddCommand(listCmd)
+	scenarioCmd.PersistentFlags().StringVar(&cfg.ScenariosDir, "scenarios-dir", cfg.ScenariosDir, "base directory for scenarios")
 
 	f := runCmd.Flags()
 	f.StringVar(&cfg.Scenario, "scenario", cfg.Scenario, "scenario path relative to scenarios dir")
@@ -49,8 +72,86 @@ with optional Evidra reporting for behavioral analysis.`,
 	f.StringVar(&cfg.EvidraURL, "evidra-url", cfg.EvidraURL, "Evidra API URL for online reporting")
 	f.StringVar(&cfg.EvidraAPIKey, "evidra-api-key", cfg.EvidraAPIKey, "Evidra API key")
 
-	root.AddCommand(runCmd)
+	root.AddCommand(runCmd, scenarioCmd)
 	return root
+}
+
+func executeRun(cmd *cobra.Command, cfg config.Config) error {
+	scenarioDir := filepath.Join(cfg.ScenariosDir, cfg.Scenario)
+	s, err := scenario.Load(scenarioDir)
+	if err != nil {
+		return fmt.Errorf("load scenario: %w", err)
+	}
+
+	var agentAdapter adapter.Adapter
+	switch cfg.Adapter {
+	case "cli":
+		agentAdapter = adapter.NewCLIAdapter()
+	case "mcp":
+		agentAdapter = adapter.NewMCPAdapter()
+	default:
+		return fmt.Errorf("unknown adapter: %s", cfg.Adapter)
+	}
+
+	envProvider := environment.NewKindProvider()
+	runner := &environment.ExecRunner{}
+	bootstrapper := environment.NewBootstrapper(runner)
+	writer := artifact.NewWriter(cfg.RunsDir)
+
+	var reporter *report.Reporter
+	if cfg.EvidraURL != "" || cfg.EvidraAPIKey != "" {
+		reporter = report.NewReporter(report.Config{
+			EvidencePath: filepath.Join(cfg.RunsDir, "evidra"),
+			EvidraURL:    cfg.EvidraURL,
+			EvidraAPIKey: cfg.EvidraAPIKey,
+		})
+	}
+
+	h := harness.New(harness.Deps{
+		EnvProvider:  envProvider,
+		Bootstrapper: bootstrapper,
+		Adapter:      agentAdapter,
+		Writer:       writer,
+		Reporter:     reporter,
+	})
+
+	result, err := h.Run(cmd.Context(), harness.RunRequest{
+		Config:   cfg,
+		Scenario: s,
+	})
+	if err != nil {
+		return err
+	}
+
+	verdict := "PASS"
+	if !result.Passed {
+		verdict = "FAIL"
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "[%s] scenario=%s duration=%s exit_code=%d\n",
+		verdict, result.ScenarioID, result.Duration.Round(time.Millisecond), result.ExitCode)
+	if result.ArtifactDir != "" {
+		fmt.Fprintf(cmd.OutOrStdout(), "artifacts: %s\n", result.ArtifactDir)
+	}
+
+	if !result.Passed {
+		os.Exit(1)
+	}
+	return nil
+}
+
+func listScenarios(cmd *cobra.Command, cfg config.Config) error {
+	scenarios, err := scenario.LoadAll(cfg.ScenariosDir)
+	if err != nil {
+		return fmt.Errorf("list scenarios: %w", err)
+	}
+	if len(scenarios) == 0 {
+		fmt.Fprintln(cmd.OutOrStdout(), "no scenarios found")
+		return nil
+	}
+	for _, s := range scenarios {
+		fmt.Fprintf(cmd.OutOrStdout(), "%-30s %s\n", s.ID, s.Title)
+	}
+	return nil
 }
 
 func main() {
