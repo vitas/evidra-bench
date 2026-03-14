@@ -8,9 +8,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"samebits.com/evidra-infra-bench/pkg/adapter"
+	"samebits.com/evidra-infra-bench/pkg/agent"
 	"samebits.com/evidra-infra-bench/pkg/artifact"
 	"samebits.com/evidra-infra-bench/pkg/config"
 	"samebits.com/evidra-infra-bench/pkg/environment"
@@ -131,15 +133,20 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		return nil, fmt.Errorf("harness.Run: create runs dir: %w", err)
 	}
 
-	agentResult, err := h.deps.Adapter.Run(ctx, adapter.RunInput{
-		ScenarioID:     s.ID,
-		PromptPath:     s.Prompt,
-		WorkspaceDir:   req.Config.RunsDir,
-		KubeconfigPath: handle.KubeconfigPath,
-		Timeout:        timeout,
-		AgentCommand:   req.Config.AgentCommand,
-		Model:          req.Config.Model,
-	})
+	var agentResult *adapter.RunResult
+	if req.Config.Provider != "" {
+		agentResult, err = h.runWithProvider(ctx, req, s, handle.KubeconfigPath, promptContent, timeout)
+	} else {
+		agentResult, err = h.deps.Adapter.Run(ctx, adapter.RunInput{
+			ScenarioID:     s.ID,
+			PromptPath:     s.Prompt,
+			WorkspaceDir:   req.Config.RunsDir,
+			KubeconfigPath: handle.KubeconfigPath,
+			Timeout:        timeout,
+			AgentCommand:   req.Config.AgentCommand,
+			Model:          req.Config.Model,
+		})
+	}
 	if err != nil {
 		return nil, fmt.Errorf("harness.Run: execute agent: %w", err)
 	}
@@ -302,6 +309,83 @@ func buildStepPlan(steps []scenario.BootstrapStep) *environment.BootstrapPlan {
 		})
 	}
 	return plan
+}
+
+func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenario.Scenario, kubeconfigPath, promptContent string, timeout time.Duration) (*adapter.RunResult, error) {
+	provider, err := agent.ResolveProvider(req.Config.Provider)
+	if err != nil {
+		return nil, err
+	}
+
+	evidenceDir := req.Config.EvidraEvidenceDir
+	if evidenceDir == "" {
+		evidenceDir = filepath.Join(req.Config.RunsDir, "evidence")
+	}
+	if err := os.MkdirAll(evidenceDir, 0755); err != nil {
+		return nil, fmt.Errorf("harness: create evidence dir: %w", err)
+	}
+
+	systemPrompt := fmt.Sprintf(
+		"You are an infrastructure agent. Fix the problem described in the task.\n"+
+			"KUBECONFIG is already set. Use kubectl, helm, or other tools via the run_command tool.\n"+
+			"For mutations: call evidra_prescribe BEFORE, then run_command, then evidra_report AFTER.\n"+
+			"For read-only commands (get, describe, logs): just use run_command directly.\n"+
+			"Namespace: %s",
+		strings.Join(s.Scope.Namespaces, ", "),
+	)
+
+	agentCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	loopResult, err := agent.RunLoop(agentCtx, agent.LoopConfig{
+		Provider: provider,
+		Executor: &agent.ToolExecutor{
+			KubeconfigPath: kubeconfigPath,
+			EvidencePath:   evidenceDir,
+			EvidraBin:      req.Config.EvidraBin,
+		},
+		Model:        req.Config.Model,
+		MaxTurns:     25,
+		SystemPrompt: systemPrompt,
+		TaskPrompt:   promptContent,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("harness: agent loop: %w", err)
+	}
+
+	// Build transcript from messages
+	var transcript strings.Builder
+	for _, m := range loopResult.Messages {
+		transcript.WriteString(fmt.Sprintf("[%s] %s\n", m.Role, truncateForLog(m.Content, 500)))
+		for _, tc := range m.ToolCalls {
+			transcript.WriteString(fmt.Sprintf("  -> %s(%s)\n", tc.Name, truncateForLog(tc.Arguments, 200)))
+		}
+	}
+
+	exitCode := 0
+	if !loopResult.Completed {
+		exitCode = 1
+	}
+
+	return &adapter.RunResult{
+		ExitCode:   exitCode,
+		Transcript: transcript.String(),
+		Stdout:     loopResult.FinalOutput,
+		Metadata: map[string]string{
+			"provider":          req.Config.Provider,
+			"model":             req.Config.Model,
+			"turns":             fmt.Sprintf("%d", loopResult.Turns),
+			"prompt_tokens":     fmt.Sprintf("%d", loopResult.TotalUsage.PromptTokens),
+			"completion_tokens": fmt.Sprintf("%d", loopResult.TotalUsage.CompletionTokens),
+		},
+	}, nil
+}
+
+func truncateForLog(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
 }
 
 func breakCommandArgs(kubeconfigPath string, s *scenario.Scenario) ([]string, error) {
