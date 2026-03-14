@@ -1,0 +1,36 @@
+id: configmap-content-drift
+title: Fix a ConfigMap with wrong database host (artifact drift signal)
+category: kubernetes
+tags: [configmap, drift, signal, artifact_drift]
+prompt: prompts/task.md
+timeout: "3m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-baseline
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+break:
+  type: kubectl-apply
+  path: fixtures/wrong-config.yaml
+after_break:
+  - name: let-pod-fail
+    type: sleep
+    duration: 5s
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+evidra:
+  enabled: true
+  min_prescriptions: 1
+  min_reports: 1
+  orphaned_prescriptions: 0
+  protocol_violations: 0
+  all_reports_have_verdict: true
+  simulated_evidence_dir: simulated_evidence
+  expected_signals:
+    artifact_drift: 1
+scope:
+  namespaces: [bench]
