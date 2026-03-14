@@ -158,6 +158,31 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	}
 	verifyResult := verifier.RunChecks(ctx, handle.KubeconfigPath, checkers)
 
+	// Step 5b: Verify Evidra protocol compliance.
+	if s.Evidra.Enabled {
+		evidenceDir := req.Config.EvidraEvidenceDir
+		if evidenceDir == "" {
+			evidenceDir = filepath.Join(req.Config.RunsDir, "evidence")
+		}
+		evidraCheckers := verifier.BuildEvidraCheckers(verifier.EvidraCheckConfig{
+			MinPrescriptions:      s.Evidra.MinPrescriptions,
+			MinReports:            s.Evidra.MinReports,
+			OrphanedPrescriptions: s.Evidra.OrphanedPrescriptions,
+			ProtocolViolations:    s.Evidra.ProtocolViolations,
+			AllReportsHaveVerdict: s.Evidra.AllReportsHaveVerdict,
+			ExpectedRiskLevel:     s.Evidra.ExpectedRiskLevel,
+			ExpectedRiskTags:      s.Evidra.ExpectedRiskTags,
+			DeclinedMin:           s.Evidra.DeclinedMin,
+			DeclinedMax:           s.Evidra.DeclinedMax,
+			RetryLoopMax:          s.Evidra.RetryLoopMax,
+		}, evidenceDir)
+		evidraResult := verifier.RunChecks(ctx, handle.KubeconfigPath, evidraCheckers)
+		verifyResult.Checks = append(verifyResult.Checks, evidraResult.Checks...)
+		if !evidraResult.Passed {
+			verifyResult.Passed = false
+		}
+	}
+
 	// Step 6: Write artifacts.
 	endTime := time.Now()
 	checksJSON, _ := json.Marshal(verifyResult)
