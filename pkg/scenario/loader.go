@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -20,6 +21,7 @@ func Load(dir string) (*Scenario, error) {
 	if err := yaml.Unmarshal(data, &s); err != nil {
 		return nil, fmt.Errorf("scenario.Load: parse %s: %w", path, err)
 	}
+	s.Dir = dir
 
 	if err := validate(&s); err != nil {
 		return nil, fmt.Errorf("scenario.Load: %w", err)
@@ -33,6 +35,14 @@ func Load(dir string) (*Scenario, error) {
 	// Resolve relative break path.
 	if s.Break.Path != "" && !filepath.IsAbs(s.Break.Path) {
 		s.Break.Path = filepath.Join(dir, s.Break.Path)
+	}
+	if s.Break.Chart != "" && !filepath.IsAbs(s.Break.Chart) {
+		s.Break.Chart = filepath.Join(dir, s.Break.Chart)
+	}
+	for i := range s.Bootstrap {
+		if s.Bootstrap[i].Path != "" && !filepath.IsAbs(s.Bootstrap[i].Path) {
+			s.Bootstrap[i].Path = filepath.Join(dir, s.Bootstrap[i].Path)
+		}
 	}
 
 	return &s, nil
@@ -68,10 +78,35 @@ func LoadAll(baseDir string) ([]*Scenario, error) {
 			if err != nil {
 				return nil, err
 			}
+			s.Path = filepath.ToSlash(filepath.Join(category.Name(), entry.Name()))
 			scenarios = append(scenarios, s)
 		}
 	}
 	return scenarios, nil
+}
+
+// Resolve loads a scenario by relative path or by scenario id.
+func Resolve(baseDir, ref string) (*Scenario, error) {
+	directDir := filepath.Join(baseDir, ref)
+	if _, err := os.Stat(filepath.Join(directDir, "scenario.yaml")); err == nil {
+		s, err := Load(directDir)
+		if err != nil {
+			return nil, err
+		}
+		s.Path = filepath.ToSlash(ref)
+		return s, nil
+	}
+
+	scenarios, err := LoadAll(baseDir)
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range scenarios {
+		if s.ID == ref || strings.EqualFold(s.ID, ref) || s.Path == filepath.ToSlash(ref) {
+			return s, nil
+		}
+	}
+	return nil, fmt.Errorf("scenario.Resolve: scenario %q not found", ref)
 }
 
 func validate(s *Scenario) error {

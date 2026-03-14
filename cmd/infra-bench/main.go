@@ -77,8 +77,13 @@ with optional Evidra reporting for behavioral analysis.`,
 }
 
 func executeRun(cmd *cobra.Command, cfg config.Config) error {
-	scenarioDir := filepath.Join(cfg.ScenariosDir, cfg.Scenario)
-	s, err := scenario.Load(scenarioDir)
+	scenariosDir, err := filepath.Abs(cfg.ScenariosDir)
+	if err != nil {
+		return fmt.Errorf("resolve scenarios dir: %w", err)
+	}
+	cfg.ScenariosDir = scenariosDir
+
+	s, err := scenario.Resolve(cfg.ScenariosDir, cfg.Scenario)
 	if err != nil {
 		return fmt.Errorf("load scenario: %w", err)
 	}
@@ -94,18 +99,16 @@ func executeRun(cmd *cobra.Command, cfg config.Config) error {
 	}
 
 	envProvider := environment.NewKindProvider()
+	envProvider.ReuseExisting = cfg.ReuseCluster
 	runner := &environment.ExecRunner{}
 	bootstrapper := environment.NewBootstrapper(runner)
 	writer := artifact.NewWriter(cfg.RunsDir)
 
-	var reporter *report.Reporter
-	if cfg.EvidraURL != "" || cfg.EvidraAPIKey != "" {
-		reporter = report.NewReporter(report.Config{
-			EvidencePath: filepath.Join(cfg.RunsDir, "evidra"),
-			EvidraURL:    cfg.EvidraURL,
-			EvidraAPIKey: cfg.EvidraAPIKey,
-		})
-	}
+	reporter := report.NewReporter(report.Config{
+		EvidencePath: filepath.Join(cfg.RunsDir, "evidra"),
+		EvidraURL:    cfg.EvidraURL,
+		EvidraAPIKey: cfg.EvidraAPIKey,
+	})
 
 	h := harness.New(harness.Deps{
 		EnvProvider:  envProvider,
@@ -149,7 +152,7 @@ func listScenarios(cmd *cobra.Command, cfg config.Config) error {
 		return nil
 	}
 	for _, s := range scenarios {
-		fmt.Fprintf(cmd.OutOrStdout(), "%-30s %s\n", s.ID, s.Title)
+		fmt.Fprintf(cmd.OutOrStdout(), "%-30s %s (%s)\n", s.Path, s.Title, s.ID)
 	}
 	return nil
 }

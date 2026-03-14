@@ -5,12 +5,12 @@ Standalone benchmark harness for testing infrastructure agents against realistic
 ## What It Does
 
 1. Provisions a disposable `kind` cluster
-2. Deploys a baseline workload and optionally Argo CD
+2. Bootstraps the healthy baseline declared by the scenario
 3. Injects a known failure or drift condition
 4. Executes your agent via a generic adapter (CLI or MCP)
 5. Verifies the outcome with declarative checks
 6. Writes a complete local artifact bundle
-7. Optionally reports to [Evidra](https://github.com/samebits/evidra)
+7. Always writes local benchmark evidence and can optionally forward it to [Evidra](https://github.com/samebits/evidra)
 
 ## Prerequisites
 
@@ -18,7 +18,6 @@ Standalone benchmark harness for testing infrastructure agents against realistic
 - [kind](https://kind.sigs.k8s.io/)
 - kubectl
 - helm (for Helm scenarios)
-- argocd CLI (for Argo CD scenarios)
 
 ## Quick Start
 
@@ -28,6 +27,9 @@ make build
 
 # List available scenarios
 ./bin/infra-bench scenario list
+
+# The list output can be passed back to run directly, or you can use the scenario id
+./bin/infra-bench run --scenario broken-deployment --dry-run
 
 # Dry-run a scenario (validates without provisioning a cluster)
 ./bin/infra-bench run \
@@ -67,8 +69,12 @@ title: Fix something broken
 category: kubernetes
 prompt: prompts/task.md
 timeout: "3m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
 break:
-  type: apply
+  type: kubectl-apply
   path: fixtures/broken.yaml
 checks:
   - type: deployment-ready
@@ -100,7 +106,7 @@ Launches an MCP-capable agent process with the same environment variables plus `
 --adapter           cli or mcp (default: cli)
 --agent-command     command to invoke the agent
 --timeout           agent execution timeout (default: 5m)
---reuse-cluster     skip cluster creation/deletion
+--reuse-cluster     reuse an existing kind cluster and keep it after the run
 --cluster-name      kind cluster name (default: infra-bench)
 --dry-run           validate without executing
 --evidra-url        Evidra API URL for online reporting
@@ -119,7 +125,12 @@ stdout.txt          # Process stdout
 stderr.txt          # Process stderr
 tool-calls.json     # Tool call log
 verifier.json       # Check results
-evidra/             # Optional Evidra evidence
+```
+
+Offline benchmark evidence is appended under:
+
+```
+runs/evidra/evidence.jsonl
 ```
 
 ## Development

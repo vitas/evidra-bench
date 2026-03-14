@@ -2,6 +2,7 @@ package harness
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -140,5 +141,36 @@ func TestHarness_ReuseCluster_NoDestroy(t *testing.T) {
 	}
 	if fp.destroyed {
 		t.Fatal("environment should not be destroyed when reuse-cluster is set")
+	}
+}
+
+func TestBreakCommandArgs_HelmUpgrade(t *testing.T) {
+	t.Parallel()
+	s := &scenario.Scenario{
+		ID: "helm-failed-upgrade",
+		Break: scenario.Break{
+			Type:      "helm-upgrade",
+			Name:      "web",
+			Namespace: "bench",
+			Chart:     "/repo/charts/web",
+			Path:      "/repo/scenarios/helm/failed-upgrade/fixtures/bad-values.yaml",
+		},
+	}
+
+	args, err := breakCommandArgs("/tmp/kubeconfig", s)
+	if err != nil {
+		t.Fatalf("breakCommandArgs failed: %v", err)
+	}
+	got := strings.Join(args, " ")
+	for _, want := range []string{
+		"helm",
+		"--kubeconfig /tmp/kubeconfig",
+		"upgrade web /repo/charts/web",
+		"-n bench",
+		"-f /repo/scenarios/helm/failed-upgrade/fixtures/bad-values.yaml",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("command %q missing %q", got, want)
+		}
 	}
 }

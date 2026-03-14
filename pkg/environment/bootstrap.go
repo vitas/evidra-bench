@@ -12,16 +12,19 @@ type StepType string
 const (
 	StepKubectlApply  StepType = "kubectl-apply"
 	StepKubectlCreate StepType = "kubectl-create"
+	StepKubectl       StepType = "kubectl"
 	StepHelmInstall   StepType = "helm-install"
 )
 
 // BootstrapStep describes a single bootstrap action.
 type BootstrapStep struct {
-	Name    string
-	Type    StepType
-	Path    string
-	Feature string
-	Args    []string
+	Name      string
+	Type      StepType
+	Path      string
+	Feature   string
+	Release   string
+	Namespace string
+	Args      []string
 }
 
 // CommandArgs returns the shell command arguments for this step.
@@ -32,8 +35,15 @@ func (s *BootstrapStep) CommandArgs(kubeconfigPath string) []string {
 	case StepKubectlCreate:
 		args := []string{"kubectl", "--kubeconfig", kubeconfigPath, "create"}
 		return append(args, s.Args...)
+	case StepKubectl:
+		args := []string{"kubectl", "--kubeconfig", kubeconfigPath}
+		return append(args, s.Args...)
 	case StepHelmInstall:
-		return []string{"helm", "--kubeconfig", kubeconfigPath, "install", s.Name, s.Path}
+		args := []string{"helm", "--kubeconfig", kubeconfigPath, "upgrade", "--install", s.Release, s.Path}
+		if s.Namespace != "" {
+			args = append(args, "-n", s.Namespace)
+		}
+		return append(args, s.Args...)
 	default:
 		return nil
 	}
@@ -54,28 +64,15 @@ func (p *BootstrapPlan) Requires(feature string) bool {
 	return false
 }
 
-// DefaultBootstrapPlan returns the standard bootstrap plan with namespaces,
-// Argo CD, and a baseline workload.
+// DefaultBootstrapPlan returns the common bootstrap plan shared by all scenarios.
 func DefaultBootstrapPlan() *BootstrapPlan {
 	return &BootstrapPlan{
 		Steps: []BootstrapStep{
 			{
-				Name:    "create-bench-namespace",
-				Type:    StepKubectlCreate,
+				Name:    "apply-bench-namespace",
+				Type:    StepKubectlApply,
+				Path:    "manifests/core/bench-namespace.yaml",
 				Feature: "namespace",
-				Args:    []string{"namespace", "bench"},
-			},
-			{
-				Name:    "install-argocd",
-				Type:    StepKubectlApply,
-				Path:    "manifests/argocd",
-				Feature: "argocd",
-			},
-			{
-				Name:    "deploy-baseline",
-				Type:    StepKubectlApply,
-				Path:    "manifests/baseline",
-				Feature: "baseline",
 			},
 		},
 	}

@@ -4,8 +4,28 @@ category: helm
 tags: [helm, upgrade, rollback]
 prompt: prompts/task.md
 timeout: "5m"
+bootstrap:
+  - name: install-web-release
+    type: helm-install
+    release: web
+    path: ../../../charts/web
+    namespace: bench
+    args:
+      - --create-namespace
+  - name: wait-for-release
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
 break:
-  type: apply
+  type: helm-upgrade
+  name: web
+  namespace: bench
+  chart: ../../../charts/web
   path: fixtures/bad-values.yaml
 checks:
   - type: helm-release

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"samebits.com/evidra-infra-bench/pkg/adapter"
@@ -92,7 +93,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 
 	// Step 2: Bootstrap.
 	if h.deps.Bootstrapper != nil {
-		plan := environment.DefaultBootstrapPlan()
+		plan := buildBootstrapPlan(s)
 		if err := h.deps.Bootstrapper.Execute(ctx, plan, handle.KubeconfigPath); err != nil {
 			return nil, fmt.Errorf("harness.Run: bootstrap: %w", err)
 		}
@@ -210,10 +211,68 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 
 func (h *Harness) applyBreak(ctx context.Context, kubeconfigPath string, s *scenario.Scenario) error {
 	runner := &environment.ExecRunner{}
-	args := []string{"kubectl", "--kubeconfig", kubeconfigPath, "apply", "-f", s.Break.Path}
+	args, err := breakCommandArgs(kubeconfigPath, s)
+	if err != nil {
+		return err
+	}
 	cmd := makeCmd(args)
 	if _, err := runner.Run(ctx, cmd); err != nil {
 		return fmt.Errorf("apply break fixture: %w", err)
 	}
 	return nil
+}
+
+func buildBootstrapPlan(s *scenario.Scenario) *environment.BootstrapPlan {
+	plan := environment.DefaultBootstrapPlan()
+	rootDir := repoRootForScenario(s)
+	for i := range plan.Steps {
+		if plan.Steps[i].Path != "" && rootDir != "" && !filepath.IsAbs(plan.Steps[i].Path) {
+			plan.Steps[i].Path = filepath.Join(rootDir, plan.Steps[i].Path)
+		}
+	}
+	for _, step := range s.Bootstrap {
+		plan.Steps = append(plan.Steps, environment.BootstrapStep{
+			Name:      step.Name,
+			Type:      environment.StepType(step.Type),
+			Path:      step.Path,
+			Release:   step.Release,
+			Namespace: step.Namespace,
+			Args:      append([]string(nil), step.Args...),
+		})
+	}
+	return plan
+}
+
+func repoRootForScenario(s *scenario.Scenario) string {
+	if s == nil || s.Dir == "" {
+		return ""
+	}
+	return filepath.Dir(filepath.Dir(filepath.Dir(s.Dir)))
+}
+
+func breakCommandArgs(kubeconfigPath string, s *scenario.Scenario) ([]string, error) {
+	switch s.Break.Type {
+	case "", "apply", "kubectl-apply":
+		if s.Break.Path == "" {
+			return nil, fmt.Errorf("break fixture path is required for %q", s.Break.Type)
+		}
+		return []string{"kubectl", "--kubeconfig", kubeconfigPath, "apply", "-f", s.Break.Path}, nil
+	case "helm-upgrade":
+		if s.Break.Name == "" {
+			return nil, fmt.Errorf("break release name is required for helm-upgrade")
+		}
+		if s.Break.Chart == "" {
+			return nil, fmt.Errorf("break chart is required for helm-upgrade")
+		}
+		args := []string{"helm", "--kubeconfig", kubeconfigPath, "upgrade", s.Break.Name, s.Break.Chart}
+		if s.Break.Namespace != "" {
+			args = append(args, "-n", s.Break.Namespace)
+		}
+		if s.Break.Path != "" {
+			args = append(args, "-f", s.Break.Path)
+		}
+		return append(args, s.Break.Args...), nil
+	default:
+		return nil, fmt.Errorf("unsupported break type: %s", s.Break.Type)
+	}
 }

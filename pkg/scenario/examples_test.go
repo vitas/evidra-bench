@@ -41,6 +41,9 @@ func TestStarterScenarios_Load(t *testing.T) {
 			if len(s.Checks) == 0 {
 				t.Fatalf("no checks in %s", dir)
 			}
+			if len(s.Bootstrap) == 0 {
+				t.Fatalf("no bootstrap steps in %s", dir)
+			}
 		})
 	}
 }

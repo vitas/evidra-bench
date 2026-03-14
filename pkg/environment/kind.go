@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // CommandRunner executes shell commands. Extracted for testing.
@@ -23,7 +24,8 @@ func (r *ExecRunner) Run(ctx context.Context, cmd *exec.Cmd) ([]byte, error) {
 
 // KindProvider manages kind cluster lifecycles.
 type KindProvider struct {
-	Runner CommandRunner
+	Runner        CommandRunner
+	ReuseExisting bool
 }
 
 // NewKindProvider returns a KindProvider with the default command runner.
@@ -42,15 +44,25 @@ func (p *KindProvider) deleteCommand(clusterName string) *exec.Cmd {
 	return exec.Command("kind", "delete", "cluster", "--name", clusterName)
 }
 
+func (p *KindProvider) listClustersCommand() *exec.Cmd {
+	return exec.Command("kind", "get", "clusters")
+}
+
 func (p *KindProvider) kubeconfigCommand(clusterName string) *exec.Cmd {
 	return exec.Command("kind", "get", "kubeconfig", "--name", clusterName)
 }
 
 // Create provisions a new kind cluster and writes a kubeconfig file.
 func (p *KindProvider) Create(ctx context.Context, clusterName string) (*Handle, error) {
-	cmd := p.createCommand(clusterName)
-	if _, err := p.Runner.Run(ctx, cmd); err != nil {
-		return nil, fmt.Errorf("environment.KindProvider.Create: %w", err)
+	exists, err := p.clusterExists(ctx, clusterName)
+	if err != nil {
+		return nil, fmt.Errorf("environment.KindProvider.Create: check existing cluster: %w", err)
+	}
+	if !exists || !p.ReuseExisting {
+		cmd := p.createCommand(clusterName)
+		if _, err := p.Runner.Run(ctx, cmd); err != nil {
+			return nil, fmt.Errorf("environment.KindProvider.Create: %w", err)
+		}
 	}
 
 	kubeconfigCmd := p.kubeconfigCommand(clusterName)
@@ -68,6 +80,20 @@ func (p *KindProvider) Create(ctx context.Context, clusterName string) (*Handle,
 		ClusterName:    clusterName,
 		KubeconfigPath: kubeconfigPath,
 	}, nil
+}
+
+func (p *KindProvider) clusterExists(ctx context.Context, clusterName string) (bool, error) {
+	cmd := p.listClustersCommand()
+	out, err := p.Runner.Run(ctx, cmd)
+	if err != nil {
+		return false, err
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.TrimSpace(line) == clusterName {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // Destroy tears down the kind cluster and removes the kubeconfig file.

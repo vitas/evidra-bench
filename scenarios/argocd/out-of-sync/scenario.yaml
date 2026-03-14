@@ -1,17 +1,79 @@
 id: argocd-out-of-sync
-title: Fix an Argo CD application that is out of sync
+title: Fix an Argo CD application with a broken source configuration
 category: argocd
 tags: [argocd, sync, gitops]
 prompt: prompts/task.md
 timeout: "5m"
+bootstrap:
+  - name: ensure-argocd-namespace
+    type: kubectl-apply
+    path: ../../../manifests/argocd/namespace.yaml
+  - name: install-argocd
+    type: kubectl-apply
+    path: https://raw.githubusercontent.com/argoproj/argo-cd/v2.13.3/manifests/install.yaml
+  - name: wait-for-app-crd
+    type: kubectl
+    args:
+      - wait
+      - --for=condition=Established
+      - crd/applications.argoproj.io
+      - --timeout=180s
+  - name: wait-for-argocd-server
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/argocd-server
+      - -n
+      - argocd
+      - --timeout=180s
+  - name: wait-for-argocd-repo-server
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/argocd-repo-server
+      - -n
+      - argocd
+      - --timeout=180s
+  - name: wait-for-argocd-controller
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - statefulset/argocd-application-controller
+      - -n
+      - argocd
+      - --timeout=180s
+  - name: apply-guestbook-app
+    type: kubectl-apply
+    path: ../../../manifests/argocd/apps/guestbook.yaml
+  - name: wait-for-guestbook-sync
+    type: kubectl
+    args:
+      - wait
+      - --for=jsonpath={.status.sync.status}=Synced
+      - application/guestbook
+      - -n
+      - argocd
+      - --timeout=180s
+  - name: wait-for-guestbook-health
+    type: kubectl
+    args:
+      - wait
+      - --for=jsonpath={.status.health.status}=Healthy
+      - application/guestbook
+      - -n
+      - argocd
+      - --timeout=180s
 break:
-  type: apply
+  type: kubectl-apply
   path: fixtures/drift.yaml
 checks:
   - type: argocd-app-healthy
-    name: web
+    name: guestbook
   - type: deployment-ready
     namespace: bench
-    name: web
+    name: guestbook-ui
 scope:
   namespaces: [bench, argocd]

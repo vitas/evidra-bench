@@ -12,6 +12,9 @@ category: kubernetes
 tags: [deployment, readiness]
 prompt: prompts/task.md
 timeout: "3m"
+bootstrap:
+  - type: kubectl-apply
+    path: fixtures/baseline.yaml
 break:
   type: apply
   path: fixtures/broken.yaml
@@ -83,6 +86,21 @@ func TestLoad_ResolvesBreakPath(t *testing.T) {
 	}
 }
 
+func TestLoad_ResolvesBootstrapPaths(t *testing.T) {
+	t.Parallel()
+	dir := writeTestScenario(t)
+	s, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Bootstrap) != 1 {
+		t.Fatalf("expected 1 bootstrap step, got %d", len(s.Bootstrap))
+	}
+	if !filepath.IsAbs(s.Bootstrap[0].Path) {
+		t.Fatalf("bootstrap path not resolved: %s", s.Bootstrap[0].Path)
+	}
+}
+
 func TestLoad_MissingID(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -140,5 +158,28 @@ func TestLoadAll_FindsScenarios(t *testing.T) {
 	}
 	if len(scenarios) != 1 {
 		t.Fatalf("expected 1 scenario, got %d", len(scenarios))
+	}
+	if scenarios[0].Path != "kubernetes/broken-deployment" {
+		t.Fatalf("unexpected scenario path: %s", scenarios[0].Path)
+	}
+}
+
+func TestResolve_ByID(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	catDir := filepath.Join(base, "kubernetes", "broken-deployment")
+	if err := os.MkdirAll(catDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(catDir, "scenario.yaml"), []byte(testScenarioYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := Resolve(base, "broken-deployment")
+	if err != nil {
+		t.Fatalf("resolve failed: %v", err)
+	}
+	if s.ID != "broken-deployment" {
+		t.Fatalf("unexpected id: %s", s.ID)
 	}
 }

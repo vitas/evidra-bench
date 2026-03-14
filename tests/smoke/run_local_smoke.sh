@@ -33,6 +33,13 @@ echo "=== Test: dry-run broken-deployment ==="
   --dry-run
 
 echo ""
+echo "=== Test: dry-run broken-deployment by id ==="
+"$BINARY" run \
+  --scenario broken-deployment \
+  --scenarios-dir "${ROOT_DIR}/scenarios" \
+  --dry-run
+
+echo ""
 echo "=== Test: dry-run helm/failed-upgrade ==="
 "$BINARY" run \
   --scenario helm/failed-upgrade \

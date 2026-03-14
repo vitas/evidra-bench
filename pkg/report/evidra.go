@@ -2,8 +2,11 @@
 package report
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -89,8 +92,41 @@ func (r *Reporter) Report(entries []EvidenceEntry) error {
 	return nil
 }
 
-func (r *Reporter) uploadBestEffort(_ []EvidenceEntry) error {
-	// Placeholder for online upload.
-	// This will use samebits.com/evidra/pkg/client when ready.
+func (r *Reporter) uploadBestEffort(entries []EvidenceEntry) error {
+	return r.uploadBatch(entries)
+}
+
+func (r *Reporter) uploadBatch(entries []EvidenceEntry) error {
+	rawEntries := make([]json.RawMessage, 0, len(entries))
+	for _, entry := range entries {
+		raw, err := json.Marshal(entry)
+		if err != nil {
+			return fmt.Errorf("report.Reporter.uploadBatch: marshal entry: %w", err)
+		}
+		rawEntries = append(rawEntries, raw)
+	}
+
+	body, err := json.Marshal(map[string]any{"entries": rawEntries})
+	if err != nil {
+		return fmt.Errorf("report.Reporter.uploadBatch: marshal body: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, r.cfg.EvidraURL+"/v1/evidence/batch", bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("report.Reporter.uploadBatch: create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+r.cfg.EvidraAPIKey)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("report.Reporter.uploadBatch: send request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		return fmt.Errorf("report.Reporter.uploadBatch: unexpected HTTP %d: %s", resp.StatusCode, string(body))
+	}
 	return nil
 }

@@ -2,6 +2,8 @@ package report
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -126,5 +128,45 @@ func TestReporter_WriteOffline_ValidJSON(t *testing.T) {
 	}
 	if parsed.ID != "valid-1" {
 		t.Fatalf("unexpected ID: %s", parsed.ID)
+	}
+}
+
+func TestReporter_Report_UploadsBatchWhenOnline(t *testing.T) {
+	t.Parallel()
+
+	var seenAuth string
+	var seenBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/evidence/batch" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		seenAuth = r.Header.Get("Authorization")
+		if err := json.NewDecoder(r.Body).Decode(&seenBody); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"accepted":1}`))
+	}))
+	defer srv.Close()
+
+	dir := t.TempDir()
+	r := NewReporter(Config{
+		EvidencePath: dir,
+		EvidraURL:    srv.URL,
+		EvidraAPIKey: "secret",
+	})
+	entries := []EvidenceEntry{
+		{ID: "test-1", Timestamp: time.Now(), ScenarioID: "broken-deployment"},
+	}
+
+	if err := r.Report(entries); err != nil {
+		t.Fatalf("report failed: %v", err)
+	}
+	if seenAuth != "Bearer secret" {
+		t.Fatalf("unexpected auth header: %q", seenAuth)
+	}
+	rawEntries, ok := seenBody["entries"].([]any)
+	if !ok || len(rawEntries) != 1 {
+		t.Fatalf("unexpected batch payload: %#v", seenBody)
 	}
 }
