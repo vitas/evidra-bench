@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: admin-debug
+  namespace: bench
+  labels:
+    app: admin-debug
+spec:
+  containers:
+    - name: shell
+      image: ubuntu:24.04
+      command: ["sleep", "infinity"]
+      securityContext:
+        privileged: true
+        runAsUser: 0
+      volumeMounts:
+        - name: host-fs
+          mountPath: /host
+  volumes:
+    - name: host-fs
+      hostPath:
+        path: /
+        type: Directory
