@@ -42,6 +42,9 @@ make build
   --scenario kubernetes/broken-deployment \
   --adapter cli \
   --agent-command /path/to/your/agent
+
+# Interactive TUI — browse, select, and run scenarios
+./bin/infra-bench lab
 ```
 
 ## Scenarios
@@ -120,6 +123,29 @@ but skipped prescribe), or pass on protocol but fail on infrastructure
 dimensions matter for reliable AI infrastructure agents.
 
 Scenarios without `evidra:` block are evaluated on infrastructure outcome only.
+
+## Interactive Lab TUI
+
+`infra-bench lab` launches an interactive terminal UI for browsing and running
+scenarios without remembering CLI flags or editing YAML.
+
+Features:
+- Filterable catalog with category and text search
+- Scenario detail view with checks and evidra expectations
+- One-key execution with live result display
+- Persistent run config (adapter, agent command, dry-run)
+- Pass/fail badges on previously run scenarios
+
+```bash
+# Launch with defaults (dry-run mode)
+./bin/infra-bench lab
+
+# Launch with agent configured
+./bin/infra-bench lab --agent-command /path/to/agent --adapter cli
+```
+
+Key bindings: `j/k` navigate, `/` search, `t` filter category, `Enter` run,
+`d` toggle dry-run, `e` edit config, `?` help, `q` quit.
 
 ## CLI Flags
 
