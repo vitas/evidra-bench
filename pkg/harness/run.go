@@ -23,6 +23,7 @@ import (
 type Deps struct {
 	EnvProvider  environment.Provider
 	Bootstrapper *environment.Bootstrapper
+	Runner       environment.CommandRunner
 	Adapter      adapter.Adapter
 	Writer       *artifact.Writer
 	Reporter     *report.Reporter
@@ -93,7 +94,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 
 	// Step 2: Bootstrap.
 	if h.deps.Bootstrapper != nil {
-		plan := buildBootstrapPlan(s)
+		plan := buildBootstrapPlan(s, req.Config.ScenariosDir)
 		if err := h.deps.Bootstrapper.Execute(ctx, plan, handle.KubeconfigPath); err != nil {
 			return nil, fmt.Errorf("harness.Run: bootstrap: %w", err)
 		}
@@ -210,7 +211,10 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 }
 
 func (h *Harness) applyBreak(ctx context.Context, kubeconfigPath string, s *scenario.Scenario) error {
-	runner := &environment.ExecRunner{}
+	runner := h.deps.Runner
+	if runner == nil {
+		runner = &environment.ExecRunner{}
+	}
 	args, err := breakCommandArgs(kubeconfigPath, s)
 	if err != nil {
 		return err
@@ -222,9 +226,9 @@ func (h *Harness) applyBreak(ctx context.Context, kubeconfigPath string, s *scen
 	return nil
 }
 
-func buildBootstrapPlan(s *scenario.Scenario) *environment.BootstrapPlan {
+func buildBootstrapPlan(s *scenario.Scenario, scenariosDir string) *environment.BootstrapPlan {
 	plan := environment.DefaultBootstrapPlan()
-	rootDir := repoRootForScenario(s)
+	rootDir := filepath.Dir(scenariosDir)
 	for i := range plan.Steps {
 		if plan.Steps[i].Path != "" && rootDir != "" && !filepath.IsAbs(plan.Steps[i].Path) {
 			plan.Steps[i].Path = filepath.Join(rootDir, plan.Steps[i].Path)
@@ -241,13 +245,6 @@ func buildBootstrapPlan(s *scenario.Scenario) *environment.BootstrapPlan {
 		})
 	}
 	return plan
-}
-
-func repoRootForScenario(s *scenario.Scenario) string {
-	if s == nil || s.Dir == "" {
-		return ""
-	}
-	return filepath.Dir(filepath.Dir(filepath.Dir(s.Dir)))
 }
 
 func breakCommandArgs(kubeconfigPath string, s *scenario.Scenario) ([]string, error) {

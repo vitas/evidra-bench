@@ -45,10 +45,30 @@ func TestValidate_MissingScenario(t *testing.T) {
 	}
 }
 
+func TestValidate_MissingAgentCommand(t *testing.T) {
+	t.Parallel()
+	cfg := Default()
+	cfg.Scenario = "kubernetes/broken-deployment"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for missing agent-command")
+	}
+}
+
+func TestValidate_DryRunSkipsAgentCommand(t *testing.T) {
+	t.Parallel()
+	cfg := Default()
+	cfg.Scenario = "kubernetes/broken-deployment"
+	cfg.DryRun = true
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestValidate_ValidConfig(t *testing.T) {
 	t.Parallel()
 	cfg := Default()
 	cfg.Scenario = "kubernetes/broken-deployment"
+	cfg.AgentCommand = "my-agent"
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

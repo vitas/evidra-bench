@@ -3,6 +3,7 @@ package adapter
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -65,7 +66,8 @@ func (a *MCPAdapter) Run(ctx context.Context, input RunInput) (*RunResult, error
 
 	exitCode := 0
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			exitCode = exitErr.ExitCode()
 		} else {
 			return nil, fmt.Errorf("adapter.MCPAdapter.Run: %w", err)

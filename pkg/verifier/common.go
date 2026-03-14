@@ -154,7 +154,16 @@ func RunChecks(ctx context.Context, kubeconfigPath string, checkers []Checker) *
 	return result
 }
 
-// BuildCheckers creates Checker instances from scenario check definitions.
+// CheckDef is the check definition accepted by BuildCheckers.
+// It mirrors scenario.Check to avoid a package dependency cycle.
+type CheckDef struct {
+	Type      string
+	Namespace string
+	Name      string
+	Condition string
+}
+
+// BuildCheckers creates Checker instances from check definitions.
 func BuildCheckers(checks []CheckDef) ([]Checker, error) {
 	var checkers []Checker
 	for _, cd := range checks {
@@ -188,11 +197,4 @@ func BuildCheckers(checks []CheckDef) ([]Checker, error) {
 		}
 	}
 	return checkers, nil
-}
-
-// CheckDef is the YAML-level check definition from a scenario.
-type CheckDef struct {
-	Type      string `yaml:"type"`
-	Namespace string `yaml:"namespace,omitempty"`
-	Name      string `yaml:"name,omitempty"`
 }

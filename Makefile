@@ -2,7 +2,7 @@ BINARY := infra-bench
 VERSION ?= dev
 LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 
-.PHONY: build test fmt lint tidy clean
+.PHONY: build test test-race fmt lint tidy clean smoke
 
 build:
 	go build $(LDFLAGS) -o bin/$(BINARY) ./cmd/infra-bench
@@ -24,3 +24,6 @@ tidy:
 
 clean:
 	rm -rf bin/ runs/
+
+smoke: build
+	bash tests/smoke/run_local_smoke.sh

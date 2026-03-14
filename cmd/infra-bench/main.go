@@ -137,9 +137,18 @@ func executeRun(cmd *cobra.Command, cfg config.Config) error {
 	}
 
 	if !result.Passed {
-		os.Exit(1)
+		return &RunFailedError{ScenarioID: result.ScenarioID}
 	}
 	return nil
+}
+
+// RunFailedError indicates a scenario run completed but verification failed.
+type RunFailedError struct {
+	ScenarioID string
+}
+
+func (e *RunFailedError) Error() string {
+	return fmt.Sprintf("scenario %s: verification failed", e.ScenarioID)
 }
 
 func listScenarios(cmd *cobra.Command, cfg config.Config) error {

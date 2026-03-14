@@ -40,5 +40,8 @@ func (c *Config) Validate() error {
 	if c.Scenario == "" {
 		return fmt.Errorf("config: scenario is required")
 	}
+	if !c.DryRun && c.AgentCommand == "" {
+		return fmt.Errorf("config: agent-command is required (use --dry-run to skip)")
+	}
 	return nil
 }
