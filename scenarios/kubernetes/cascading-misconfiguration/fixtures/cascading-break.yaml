@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: bench
+spec:
+  template:
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:nonexistent-tag
+          envFrom:
+            - secretRef:
+                name: web-db-credentials

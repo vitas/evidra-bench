@@ -1,0 +1,36 @@
+id: cascading-misconfiguration
+title: Fix a deployment with cascading misconfigurations (repair loop signal)
+category: kubernetes
+tags: [deployment, repair, signal, repair_loop, multi-step]
+prompt: prompts/task.md
+timeout: "5m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-baseline
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+break:
+  type: kubectl-apply
+  path: fixtures/cascading-break.yaml
+after_break:
+  - name: let-pod-fail
+    type: sleep
+    duration: 8s
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+evidra:
+  enabled: true
+  min_prescriptions: 2
+  min_reports: 2
+  orphaned_prescriptions: 0
+  protocol_violations: 0
+  all_reports_have_verdict: true
+  simulated_evidence_dir: simulated_evidence
+  expected_signals:
+    repair_loop: 1
+scope:
+  namespaces: [bench]
