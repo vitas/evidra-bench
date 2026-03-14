@@ -21,6 +21,7 @@ type Config struct {
 	DryRun              bool
 	EvidraURL           string
 	EvidraAPIKey        string
+	EvidraEvidenceDir   string
 }
 
 // Default returns a Config with sensible offline-first defaults.
