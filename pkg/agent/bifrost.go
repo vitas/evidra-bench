@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -16,6 +17,7 @@ import (
 type BifrostProvider struct {
 	BaseURL    string
 	HTTPClient *http.Client
+	Retry      RetryConfig
 }
 
 // NewBifrostProvider creates a BifrostProvider from environment variables.
@@ -30,12 +32,13 @@ func NewBifrostProvider() *BifrostProvider {
 	return &BifrostProvider{
 		BaseURL:    strings.TrimRight(baseURL, "/"),
 		HTTPClient: &http.Client{Timeout: 5 * time.Minute},
+		Retry:      DefaultRetryConfig(),
 	}
 }
 
 func (p *BifrostProvider) Name() string { return "bifrost" }
 
-// Chat sends a chat completion request to the Bifrost proxy.
+// Chat sends a chat completion request to the Bifrost proxy with adaptive retry.
 func (p *BifrostProvider) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
 	payload := buildOpenAIPayload(req)
 	body, err := json.Marshal(payload)
@@ -43,29 +46,69 @@ func (p *BifrostProvider) Chat(ctx context.Context, req ChatRequest) (*ChatRespo
 		return nil, fmt.Errorf("bifrost: marshal request: %w", err)
 	}
 
+	var lastErr error
+	for attempt := 0; attempt <= p.Retry.MaxRetries; attempt++ {
+		if attempt > 0 {
+			log.Printf("[bifrost] retry attempt %d/%d after: %v", attempt, p.Retry.MaxRetries, lastErr)
+		}
+
+		resp, respBytes, err := p.doRequest(ctx, body)
+		if err != nil {
+			lastErr = err
+			if attempt < p.Retry.MaxRetries {
+				backoff := BackoffDuration(p.Retry, attempt, http.Header{})
+				log.Printf("[bifrost] connection error, backing off %s", backoff)
+				if sleepErr := SleepWithContext(ctx, backoff); sleepErr != nil {
+					return nil, sleepErr
+				}
+			}
+			continue
+		}
+
+		if resp.StatusCode < 400 {
+			return parseOpenAIResponse(respBytes)
+		}
+
+		if IsRetryable(resp.StatusCode) && attempt < p.Retry.MaxRetries {
+			backoff := BackoffDuration(p.Retry, attempt, resp.Header)
+			log.Printf("[bifrost] HTTP %d, backing off %s", resp.StatusCode, backoff)
+			lastErr = &RateLimitError{
+				StatusCode: resp.StatusCode,
+				Body:       truncate(string(respBytes), 200),
+				RetryAfter: backoff,
+			}
+			if sleepErr := SleepWithContext(ctx, backoff); sleepErr != nil {
+				return nil, sleepErr
+			}
+			continue
+		}
+
+		return nil, fmt.Errorf("bifrost: HTTP %d: %s", resp.StatusCode, truncate(string(respBytes), 300))
+	}
+
+	return nil, fmt.Errorf("bifrost: exhausted %d retries: %w", p.Retry.MaxRetries, lastErr)
+}
+
+func (p *BifrostProvider) doRequest(ctx context.Context, body []byte) (*http.Response, []byte, error) {
 	url := p.BaseURL + "/chat/completions"
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("bifrost: create request: %w", err)
+		return nil, nil, fmt.Errorf("create request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	applyBifrostEnvHeaders(httpReq.Header)
 
 	resp, err := p.HTTPClient.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("bifrost: request failed: %w", err)
+		return nil, nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("bifrost: read response: %w", err)
+		return nil, nil, fmt.Errorf("read response: %w", err)
 	}
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("bifrost: HTTP %d: %s", resp.StatusCode, truncate(string(respBytes), 300))
-	}
-
-	return parseOpenAIResponse(respBytes)
+	return &http.Response{StatusCode: resp.StatusCode, Header: resp.Header}, respBytes, nil
 }
 
 func buildOpenAIPayload(req ChatRequest) map[string]any {

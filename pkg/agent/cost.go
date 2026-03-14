@@ -1,0 +1,84 @@
+package agent
+
+import "fmt"
+
+// ModelPricing holds per-token pricing for a model (USD per 1M tokens).
+type ModelPricing struct {
+	InputPerMillion  float64
+	OutputPerMillion float64
+}
+
+// CostEstimate is the estimated cost for a run.
+type CostEstimate struct {
+	InputTokens  int
+	OutputTokens int
+	InputCost    float64
+	OutputCost   float64
+	TotalCost    float64
+	Model        string
+	Currency     string
+}
+
+// String formats the cost estimate for display.
+func (c CostEstimate) String() string {
+	if c.TotalCost == 0 {
+		return ""
+	}
+	return fmt.Sprintf("$%.4f (in: $%.4f/%dT, out: $%.4f/%dT)",
+		c.TotalCost, c.InputCost, c.InputTokens, c.OutputCost, c.OutputTokens)
+}
+
+// EstimateCost calculates the cost for a given token usage and model.
+func EstimateCost(model string, usage Usage) CostEstimate {
+	pricing := LookupPricing(model)
+	inputCost := float64(usage.PromptTokens) / 1_000_000 * pricing.InputPerMillion
+	outputCost := float64(usage.CompletionTokens) / 1_000_000 * pricing.OutputPerMillion
+	return CostEstimate{
+		InputTokens:  usage.PromptTokens,
+		OutputTokens: usage.CompletionTokens,
+		InputCost:    inputCost,
+		OutputCost:   outputCost,
+		TotalCost:    inputCost + outputCost,
+		Model:        model,
+		Currency:     "USD",
+	}
+}
+
+// LookupPricing returns pricing for a model. Returns zero pricing for unknown models.
+func LookupPricing(model string) ModelPricing {
+	if p, ok := pricingTable[model]; ok {
+		return p
+	}
+	// Try prefix matching for provider/model format
+	for prefix, p := range pricingTable {
+		if len(model) > len(prefix) && model[:len(prefix)] == prefix {
+			return p
+		}
+	}
+	return ModelPricing{}
+}
+
+// pricingTable contains known model pricing (USD per 1M tokens).
+// Updated: March 2026. Source: provider pricing pages.
+var pricingTable = map[string]ModelPricing{
+	// Anthropic Claude
+	"opus":                        {InputPerMillion: 15.0, OutputPerMillion: 75.0},
+	"sonnet":                      {InputPerMillion: 3.0, OutputPerMillion: 15.0},
+	"haiku":                       {InputPerMillion: 0.25, OutputPerMillion: 1.25},
+	"anthropic/claude-3-5-sonnet": {InputPerMillion: 3.0, OutputPerMillion: 15.0},
+	"anthropic/claude-3-5-haiku":  {InputPerMillion: 0.25, OutputPerMillion: 1.25},
+	"anthropic/claude-3-opus":     {InputPerMillion: 15.0, OutputPerMillion: 75.0},
+	"anthropic/claude-sonnet-4":   {InputPerMillion: 3.0, OutputPerMillion: 15.0},
+	"anthropic/claude-opus-4":     {InputPerMillion: 15.0, OutputPerMillion: 75.0},
+
+	// OpenAI
+	"openai/gpt-4o":      {InputPerMillion: 2.5, OutputPerMillion: 10.0},
+	"openai/gpt-4o-mini": {InputPerMillion: 0.15, OutputPerMillion: 0.60},
+	"openai/gpt-4-turbo": {InputPerMillion: 10.0, OutputPerMillion: 30.0},
+	"openai/o1":          {InputPerMillion: 15.0, OutputPerMillion: 60.0},
+	"openai/o1-mini":     {InputPerMillion: 3.0, OutputPerMillion: 12.0},
+
+	// Google
+	"google/gemini-2.5-pro":   {InputPerMillion: 1.25, OutputPerMillion: 10.0},
+	"google/gemini-2.5-flash": {InputPerMillion: 0.15, OutputPerMillion: 0.60},
+}

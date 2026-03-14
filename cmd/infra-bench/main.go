@@ -139,7 +139,21 @@ with optional Evidra reporting for behavioral analysis.`,
 	reportCmd.Flags().StringVar(&cfg.ScenariosDir, "scenarios-dir", cfg.ScenariosDir, "base directory for scenarios")
 	reportCmd.Flags().StringVar(&cfg.RunsDir, "runs-dir", cfg.RunsDir, "runs directory to scan")
 
-	root.AddCommand(runCmd, scenarioCmd, labCmd, reportCmd)
+	compareCmd := &cobra.Command{
+		Use:   "compare <run-dir-A> <run-dir-B>",
+		Short: "Compare two run artifacts side by side",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			result, err := report.CompareRuns(args[0], args[1])
+			if err != nil {
+				return err
+			}
+			fmt.Fprint(cmd.OutOrStdout(), report.FormatComparison(result))
+			return nil
+		},
+	}
+
+	root.AddCommand(runCmd, scenarioCmd, labCmd, reportCmd, compareCmd)
 	return root
 }
 

@@ -376,8 +376,10 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 			"provider":          req.Config.Provider,
 			"model":             req.Config.Model,
 			"turns":             fmt.Sprintf("%d", loopResult.Turns),
+			"memory_window":     fmt.Sprintf("%d", loopResult.MemoryWindow),
 			"prompt_tokens":     fmt.Sprintf("%d", loopResult.TotalUsage.PromptTokens),
 			"completion_tokens": fmt.Sprintf("%d", loopResult.TotalUsage.CompletionTokens),
+			"estimated_cost":    agent.EstimateCost(req.Config.Model, loopResult.TotalUsage).String(),
 		},
 	}, nil
 }
