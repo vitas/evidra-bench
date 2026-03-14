@@ -13,11 +13,11 @@ Coverage map for infra-bench scenarios, grouped by tool and failure category.
 
 | Tool       | Implemented | Planned | Total |
 |------------|:-----------:|:-------:|:-----:|
-| kubectl    | 1           | 8       | 9     |
-| Helm       | 1           | 3       | 4     |
-| Argo CD    | 1           | 3       | 4     |
+| kubectl    | 9           | 0       | 9     |
+| Helm       | 4           | 0       | 4     |
+| Argo CD    | 4           | 0       | 4     |
 | Cross-tool | 0           | 4       | 4     |
-| **Total**  | **3**       | **18**  | **21**|
+| **Total**  | **17**      | **4**   | **21**|
 
 ---
 
@@ -28,29 +28,27 @@ Source: kagent benchmark (24 scenarios), design doc, brainstorming research.
 | ID   | Scenario                          | Category       | Difficulty | Status      | Signals                          |
 |------|-----------------------------------|----------------|:----------:|-------------|----------------------------------|
 | K01  | Deployment with wrong image tag   | Deployment     | easy       | Implemented | retry_loop, scope_adherence      |
-| K02  | Pod stuck in CrashLoopBackOff     | Pod            | medium     | Planned     | drift_from_plan, retry_loop      |
-| K03  | Service with wrong selector       | Service        | easy       | Planned     | partial_application              |
-| K04  | ResourceQuota exceeded            | Pod            | medium     | Planned     | scope_adherence, rollback        |
-| K05  | Missing ConfigMap key             | ConfigMap      | easy       | Planned     | scope_adherence                  |
-| K06  | Wrong liveness/readiness probe    | Deployment     | medium     | Planned     | retry_loop, blast_radius         |
-| K07  | Secret not mounted                | Secret         | easy       | Planned     | scope_adherence                  |
-| K08  | NetworkPolicy blocking traffic    | NetworkPolicy  | hard       | Planned     | blast_radius, new_scope          |
-| K09  | PVC with wrong storage class      | PVC            | medium     | Planned     | scope_adherence                  |
+| K02  | Pod stuck in CrashLoopBackOff     | Pod            | medium     | Implemented | drift_from_plan, retry_loop      |
+| K03  | Service with wrong selector       | Service        | easy       | Implemented | partial_application              |
+| K04  | ResourceQuota exceeded            | Pod            | medium     | Implemented | scope_adherence, rollback        |
+| K05  | Missing ConfigMap reference       | ConfigMap      | easy       | Implemented | scope_adherence                  |
+| K06  | Wrong liveness/readiness probe    | Deployment     | medium     | Implemented | retry_loop, blast_radius         |
+| K07  | Secret not mounted                | Secret         | easy       | Implemented | scope_adherence                  |
+| K08  | NetworkPolicy blocking traffic    | NetworkPolicy  | hard       | Implemented | blast_radius, new_scope          |
+| K09  | PVC with wrong storage class      | PVC            | medium     | Implemented | scope_adherence                  |
 
 ### kagent categories not yet mapped
 
-These are from kagent's 24-scenario benchmark. They should be reviewed and translated:
+These are from kagent's 24-scenario benchmark. They can extend existing categories:
 
-| kagent Category    | Scenarios                                                     | Priority |
+| kagent Category    | Scenarios not yet covered                                     | Priority |
 |--------------------|---------------------------------------------------------------|----------|
-| ConfigMap          | missing key, misspelled name, read-only filesystem            | high     |
-| Deployment         | env mismatch, impossible affinity, low resources, wrong affinity key, probe failures, scaled to 0 | high |
-| Service            | missing selector, no endpoint, DNS resolution, wrong port     | high     |
-| Pod                | host port conflict, limit range exceeded, resource quota, security context | medium |
-| PVC                | wrong access mode, wrong storage class                        | medium   |
-| Secret             | missing, not mounted                                          | medium   |
-| ServiceAccount     | misspelled, wrong permissions                                 | medium   |
-| NetworkPolicy      | blocking traffic                                              | low      |
+| ConfigMap          | misspelled name, read-only filesystem                         | medium   |
+| Deployment         | env mismatch, impossible affinity, wrong affinity key, scaled to 0 | medium |
+| Service            | no endpoint, DNS resolution, wrong port                       | medium   |
+| Pod                | host port conflict, limit range exceeded, security context    | low      |
+| PVC                | wrong access mode                                             | low      |
+| ServiceAccount     | misspelled, wrong permissions                                 | low      |
 
 ---
 
@@ -59,9 +57,9 @@ These are from kagent's 24-scenario benchmark. They should be reviewed and trans
 | ID   | Scenario                          | Difficulty | Status      | Signals                          |
 |------|-----------------------------------|:----------:|-------------|----------------------------------|
 | H01  | Failed upgrade (bad values)       | medium     | Implemented | rollback_behavior, retry_loop    |
-| H02  | Pending release (stuck hooks)     | hard       | Planned     | scope_adherence, escalation      |
-| H03  | Version downgrade / rollback      | medium     | Planned     | drift_from_plan, rollback        |
-| H04  | Chart dependency conflict         | hard       | Planned     | multi_step_sequence              |
+| H02  | Pending release (stuck hooks)     | hard       | Implemented | scope_adherence, escalation      |
+| H03  | Version downgrade / rollback      | medium     | Implemented | drift_from_plan, rollback        |
+| H04  | Chart dependency conflict         | hard       | Implemented | multi_step_sequence              |
 
 ---
 
@@ -70,13 +68,13 @@ These are from kagent's 24-scenario benchmark. They should be reviewed and trans
 | ID   | Scenario                          | Difficulty | Status      | Signals                          |
 |------|-----------------------------------|:----------:|-------------|----------------------------------|
 | A01  | App out of sync (cluster drift)   | medium     | Implemented | drift_from_plan, scope_adherence |
-| A02  | Sync failed (invalid manifest)    | medium     | Planned     | retry_loop, partial_application  |
-| A03  | App degraded after sync           | hard       | Planned     | rollback_behavior                |
-| A04  | Sync wave ordering broken         | hard       | Planned     | multi_step_sequence              |
+| A02  | Sync failed (invalid manifest)    | medium     | Implemented | retry_loop, partial_application  |
+| A03  | App degraded after sync           | hard       | Implemented | rollback_behavior                |
+| A04  | Sync wave ordering broken         | hard       | Implemented | multi_step_sequence              |
 
 ---
 
-## Cross-cutting Scenarios
+## Cross-cutting Scenarios (Phase 5 — planned)
 
 These test agent safety and judgment, not tool-specific remediation.
 
@@ -105,12 +103,43 @@ Which signals are exercised by which scenario families.
 | declined_decision    | —       | —    | —       | X01,X04    |
 | partial_application  | K03     | —    | A02     | —          |
 | drift_from_plan      | K02     | H03  | A01     | —          |
+| multi_step_sequence  | —       | H04  | A04     | —          |
+| escalation           | —       | H02  | —       | X03        |
 
 ### Gaps
 
-- **protocol_violation** — no scenario exercises this. Need a scenario where the agent skips prescribe/report or executes without approval.
-- **artifact_drift** — no scenario exercises this. Need a scenario where the agent modifies the artifact between prescribe and execute.
-- **new_scope** — only K08 (NetworkPolicy). Need more scenarios testing unauthorized namespace/resource access.
+- **protocol_violation** — no scenario exercises this yet. Needs a scenario where the agent skips prescribe/report or executes without approval. Target: Phase 5 (X-series).
+- **artifact_drift** — no scenario exercises this yet. Needs a scenario where the agent modifies the artifact between prescribe and execute. Target: Phase 5.
+- **new_scope** — only K08 (NetworkPolicy). Could benefit from more scenarios testing unauthorized namespace/resource access.
+- **declined_decision** — planned for Phase 5 (X01, X04). Requires more harness design work to evaluate refusals as correct behavior.
+
+---
+
+## Scenario Directory Layout
+
+```
+scenarios/
+├── argocd/
+│   ├── degraded-after-sync/       # A03 — Degraded after successful sync
+│   ├── out-of-sync/               # A01 — Direct cluster edit causing drift
+│   ├── sync-failure/              # A02 — Invalid manifest blocking sync
+│   └── sync-wave-ordering/        # A04 — Wrong wave annotations
+├── helm/
+│   ├── dependency-conflict/       # H04 — Chart dependency conflict
+│   ├── failed-upgrade/            # H01 — Bad values causing upgrade failure
+│   ├── pending-release/           # H02 — Stuck pre-install hook
+│   └── version-rollback/          # H03 — Rollback to previous revision
+└── kubernetes/
+    ├── broken-deployment/         # K01 — Wrong image tag
+    ├── crashloop-backoff/         # K02 — Container exits immediately
+    ├── missing-configmap/         # K05 — Deployment refs missing ConfigMap
+    ├── missing-secret/            # K07 — Deployment refs missing Secret
+    ├── networkpolicy-blocking/    # K08 — NetworkPolicy denying all ingress
+    ├── resource-quota-exceeded/   # K04 — Requests exceed ResourceQuota
+    ├── wrong-probes/              # K06 — Probes pointing to wrong port
+    ├── wrong-pvc/                 # K09 — PVC with nonexistent StorageClass
+    └── wrong-service-selector/    # K03 — Service selector doesn't match pods
+```
 
 ---
 
@@ -128,19 +157,12 @@ Together they cover: classification accuracy + protocol compliance + remediation
 
 ---
 
-## Implementation Priority
+## Implementation History
 
-### Phase 1 (current — done)
-K01, H01, A01 — one per tool family, easy/medium difficulty.
-
-### Phase 2 (next)
-K02, K03, K05, K07 — kagent-equivalent kubectl basics. These are the highest-value additions because they cover the most common failure modes.
-
-### Phase 3
-K04, K06, H02, A02 — medium difficulty, start exercising more signals.
-
-### Phase 4
-K08, K09, H03, H04, A03, A04 — hard scenarios, full signal coverage.
-
-### Phase 5
-X01–X04 — cross-cutting safety and judgment scenarios. These require the most design work.
+| Phase | Scenarios | Status |
+|-------|-----------|--------|
+| Phase 1 | K01, H01, A01 | Done — one per tool family |
+| Phase 2 | K02, K03, K05, K07 | Done — kubectl basics |
+| Phase 3 | K04, K06, H02, A02 | Done — medium difficulty |
+| Phase 4 | K08, K09, H03, H04, A03, A04 | Done — hard scenarios |
+| Phase 5 | X01, X02, X03, X04 | Planned — cross-cutting safety |
