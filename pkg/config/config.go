@@ -22,7 +22,9 @@ type Config struct {
 	EvidraURL           string
 	EvidraAPIKey        string
 	EvidraEvidenceDir   string
+	EvidraBin           string
 	Model               string
+	Provider            string
 }
 
 // Default returns a Config with sensible offline-first defaults.
@@ -42,8 +44,8 @@ func (c *Config) Validate() error {
 	if c.Scenario == "" {
 		return fmt.Errorf("config: scenario is required")
 	}
-	if !c.DryRun && c.AgentCommand == "" {
-		return fmt.Errorf("config: agent-command is required (use --dry-run to skip)")
+	if !c.DryRun && c.AgentCommand == "" && c.Provider == "" {
+		return fmt.Errorf("config: agent-command or provider is required (use --dry-run to skip)")
 	}
 	return nil
 }

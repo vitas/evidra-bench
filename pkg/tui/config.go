@@ -12,8 +12,10 @@ import (
 // LabConfig holds persistent TUI settings.
 type LabConfig struct {
 	Adapter           string `yaml:"adapter"`
+	Provider          string `yaml:"provider,omitempty"`
 	AgentCommand      string `yaml:"agent_command"`
 	Model             string `yaml:"model,omitempty"`
+	EvidraBin         string `yaml:"evidra_bin,omitempty"`
 	Timeout           string `yaml:"timeout"`
 	DryRun            bool   `yaml:"dry_run"`
 	EvidraEvidenceDir string `yaml:"evidra_evidence_dir,omitempty"`

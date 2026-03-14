@@ -164,6 +164,9 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		_ = SaveLabConfig(a.cfgPath, a.cfg)
 	case "e":
 		a.view = viewConfig
+	case "p":
+		a.cycleProvider()
+		_ = SaveLabConfig(a.cfgPath, a.cfg)
 	case "m":
 		a.cycleModel()
 		_ = SaveLabConfig(a.cfgPath, a.cfg)
@@ -216,6 +219,8 @@ func (a *App) handleConfigKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		a.cfg.DryRun = !a.cfg.DryRun
 	case "3":
 		a.cycleModel()
+	case "4":
+		a.cycleProvider()
 	}
 	return a, nil
 }
@@ -233,6 +238,20 @@ func (a *App) refreshHistory() {
 			a.allItems[i].LastResult = stats.LastResult
 		}
 	}
+}
+
+// ProviderChoices are the available providers for cycling.
+var ProviderChoices = []string{"", "bifrost", "claude"}
+
+func (a *App) cycleProvider() {
+	idx := 0
+	for i, p := range ProviderChoices {
+		if p == a.cfg.Provider {
+			idx = i
+			break
+		}
+	}
+	a.cfg.Provider = ProviderChoices[(idx+1)%len(ProviderChoices)]
 }
 
 // ModelChoices are the available models for cycling.
@@ -272,8 +291,10 @@ func (a *App) runScenario() tea.Cmd {
 			Scenario:          s.ID,
 			ScenariosDir:      a.scenariosDir,
 			Adapter:           a.cfg.Adapter,
+			Provider:          a.cfg.Provider,
 			AgentCommand:      a.cfg.AgentCommand,
 			Model:             a.cfg.Model,
+			EvidraBin:         a.cfg.EvidraBin,
 			Timeout:           a.cfg.TimeoutDuration(),
 			DryRun:            a.cfg.DryRun,
 			RunsDir:           "runs",
@@ -339,6 +360,9 @@ func (a App) renderCatalog() string {
 	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	b.WriteString(dimStyle.Render(filterInfo))
 
+	if a.cfg.Provider != "" {
+		b.WriteString(dimStyle.Render(fmt.Sprintf("  [%s]", a.cfg.Provider)))
+	}
 	if a.cfg.Model != "" {
 		b.WriteString(dimStyle.Render(fmt.Sprintf("  [%s]", a.cfg.Model)))
 	}
@@ -409,7 +433,7 @@ func (a App) renderCatalog() string {
 		b.WriteString(a.query)
 		b.WriteString("_")
 	} else {
-		b.WriteString(dimStyle.Render("j/k:nav  /:filter  t:category  m:model  h:history  d:dry-run  e:config  enter:run  ?:help  q:quit"))
+		b.WriteString(dimStyle.Render("j/k:nav  /:filter  t:cat  p:provider  m:model  h:history  d:dry-run  e:config  enter:run  ?:help  q:quit"))
 	}
 
 	return b.String()
@@ -509,6 +533,10 @@ func (a App) renderConfig() string {
 	b.WriteString(headerStyle.Render("Run Configuration"))
 	b.WriteString("\n\n")
 
+	providerDisplay := a.cfg.Provider
+	if providerDisplay == "" {
+		providerDisplay = "(none — uses adapter)"
+	}
 	modelDisplay := a.cfg.Model
 	if modelDisplay == "" {
 		modelDisplay = "(default)"
@@ -516,14 +544,16 @@ func (a App) renderConfig() string {
 	b.WriteString(fmt.Sprintf("  [1] Adapter:       %s\n", a.cfg.Adapter))
 	b.WriteString(fmt.Sprintf("  [2] Dry-run:       %v\n", a.cfg.DryRun))
 	b.WriteString(fmt.Sprintf("  [3] Model:         %s\n", modelDisplay))
+	b.WriteString(fmt.Sprintf("  [4] Provider:      %s\n", providerDisplay))
 	b.WriteString(fmt.Sprintf("      Agent command: %s\n", a.cfg.AgentCommand))
+	b.WriteString(fmt.Sprintf("      Evidra bin:    %s\n", a.cfg.EvidraBin))
 	b.WriteString(fmt.Sprintf("      Timeout:       %s\n", a.cfg.Timeout))
 	if a.cfg.EvidraEvidenceDir != "" {
 		b.WriteString(fmt.Sprintf("      Evidence dir:  %s\n", a.cfg.EvidraEvidenceDir))
 	}
 
 	b.WriteString("\n")
-	b.WriteString(dimStyle.Render("1/2/3: toggle  esc: back"))
+	b.WriteString(dimStyle.Render("1/2/3/4: toggle  esc: back"))
 	return b.String()
 }
 
@@ -538,6 +568,7 @@ func (a App) renderHelp() string {
 	b.WriteString("  /             Search by text (id, title, tags)\n")
 	b.WriteString("  t             Cycle category filter (all/kubernetes/helm/argocd)\n")
 	b.WriteString("  Enter         Run selected scenario\n")
+	b.WriteString("  p             Cycle provider (bifrost/claude/none)\n")
 	b.WriteString("  m             Cycle model (sonnet/haiku/opus/default)\n")
 	b.WriteString("  h             Show run history for selected scenario\n")
 	b.WriteString("  d             Toggle dry-run mode\n")

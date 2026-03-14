@@ -74,6 +74,8 @@ with optional Evidra reporting for behavioral analysis.`,
 	f.StringVar(&cfg.EvidraAPIKey, "evidra-api-key", cfg.EvidraAPIKey, "Evidra API key")
 	f.StringVar(&cfg.EvidraEvidenceDir, "evidra-evidence-dir", cfg.EvidraEvidenceDir, "evidence directory for protocol verification")
 	f.StringVar(&cfg.Model, "model", cfg.Model, "model for agent (e.g. sonnet, opus, haiku)")
+	f.StringVar(&cfg.Provider, "provider", cfg.Provider, "LLM provider for tool-use agent loop (bifrost, claude)")
+	f.StringVar(&cfg.EvidraBin, "evidra-bin", cfg.EvidraBin, "path to evidra binary for protocol tools")
 
 	labCfg := tui.DefaultLabConfig()
 	labCmd := &cobra.Command{
@@ -98,6 +100,9 @@ with optional Evidra reporting for behavioral analysis.`,
 			if cmd.Flags().Changed("model") {
 				labCfg.Model = cfg.Model
 			}
+			if cmd.Flags().Changed("provider") {
+				labCfg.Provider = cfg.Provider
+			}
 			deps := harness.Deps{}
 			return tui.Run(scenariosDir, cfgPath, labCfg, deps)
 		},
@@ -106,6 +111,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	lf.StringVar(&cfg.ScenariosDir, "scenarios-dir", cfg.ScenariosDir, "base directory for scenarios")
 	lf.StringVar(&cfg.RunsDir, "runs-dir", cfg.RunsDir, "output directory for run artifacts")
 	lf.StringVar(&cfg.Adapter, "adapter", cfg.Adapter, "agent adapter type (cli, mcp)")
+	lf.StringVar(&cfg.Provider, "provider", cfg.Provider, "LLM provider for tool-use agent loop (bifrost, claude)")
 	lf.StringVar(&cfg.AgentCommand, "agent-command", cfg.AgentCommand, "command to invoke the agent")
 	lf.StringVar(&cfg.Model, "model", cfg.Model, "model for agent (e.g. sonnet, opus, haiku)")
 	lf.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "start in dry-run mode")
