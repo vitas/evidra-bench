@@ -5,21 +5,22 @@ import "time"
 
 // Scenario is the parsed representation of a scenario.yaml file.
 type Scenario struct {
-	ID         string          `yaml:"id"`
-	Title      string          `yaml:"title"`
-	Category   string          `yaml:"category"`
-	Path       string          `yaml:"-"`
-	Dir        string          `yaml:"-"`
-	Tags       []string        `yaml:"tags,omitempty"`
-	Prompt     string          `yaml:"prompt"`
-	Timeout    Duration        `yaml:"timeout,omitempty"`
-	Checks     []Check         `yaml:"checks"`
-	Scope      Scope           `yaml:"scope,omitempty"`
-	Bootstrap  []BootstrapStep `yaml:"bootstrap,omitempty"`
-	AfterBreak []BootstrapStep `yaml:"after_break,omitempty"`
-	Break      Break           `yaml:"break"`
-	Baseline   string          `yaml:"baseline,omitempty"`
-	Tools      []string        `yaml:"tools,omitempty"`
+	ID         string             `yaml:"id"`
+	Title      string             `yaml:"title"`
+	Category   string             `yaml:"category"`
+	Path       string             `yaml:"-"`
+	Dir        string             `yaml:"-"`
+	Tags       []string           `yaml:"tags,omitempty"`
+	Prompt     string             `yaml:"prompt"`
+	Timeout    Duration           `yaml:"timeout,omitempty"`
+	Checks     []Check            `yaml:"checks"`
+	Scope      Scope              `yaml:"scope,omitempty"`
+	Bootstrap  []BootstrapStep    `yaml:"bootstrap,omitempty"`
+	AfterBreak []BootstrapStep    `yaml:"after_break,omitempty"`
+	Break      Break              `yaml:"break"`
+	Baseline   string             `yaml:"baseline,omitempty"`
+	Tools      []string           `yaml:"tools,omitempty"`
+	Evidra     EvidraExpectations `yaml:"evidra,omitempty"`
 }
 
 // Check describes a verification assertion.
@@ -57,6 +58,21 @@ type Break struct {
 	Command      string   `yaml:"command,omitempty"`
 	Args         []string `yaml:"args,omitempty"`
 	AllowFailure bool     `yaml:"allow_failure,omitempty"`
+}
+
+// EvidraExpectations declares protocol compliance assertions for a scenario.
+type EvidraExpectations struct {
+	Enabled               bool     `yaml:"enabled"`
+	MinPrescriptions      int      `yaml:"min_prescriptions,omitempty"`
+	MinReports            int      `yaml:"min_reports,omitempty"`
+	OrphanedPrescriptions int      `yaml:"orphaned_prescriptions,omitempty"`
+	ProtocolViolations    int      `yaml:"protocol_violations,omitempty"`
+	AllReportsHaveVerdict bool     `yaml:"all_reports_have_verdict,omitempty"`
+	ExpectedRiskLevel     string   `yaml:"expected_risk_level,omitempty"`
+	ExpectedRiskTags      []string `yaml:"expected_risk_tags,omitempty"`
+	DeclinedMin           int      `yaml:"declined_verdicts_min,omitempty"`
+	DeclinedMax           *int     `yaml:"declined_verdicts_max,omitempty"`
+	RetryLoopMax          int      `yaml:"retry_loop_max,omitempty"`
 }
 
 // Duration wraps time.Duration for YAML unmarshaling.
