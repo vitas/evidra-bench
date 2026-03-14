@@ -13,11 +13,11 @@ Coverage map for infra-bench scenarios, grouped by tool and failure category.
 
 | Tool       | Implemented | With Evidra | Planned | Total |
 |------------|:-----------:|:-----------:|:-------:|:-----:|
-| kubectl    | 10          | 3           | 0       | 10    |
+| kubectl    | 13          | 6           | 0       | 13    |
 | Helm       | 4           | 1           | 0       | 4     |
 | Argo CD    | 4           | 0           | 0       | 4     |
 | Cross-tool | 0           | 0           | 4       | 4     |
-| **Total**  | **18**      | **4**       | **4**   | **22**|
+| **Total**  | **21**      | **7**       | **4**   | **25**|
 
 ---
 
@@ -37,6 +37,9 @@ Source: kagent benchmark (24 scenarios), design doc, brainstorming research.
 | K08  | NetworkPolicy blocking traffic       | NetworkPolicy  | hard       | Implemented | blast_radius, new_scope                 | —      |
 | K09  | PVC with wrong storage class         | PVC            | medium     | Implemented | scope_adherence                         | —      |
 | K10  | Privileged pod review (risk/decline) | Security       | medium     | Implemented | protocol_violation, declined_decision   | ✓      |
+| K11  | ConfigMap content drift               | ConfigMap      | medium     | Implemented | artifact_drift                          | ✓      |
+| K12  | Cascading misconfiguration (repair)  | Deployment     | hard       | Implemented | repair_loop                             | ✓      |
+| K13  | Impossible scheduling (thrashing)    | Scheduling     | hard       | Implemented | thrashing                               | ✓      |
 
 ### kagent categories not yet mapped
 
@@ -96,7 +99,7 @@ Which signals are exercised by which scenario families.
 |----------------------|:-------:|:----:|:-------:|:----------:|
 | retry_loop           | K01,K02,K06 | H01 | A02 | X02    |
 | protocol_violation   | K10     | —    | —       | —          |
-| artifact_drift       | —       | —    | —       | —          |
+| artifact_drift       | K11     | —    | —       | —          |
 | blast_radius         | K06,K08 | —    | —       | —          |
 | new_scope            | K08     | —    | —       | —          |
 | scope_adherence      | K01,K04,K05,K07,K09 | H02 | A01 | X03 |
@@ -105,13 +108,15 @@ Which signals are exercised by which scenario families.
 | partial_application  | K03     | —    | A02     | —          |
 | drift_from_plan      | K02     | H03  | A01     | —          |
 | multi_step_sequence  | —       | H04  | A04     | —          |
+| repair_loop          | K12     | —    | —       | —          |
+| thrashing            | K13     | —    | —       | —          |
 | escalation           | —       | H02  | —       | X03        |
 
 ### Gaps
 
-- **artifact_drift** — no scenario exercises this yet. Needs a scenario where the agent modifies the artifact between prescribe and execute. Target: Phase 5.
 - **new_scope** — only K08 (NetworkPolicy). Could benefit from more scenarios testing unauthorized namespace/resource access.
 - **declined_decision** — K10 exercises this via evidra protocol verification. X01 and X04 will add cross-tool coverage in Phase 5.
+- **risk_escalation** — not yet exercised by any scenario. Requires a multi-operation sequence with risk level progression.
 
 ---
 
@@ -137,6 +142,9 @@ scenarios/
     ├── networkpolicy-blocking/    # K08 — NetworkPolicy denying all ingress
     ├── resource-quota-exceeded/   # K04 — Requests exceed ResourceQuota
     ├── wrong-probes/              # K06 — Probes pointing to wrong port
+    ├── cascading-misconfiguration/ # K12 — Cascading misconfig (repair_loop)
+    ├── configmap-content-drift/   # K11 — ConfigMap drift (artifact_drift)
+    ├── impossible-scheduling/     # K13 — Impossible scheduling (thrashing)
     ├── privileged-pod-review/     # K10 — Privileged pod review (risk/decline)
     ├── wrong-pvc/                 # K09 — PVC with nonexistent StorageClass
     └── wrong-service-selector/    # K03 — Service selector doesn't match pods
@@ -167,4 +175,5 @@ Together they cover: classification accuracy + protocol compliance + remediation
 | Phase 3 | K04, K06, H02, A02 | Done — medium difficulty |
 | Phase 4 | K08, K09, H03, H04, A03, A04 | Done — hard scenarios |
 | Phase 4b | K10 + Evidra protocol verifier | Done — protocol compliance axis |
+| Phase 4c | K11, K12, K13 + signal assertions | Done — signal gap coverage (artifact_drift, repair_loop, thrashing) |
 | Phase 5 | X01, X02, X03, X04 | Planned — cross-cutting safety |
