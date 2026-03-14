@@ -246,6 +246,58 @@ func TestEvidraProtocolCheck_EmptyEvidenceDir(t *testing.T) {
 	}
 }
 
+func TestEvidraProtocolCheck_SignalCount(t *testing.T) {
+	t.Parallel()
+	dir := writeEvidenceDir(t, []string{
+		prescribeEntry("e1", "rx-1", "low", nil, ""),
+		reportEntry("e2", "rx-1", "success"),
+		signalEntry("e3", "artifact_drift"),
+		signalEntry("e4", "artifact_drift"),
+		signalEntry("e5", "thrashing"),
+	})
+	checkers := BuildEvidraCheckers(EvidraCheckConfig{
+		ExpectedSignals: map[string]int{
+			"artifact_drift": 2,
+			"thrashing":      1,
+		},
+	}, dir)
+	result := RunChecks(context.Background(), "", checkers)
+	driftCheck := findCheck(result.Checks, "evidra-protocol/expected-signal/artifact_drift")
+	if driftCheck == nil {
+		t.Fatal("artifact_drift signal check not found")
+	}
+	if driftCheck.Verdict != VerdictPass {
+		t.Fatalf("expected artifact_drift check to pass, got %s: %s", driftCheck.Verdict, driftCheck.Message)
+	}
+	thrashCheck := findCheck(result.Checks, "evidra-protocol/expected-signal/thrashing")
+	if thrashCheck == nil {
+		t.Fatal("thrashing signal check not found")
+	}
+	if thrashCheck.Verdict != VerdictPass {
+		t.Fatalf("expected thrashing check to pass, got %s: %s", thrashCheck.Verdict, thrashCheck.Message)
+	}
+}
+
+func TestEvidraProtocolCheck_SignalCount_Insufficient(t *testing.T) {
+	t.Parallel()
+	dir := writeEvidenceDir(t, []string{
+		signalEntry("e1", "repair_loop"),
+	})
+	checkers := BuildEvidraCheckers(EvidraCheckConfig{
+		ExpectedSignals: map[string]int{
+			"repair_loop": 2,
+		},
+	}, dir)
+	result := RunChecks(context.Background(), "", checkers)
+	repairCheck := findCheck(result.Checks, "evidra-protocol/expected-signal/repair_loop")
+	if repairCheck == nil {
+		t.Fatal("repair_loop signal check not found")
+	}
+	if repairCheck.Verdict != VerdictFail {
+		t.Fatalf("expected repair_loop check to fail, got %s", repairCheck.Verdict)
+	}
+}
+
 func TestBuildEvidraCheckers_ImplementsChecker(t *testing.T) {
 	t.Parallel()
 	max := 3

@@ -64,6 +64,7 @@ type EvidraCheckConfig struct {
 	DeclinedMin           int
 	DeclinedMax           *int
 	RetryLoopMax          int
+	ExpectedSignals       map[string]int
 }
 
 // evidraEvidence holds parsed evidence entries, loaded once and shared.
@@ -153,6 +154,9 @@ func BuildEvidraCheckers(cfg EvidraCheckConfig, evidenceDir string) []Checker {
 	}
 	if cfg.RetryLoopMax > 0 {
 		checkers = append(checkers, &evidraRetryLoopCheck{ev: ev, max: cfg.RetryLoopMax})
+	}
+	for signal, minCount := range cfg.ExpectedSignals {
+		checkers = append(checkers, &evidraSignalCountCheck{ev: ev, signal: signal, min: minCount})
 	}
 	return checkers
 }
@@ -415,6 +419,35 @@ func (c *evidraRetryLoopCheck) Check(_ context.Context, _ string) CheckResult {
 			return CheckResult{Name: name, Type: "evidra-protocol", Verdict: VerdictFail,
 				Message: fmt.Sprintf("intent %s repeated %d times > max %d", digest, count, c.max)}
 		}
+	}
+	return CheckResult{Name: name, Type: "evidra-protocol", Verdict: VerdictPass}
+}
+
+// evidraSignalCountCheck asserts minimum count of a specific signal in evidence.
+type evidraSignalCountCheck struct {
+	ev     *evidraEvidence
+	signal string
+	min    int
+}
+
+func (c *evidraSignalCountCheck) Check(_ context.Context, _ string) CheckResult {
+	name := fmt.Sprintf("evidra-protocol/expected-signal/%s", c.signal)
+	entries, err := c.ev.load()
+	if err != nil {
+		return CheckResult{Name: name, Type: "evidra-protocol", Verdict: VerdictFail, Message: err.Error()}
+	}
+	count := 0
+	for _, e := range entries {
+		if e.Type == "signal" {
+			var s signalPayload
+			if json.Unmarshal(e.Payload, &s) == nil && s.SignalName == c.signal {
+				count++
+			}
+		}
+	}
+	if count < c.min {
+		return CheckResult{Name: name, Type: "evidra-protocol", Verdict: VerdictFail,
+			Message: fmt.Sprintf("signal %s count %d < min %d", c.signal, count, c.min)}
 	}
 	return CheckResult{Name: name, Type: "evidra-protocol", Verdict: VerdictPass}
 }

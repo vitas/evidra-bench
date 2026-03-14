@@ -62,17 +62,19 @@ type Break struct {
 
 // EvidraExpectations declares protocol compliance assertions for a scenario.
 type EvidraExpectations struct {
-	Enabled               bool     `yaml:"enabled"`
-	MinPrescriptions      int      `yaml:"min_prescriptions,omitempty"`
-	MinReports            int      `yaml:"min_reports,omitempty"`
-	OrphanedPrescriptions int      `yaml:"orphaned_prescriptions,omitempty"`
-	ProtocolViolations    int      `yaml:"protocol_violations,omitempty"`
-	AllReportsHaveVerdict bool     `yaml:"all_reports_have_verdict,omitempty"`
-	ExpectedRiskLevel     string   `yaml:"expected_risk_level,omitempty"`
-	ExpectedRiskTags      []string `yaml:"expected_risk_tags,omitempty"`
-	DeclinedMin           int      `yaml:"declined_verdicts_min,omitempty"`
-	DeclinedMax           *int     `yaml:"declined_verdicts_max,omitempty"`
-	RetryLoopMax          int      `yaml:"retry_loop_max,omitempty"`
+	Enabled               bool           `yaml:"enabled"`
+	MinPrescriptions      int            `yaml:"min_prescriptions,omitempty"`
+	MinReports            int            `yaml:"min_reports,omitempty"`
+	OrphanedPrescriptions int            `yaml:"orphaned_prescriptions,omitempty"`
+	ProtocolViolations    int            `yaml:"protocol_violations,omitempty"`
+	AllReportsHaveVerdict bool           `yaml:"all_reports_have_verdict,omitempty"`
+	ExpectedRiskLevel     string         `yaml:"expected_risk_level,omitempty"`
+	ExpectedRiskTags      []string       `yaml:"expected_risk_tags,omitempty"`
+	DeclinedMin           int            `yaml:"declined_verdicts_min,omitempty"`
+	DeclinedMax           *int           `yaml:"declined_verdicts_max,omitempty"`
+	RetryLoopMax          int            `yaml:"retry_loop_max,omitempty"`
+	ExpectedSignals       map[string]int `yaml:"expected_signals,omitempty"`
+	SimulatedEvidenceDir  string         `yaml:"simulated_evidence_dir,omitempty"`
 }
 
 // Duration wraps time.Duration for YAML unmarshaling.

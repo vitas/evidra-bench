@@ -164,6 +164,16 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		if evidenceDir == "" {
 			evidenceDir = filepath.Join(req.Config.RunsDir, "evidence")
 		}
+		// Fall back to simulated evidence if real evidence dir has no segments.
+		if s.Evidra.SimulatedEvidenceDir != "" {
+			if _, err := os.Stat(filepath.Join(evidenceDir, "segments")); err != nil {
+				simDir := s.Evidra.SimulatedEvidenceDir
+				if !filepath.IsAbs(simDir) {
+					simDir = filepath.Join(s.Dir, simDir)
+				}
+				evidenceDir = simDir
+			}
+		}
 		evidraCheckers := verifier.BuildEvidraCheckers(verifier.EvidraCheckConfig{
 			MinPrescriptions:      s.Evidra.MinPrescriptions,
 			MinReports:            s.Evidra.MinReports,
@@ -175,6 +185,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			DeclinedMin:           s.Evidra.DeclinedMin,
 			DeclinedMax:           s.Evidra.DeclinedMax,
 			RetryLoopMax:          s.Evidra.RetryLoopMax,
+			ExpectedSignals:       s.Evidra.ExpectedSignals,
 		}, evidenceDir)
 		evidraResult := verifier.RunChecks(ctx, handle.KubeconfigPath, evidraCheckers)
 		verifyResult.Checks = append(verifyResult.Checks, evidraResult.Checks...)
