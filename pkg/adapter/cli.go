@@ -47,6 +47,9 @@ func (a *CLIAdapter) Run(ctx context.Context, input RunInput) (*RunResult, error
 	if input.PromptPath != "" {
 		cmd.Env = append(cmd.Env, "INFRA_BENCH_PROMPT="+input.PromptPath)
 	}
+	if input.Model != "" {
+		cmd.Env = append(cmd.Env, "INFRA_BENCH_MODEL="+input.Model)
+	}
 
 	for k, v := range input.Env {
 		cmd.Env = append(cmd.Env, k+"="+v)

@@ -164,6 +164,9 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		_ = SaveLabConfig(a.cfgPath, a.cfg)
 	case "e":
 		a.view = viewConfig
+	case "m":
+		a.cycleModel()
+		_ = SaveLabConfig(a.cfgPath, a.cfg)
 	case "h":
 		if len(a.filtered) > 0 {
 			a.view = viewHistory
@@ -211,6 +214,8 @@ func (a *App) handleConfigKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "2":
 		a.cfg.DryRun = !a.cfg.DryRun
+	case "3":
+		a.cycleModel()
 	}
 	return a, nil
 }
@@ -228,6 +233,20 @@ func (a *App) refreshHistory() {
 			a.allItems[i].LastResult = stats.LastResult
 		}
 	}
+}
+
+// ModelChoices are the available models for cycling.
+var ModelChoices = []string{"", "sonnet", "haiku", "opus"}
+
+func (a *App) cycleModel() {
+	idx := 0
+	for i, m := range ModelChoices {
+		if m == a.cfg.Model {
+			idx = i
+			break
+		}
+	}
+	a.cfg.Model = ModelChoices[(idx+1)%len(ModelChoices)]
 }
 
 func (a *App) applyFilter() {
@@ -254,6 +273,7 @@ func (a *App) runScenario() tea.Cmd {
 			ScenariosDir:      a.scenariosDir,
 			Adapter:           a.cfg.Adapter,
 			AgentCommand:      a.cfg.AgentCommand,
+			Model:             a.cfg.Model,
 			Timeout:           a.cfg.TimeoutDuration(),
 			DryRun:            a.cfg.DryRun,
 			RunsDir:           "runs",
@@ -319,11 +339,12 @@ func (a App) renderCatalog() string {
 	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	b.WriteString(dimStyle.Render(filterInfo))
 
-	dryLabel := ""
-	if a.cfg.DryRun {
-		dryLabel = dimStyle.Render("  [dry-run]")
+	if a.cfg.Model != "" {
+		b.WriteString(dimStyle.Render(fmt.Sprintf("  [%s]", a.cfg.Model)))
 	}
-	b.WriteString(dryLabel)
+	if a.cfg.DryRun {
+		b.WriteString(dimStyle.Render("  [dry-run]"))
+	}
 	b.WriteString("\n\n")
 
 	// Catalog list
@@ -388,7 +409,7 @@ func (a App) renderCatalog() string {
 		b.WriteString(a.query)
 		b.WriteString("_")
 	} else {
-		b.WriteString(dimStyle.Render("j/k:nav  /:filter  t:category  h:history  d:dry-run  e:config  enter:run  ?:help  q:quit"))
+		b.WriteString(dimStyle.Render("j/k:nav  /:filter  t:category  m:model  h:history  d:dry-run  e:config  enter:run  ?:help  q:quit"))
 	}
 
 	return b.String()
@@ -488,8 +509,13 @@ func (a App) renderConfig() string {
 	b.WriteString(headerStyle.Render("Run Configuration"))
 	b.WriteString("\n\n")
 
+	modelDisplay := a.cfg.Model
+	if modelDisplay == "" {
+		modelDisplay = "(default)"
+	}
 	b.WriteString(fmt.Sprintf("  [1] Adapter:       %s\n", a.cfg.Adapter))
 	b.WriteString(fmt.Sprintf("  [2] Dry-run:       %v\n", a.cfg.DryRun))
+	b.WriteString(fmt.Sprintf("  [3] Model:         %s\n", modelDisplay))
 	b.WriteString(fmt.Sprintf("      Agent command: %s\n", a.cfg.AgentCommand))
 	b.WriteString(fmt.Sprintf("      Timeout:       %s\n", a.cfg.Timeout))
 	if a.cfg.EvidraEvidenceDir != "" {
@@ -497,7 +523,7 @@ func (a App) renderConfig() string {
 	}
 
 	b.WriteString("\n")
-	b.WriteString(dimStyle.Render("1/2: toggle  esc: back"))
+	b.WriteString(dimStyle.Render("1/2/3: toggle  esc: back"))
 	return b.String()
 }
 
@@ -512,6 +538,7 @@ func (a App) renderHelp() string {
 	b.WriteString("  /             Search by text (id, title, tags)\n")
 	b.WriteString("  t             Cycle category filter (all/kubernetes/helm/argocd)\n")
 	b.WriteString("  Enter         Run selected scenario\n")
+	b.WriteString("  m             Cycle model (sonnet/haiku/opus/default)\n")
 	b.WriteString("  h             Show run history for selected scenario\n")
 	b.WriteString("  d             Toggle dry-run mode\n")
 	b.WriteString("  e             Edit run configuration\n")

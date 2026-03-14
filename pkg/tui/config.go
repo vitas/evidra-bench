@@ -13,6 +13,7 @@ import (
 type LabConfig struct {
 	Adapter           string `yaml:"adapter"`
 	AgentCommand      string `yaml:"agent_command"`
+	Model             string `yaml:"model,omitempty"`
 	Timeout           string `yaml:"timeout"`
 	DryRun            bool   `yaml:"dry_run"`
 	EvidraEvidenceDir string `yaml:"evidra_evidence_dir,omitempty"`

@@ -138,6 +138,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		KubeconfigPath: handle.KubeconfigPath,
 		Timeout:        timeout,
 		AgentCommand:   req.Config.AgentCommand,
+		Model:          req.Config.Model,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("harness.Run: execute agent: %w", err)

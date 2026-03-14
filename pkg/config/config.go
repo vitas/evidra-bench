@@ -22,6 +22,7 @@ type Config struct {
 	EvidraURL           string
 	EvidraAPIKey        string
 	EvidraEvidenceDir   string
+	Model               string
 }
 
 // Default returns a Config with sensible offline-first defaults.

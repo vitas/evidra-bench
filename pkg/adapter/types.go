@@ -16,6 +16,7 @@ type RunInput struct {
 	Tools          map[string]any
 	AgentCommand   string
 	AgentArgs      []string
+	Model          string
 	Env            map[string]string
 }
 
