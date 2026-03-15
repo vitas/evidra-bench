@@ -24,6 +24,18 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/verifier"
 )
 
+// version and commit are set by the CLI at startup via SetVersion.
+var (
+	version = "dev"
+	commit  = "dev"
+)
+
+// SetVersion sets the harness version metadata for run artifacts.
+func SetVersion(v, c string) {
+	version = v
+	commit = c
+}
+
 // Deps holds all dependencies for the harness.
 type Deps struct {
 	EnvProvider  environment.Provider
@@ -673,19 +685,29 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		Transcript: transcript.String(),
 		Stdout:     loopResult.FinalOutput,
 		ToolCalls:  providerToolCalls(loopResult.Messages),
-		Metadata: map[string]string{
-			"provider":           req.Config.Provider,
-			"model":              req.Config.Model,
-			"turns":              fmt.Sprintf("%d", loopResult.Turns),
-			"memory_window":      fmt.Sprintf("%d", loopResult.MemoryWindow),
-			"prompt_tokens":      fmt.Sprintf("%d", loopResult.TotalUsage.PromptTokens),
-			"completion_tokens":  fmt.Sprintf("%d", loopResult.TotalUsage.CompletionTokens),
-			"estimated_cost":     agent.EstimateCost(req.Config.Model, loopResult.TotalUsage).String(),
-			"system_prompt_file": req.Config.ResolveSystemPromptFile(),
-			"contract_version":   req.Config.ContractVersion,
-			"evidence_dir":       evidenceDir,
-		},
+		Metadata:   buildRunMetadata(req.Config, loopResult, evidenceDir),
 	}, nil
+}
+
+// buildRunMetadata creates the metadata map for a provider-path run,
+// including all version information for reproducibility.
+func buildRunMetadata(cfg config.Config, loopResult *agent.LoopResult, evidenceDir string) map[string]string {
+	meta := map[string]string{
+		"provider":          cfg.Provider,
+		"model":             cfg.Model,
+		"turns":             fmt.Sprintf("%d", loopResult.Turns),
+		"memory_window":     fmt.Sprintf("%d", loopResult.MemoryWindow),
+		"prompt_tokens":     fmt.Sprintf("%d", loopResult.TotalUsage.PromptTokens),
+		"completion_tokens": fmt.Sprintf("%d", loopResult.TotalUsage.CompletionTokens),
+		"estimated_cost":    agent.EstimateCost(cfg.Model, loopResult.TotalUsage).String(),
+		"evidence_dir":      evidenceDir,
+	}
+	// Merge version info
+	vi := config.CollectVersions(version, commit, cfg)
+	for k, v := range vi.ToMetadata() {
+		meta[k] = v
+	}
+	return meta
 }
 
 // buildSystemPrompt loads the system prompt from file or returns the default.

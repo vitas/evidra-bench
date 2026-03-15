@@ -20,7 +20,10 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/tui"
 )
 
-var version = "dev"
+var (
+	version = "dev"
+	commit  = "dev"
+)
 
 func newRootCommand() *cobra.Command {
 	cfg := config.Default()
@@ -364,6 +367,7 @@ func listScenarios(cmd *cobra.Command, cfg config.Config) error {
 }
 
 func main() {
+	harness.SetVersion(version, commit)
 	if err := newRootCommand().Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

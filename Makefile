@@ -1,6 +1,7 @@
 BINARY := infra-bench
 VERSION ?= dev
-LDFLAGS := -ldflags "-X main.version=$(VERSION)"
+COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
+LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT)"
 
 .PHONY: build test test-race fmt lint tidy clean smoke
 
