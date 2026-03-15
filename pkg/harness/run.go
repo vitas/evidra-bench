@@ -225,14 +225,16 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	}
 	verifyResult := verifier.RunChecks(ctx, handle.KubeconfigPath, checkers)
 
+	// Resolve evidence directory for both protocol checks and scorecard.
+	evidenceDir := req.Config.EvidraEvidenceDir
+	if providerEvDir != "" {
+		evidenceDir = providerEvDir
+	} else if evidenceDir == "" {
+		evidenceDir = filepath.Join(req.Config.RunsDir, "evidence")
+	}
+
 	// Step 5b: Verify Evidra protocol compliance.
 	if s.Evidra.Enabled {
-		evidenceDir := req.Config.EvidraEvidenceDir
-		if providerEvDir != "" {
-			evidenceDir = providerEvDir
-		} else if evidenceDir == "" {
-			evidenceDir = filepath.Join(req.Config.RunsDir, "evidence")
-		}
 		// Fall back to simulated evidence if real evidence dir has no segments.
 		if s.Evidra.SimulatedEvidenceDir != "" {
 			if _, err := os.Stat(filepath.Join(evidenceDir, "segments")); err != nil {
@@ -305,6 +307,11 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		} else {
 			artifactDir = out.Path
 		}
+	}
+
+	// Step 6b: Post-process evidence with evidra scorecard.
+	if artifactDir != "" && evidenceDir != "" {
+		runEvidraScorecard(req.Config.ResolveEvidraBin(), evidenceDir, artifactDir)
 	}
 
 	// Step 7: Evidra reporting.
@@ -811,6 +818,40 @@ func waitForRollouts(ctx context.Context, kubeconfigPath string, s *scenario.Sce
 		if err != nil {
 			log.Printf("[harness] rollout wait for %s/%s: %v: %s", ns, check.Name, err, strings.TrimSpace(string(out)))
 		}
+	}
+}
+
+// runEvidraScorecard runs `evidra scorecard` on the evidence and saves
+// scorecard.json into the artifact directory for audit consumption.
+func runEvidraScorecard(evidraBin, evidenceDir, artifactDir string) {
+	if evidraBin == "" {
+		return
+	}
+	// Find the actual evidence session dir (may be a subdirectory)
+	var sessionDir string
+	_ = filepath.WalkDir(evidenceDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || !d.IsDir() || d.Name() != "segments" {
+			return nil
+		}
+		sessionDir = filepath.Dir(path)
+		return filepath.SkipAll
+	})
+	if sessionDir == "" {
+		return
+	}
+
+	cmd := exec.CommandContext(context.Background(), evidraBin, "scorecard", "--evidence-dir", sessionDir, "--ttl", "1s")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("[harness] scorecard failed: %v", err)
+		return
+	}
+
+	scorecardPath := filepath.Join(artifactDir, "scorecard.json")
+	if writeErr := os.WriteFile(scorecardPath, out, 0644); writeErr != nil {
+		log.Printf("[harness] warning: write scorecard.json: %v", writeErr)
+	} else {
+		log.Printf("[harness] scorecard written: %s", scorecardPath)
 	}
 }
 
