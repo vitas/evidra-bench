@@ -895,6 +895,33 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 	summaryJSON, _ := json.MarshalIndent(summary, "", "  ")
 	os.WriteFile(summaryPath, summaryJSON, 0644)
 
+	// Step 2: Signal audit (if manifest exists)
+	auditManifestPath := resolveAuditManifestPath("configs/signal-audit.yaml")
+	var auditResult *signalaudit.Result
+	auditPath := ""
+	if auditManifestPath != "" {
+		if _, err := os.Stat(auditManifestPath); err == nil {
+			manifest, err := signalaudit.LoadManifest(auditManifestPath)
+			if err == nil {
+				runs, err := loadAuditRuns(outDir, "", "", "")
+				if err == nil && len(runs) > 0 {
+					ar := signalaudit.Analyze(manifest, runs)
+					auditResult = &ar
+					auditPath = filepath.Join(outDir, "signal-audit.json")
+					auditJSON, _ := json.MarshalIndent(ar, "", "  ")
+					os.WriteFile(auditPath, auditJSON, 0644)
+				}
+			}
+		}
+	}
+
+	// Step 3: Generate HTML report
+	reportPath := filepath.Join(outDir, "report.html")
+	if reportErr := report.GenerateHTML(scenariosDir, outDir, reportPath); reportErr != nil {
+		log.Printf("[bench] warning: HTML report failed: %v", reportErr)
+		reportPath = ""
+	}
+
 	// Print summary
 	fmt.Fprintf(cmd.OutOrStdout(), "\n")
 	fmt.Fprintf(cmd.OutOrStdout(), "════════════════════════════════════════\n")
@@ -906,7 +933,20 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 	fmt.Fprintf(cmd.OutOrStdout(), "  Errors:  %d\n", errors)
 	fmt.Fprintf(cmd.OutOrStdout(), "  Skipped: %d\n", skipped)
 	fmt.Fprintf(cmd.OutOrStdout(), "  Rate:    %.0f%%\n", float64(passed)/float64(max(total, 1))*100)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Summary: %s\n", summaryPath)
+	fmt.Fprintf(cmd.OutOrStdout(), "\n")
+	fmt.Fprintf(cmd.OutOrStdout(), "  Artifacts:\n")
+	fmt.Fprintf(cmd.OutOrStdout(), "    Summary: %s\n", summaryPath)
+	if reportPath != "" {
+		fmt.Fprintf(cmd.OutOrStdout(), "    Report:  %s\n", reportPath)
+	}
+	if auditResult != nil {
+		fmt.Fprintf(cmd.OutOrStdout(), "    Audit:   %s\n", auditPath)
+		fmt.Fprintf(cmd.OutOrStdout(), "      audited=%d missing=%d forbidden=%d unstable=%d\n",
+			auditResult.AuditedScenarioCount,
+			auditResult.FindingTotals.MissingExpected,
+			auditResult.FindingTotals.ForbiddenSignals,
+			auditResult.FindingTotals.UnstableGroups)
+	}
 	fmt.Fprintf(cmd.OutOrStdout(), "════════════════════════════════════════\n")
 
 	if failed > 0 || errors > 0 {
