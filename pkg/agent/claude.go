@@ -66,11 +66,12 @@ func (p *ClaudeProvider) Chat(ctx context.Context, req ChatRequest) (*ChatRespon
 	args := []string{
 		"-p", prompt.String(),
 		"--output-format", "stream-json",
+		"--verbose",
 		"--model", model,
 		"--max-turns", "1",
 	}
 	if systemPrompt != "" {
-		args = append(args, "--append-system-prompt", systemPrompt)
+		args = append(args, "--system-prompt", systemPrompt)
 	}
 
 	cmd := exec.CommandContext(ctx, "claude", args...)
@@ -131,12 +132,49 @@ func parseClaudeStream(stream string, tools []ToolDef) (*ChatResponse, error) {
 			if text, ok := event["text"].(string); ok {
 				content.WriteString(text)
 			}
+		case "assistant":
+			// Parse content blocks from assistant message
+			if msg, ok := event["message"].(map[string]any); ok {
+				if blocks, ok := msg["content"].([]any); ok {
+					for _, block := range blocks {
+						b, ok := block.(map[string]any)
+						if !ok {
+							continue
+						}
+						switch b["type"] {
+						case "text":
+							if text, ok := b["text"].(string); ok {
+								content.WriteString(text)
+							}
+						case "tool_use":
+							id, _ := b["id"].(string)
+							name, _ := b["name"].(string)
+							input, _ := b["input"].(map[string]any)
+							argsJSON, _ := json.Marshal(input)
+							toolCalls = append(toolCalls, ToolCall{ID: id, Name: name, Arguments: string(argsJSON)})
+						}
+					}
+				}
+			}
 		case "result":
 			if result, ok := event["result"].(string); ok {
-				content.WriteString(result)
+				if content.Len() == 0 {
+					content.WriteString(result)
+				}
 			} else if result, ok := event["result"].(map[string]any); ok {
 				b, _ := json.Marshal(result)
-				content.WriteString(string(b))
+				if content.Len() == 0 {
+					content.WriteString(string(b))
+				}
+			}
+			// Extract usage from result event
+			if u, ok := event["usage"].(map[string]any); ok {
+				if pt, ok := u["input_tokens"].(float64); ok {
+					usage.PromptTokens = int(pt)
+				}
+				if ct, ok := u["output_tokens"].(float64); ok {
+					usage.CompletionTokens = int(ct)
+				}
 			}
 		case "tool_use":
 			id, _ := event["id"].(string)
@@ -274,7 +312,7 @@ func extractJSONBlocks(text string) []jsonBlock {
 
 func resolveClaudeModel(model string) string {
 	if model == "" {
-		return "sonnet"
+		return "haiku"
 	}
 	if strings.HasPrefix(model, "claude/") {
 		return strings.TrimPrefix(model, "claude/")
