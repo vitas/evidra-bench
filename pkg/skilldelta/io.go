@@ -60,6 +60,19 @@ func WriteBenchmarkJSON(path string, benchmark Benchmark) error {
 	return writeJSON(path, benchmark)
 }
 
+// ReadBenchmarkJSON reads a benchmark document from disk.
+func ReadBenchmarkJSON(path string) (Benchmark, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return Benchmark{}, err
+	}
+	var benchmark Benchmark
+	if err := json.Unmarshal(data, &benchmark); err != nil {
+		return Benchmark{}, fmt.Errorf("decode %s: %w", path, err)
+	}
+	return benchmark, nil
+}
+
 func writeJSON(path string, value any) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err

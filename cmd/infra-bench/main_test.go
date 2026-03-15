@@ -296,3 +296,44 @@ func TestSkillDeltaAggregateCommand_WritesBenchmarkArtifacts(t *testing.T) {
 		}
 	}
 }
+
+func TestSkillDeltaReportCommand_WritesBenchmarkHTML(t *testing.T) {
+	dir := t.TempDir()
+	benchmark := skilldelta.BuildBenchmark(skilldelta.BenchmarkMetadata{
+		Suite:       "skill-delta",
+		GeneratedAt: "2026-03-15T18:10:00Z",
+	}, []skilldelta.PairResult{
+		{
+			ScenarioID: "broken-deployment",
+			Model:      "sonnet",
+			Repeat:     1,
+			WithoutSkill: skilldelta.RunSnapshot{
+				Passed: false,
+			},
+			WithSkill: skilldelta.RunSnapshot{
+				Passed: true,
+				Scorecard: skilldelta.ScorecardMetrics{
+					Available: true,
+					Band:      "good",
+					Signals:   []string{"repair_loop"},
+				},
+			},
+			ComplianceDeltaPct: 100,
+			TokenDelta: skilldelta.TokenDelta{
+				TotalTokens: 350,
+			},
+		},
+	})
+	if err := skilldelta.WriteBenchmarkJSON(filepath.Join(dir, "benchmark.json"), benchmark); err != nil {
+		t.Fatalf("WriteBenchmarkJSON: %v", err)
+	}
+
+	cmd := newRootCommand()
+	cmd.SetArgs([]string{"skill-delta", "report", "--dir", dir})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("skill-delta report failed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "benchmark.html")); err != nil {
+		t.Fatalf("benchmark.html missing: %v", err)
+	}
+}

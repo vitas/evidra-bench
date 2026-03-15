@@ -585,7 +585,17 @@ func executeSkillDeltaReport(cmd *cobra.Command, dir string) error {
 	if strings.TrimSpace(dir) == "" {
 		return fmt.Errorf("skill-delta report: --dir is required")
 	}
-	return fmt.Errorf("skill-delta report: html generation not implemented yet")
+
+	benchmark, err := skilldelta.ReadBenchmarkJSON(filepath.Join(dir, "benchmark.json"))
+	if err != nil {
+		return err
+	}
+	outputPath := filepath.Join(dir, "benchmark.html")
+	if err := report.WriteSkillDeltaHTML(outputPath, benchmark); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "html: %s\n", outputPath)
+	return nil
 }
 
 func buildSkillDeltaMetadata(dir string, pairs []skilldelta.PairResult) skilldelta.BenchmarkMetadata {
