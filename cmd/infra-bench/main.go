@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/harness"
 	"samebits.com/evidra-infra-bench/pkg/report"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"samebits.com/evidra-infra-bench/pkg/store"
 	"samebits.com/evidra-infra-bench/pkg/tui"
 )
 
@@ -144,7 +146,98 @@ with optional Evidra reporting for behavioral analysis.`,
 		},
 	}
 
-	root.AddCommand(runCmd, scenarioCmd, labCmd, reportCmd, compareCmd)
+	dbCmd := &cobra.Command{
+		Use:   "db",
+		Short: "Query and manage the results database",
+	}
+	dbStatsCmd := &cobra.Command{
+		Use:   "stats",
+		Short: "Show aggregate run statistics",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := store.Open(cfg.RunsDir)
+			if err != nil {
+				return err
+			}
+			defer s.Close()
+			st, err := s.Stats()
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Total: %d  Pass: %d  Fail: %d\n\n", st.TotalRuns, st.PassCount, st.FailCount)
+			for _, ss := range st.ByScenario {
+				fmt.Fprintf(cmd.OutOrStdout(), "  %-35s %d/%d\n", ss.ScenarioID, ss.Passed, ss.Runs)
+			}
+			return nil
+		},
+	}
+	dbQueryCmd := &cobra.Command{
+		Use:   "query",
+		Short: "Query runs with filters",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := store.Open(cfg.RunsDir)
+			if err != nil {
+				return err
+			}
+			defer s.Close()
+			scenarioFilter, _ := cmd.Flags().GetString("scenario")
+			modelFilter, _ := cmd.Flags().GetString("model")
+			providerFilter, _ := cmd.Flags().GetString("provider")
+			limit, _ := cmd.Flags().GetInt("limit")
+			passedOnly, _ := cmd.Flags().GetBool("passed")
+			failedOnly, _ := cmd.Flags().GetBool("failed")
+			runs, err := s.Query(store.QueryFilters{
+				ScenarioID: scenarioFilter,
+				Model:      modelFilter,
+				Provider:   providerFilter,
+				PassedOnly: passedOnly,
+				FailedOnly: failedOnly,
+				Limit:      limit,
+			})
+			if err != nil {
+				return err
+			}
+			for _, r := range runs {
+				verdict := "PASS"
+				if !r.Passed {
+					verdict = "FAIL"
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "[%s] %-30s model=%-10s provider=%-8s dur=%.1fs checks=%d/%d cost=$%.4f %s\n",
+					verdict, r.ScenarioID, r.Model, r.Provider, r.Duration,
+					r.ChecksPassed, r.ChecksTotal, r.EstimatedCost,
+					r.CreatedAt.Format("2006-01-02 15:04"))
+			}
+			return nil
+		},
+	}
+	dbQueryCmd.Flags().String("scenario", "", "filter by scenario ID")
+	dbQueryCmd.Flags().String("model", "", "filter by model")
+	dbQueryCmd.Flags().String("provider", "", "filter by provider")
+	dbQueryCmd.Flags().Int("limit", 20, "max results")
+	dbQueryCmd.Flags().Bool("passed", false, "show only passed runs")
+	dbQueryCmd.Flags().Bool("failed", false, "show only failed runs")
+
+	dbRebuildCmd := &cobra.Command{
+		Use:   "rebuild",
+		Short: "Rebuild database from JSONL backup",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := store.Open(cfg.RunsDir)
+			if err != nil {
+				return err
+			}
+			defer s.Close()
+			count, err := s.Rebuild()
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Rebuilt %d records from results.jsonl\n", count)
+			return nil
+		},
+	}
+
+	dbCmd.AddCommand(dbStatsCmd, dbQueryCmd, dbRebuildCmd)
+	dbCmd.PersistentFlags().StringVar(&cfg.RunsDir, "runs-dir", cfg.RunsDir, "runs directory")
+
+	root.AddCommand(runCmd, scenarioCmd, labCmd, reportCmd, compareCmd, dbCmd)
 	return root
 }
 
@@ -203,12 +296,21 @@ func executeRun(cmd *cobra.Command, cfg config.Config) error {
 		EvidraAPIKey: cfg.EvidraAPIKey,
 	})
 
+	resultsStore, err := store.Open(cfg.RunsDir)
+	if err != nil {
+		log.Printf("[harness] warning: could not open results store: %v", err)
+	}
+	if resultsStore != nil {
+		defer resultsStore.Close()
+	}
+
 	h := harness.New(harness.Deps{
 		EnvProvider:  envProvider,
 		Bootstrapper: bootstrapper,
 		Adapter:      agentAdapter,
 		Writer:       writer,
 		Reporter:     reporter,
+		Store:        resultsStore,
 	})
 
 	result, err := h.Run(cmd.Context(), harness.RunRequest{

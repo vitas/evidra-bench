@@ -48,5 +48,14 @@ docker-compose.override.yml
 # Worktrees
 .worktrees/
 
-# Run artifacts
+# Run artifacts (except JSONL backup)
 runs/
+!runs/results.jsonl
+
+# SQLite databases
+*.db
+*.db-journal
+*.db-wal
+
+# Lab config
+.infra-bench-lab.yaml

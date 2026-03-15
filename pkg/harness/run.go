@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"strconv"
+
 	"samebits.com/evidra-infra-bench/pkg/adapter"
 	"samebits.com/evidra-infra-bench/pkg/agent"
 	"samebits.com/evidra-infra-bench/pkg/artifact"
@@ -18,6 +20,7 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/environment"
 	"samebits.com/evidra-infra-bench/pkg/report"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"samebits.com/evidra-infra-bench/pkg/store"
 	"samebits.com/evidra-infra-bench/pkg/verifier"
 )
 
@@ -29,6 +32,7 @@ type Deps struct {
 	Adapter      adapter.Adapter
 	Writer       *artifact.Writer
 	Reporter     *report.Reporter
+	Store        *store.Store
 }
 
 // RunRequest describes what to run.
@@ -257,14 +261,66 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}
 	}
 
-	return &RunResult{
+	result := &RunResult{
 		ScenarioID:  s.ID,
 		Passed:      verifyResult.Passed,
 		ExitCode:    agentResult.ExitCode,
 		Duration:    endTime.Sub(startTime),
 		ArtifactDir: artifactDir,
 		Checks:      verifyResult,
-	}, nil
+	}
+
+	// Step 8: Store result in database.
+	if h.deps.Store != nil {
+		checksPassed, checksTotal := countChecks(verifyResult)
+		checksJSON, _ := json.Marshal(verifyResult)
+		rec := store.RunRecord{
+			ID:               fmt.Sprintf("%s-%s-%s", startTime.Format("20060102-150405"), s.ID, req.Config.Adapter),
+			ScenarioID:       s.ID,
+			Model:            req.Config.Model,
+			Provider:         req.Config.Provider,
+			Adapter:          req.Config.Adapter,
+			Passed:           verifyResult.Passed,
+			Duration:         endTime.Sub(startTime).Seconds(),
+			ExitCode:         agentResult.ExitCode,
+			Turns:            parseIntMeta(agentResult.Metadata, "turns"),
+			MemoryWindow:     req.Config.MemoryWindow,
+			PromptTokens:     parseIntMeta(agentResult.Metadata, "prompt_tokens"),
+			CompletionTokens: parseIntMeta(agentResult.Metadata, "completion_tokens"),
+			ChecksPassed:     checksPassed,
+			ChecksTotal:      checksTotal,
+			ChecksJSON:       string(checksJSON),
+			ArtifactDir:      artifactDir,
+			CreatedAt:        startTime,
+		}
+		if err := h.deps.Store.Insert(rec); err != nil {
+			log.Printf("[harness] warning: store insert failed: %v", err)
+		}
+	}
+
+	return result, nil
+}
+
+func countChecks(vr *verifier.VerifyResult) (passed, total int) {
+	if vr == nil {
+		return 0, 0
+	}
+	for _, c := range vr.Checks {
+		total++
+		if c.Verdict == verifier.VerdictPass {
+			passed++
+		}
+	}
+	return
+}
+
+func parseIntMeta(meta map[string]string, key string) int {
+	v, ok := meta[key]
+	if !ok {
+		return 0
+	}
+	n, _ := strconv.Atoi(v)
+	return n
 }
 
 func (h *Harness) applyBreak(ctx context.Context, kubeconfigPath string, s *scenario.Scenario) error {
