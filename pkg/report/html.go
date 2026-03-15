@@ -32,6 +32,9 @@ type RunSummary struct {
 	ChaosEnabled   bool
 	ChaosMode      string
 	ChaosStepCount int
+	Signals        []string
+	Score          float64
+	ScoreBand      string
 }
 
 // CheckSummary is a single check result.
@@ -201,7 +204,7 @@ func loadRuns(runsDir string) []RunSummary {
 			}
 		}
 
-		runs = append(runs, RunSummary{
+		rs := RunSummary{
 			RunID:          filepath.Base(filepath.Dir(path)),
 			ScenarioID:     raw.ScenarioID,
 			Adapter:        raw.Adapter,
@@ -219,13 +222,38 @@ func loadRuns(runsDir string) []RunSummary {
 			ChaosEnabled:   raw.ChaosEnabled,
 			ChaosMode:      raw.ChaosMode,
 			ChaosStepCount: raw.ChaosStepCount,
-		})
+		}
+		loadRunScorecard(filepath.Dir(path), &rs)
+		runs = append(runs, rs)
 		return nil
 	})
 	sort.Slice(runs, func(i, j int) bool {
 		return runs[i].StartTime.After(runs[j].StartTime)
 	})
 	return runs
+}
+
+func loadRunScorecard(runDir string, rs *RunSummary) {
+	data, err := os.ReadFile(filepath.Join(runDir, "scorecard.json"))
+	if err != nil {
+		return
+	}
+	var sc struct {
+		Score   float64        `json:"score"`
+		Band    string         `json:"band"`
+		Signals map[string]int `json:"signals"`
+	}
+	if json.Unmarshal(data, &sc) != nil {
+		return
+	}
+	rs.Score = sc.Score
+	rs.ScoreBand = sc.Band
+	for name, count := range sc.Signals {
+		if count > 0 {
+			rs.Signals = append(rs.Signals, name)
+		}
+	}
+	sort.Strings(rs.Signals)
 }
 
 func formatTokens(meta map[string]string) string {
@@ -336,6 +364,8 @@ const htmlTemplate = `<!DOCTYPE html>
   <th>Memory</th>
   <th>Tokens</th>
   <th>Chaos</th>
+  <th>Signals</th>
+  <th>Score</th>
   <th>Checks</th>
 </tr>
 {{range .Runs}}
@@ -349,6 +379,8 @@ const htmlTemplate = `<!DOCTYPE html>
   <td>{{.Memory}}</td>
   <td>{{.Tokens}}</td>
   <td>{{if .ChaosEnabled}}{{.ChaosMode}} / {{.ChaosStepCount}}{{else}}—{{end}}</td>
+  <td>{{if .Signals}}<span style="color:#e3b341">{{range $i, $s := .Signals}}{{if $i}}, {{end}}{{$s}}{{end}}</span>{{else}}—{{end}}</td>
+  <td>{{if and .ScoreBand (ne .ScoreBand "insufficient_data")}}<span class="badge badge-category">{{printf "%.0f" .Score}} ({{.ScoreBand}})</span>{{else if .ScoreBand}}{{.ScoreBand}}{{else}}—{{end}}</td>
   <td>
     {{range .Checks}}
       <span class="{{if eq .Verdict "pass"}}check-pass{{else}}check-fail{{end}}">{{if eq .Verdict "pass"}}✓{{else}}✗{{end}}</span>
