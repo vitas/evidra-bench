@@ -191,14 +191,25 @@ func (e *ToolExecutor) evidraPrescribe(ctx context.Context, argsJSON string) str
 }
 
 func (e *ToolExecutor) evidraReport(ctx context.Context, argsJSON string) string {
-	var args struct {
-		PrescriptionID string `json:"prescription_id"`
-		Verdict        string `json:"verdict"`
-		ExitCode       int    `json:"exit_code"`
+	var raw struct {
+		PrescriptionID string      `json:"prescription_id"`
+		Verdict        string      `json:"verdict"`
+		ExitCode       json.Number `json:"exit_code"`
 	}
-	if err := json.Unmarshal([]byte(argsJSON), &args); err != nil {
+	if err := json.Unmarshal([]byte(argsJSON), &raw); err != nil {
 		return fmt.Sprintf("error parsing arguments: %v", err)
 	}
+	exitCode := 0
+	if raw.ExitCode != "" {
+		if n, err := raw.ExitCode.Int64(); err == nil {
+			exitCode = int(n)
+		}
+	}
+	args := struct {
+		PrescriptionID string
+		Verdict        string
+		ExitCode       int
+	}{raw.PrescriptionID, raw.Verdict, exitCode}
 
 	bin := e.EvidraBin
 	if bin == "" {
