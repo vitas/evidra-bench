@@ -116,6 +116,7 @@ func (e *ToolExecutor) runCommand(ctx context.Context, argsJSON string) string {
 }
 
 func (e *ToolExecutor) evidraPrescribe(ctx context.Context, argsJSON string) string {
+	argsJSON = fixStringifiedJSONFields(argsJSON, "actor", "canonical_action", "scope_dimensions")
 	var input execcontract.PrescribeInput
 	if err := json.Unmarshal([]byte(argsJSON), &input); err != nil {
 		return fmt.Sprintf("error parsing arguments: %v", err)
@@ -154,6 +155,7 @@ func (e *ToolExecutor) evidraPrescribe(ctx context.Context, argsJSON string) str
 }
 
 func (e *ToolExecutor) evidraReport(ctx context.Context, argsJSON string) string {
+	argsJSON = fixStringifiedJSONFields(argsJSON, "actor", "decision_context", "external_refs")
 	var input execcontract.ReportInput
 	if err := json.Unmarshal([]byte(argsJSON), &input); err != nil {
 		return fmt.Sprintf("error parsing arguments: %v", err)
@@ -307,6 +309,45 @@ func appendActorArgs(args []string, actor execcontract.Actor) []string {
 		args = append(args, "--actor-skill-version", actor.SkillVersion)
 	}
 	return args
+}
+
+// fixStringifiedJSONFields handles the case where Claude sends nested objects
+// as JSON strings instead of objects. For example:
+//
+//	"actor": "{\"type\":\"agent\"}" → "actor": {"type":"agent"}
+func fixStringifiedJSONFields(argsJSON string, fields ...string) string {
+	var raw map[string]json.RawMessage
+	if json.Unmarshal([]byte(argsJSON), &raw) != nil {
+		return argsJSON
+	}
+	changed := false
+	for _, field := range fields {
+		val, ok := raw[field]
+		if !ok {
+			continue
+		}
+		// Check if the value is a string (starts with '"')
+		trimmed := bytes.TrimSpace(val)
+		if len(trimmed) > 0 && trimmed[0] == '"' {
+			var s string
+			if json.Unmarshal(trimmed, &s) == nil {
+				// Try to parse the string as JSON
+				var parsed json.RawMessage
+				if json.Unmarshal([]byte(s), &parsed) == nil {
+					raw[field] = parsed
+					changed = true
+				}
+			}
+		}
+	}
+	if !changed {
+		return argsJSON
+	}
+	fixed, err := json.Marshal(raw)
+	if err != nil {
+		return argsJSON
+	}
+	return string(fixed)
 }
 
 func exitCode(err error) int {
