@@ -229,11 +229,37 @@ See `docs/TESTING_METHODOLOGY.md` for interpretation guidance.
 --evidra-api-key      Evidra API key
 ```
 
+## Batch Benchmark
+
+Run all scenarios (or a filtered set) with automated scoring and audit:
+
+```bash
+# Run all scenarios with sonnet
+infra-bench bench --provider claude --model sonnet --reuse-cluster --cluster-name evidra
+
+# Run specific scenarios with repeats
+infra-bench bench --scenario broken-deployment --scenario crashloop-backoff --repeats 3
+
+# Dry-run to validate all scenarios
+infra-bench bench --dry-run
+```
+
+The bench pipeline produces:
+- `summary.json` — pass/fail per scenario/model/repeat
+- `scorecard.json` — evidra scorecard per run (auto-generated from evidence)
+- `signal-audit.json` — signal expectation findings
+- `report.html` — visual benchmark report
+
+Scenarios with `skip: true` are excluded from bench runs.
+
 ## Results & Reports
 
 ```bash
 # HTML report from all runs
 infra-bench report
+
+# Signal audit — check observed signals against expectations
+infra-bench audit signals --runs-dir runs --manifest configs/signal-audit.yaml
 
 # Paired skill-delta benchmark artifacts
 infra-bench skill-delta run \

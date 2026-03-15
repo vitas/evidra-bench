@@ -21,6 +21,9 @@ type RunRecord struct {
 	Checks     *verifier.VerifyResult `json:"-"`
 	RawChecks  json.RawMessage        `json:"checks"`
 	Dir        string                 `json:"-"`
+	Signals    map[string]int         `json:"-"`
+	Score      float64                `json:"-"`
+	ScoreBand  string                 `json:"-"`
 }
 
 // Duration returns the run duration.
@@ -50,6 +53,7 @@ func LoadHistory(runsDir string) []RunRecord {
 				rec.Checks = &vr
 			}
 		}
+		loadScorecard(&rec)
 		records = append(records, rec)
 		return nil
 	})
@@ -96,4 +100,38 @@ func ComputeStats(records []RunRecord) ScenarioStats {
 		}
 	}
 	return stats
+}
+
+// loadScorecard reads scorecard.json if present and populates signal data.
+func loadScorecard(rec *RunRecord) {
+	scPath := filepath.Join(rec.Dir, "scorecard.json")
+	data, err := os.ReadFile(scPath)
+	if err != nil {
+		return
+	}
+	var sc struct {
+		Score   float64        `json:"score"`
+		Band    string         `json:"band"`
+		Signals map[string]int `json:"signals"`
+	}
+	if json.Unmarshal(data, &sc) == nil {
+		rec.Score = sc.Score
+		rec.ScoreBand = sc.Band
+		rec.Signals = sc.Signals
+	}
+}
+
+// ActiveSignals returns signal names with count > 0.
+func ActiveSignals(signals map[string]int) []string {
+	if len(signals) == 0 {
+		return nil
+	}
+	var active []string
+	for name, count := range signals {
+		if count > 0 {
+			active = append(active, name)
+		}
+	}
+	sort.Strings(active)
+	return active
 }

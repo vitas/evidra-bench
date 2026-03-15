@@ -658,7 +658,18 @@ func (a *App) renderHistory() string {
 			checkSummary = dimStyle.Render(fmt.Sprintf("  checks: %d/%d", passCount, len(r.Checks.Checks)))
 		}
 
-		b.WriteString(fmt.Sprintf("  %s  %s  %s%s\n", verdict, ts, dimStyle.Render(dur.String()), checkSummary))
+		// Signal and score info
+		signalInfo := ""
+		if active := ActiveSignals(r.Signals); len(active) > 0 {
+			signalStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
+			signalInfo = signalStyle.Render(fmt.Sprintf("  signals: %s", strings.Join(active, ", ")))
+		}
+		scoreInfo := ""
+		if r.ScoreBand != "" && r.ScoreBand != "insufficient_data" {
+			scoreInfo = dimStyle.Render(fmt.Sprintf("  score: %.0f (%s)", r.Score, r.ScoreBand))
+		}
+
+		b.WriteString(fmt.Sprintf("  %s  %s  %s%s%s%s\n", verdict, ts, dimStyle.Render(dur.String()), checkSummary, signalInfo, scoreInfo))
 
 		// Show check diff between this run and the previous one
 		if i < maxShow-1 && i+1 < len(runs) {

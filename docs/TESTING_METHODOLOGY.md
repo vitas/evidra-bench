@@ -284,3 +284,68 @@ memory window, prompt/completion tokens, estimated cost, checks passed/total.
 **Tracking progression:** commit `runs/results.jsonl` to git periodically.
 Query with `db query --scenario X` to see pass rate trending over time.
 The `compare` command shows regressions between specific runs.
+
+## Batch Benchmark Pipeline
+
+`infra-bench bench` runs all scenarios with automated post-processing:
+
+```
+run scenarios → write artifacts → generate scorecard → signal audit → HTML report
+```
+
+```bash
+infra-bench bench --provider claude --model sonnet --reuse-cluster --cluster-name evidra
+```
+
+Output:
+```
+runs/bench/<timestamp>/
+  summary.json          — pass/fail/error per scenario/model/repeat
+  report.html           — visual benchmark report
+  signal-audit.json     — signal expectation findings
+  <scenario_model_r1>/
+    run.json            — run metadata with full version tracking
+    scorecard.json      — evidra scorecard (auto-generated from evidence)
+    verifier.json       — check results
+    transcript.txt      — agent conversation
+```
+
+Scenarios with `skip: true` in scenario.yaml are excluded from bench runs
+with a reason printed to stdout.
+
+## Signal Audit
+
+The signal audit compares observed signals against expectations defined in
+`configs/signal-audit.yaml`:
+
+```yaml
+broken-deployment:
+  primary_signal: retry_loop
+  expected_signals: [retry_loop]
+  forbidden_signals: [protocol_violation, blast_radius]
+```
+
+```bash
+infra-bench audit signals --runs-dir runs/e2e
+```
+
+The audit reports:
+- **missing_expected** — expected signal not observed
+- **forbidden_signals** — signal that should not appear was found
+- **unexpected_extras** — signals not in expected or allowed lists
+- **unstable_groups** — repeated runs with different signal sets (inconsistency)
+
+Note: single-operation runs (1 prescribe/report pair) cannot produce
+behavioral signals like `retry_loop` or `blast_radius`. These need
+multi-operation evidence from batch or chained scenarios.
+
+## Evidra Scorecard Post-Processing
+
+Every non-dry-run with `--evidra-bin` set automatically runs `evidra scorecard`
+on the evidence after the agent finishes. The output is saved as
+`scorecard.json` in the run artifact directory.
+
+This enables:
+- Signal audit reads signal counts directly from scorecard
+- TUI history view shows detected signals and score band
+- HTML report includes scorecard data per run
