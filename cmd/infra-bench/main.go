@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"log"
 	"os"
@@ -341,7 +343,35 @@ with optional Evidra reporting for behavioral analysis.`,
 
 	skillDeltaCmd.AddCommand(skillDeltaRunCmd, skillDeltaAggregateCmd, skillDeltaReportCmd)
 
-	root.AddCommand(runCmd, scenarioCmd, labCmd, reportCmd, compareCmd, dbCmd, skillDeltaCmd, auditCmd)
+	benchScenarios := []string{}
+	benchModels := []string{}
+	benchRepeats := 1
+	benchCfg := config.Default()
+
+	benchCmd := &cobra.Command{
+		Use:   "bench",
+		Short: "Run all scenarios (or filtered set) with aggregated results",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return executeBench(cmd, benchCfg, benchScenarios, benchModels, benchRepeats)
+		},
+	}
+	bf := benchCmd.Flags()
+	bf.StringSliceVar(&benchScenarios, "scenario", nil, "scenario filter (repeatable; default: all)")
+	bf.StringSliceVar(&benchModels, "model", nil, "model (repeatable; default: sonnet)")
+	bf.IntVar(&benchRepeats, "repeats", 1, "repeats per scenario/model")
+	bf.StringVar(&benchCfg.ScenariosDir, "scenarios-dir", benchCfg.ScenariosDir, "scenarios directory")
+	bf.StringVar(&benchCfg.RunsDir, "runs-dir", benchCfg.RunsDir, "runs directory")
+	bf.StringVar(&benchCfg.Provider, "provider", benchCfg.Provider, "LLM provider")
+	bf.StringVar(&benchCfg.EvidraBin, "evidra-bin", benchCfg.EvidraBin, "evidra binary path")
+	bf.StringVar(&benchCfg.SystemPromptFile, "system-prompt-file", benchCfg.SystemPromptFile, "system prompt file")
+	bf.StringVar(&benchCfg.ContractVersion, "contract-version", benchCfg.ContractVersion, "contract version")
+	bf.DurationVar(&benchCfg.Timeout, "timeout", benchCfg.Timeout, "per-scenario timeout")
+	bf.BoolVar(&benchCfg.ReuseCluster, "reuse-cluster", benchCfg.ReuseCluster, "reuse kind cluster")
+	bf.StringVar(&benchCfg.ClusterName, "cluster-name", benchCfg.ClusterName, "kind cluster name")
+	bf.BoolVar(&benchCfg.DryRun, "dry-run", benchCfg.DryRun, "dry-run mode")
+	bf.IntVar(&benchCfg.MemoryWindow, "memory-window", -1, "memory window")
+
+	root.AddCommand(runCmd, scenarioCmd, labCmd, reportCmd, compareCmd, dbCmd, skillDeltaCmd, auditCmd, benchCmd)
 	return root
 }
 
@@ -723,6 +753,154 @@ func sortedKeys(values map[string]struct{}) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models []string, repeats int) error {
+	scenariosDir, err := filepath.Abs(cfg.ScenariosDir)
+	if err != nil {
+		return fmt.Errorf("resolve scenarios dir: %w", err)
+	}
+	cfg.ScenariosDir = scenariosDir
+
+	if len(models) == 0 {
+		models = []string{"sonnet"}
+	}
+	if !cfg.DryRun && cfg.Provider == "" {
+		cfg.Provider = "claude"
+	}
+
+	allScenarios, err := scenario.LoadAll(scenariosDir)
+	if err != nil {
+		return fmt.Errorf("load scenarios: %w", err)
+	}
+
+	// Filter scenarios
+	var selected []*scenario.Scenario
+	if len(scenarioFilters) == 0 {
+		selected = allScenarios
+	} else {
+		filterSet := map[string]bool{}
+		for _, f := range scenarioFilters {
+			filterSet[f] = true
+		}
+		for _, s := range allScenarios {
+			if filterSet[s.ID] || filterSet[s.Path] || filterSet[s.Category] {
+				selected = append(selected, s)
+			}
+		}
+	}
+	if len(selected) == 0 {
+		return fmt.Errorf("no scenarios matched filters")
+	}
+
+	stamp := time.Now().UTC().Format("20060102-150405")
+	outDir := filepath.Join(cfg.RunsDir, "bench", stamp)
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return err
+	}
+
+	type result struct {
+		Scenario string `json:"scenario"`
+		Model    string `json:"model"`
+		Repeat   int    `json:"repeat"`
+		Passed   bool   `json:"passed"`
+		Duration string `json:"duration"`
+		Error    string `json:"error,omitempty"`
+	}
+
+	var results []result
+	total, passed, failed, errors := 0, 0, 0, 0
+
+	for _, s := range selected {
+		for _, model := range models {
+			for rep := 1; rep <= repeats; rep++ {
+				total++
+				runDir := filepath.Join(outDir, fmt.Sprintf("%s_%s_r%d", s.ID, model, rep))
+				evidenceDir := filepath.Join(runDir, "evidence")
+
+				runCfg := cfg
+				runCfg.Scenario = s.Path
+				runCfg.Model = model
+				runCfg.RunsDir = runDir
+				runCfg.EvidraEvidenceDir = evidenceDir
+
+				label := fmt.Sprintf("[%d/%d] %s model=%s repeat=%d", total, len(selected)*len(models)*repeats, s.ID, model, rep)
+				fmt.Fprintf(cmd.OutOrStdout(), "%s ...\n", label)
+
+				runResult, runErr := runScenarioOnce(cmd.Context(), runCfg, s)
+
+				r := result{
+					Scenario: s.ID,
+					Model:    model,
+					Repeat:   rep,
+				}
+
+				if runErr != nil {
+					r.Error = runErr.Error()
+					var rfe *RunFailedError
+					if ok := stderrors.As(runErr, &rfe); ok {
+						r.Passed = false
+						failed++
+					} else {
+						errors++
+					}
+				} else {
+					r.Passed = runResult.Passed
+					r.Duration = runResult.Duration.Round(time.Millisecond).String()
+					if runResult.Passed {
+						passed++
+					} else {
+						failed++
+					}
+				}
+
+				verdict := "PASS"
+				if !r.Passed {
+					verdict = "FAIL"
+				}
+				if r.Error != "" && r.Error != fmt.Sprintf("scenario %s: verification failed", s.ID) {
+					verdict = "ERROR"
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "  %s %s %s\n", verdict, r.Duration, r.Error)
+				results = append(results, r)
+			}
+		}
+	}
+
+	// Write summary
+	summaryPath := filepath.Join(outDir, "summary.json")
+	summary := map[string]any{
+		"generated_at": time.Now().UTC().Format(time.RFC3339),
+		"total":        total,
+		"passed":       passed,
+		"failed":       failed,
+		"errors":       errors,
+		"pass_rate":    fmt.Sprintf("%.0f%%", float64(passed)/float64(total)*100),
+		"models":       models,
+		"repeats":      repeats,
+		"scenarios":    len(selected),
+		"results":      results,
+	}
+	summaryJSON, _ := json.MarshalIndent(summary, "", "  ")
+	os.WriteFile(summaryPath, summaryJSON, 0644)
+
+	// Print summary
+	fmt.Fprintf(cmd.OutOrStdout(), "\n")
+	fmt.Fprintf(cmd.OutOrStdout(), "════════════════════════════════════════\n")
+	fmt.Fprintf(cmd.OutOrStdout(), "  BENCH RESULTS\n")
+	fmt.Fprintf(cmd.OutOrStdout(), "════════════════════════════════════════\n")
+	fmt.Fprintf(cmd.OutOrStdout(), "  Total:   %d\n", total)
+	fmt.Fprintf(cmd.OutOrStdout(), "  Passed:  %d\n", passed)
+	fmt.Fprintf(cmd.OutOrStdout(), "  Failed:  %d\n", failed)
+	fmt.Fprintf(cmd.OutOrStdout(), "  Errors:  %d\n", errors)
+	fmt.Fprintf(cmd.OutOrStdout(), "  Rate:    %.0f%%\n", float64(passed)/float64(total)*100)
+	fmt.Fprintf(cmd.OutOrStdout(), "  Summary: %s\n", summaryPath)
+	fmt.Fprintf(cmd.OutOrStdout(), "════════════════════════════════════════\n")
+
+	if failed > 0 || errors > 0 {
+		return fmt.Errorf("bench: %d failed, %d errors out of %d", failed, errors, total)
+	}
+	return nil
 }
 
 func main() {

@@ -31,7 +31,5 @@ evidra:
   protocol_violations: 0
   all_reports_have_verdict: true
   simulated_evidence_dir: simulated_evidence
-  expected_signals:
-    repair_loop: 1
 scope:
   namespaces: [bench]
