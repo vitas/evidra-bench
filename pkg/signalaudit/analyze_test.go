@@ -45,11 +45,11 @@ func TestAnalyze_FlagsForbiddenSignal(t *testing.T) {
 	}
 	runs := []signalaudit.Run{
 		{
-			RunDir:      "/runs/r1",
-			ScenarioID:  "broken-deployment",
-			Model:       "sonnet",
-			Provider:    "claude",
-			Signals:     []string{"blast_radius", "retry_loop"},
+			RunDir:       "/runs/r1",
+			ScenarioID:   "broken-deployment",
+			Model:        "sonnet",
+			Provider:     "claude",
+			Signals:      []string{"blast_radius", "retry_loop"},
 			SignalCounts: map[string]int{"retry_loop": 1, "blast_radius": 1},
 		},
 	}
@@ -73,10 +73,10 @@ func TestAnalyze_FlagsUnexpectedExtraSignal(t *testing.T) {
 	}
 	runs := []signalaudit.Run{
 		{
-			RunDir:      "/runs/r1",
-			ScenarioID:  "networkpolicy-blocking",
-			Model:       "sonnet",
-			Provider:    "claude",
+			RunDir:       "/runs/r1",
+			ScenarioID:   "networkpolicy-blocking",
+			Model:        "sonnet",
+			Provider:     "claude",
 			SignalCounts: map[string]int{"blast_radius": 1, "thrashing": 1, "new_scope": 1},
 		},
 	}
@@ -99,17 +99,17 @@ func TestAnalyze_FlagsInstabilityAcrossRepeats(t *testing.T) {
 	}
 	runs := []signalaudit.Run{
 		{
-			RunDir:      "/runs/r1",
-			ScenarioID:  "broken-deployment",
-			Model:       "sonnet",
-			Provider:    "claude",
+			RunDir:       "/runs/r1",
+			ScenarioID:   "broken-deployment",
+			Model:        "sonnet",
+			Provider:     "claude",
 			SignalCounts: map[string]int{"retry_loop": 1},
 		},
 		{
-			RunDir:      "/runs/r2",
-			ScenarioID:  "broken-deployment",
-			Model:       "sonnet",
-			Provider:    "claude",
+			RunDir:       "/runs/r2",
+			ScenarioID:   "broken-deployment",
+			Model:        "sonnet",
+			Provider:     "claude",
 			SignalCounts: map[string]int{"retry_loop": 1, "thrashing": 1},
 		},
 	}

@@ -67,10 +67,10 @@ func TestLoadRun_FallsBackToEvidenceSignals(t *testing.T) {
 }
 
 type auditRunFixture struct {
-	ScenarioID      string
-	Metadata        map[string]string
+	ScenarioID       string
+	Metadata         map[string]string
 	ScorecardSignals map[string]any
-	EvidenceSignals []string
+	EvidenceSignals  []string
 }
 
 func writeAuditRunFixture(t *testing.T, fixture auditRunFixture) string {
@@ -114,11 +114,11 @@ func writeAuditRunFixture(t *testing.T, fixture auditRunFixture) string {
 		}
 		for _, signal := range fixture.EvidenceSignals {
 			entry := map[string]any{
-				"entry_id":   "signal-" + signal,
-				"type":       "signal",
-				"timestamp":  "2026-03-15T12:00:00Z",
-				"actor":      map[string]any{"id": "evidra"},
-				"payload":    map[string]any{"signal_name": signal},
+				"entry_id":  "signal-" + signal,
+				"type":      "signal",
+				"timestamp": "2026-03-15T12:00:00Z",
+				"actor":     map[string]any{"id": "evidra"},
+				"payload":   map[string]any{"signal_name": signal},
 			}
 			data, err := json.Marshal(entry)
 			if err != nil {
