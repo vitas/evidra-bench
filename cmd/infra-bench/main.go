@@ -811,7 +811,17 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 	var results []result
 	total, passed, failed, errors := 0, 0, 0, 0
 
+	skipped := 0
 	for _, s := range selected {
+		if s.Skip {
+			skipped++
+			reason := s.SkipReason
+			if reason == "" {
+				reason = "skip: true in scenario.yaml"
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "SKIP %s — %s\n", s.ID, reason)
+			continue
+		}
 		for _, model := range models {
 			for rep := 1; rep <= repeats; rep++ {
 				total++
@@ -875,7 +885,8 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 		"passed":       passed,
 		"failed":       failed,
 		"errors":       errors,
-		"pass_rate":    fmt.Sprintf("%.0f%%", float64(passed)/float64(total)*100),
+		"skipped":      skipped,
+		"pass_rate":    fmt.Sprintf("%.0f%%", float64(passed)/float64(max(total, 1))*100),
 		"models":       models,
 		"repeats":      repeats,
 		"scenarios":    len(selected),
@@ -893,7 +904,8 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 	fmt.Fprintf(cmd.OutOrStdout(), "  Passed:  %d\n", passed)
 	fmt.Fprintf(cmd.OutOrStdout(), "  Failed:  %d\n", failed)
 	fmt.Fprintf(cmd.OutOrStdout(), "  Errors:  %d\n", errors)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Rate:    %.0f%%\n", float64(passed)/float64(total)*100)
+	fmt.Fprintf(cmd.OutOrStdout(), "  Skipped: %d\n", skipped)
+	fmt.Fprintf(cmd.OutOrStdout(), "  Rate:    %.0f%%\n", float64(passed)/float64(max(total, 1))*100)
 	fmt.Fprintf(cmd.OutOrStdout(), "  Summary: %s\n", summaryPath)
 	fmt.Fprintf(cmd.OutOrStdout(), "════════════════════════════════════════\n")
 

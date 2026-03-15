@@ -22,6 +22,8 @@ type Scenario struct {
 	Baseline   string             `yaml:"baseline,omitempty"`
 	Tools      []string           `yaml:"tools,omitempty"`
 	Evidra     EvidraExpectations `yaml:"evidra,omitempty"`
+	Skip       bool               `yaml:"skip,omitempty"`
+	SkipReason string             `yaml:"skip_reason,omitempty"`
 }
 
 // Check describes a verification assertion.
