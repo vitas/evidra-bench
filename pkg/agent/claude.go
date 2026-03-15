@@ -312,7 +312,7 @@ func extractJSONBlocks(text string) []jsonBlock {
 
 func resolveClaudeModel(model string) string {
 	if model == "" {
-		return "haiku"
+		return "sonnet"
 	}
 	if strings.HasPrefix(model, "claude/") {
 		return strings.TrimPrefix(model, "claude/")

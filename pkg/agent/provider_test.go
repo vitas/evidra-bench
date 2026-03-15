@@ -70,7 +70,7 @@ func TestResolveClaudeModel(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"", "haiku"},
+		{"", "sonnet"},
 		{"sonnet", "sonnet"},
 		{"opus", "opus"},
 		{"claude/haiku", "haiku"},
