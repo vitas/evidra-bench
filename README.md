@@ -46,6 +46,18 @@ make build
 
 # Interactive TUI — browse, select, and run scenarios
 ./bin/infra-bench lab
+
+# Paired skill-delta benchmark
+./bin/infra-bench skill-delta run \
+  --scenario kubernetes/broken-deployment \
+  --model sonnet \
+  --provider claude \
+  --repeats 3 \
+  --no-skill-prompt prompts/no-skill.md \
+  --with-skill-prompt ../evidra-benchmark/prompts/experiments/runtime/agent_contract_v1.md
+
+./bin/infra-bench skill-delta aggregate --dir runs/skill-delta/<stamp>
+./bin/infra-bench skill-delta report --dir runs/skill-delta/<stamp>
 ```
 
 ## Scenarios
@@ -220,6 +232,18 @@ See `docs/TESTING_METHODOLOGY.md` for interpretation guidance.
 # HTML report from all runs
 infra-bench report
 
+# Paired skill-delta benchmark artifacts
+infra-bench skill-delta run \
+  --scenario kubernetes/broken-deployment \
+  --model sonnet \
+  --provider claude \
+  --repeats 3 \
+  --no-skill-prompt prompts/no-skill.md \
+  --with-skill-prompt ../evidra-benchmark/prompts/experiments/runtime/agent_contract_v1.md
+
+infra-bench skill-delta aggregate --dir runs/skill-delta/<stamp>
+infra-bench skill-delta report --dir runs/skill-delta/<stamp>
+
 # Compare two runs side by side
 infra-bench compare runs/<run-A>/ runs/<run-B>/
 
@@ -235,6 +259,17 @@ infra-bench db rebuild
 
 Results are stored in SQLite (`runs/bench.db`, gitignored) with a JSONL backup
 (`runs/results.jsonl`, committable). The DB is always rebuildable from JSONL.
+
+The `skill-delta` workflow writes one benchmark root with:
+
+- `benchmark.json` — machine-readable aggregate output
+- `benchmark.md` — summary table for reviews and commits
+- `benchmark.html` — static side-by-side report
+- `cases/<scenario>/<model>/repeat-N/pair.json` — normalized per-pair metrics
+
+See `docs/experiments/SKILL_DELTA_BENCHMARK.md` and
+`docs/reports/SKILL_DELTA_REPORT_FORMAT.md` for the detailed workflow and file
+formats.
 
 ## Artifacts
 
