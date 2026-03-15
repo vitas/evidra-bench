@@ -2,14 +2,14 @@
 package report
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"time"
+
+	evidraclient "samebits.com/evidra/pkg/client"
 )
 
 // Config configures the Evidra reporter.
@@ -93,40 +93,87 @@ func (r *Reporter) Report(entries []EvidenceEntry) error {
 }
 
 func (r *Reporter) uploadBestEffort(entries []EvidenceEntry) error {
-	return r.uploadBatch(entries)
+	return r.uploadBenchmarkRun(entries)
 }
 
-func (r *Reporter) uploadBatch(entries []EvidenceEntry) error {
-	rawEntries := make([]json.RawMessage, 0, len(entries))
-	for _, entry := range entries {
-		raw, err := json.Marshal(entry)
-		if err != nil {
-			return fmt.Errorf("report.Reporter.uploadBatch: marshal entry: %w", err)
-		}
-		rawEntries = append(rawEntries, raw)
-	}
-
-	body, err := json.Marshal(map[string]any{"entries": rawEntries})
+func (r *Reporter) uploadBenchmarkRun(entries []EvidenceEntry) error {
+	req, err := buildBenchmarkRunRequest(entries)
 	if err != nil {
-		return fmt.Errorf("report.Reporter.uploadBatch: marshal body: %w", err)
+		return err
 	}
-
-	req, err := http.NewRequest(http.MethodPost, r.cfg.EvidraURL+"/v1/evidence/batch", bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("report.Reporter.uploadBatch: create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+r.cfg.EvidraAPIKey)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("report.Reporter.uploadBatch: send request: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-		return fmt.Errorf("report.Reporter.uploadBatch: unexpected HTTP %d: %s", resp.StatusCode, string(body))
+	client := evidraclient.New(evidraclient.Config{
+		URL:    r.cfg.EvidraURL,
+		APIKey: r.cfg.EvidraAPIKey,
+	})
+	if _, err := client.SubmitBenchmarkRun(context.Background(), req); err != nil {
+		return fmt.Errorf("report.Reporter.uploadBenchmarkRun: %w", err)
 	}
 	return nil
+}
+
+func buildBenchmarkRunRequest(entries []EvidenceEntry) (evidraclient.BenchmarkRunRequest, error) {
+	metadata := map[string]string{
+		"source": "infra-bench",
+	}
+	results := make([]evidraclient.BenchmarkResult, 0, len(entries))
+	allPassed := true
+
+	for _, entry := range entries {
+		if !entry.Passed {
+			allPassed = false
+		}
+		for key, value := range entry.Metadata {
+			metadata[key] = value
+		}
+		if entry.Actor != "" {
+			metadata["actor"] = entry.Actor
+		}
+		if entry.Adapter != "" {
+			metadata["adapter"] = entry.Adapter
+		}
+
+		details, err := json.Marshal(map[string]any{
+			"id":          entry.ID,
+			"actor":       entry.Actor,
+			"adapter":     entry.Adapter,
+			"exit_code":   entry.ExitCode,
+			"duration_ns": entry.Duration,
+			"timestamp":   entry.Timestamp,
+			"metadata":    entry.Metadata,
+		})
+		if err != nil {
+			return evidraclient.BenchmarkRunRequest{}, fmt.Errorf("report.buildBenchmarkRunRequest: marshal details: %w", err)
+		}
+		results = append(results, evidraclient.BenchmarkResult{
+			CaseID:         entry.ScenarioID,
+			ExpectedSignal: "pass",
+			ActualSignal:   benchmarkActualSignal(entry.Passed),
+			Passed:         entry.Passed,
+			Details:        details,
+		})
+	}
+
+	rawMetadata, err := json.Marshal(metadata)
+	if err != nil {
+		return evidraclient.BenchmarkRunRequest{}, fmt.Errorf("report.buildBenchmarkRunRequest: marshal metadata: %w", err)
+	}
+
+	band := "fail"
+	if allPassed {
+		band = "pass"
+	}
+
+	return evidraclient.BenchmarkRunRequest{
+		Suite:    "infra-bench",
+		Band:     band,
+		Metadata: rawMetadata,
+		Results:  results,
+	}, nil
+}
+
+func benchmarkActualSignal(passed bool) string {
+	if passed {
+		return "pass"
+	}
+	return "fail"
 }

@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -16,6 +19,7 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/harness"
 	"samebits.com/evidra-infra-bench/pkg/report"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"samebits.com/evidra-infra-bench/pkg/skilldelta"
 	"samebits.com/evidra-infra-bench/pkg/store"
 	"samebits.com/evidra-infra-bench/pkg/tui"
 )
@@ -23,10 +27,23 @@ import (
 var (
 	version = "dev"
 	commit  = "dev"
+	date    = "dev"
 )
+
+func buildVersionString() string {
+	return fmt.Sprintf("infra-bench %s (commit: %s, built: %s)", version, commit, date)
+}
 
 func newRootCommand() *cobra.Command {
 	cfg := config.Default()
+	skillDeltaCfg := config.Default()
+	skillDeltaScenarios := []string{}
+	skillDeltaModels := []string{}
+	skillDeltaRepeats := 1
+	skillDeltaOutDir := ""
+	skillDeltaDir := ""
+	skillDeltaNoSkillPrompt := ""
+	skillDeltaWithSkillPrompt := ""
 
 	root := &cobra.Command{
 		Use:   "infra-bench",
@@ -36,7 +53,7 @@ failures, executes real agents, and verifies outcomes.
 
 It produces local artifact bundles for debugging and dataset generation,
 with optional Evidra reporting for behavioral analysis.`,
-		Version: version,
+		Version: buildVersionString(),
 	}
 
 	runCmd := &cobra.Command{
@@ -242,7 +259,62 @@ with optional Evidra reporting for behavioral analysis.`,
 	dbCmd.AddCommand(dbStatsCmd, dbQueryCmd, dbRebuildCmd)
 	dbCmd.PersistentFlags().StringVar(&cfg.RunsDir, "runs-dir", cfg.RunsDir, "runs directory")
 
-	root.AddCommand(runCmd, scenarioCmd, labCmd, reportCmd, compareCmd, dbCmd)
+	skillDeltaCmd := &cobra.Command{
+		Use:   "skill-delta",
+		Short: "Run and analyze paired with-skill vs without-skill benchmarks",
+	}
+
+	skillDeltaRunCmd := &cobra.Command{
+		Use:   "run",
+		Short: "Run paired without-skill and with-skill benchmark cases",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return executeSkillDeltaRun(cmd, skillDeltaCfg, skillDeltaScenarios, skillDeltaModels, skillDeltaRepeats, skillDeltaNoSkillPrompt, skillDeltaWithSkillPrompt, skillDeltaOutDir)
+		},
+	}
+	sdrf := skillDeltaRunCmd.Flags()
+	sdrf.StringSliceVar(&skillDeltaScenarios, "scenario", nil, "scenario path or id (repeatable)")
+	sdrf.StringSliceVar(&skillDeltaModels, "model", nil, "model name (repeatable)")
+	sdrf.IntVar(&skillDeltaRepeats, "repeats", 1, "number of repeats per scenario/model pair")
+	sdrf.StringVar(&skillDeltaNoSkillPrompt, "no-skill-prompt", "", "system prompt file for baseline runs")
+	sdrf.StringVar(&skillDeltaWithSkillPrompt, "with-skill-prompt", "", "system prompt file for skill-enabled runs")
+	sdrf.StringVar(&skillDeltaOutDir, "out-dir", "", "benchmark output directory (default: runs/skill-delta/<stamp>)")
+	sdrf.StringVar(&skillDeltaCfg.ScenariosDir, "scenarios-dir", skillDeltaCfg.ScenariosDir, "base directory for scenarios")
+	sdrf.StringVar(&skillDeltaCfg.RunsDir, "runs-dir", skillDeltaCfg.RunsDir, "base directory for benchmark runs")
+	sdrf.StringVar(&skillDeltaCfg.Adapter, "adapter", skillDeltaCfg.Adapter, "agent adapter type (cli, mcp)")
+	sdrf.StringVar(&skillDeltaCfg.AgentCommand, "agent-command", skillDeltaCfg.AgentCommand, "command to invoke the agent")
+	sdrf.DurationVar(&skillDeltaCfg.Timeout, "timeout", skillDeltaCfg.Timeout, "agent execution timeout")
+	sdrf.BoolVar(&skillDeltaCfg.ReuseCluster, "reuse-cluster", skillDeltaCfg.ReuseCluster, "reuse existing kind cluster")
+	sdrf.StringVar(&skillDeltaCfg.ClusterName, "cluster-name", skillDeltaCfg.ClusterName, "kind cluster name")
+	sdrf.BoolVar(&skillDeltaCfg.DryRun, "dry-run", skillDeltaCfg.DryRun, "validate workflow without executing the agent")
+	sdrf.StringVar(&skillDeltaCfg.EvidraURL, "evidra-url", skillDeltaCfg.EvidraURL, "Evidra API URL for online reporting")
+	sdrf.StringVar(&skillDeltaCfg.EvidraAPIKey, "evidra-api-key", skillDeltaCfg.EvidraAPIKey, "Evidra API key")
+	sdrf.StringVar(&skillDeltaCfg.EvidraEvidenceDir, "evidra-evidence-dir", skillDeltaCfg.EvidraEvidenceDir, "base evidence directory for protocol verification")
+	sdrf.StringVar(&skillDeltaCfg.Provider, "provider", skillDeltaCfg.Provider, "LLM provider for tool-use agent loop (bifrost, claude)")
+	sdrf.StringVar(&skillDeltaCfg.EvidraBin, "evidra-bin", skillDeltaCfg.EvidraBin, "path to evidra binary for protocol tools")
+	sdrf.IntVar(&skillDeltaCfg.MemoryWindow, "memory-window", -1, "agent memory window (-1=full, 0=stateless, N=last N exchanges)")
+	sdrf.StringVar(&skillDeltaCfg.ContractVersion, "contract-version", skillDeltaCfg.ContractVersion, "evidra contract version label for tracking")
+
+	skillDeltaAggregateCmd := &cobra.Command{
+		Use:   "aggregate",
+		Short: "Aggregate pair.json files into benchmark.json and benchmark.md",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return executeSkillDeltaAggregate(cmd, skillDeltaDir)
+		},
+	}
+	skillDeltaAggregateCmd.Flags().StringVar(&skillDeltaDir, "dir", "", "skill-delta benchmark directory")
+
+	skillDeltaReportCmd := &cobra.Command{
+		Use:   "report",
+		Short: "Generate benchmark.html from benchmark.json",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return executeSkillDeltaReport(cmd, skillDeltaDir)
+		},
+	}
+	skillDeltaReportCmd.Flags().StringVar(&skillDeltaDir, "dir", "", "skill-delta benchmark directory")
+
+	skillDeltaCmd.AddCommand(skillDeltaRunCmd, skillDeltaAggregateCmd, skillDeltaReportCmd)
+
+	root.AddCommand(runCmd, scenarioCmd, labCmd, reportCmd, compareCmd, dbCmd, skillDeltaCmd)
 	return root
 }
 
@@ -268,17 +340,47 @@ func applyLabFlagOverrides(labCfg *tui.LabConfig, cfg config.Config, flags *pfla
 }
 
 func executeRun(cmd *cobra.Command, cfg config.Config) error {
+	cfg, s, err := resolveScenarioConfig(cfg)
+	if err != nil {
+		return err
+	}
+
+	result, err := runScenarioOnce(cmd.Context(), cfg, s)
+	if err != nil {
+		return err
+	}
+
+	verdict := "PASS"
+	if !result.Passed {
+		verdict = "FAIL"
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "[%s] scenario=%s duration=%s exit_code=%d\n",
+		verdict, result.ScenarioID, result.Duration.Round(time.Millisecond), result.ExitCode)
+	if result.ArtifactDir != "" {
+		fmt.Fprintf(cmd.OutOrStdout(), "artifacts: %s\n", result.ArtifactDir)
+	}
+
+	if !result.Passed {
+		return &RunFailedError{ScenarioID: result.ScenarioID}
+	}
+	return nil
+}
+
+func resolveScenarioConfig(cfg config.Config) (config.Config, *scenario.Scenario, error) {
 	scenariosDir, err := filepath.Abs(cfg.ScenariosDir)
 	if err != nil {
-		return fmt.Errorf("resolve scenarios dir: %w", err)
+		return cfg, nil, fmt.Errorf("resolve scenarios dir: %w", err)
 	}
 	cfg.ScenariosDir = scenariosDir
 
 	s, err := scenario.Resolve(cfg.ScenariosDir, cfg.Scenario)
 	if err != nil {
-		return fmt.Errorf("load scenario: %w", err)
+		return cfg, nil, fmt.Errorf("load scenario: %w", err)
 	}
+	return cfg, s, nil
+}
 
+func runScenarioOnce(ctx context.Context, cfg config.Config, s *scenario.Scenario) (*harness.RunResult, error) {
 	var agentAdapter adapter.Adapter
 	switch cfg.Adapter {
 	case "cli":
@@ -286,7 +388,7 @@ func executeRun(cmd *cobra.Command, cfg config.Config) error {
 	case "mcp":
 		agentAdapter = adapter.NewMCPAdapter()
 	default:
-		return fmt.Errorf("unknown adapter: %s", cfg.Adapter)
+		return nil, fmt.Errorf("unknown adapter: %s", cfg.Adapter)
 	}
 
 	envProvider := environment.NewKindProvider()
@@ -318,28 +420,14 @@ func executeRun(cmd *cobra.Command, cfg config.Config) error {
 		Store:        resultsStore,
 	})
 
-	result, err := h.Run(cmd.Context(), harness.RunRequest{
+	result, err := h.Run(ctx, harness.RunRequest{
 		Config:   cfg,
 		Scenario: s,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	verdict := "PASS"
-	if !result.Passed {
-		verdict = "FAIL"
-	}
-	fmt.Fprintf(cmd.OutOrStdout(), "[%s] scenario=%s duration=%s exit_code=%d\n",
-		verdict, result.ScenarioID, result.Duration.Round(time.Millisecond), result.ExitCode)
-	if result.ArtifactDir != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "artifacts: %s\n", result.ArtifactDir)
-	}
-
-	if !result.Passed {
-		return &RunFailedError{ScenarioID: result.ScenarioID}
-	}
-	return nil
+	return result, nil
 }
 
 // RunFailedError indicates a scenario run completed but verification failed.
@@ -364,6 +452,220 @@ func listScenarios(cmd *cobra.Command, cfg config.Config) error {
 		fmt.Fprintf(cmd.OutOrStdout(), "%-30s %s (%s)\n", s.Path, s.Title, s.ID)
 	}
 	return nil
+}
+
+func executeSkillDeltaRun(cmd *cobra.Command, cfg config.Config, scenarios []string, models []string, repeats int, noSkillPrompt, withSkillPrompt, outDir string) error {
+	if len(scenarios) == 0 {
+		return fmt.Errorf("skill-delta run: at least one --scenario is required")
+	}
+	if len(models) == 0 {
+		return fmt.Errorf("skill-delta run: at least one --model is required")
+	}
+	if repeats < 1 {
+		return fmt.Errorf("skill-delta run: --repeats must be >= 1")
+	}
+	if strings.TrimSpace(noSkillPrompt) == "" {
+		return fmt.Errorf("skill-delta run: --no-skill-prompt is required")
+	}
+	if strings.TrimSpace(withSkillPrompt) == "" {
+		return fmt.Errorf("skill-delta run: --with-skill-prompt is required")
+	}
+	if cfg.ReuseCluster {
+		return fmt.Errorf("skill-delta run: --reuse-cluster is not supported because paired runs require clean state")
+	}
+	if !cfg.DryRun && cfg.AgentCommand == "" && cfg.Provider == "" {
+		return fmt.Errorf("skill-delta run: --agent-command or --provider is required unless --dry-run is set")
+	}
+
+	scenariosDir, err := filepath.Abs(cfg.ScenariosDir)
+	if err != nil {
+		return fmt.Errorf("resolve scenarios dir: %w", err)
+	}
+	cfg.ScenariosDir = scenariosDir
+
+	if outDir == "" {
+		outDir = filepath.Join(cfg.RunsDir, "skill-delta", time.Now().UTC().Format("20060102-150405"))
+	}
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return fmt.Errorf("create out dir: %w", err)
+	}
+
+	for _, scenarioRef := range scenarios {
+		s, err := scenario.Resolve(cfg.ScenariosDir, scenarioRef)
+		if err != nil {
+			return fmt.Errorf("resolve scenario %q: %w", scenarioRef, err)
+		}
+		for _, model := range models {
+			for repeat := 1; repeat <= repeats; repeat++ {
+				paths := skilldelta.PairArtifactPaths(outDir, s.ID, model, repeat)
+				if err := os.MkdirAll(paths.WithoutSkillRunsDir, 0o755); err != nil {
+					return err
+				}
+				if err := os.MkdirAll(paths.WithSkillRunsDir, 0o755); err != nil {
+					return err
+				}
+
+				spec := skilldelta.PairSpec{
+					ScenarioID: s.ID,
+					Model:      model,
+					Provider:   cfg.Provider,
+					Repeat:     repeat,
+					Paths:      paths,
+				}
+
+				var pair skilldelta.PairResult
+				if cfg.DryRun {
+					pair = skilldelta.BuildDryRunPair(spec)
+				} else {
+					withoutCfg := cfg
+					withoutCfg.Scenario = s.Path
+					withoutCfg.Model = model
+					withoutCfg.SystemPromptFile = noSkillPrompt
+					withoutCfg.RunsDir = paths.WithoutSkillRunsDir
+					withoutCfg.EvidraEvidenceDir = filepath.Join(paths.WithoutSkillRunsDir, "evidence")
+
+					withoutResult, err := runScenarioOnce(cmd.Context(), withoutCfg, s)
+					if err != nil {
+						return fmt.Errorf("without_skill %s/%s repeat=%d: %w", s.ID, model, repeat, err)
+					}
+
+					withCfg := cfg
+					withCfg.Scenario = s.Path
+					withCfg.Model = model
+					withCfg.SystemPromptFile = withSkillPrompt
+					withCfg.RunsDir = paths.WithSkillRunsDir
+					withCfg.EvidraEvidenceDir = filepath.Join(paths.WithSkillRunsDir, "evidence")
+
+					withResult, err := runScenarioOnce(cmd.Context(), withCfg, s)
+					if err != nil {
+						return fmt.Errorf("with_skill %s/%s repeat=%d: %w", s.ID, model, repeat, err)
+					}
+
+					pair, err = skilldelta.BuildPairResult(withoutResult.ArtifactDir, withResult.ArtifactDir)
+					if err != nil {
+						return fmt.Errorf("build pair %s/%s repeat=%d: %w", s.ID, model, repeat, err)
+					}
+				}
+
+				if err := skilldelta.WritePairJSON(paths.PairJSONPath, pair); err != nil {
+					return fmt.Errorf("write pair.json: %w", err)
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "pair: %s\n", paths.PairJSONPath)
+			}
+		}
+	}
+
+	return nil
+}
+
+func executeSkillDeltaAggregate(cmd *cobra.Command, dir string) error {
+	if strings.TrimSpace(dir) == "" {
+		return fmt.Errorf("skill-delta aggregate: --dir is required")
+	}
+
+	pairs, err := skilldelta.LoadPairs(dir)
+	if err != nil {
+		return err
+	}
+	benchmark := skilldelta.BuildBenchmark(buildSkillDeltaMetadata(dir, pairs), pairs)
+	jsonPath := filepath.Join(dir, "benchmark.json")
+	mdPath := filepath.Join(dir, "benchmark.md")
+	if err := skilldelta.WriteBenchmarkJSON(jsonPath, benchmark); err != nil {
+		return err
+	}
+	if err := skilldelta.WriteMarkdown(mdPath, benchmark); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "benchmark: %s\n", jsonPath)
+	fmt.Fprintf(cmd.OutOrStdout(), "markdown: %s\n", mdPath)
+	return nil
+}
+
+func executeSkillDeltaReport(cmd *cobra.Command, dir string) error {
+	if strings.TrimSpace(dir) == "" {
+		return fmt.Errorf("skill-delta report: --dir is required")
+	}
+
+	benchmark, err := skilldelta.ReadBenchmarkJSON(filepath.Join(dir, "benchmark.json"))
+	if err != nil {
+		return err
+	}
+	outputPath := filepath.Join(dir, "benchmark.html")
+	if err := report.WriteSkillDeltaHTML(outputPath, benchmark); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "html: %s\n", outputPath)
+	return nil
+}
+
+func buildSkillDeltaMetadata(dir string, pairs []skilldelta.PairResult) skilldelta.BenchmarkMetadata {
+	scenarios := map[string]struct{}{}
+	models := map[string]struct{}{}
+	providers := map[string]struct{}{}
+	repeats := 0
+	meta := skilldelta.BenchmarkMetadata{
+		Suite:       "skill-delta",
+		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		RunsDir:     dir,
+	}
+
+	for _, pair := range pairs {
+		scenarios[pair.ScenarioID] = struct{}{}
+		models[pair.Model] = struct{}{}
+		if pair.Provider != "" {
+			providers[pair.Provider] = struct{}{}
+		}
+		if pair.Repeat > repeats {
+			repeats = pair.Repeat
+		}
+		if meta.ContractVersion == "" {
+			meta.ContractVersion = firstMetadata(pair, "contract_version")
+		}
+		if meta.PromptVersion == "" {
+			meta.PromptVersion = firstMetadata(pair, "prompt_version")
+		}
+		if meta.SkillVersion == "" {
+			meta.SkillVersion = firstMetadata(pair, "skill_version")
+		}
+		if meta.EvidraVersion == "" {
+			meta.EvidraVersion = firstMetadata(pair, "evidra_version")
+		}
+		if meta.InfraBenchVersion == "" {
+			meta.InfraBenchVersion = firstMetadata(pair, "infra_bench_version")
+		}
+		if meta.InfraBenchCommit == "" {
+			meta.InfraBenchCommit = firstMetadata(pair, "infra_bench_commit")
+		}
+	}
+
+	meta.Repeats = repeats
+	meta.Scenarios = sortedKeys(scenarios)
+	meta.Models = sortedKeys(models)
+	providerList := sortedKeys(providers)
+	if len(providerList) == 1 {
+		meta.Provider = providerList[0]
+	}
+
+	return meta
+}
+
+func firstMetadata(pair skilldelta.PairResult, key string) string {
+	if value := pair.WithSkill.Metadata[key]; strings.TrimSpace(value) != "" {
+		return value
+	}
+	return pair.WithoutSkill.Metadata[key]
+}
+
+func sortedKeys(values map[string]struct{}) []string {
+	out := make([]string, 0, len(values))
+	for key := range values {
+		if key == "" {
+			continue
+		}
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func main() {

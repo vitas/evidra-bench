@@ -131,13 +131,13 @@ func TestReporter_WriteOffline_ValidJSON(t *testing.T) {
 	}
 }
 
-func TestReporter_Report_UploadsBatchWhenOnline(t *testing.T) {
+func TestReporter_Report_UploadsBenchmarkRunWhenOnline(t *testing.T) {
 	t.Parallel()
 
 	var seenAuth string
 	var seenBody map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/evidence/batch" {
+		if r.URL.Path != "/v1/benchmark/run" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
 		seenAuth = r.Header.Get("Authorization")
@@ -145,7 +145,7 @@ func TestReporter_Report_UploadsBatchWhenOnline(t *testing.T) {
 			t.Fatalf("decode request: %v", err)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"accepted":1}`))
+		_, _ = w.Write([]byte(`{"run_id":"run-123","status":"accepted"}`))
 	}))
 	defer srv.Close()
 
@@ -165,8 +165,18 @@ func TestReporter_Report_UploadsBatchWhenOnline(t *testing.T) {
 	if seenAuth != "Bearer secret" {
 		t.Fatalf("unexpected auth header: %q", seenAuth)
 	}
-	rawEntries, ok := seenBody["entries"].([]any)
-	if !ok || len(rawEntries) != 1 {
-		t.Fatalf("unexpected batch payload: %#v", seenBody)
+	if seenBody["suite"] != "infra-bench" {
+		t.Fatalf("unexpected suite payload: %#v", seenBody)
+	}
+	results, ok := seenBody["results"].([]any)
+	if !ok || len(results) != 1 {
+		t.Fatalf("unexpected benchmark payload: %#v", seenBody)
+	}
+	result, ok := results[0].(map[string]any)
+	if !ok {
+		t.Fatalf("unexpected result payload: %#v", results[0])
+	}
+	if result["case_id"] != "broken-deployment" {
+		t.Fatalf("unexpected case_id payload: %#v", result)
 	}
 }

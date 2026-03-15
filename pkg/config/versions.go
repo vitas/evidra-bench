@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	promptdata "samebits.com/evidra/prompts"
 )
 
 // VersionInfo holds all version metadata for reproducible benchmarks.
@@ -26,6 +28,7 @@ type VersionInfo struct {
 	// prompt/contract
 	ContractVersion string `json:"contract_version,omitempty"`
 	SkillVersion    string `json:"skill_version,omitempty"`
+	PromptVersion   string `json:"prompt_version,omitempty"`
 	PromptFile      string `json:"prompt_file,omitempty"`
 }
 
@@ -36,8 +39,11 @@ func CollectVersions(infraBenchVersion, infraBenchCommit string, cfg Config) Ver
 		InfraBenchVersion: infraBenchVersion,
 		InfraBenchCommit:  infraBenchCommit,
 		ContractVersion:   cfg.ContractVersion,
-		SkillVersion:      cfg.ContractVersion, // skill_version matches contract_version
 		PromptFile:        cfg.ResolveSystemPromptFile(),
+	}
+
+	if vi.ContractVersion != "" {
+		vi.SkillVersion = promptdata.ParseSkillVersionFromContractVersion(vi.ContractVersion)
 	}
 
 	evidraBin := cfg.ResolveEvidraBin()
@@ -50,10 +56,15 @@ func CollectVersions(infraBenchVersion, infraBenchCommit string, cfg Config) Ver
 		vi.SpecVersion, vi.ScoringVersion, vi.ScoringProfileID = probeEvidraVersions(evidraBin)
 	}
 
-	// Extract contract version from prompt file header if not set
-	if vi.ContractVersion == "" && vi.PromptFile != "" {
-		vi.ContractVersion = extractContractVersion(vi.PromptFile)
-		vi.SkillVersion = vi.ContractVersion
+	if vi.PromptFile != "" {
+		if meta, err := promptdata.ResolvePromptMetadata(vi.PromptFile); err == nil {
+			vi.ContractVersion = meta.ContractVersion
+			vi.SkillVersion = meta.SkillVersion
+			vi.PromptVersion = meta.PromptVersion
+		} else if vi.ContractVersion == "" {
+			vi.ContractVersion = extractContractVersion(vi.PromptFile)
+			vi.SkillVersion = promptdata.ParseSkillVersionFromContractVersion(vi.ContractVersion)
+		}
 	}
 
 	return vi
@@ -113,6 +124,9 @@ func (v VersionInfo) ToMetadata() map[string]string {
 	}
 	if v.SkillVersion != "" {
 		m["skill_version"] = v.SkillVersion
+	}
+	if v.PromptVersion != "" {
+		m["prompt_version"] = v.PromptVersion
 	}
 	if v.PromptFile != "" {
 		m["system_prompt_file"] = v.PromptFile

@@ -320,6 +320,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 				Passed:     verifyResult.Passed,
 				ExitCode:   agentResult.ExitCode,
 				Duration:   endTime.Sub(startTime),
+				Metadata:   agentResult.Metadata,
 			},
 		}
 		if err := h.deps.Reporter.Report(entries); err != nil {
@@ -340,6 +341,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	if h.deps.Store != nil {
 		checksPassed, checksTotal := countChecks(verifyResult)
 		checksJSON, _ := json.Marshal(verifyResult)
+		metadataJSON, _ := json.Marshal(agentResult.Metadata)
 		rec := store.RunRecord{
 			ID:               fmt.Sprintf("%s-%s-%s", startTime.Format("20060102-150405"), s.ID, req.Config.Adapter),
 			ScenarioID:       s.ID,
@@ -353,9 +355,11 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			MemoryWindow:     req.Config.MemoryWindow,
 			PromptTokens:     parseIntMeta(agentResult.Metadata, "prompt_tokens"),
 			CompletionTokens: parseIntMeta(agentResult.Metadata, "completion_tokens"),
+			EstimatedCost:    parseFloatMeta(agentResult.Metadata, "estimated_cost"),
 			ChecksPassed:     checksPassed,
 			ChecksTotal:      checksTotal,
 			ChecksJSON:       string(checksJSON),
+			MetadataJSON:     string(metadataJSON),
 			ArtifactDir:      artifactDir,
 			CreatedAt:        startTime,
 		}
@@ -386,6 +390,15 @@ func parseIntMeta(meta map[string]string, key string) int {
 		return 0
 	}
 	n, _ := strconv.Atoi(v)
+	return n
+}
+
+func parseFloatMeta(meta map[string]string, key string) float64 {
+	v, ok := meta[key]
+	if !ok {
+		return 0
+	}
+	n, _ := strconv.ParseFloat(v, 64)
 	return n
 }
 

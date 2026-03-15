@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -30,6 +31,7 @@ type RunRecord struct {
 	ChecksPassed     int       `json:"checks_passed"`
 	ChecksTotal      int       `json:"checks_total"`
 	ChecksJSON       string    `json:"checks_json,omitempty"`
+	MetadataJSON     string    `json:"metadata_json,omitempty"`
 	ArtifactDir      string    `json:"artifact_dir"`
 	CreatedAt        time.Time `json:"created_at"`
 }
@@ -87,6 +89,7 @@ func (s *Store) migrate() error {
 			checks_passed    INTEGER NOT NULL DEFAULT 0,
 			checks_total     INTEGER NOT NULL DEFAULT 0,
 			checks_json      TEXT NOT NULL DEFAULT '',
+			metadata_json    TEXT NOT NULL DEFAULT '',
 			artifact_dir     TEXT NOT NULL DEFAULT '',
 			created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);
@@ -96,7 +99,10 @@ func (s *Store) migrate() error {
 		CREATE INDEX IF NOT EXISTS idx_runs_provider ON runs(provider);
 		CREATE INDEX IF NOT EXISTS idx_runs_created ON runs(created_at);
 	`)
-	return err
+	if err != nil {
+		return err
+	}
+	return s.ensureColumn("runs", "metadata_json", "TEXT NOT NULL DEFAULT ''")
 }
 
 // Insert adds a run record to the database and appends to JSONL backup.
@@ -109,12 +115,12 @@ func (s *Store) Insert(r RunRecord) error {
 			id, scenario_id, model, provider, adapter, passed,
 			duration_seconds, exit_code, turns, memory_window,
 			prompt_tokens, completion_tokens, estimated_cost,
-			checks_passed, checks_total, checks_json, artifact_dir, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			checks_passed, checks_total, checks_json, metadata_json, artifact_dir, created_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		r.ID, r.ScenarioID, r.Model, r.Provider, r.Adapter, r.Passed,
 		r.Duration, r.ExitCode, r.Turns, r.MemoryWindow,
 		r.PromptTokens, r.CompletionTokens, r.EstimatedCost,
-		r.ChecksPassed, r.ChecksTotal, r.ChecksJSON, r.ArtifactDir, r.CreatedAt,
+		r.ChecksPassed, r.ChecksTotal, r.ChecksJSON, r.MetadataJSON, r.ArtifactDir, r.CreatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("store.Insert: %w", err)
@@ -138,7 +144,7 @@ func (s *Store) appendJSONL(r RunRecord) error {
 
 // Query returns runs matching the given filters.
 func (s *Store) Query(filters QueryFilters) ([]RunRecord, error) {
-	query := "SELECT id, scenario_id, model, provider, adapter, passed, duration_seconds, exit_code, turns, memory_window, prompt_tokens, completion_tokens, estimated_cost, checks_passed, checks_total, checks_json, artifact_dir, created_at FROM runs WHERE 1=1"
+	query := "SELECT id, scenario_id, model, provider, adapter, passed, duration_seconds, exit_code, turns, memory_window, prompt_tokens, completion_tokens, estimated_cost, checks_passed, checks_total, checks_json, metadata_json, artifact_dir, created_at FROM runs WHERE 1=1"
 	var args []any
 
 	if filters.ScenarioID != "" {
@@ -178,7 +184,7 @@ func (s *Store) Query(filters QueryFilters) ([]RunRecord, error) {
 	var records []RunRecord
 	for rows.Next() {
 		var r RunRecord
-		if err := rows.Scan(&r.ID, &r.ScenarioID, &r.Model, &r.Provider, &r.Adapter, &r.Passed, &r.Duration, &r.ExitCode, &r.Turns, &r.MemoryWindow, &r.PromptTokens, &r.CompletionTokens, &r.EstimatedCost, &r.ChecksPassed, &r.ChecksTotal, &r.ChecksJSON, &r.ArtifactDir, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.ScenarioID, &r.Model, &r.Provider, &r.Adapter, &r.Passed, &r.Duration, &r.ExitCode, &r.Turns, &r.MemoryWindow, &r.PromptTokens, &r.CompletionTokens, &r.EstimatedCost, &r.ChecksPassed, &r.ChecksTotal, &r.ChecksJSON, &r.MetadataJSON, &r.ArtifactDir, &r.CreatedAt); err != nil {
 			return nil, fmt.Errorf("store.Query: scan: %w", err)
 		}
 		records = append(records, r)
@@ -258,18 +264,29 @@ func (s *Store) Rebuild() (int, error) {
 				id, scenario_id, model, provider, adapter, passed,
 				duration_seconds, exit_code, turns, memory_window,
 				prompt_tokens, completion_tokens, estimated_cost,
-				checks_passed, checks_total, checks_json, artifact_dir, created_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				checks_passed, checks_total, checks_json, metadata_json, artifact_dir, created_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			r.ID, r.ScenarioID, r.Model, r.Provider, r.Adapter, r.Passed,
 			r.Duration, r.ExitCode, r.Turns, r.MemoryWindow,
 			r.PromptTokens, r.CompletionTokens, r.EstimatedCost,
-			r.ChecksPassed, r.ChecksTotal, r.ChecksJSON, r.ArtifactDir, r.CreatedAt,
+			r.ChecksPassed, r.ChecksTotal, r.ChecksJSON, r.MetadataJSON, r.ArtifactDir, r.CreatedAt,
 		); err != nil {
 			continue
 		}
 		count++
 	}
 	return count, nil
+}
+
+func (s *Store) ensureColumn(table, column, definition string) error {
+	_, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, column, definition))
+	if err == nil {
+		return nil
+	}
+	if strings.Contains(err.Error(), "duplicate column name") {
+		return nil
+	}
+	return err
 }
 
 func splitLines(data []byte) [][]byte {

@@ -1,8 +1,11 @@
 package agent
 
 import (
+	"reflect"
 	"strings"
 	"testing"
+
+	"samebits.com/evidra/pkg/execcontract"
 )
 
 func TestResolveProvider_Bifrost(t *testing.T) {
@@ -80,6 +83,32 @@ func TestResolveClaudeModel(t *testing.T) {
 		if got := resolveClaudeModel(tt.input); got != tt.expected {
 			t.Errorf("resolveClaudeModel(%q) = %q, want %q", tt.input, got, tt.expected)
 		}
+	}
+}
+
+func TestBenchTools_EvidraSchemasMatchParentContract(t *testing.T) {
+	t.Parallel()
+
+	tools := BenchTools()
+	byName := map[string]ToolDef{}
+	for _, tool := range tools {
+		byName[tool.Name] = tool
+	}
+
+	prescribeDef, err := execcontract.PrescribeToolDefinition()
+	if err != nil {
+		t.Fatalf("PrescribeToolDefinition: %v", err)
+	}
+	reportDef, err := execcontract.ReportToolDefinition()
+	if err != nil {
+		t.Fatalf("ReportToolDefinition: %v", err)
+	}
+
+	if got := byName["evidra_prescribe"]; !reflect.DeepEqual(got.Parameters, prescribeDef.Parameters) {
+		t.Fatalf("evidra_prescribe parameters drifted from parent contract")
+	}
+	if got := byName["evidra_report"]; !reflect.DeepEqual(got.Parameters, reportDef.Parameters) {
+		t.Fatalf("evidra_report parameters drifted from parent contract")
 	}
 }
 
