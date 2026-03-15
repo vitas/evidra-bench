@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"samebits.com/evidra/pkg/execcontract"
@@ -156,6 +157,7 @@ func (e *ToolExecutor) evidraPrescribe(ctx context.Context, argsJSON string) str
 
 func (e *ToolExecutor) evidraReport(ctx context.Context, argsJSON string) string {
 	argsJSON = fixStringifiedJSONFields(argsJSON, "actor", "decision_context", "external_refs")
+	argsJSON = fixStringifiedIntFields(argsJSON, "exit_code")
 	var input execcontract.ReportInput
 	if err := json.Unmarshal([]byte(argsJSON), &input); err != nil {
 		return fmt.Sprintf("error parsing arguments: %v", err)
@@ -335,6 +337,40 @@ func fixStringifiedJSONFields(argsJSON string, fields ...string) string {
 				var parsed json.RawMessage
 				if json.Unmarshal([]byte(s), &parsed) == nil {
 					raw[field] = parsed
+					changed = true
+				}
+			}
+		}
+	}
+	if !changed {
+		return argsJSON
+	}
+	fixed, err := json.Marshal(raw)
+	if err != nil {
+		return argsJSON
+	}
+	return string(fixed)
+}
+
+// fixStringifiedIntFields converts string integers to actual integers.
+// Handles: "exit_code": "0" → "exit_code": 0
+func fixStringifiedIntFields(argsJSON string, fields ...string) string {
+	var raw map[string]json.RawMessage
+	if json.Unmarshal([]byte(argsJSON), &raw) != nil {
+		return argsJSON
+	}
+	changed := false
+	for _, field := range fields {
+		val, ok := raw[field]
+		if !ok {
+			continue
+		}
+		trimmed := bytes.TrimSpace(val)
+		if len(trimmed) > 0 && trimmed[0] == '"' {
+			var s string
+			if json.Unmarshal(trimmed, &s) == nil {
+				if _, err := strconv.Atoi(s); err == nil {
+					raw[field] = json.RawMessage(s)
 					changed = true
 				}
 			}
