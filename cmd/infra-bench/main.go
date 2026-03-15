@@ -19,6 +19,7 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/harness"
 	"samebits.com/evidra-infra-bench/pkg/report"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"samebits.com/evidra-infra-bench/pkg/signalaudit"
 	"samebits.com/evidra-infra-bench/pkg/skilldelta"
 	"samebits.com/evidra-infra-bench/pkg/store"
 	"samebits.com/evidra-infra-bench/pkg/tui"
@@ -44,6 +45,12 @@ func newRootCommand() *cobra.Command {
 	skillDeltaDir := ""
 	skillDeltaNoSkillPrompt := ""
 	skillDeltaWithSkillPrompt := ""
+	auditRunsDir := cfg.RunsDir
+	auditManifestPath := filepath.Join("configs", "signal-audit.yaml")
+	auditScenarioFilter := ""
+	auditModelFilter := ""
+	auditProviderFilter := ""
+	auditOutputPath := ""
 
 	root := &cobra.Command{
 		Use:   "infra-bench",
@@ -264,6 +271,26 @@ with optional Evidra reporting for behavioral analysis.`,
 		Short: "Run and analyze paired with-skill vs without-skill benchmarks",
 	}
 
+	auditCmd := &cobra.Command{
+		Use:   "audit",
+		Short: "Audit existing benchmark artifacts",
+	}
+	auditSignalsCmd := &cobra.Command{
+		Use:   "signals",
+		Short: "Audit existing run artifacts for signal drift and false positives",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return executeSignalAudit(cmd, auditRunsDir, auditManifestPath, auditScenarioFilter, auditModelFilter, auditProviderFilter, auditOutputPath)
+		},
+	}
+	asf := auditSignalsCmd.Flags()
+	asf.StringVar(&auditRunsDir, "runs-dir", auditRunsDir, "runs directory to scan")
+	asf.StringVar(&auditManifestPath, "manifest", auditManifestPath, "signal audit manifest path")
+	asf.StringVar(&auditScenarioFilter, "scenario", "", "filter by scenario ID")
+	asf.StringVar(&auditModelFilter, "model", "", "filter by model")
+	asf.StringVar(&auditProviderFilter, "provider", "", "filter by provider")
+	asf.StringVar(&auditOutputPath, "output", "", "output path (default: <runs-dir>/signal-audit.json)")
+	auditCmd.AddCommand(auditSignalsCmd)
+
 	skillDeltaRunCmd := &cobra.Command{
 		Use:   "run",
 		Short: "Run paired without-skill and with-skill benchmark cases",
@@ -314,7 +341,7 @@ with optional Evidra reporting for behavioral analysis.`,
 
 	skillDeltaCmd.AddCommand(skillDeltaRunCmd, skillDeltaAggregateCmd, skillDeltaReportCmd)
 
-	root.AddCommand(runCmd, scenarioCmd, labCmd, reportCmd, compareCmd, dbCmd, skillDeltaCmd)
+	root.AddCommand(runCmd, scenarioCmd, labCmd, reportCmd, compareCmd, dbCmd, skillDeltaCmd, auditCmd)
 	return root
 }
 
@@ -595,6 +622,36 @@ func executeSkillDeltaReport(cmd *cobra.Command, dir string) error {
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "html: %s\n", outputPath)
+	return nil
+}
+
+func executeSignalAudit(cmd *cobra.Command, runsDir, manifestPath, scenarioFilter, modelFilter, providerFilter, outputPath string) error {
+	if strings.TrimSpace(runsDir) == "" {
+		return fmt.Errorf("audit signals: --runs-dir is required")
+	}
+	if strings.TrimSpace(manifestPath) == "" {
+		return fmt.Errorf("audit signals: --manifest is required")
+	}
+	manifestPath = resolveAuditManifestPath(manifestPath)
+	if outputPath == "" {
+		outputPath = filepath.Join(runsDir, "signal-audit.json")
+	}
+
+	manifest, err := signalaudit.LoadManifest(manifestPath)
+	if err != nil {
+		return err
+	}
+	runs, err := loadAuditRuns(runsDir, scenarioFilter, modelFilter, providerFilter)
+	if err != nil {
+		return err
+	}
+	result := signalaudit.Analyze(manifest, runs)
+	if err := signalaudit.WriteJSON(outputPath, result); err != nil {
+		return err
+	}
+
+	fmt.Fprint(cmd.OutOrStdout(), signalaudit.FormatSummary(result))
+	fmt.Fprintf(cmd.OutOrStdout(), "json: %s\n", outputPath)
 	return nil
 }
 
