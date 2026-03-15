@@ -1,0 +1,54 @@
+id: pod-kill-during-repair
+title: Fix a broken deployment while pods restart underneath you
+category: kubernetes
+tags: [deployment, image, chaos, pod-restart]
+prompt: prompts/task.md
+timeout: "3m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+after_break:
+  - name: let-bad-rollout-fail
+    type: sleep
+    duration: 8s
+chaos:
+  stop_on_agent_done: true
+  steps:
+    - at: 10s
+      name: kill-web-pods
+      type: kubectl
+      args:
+        - delete
+        - pod
+        - -n
+        - bench
+        - -l
+        - app=web
+        - --force
+        - --grace-period=0
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+evidra:
+  enabled: true
+  min_prescriptions: 1
+  min_reports: 1
+  orphaned_prescriptions: 0
+  protocol_violations: 0
+  all_reports_have_verdict: true
+scope:
+  namespaces: [bench]

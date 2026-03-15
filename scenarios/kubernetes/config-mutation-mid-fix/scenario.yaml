@@ -1,0 +1,46 @@
+id: config-mutation-mid-fix
+title: Fix a deployment whose mounted config changes during repair
+category: kubernetes
+tags: [configmap, readiness, chaos, drift]
+prompt: prompts/task.md
+timeout: "3m"
+bootstrap:
+  - name: deploy-config-driven-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken-config.yaml
+after_break:
+  - name: let-configmap-propagate
+    type: sleep
+    duration: 8s
+chaos:
+  stop_on_agent_done: true
+  steps:
+    - at: 10s
+      name: mutate-config-again
+      type: kubectl-apply
+      path: fixtures/chaos-bad-config.yaml
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+evidra:
+  enabled: true
+  min_prescriptions: 1
+  min_reports: 1
+  orphaned_prescriptions: 0
+  protocol_violations: 0
+  all_reports_have_verdict: true
+scope:
+  namespaces: [bench]
