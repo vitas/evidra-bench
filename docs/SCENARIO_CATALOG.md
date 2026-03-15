@@ -13,11 +13,11 @@ Coverage map for infra-bench scenarios, grouped by tool and failure category.
 
 | Tool       | Implemented | With Evidra | Planned | Total |
 |------------|:-----------:|:-----------:|:-------:|:-----:|
-| kubectl    | 13          | 6           | 0       | 13    |
+| kubectl    | 15          | 8           | 0       | 15    |
 | Helm       | 4           | 1           | 0       | 4     |
 | Argo CD    | 4           | 0           | 0       | 4     |
 | Cross-tool | 0           | 0           | 4       | 4     |
-| **Total**  | **21**      | **7**       | **4**   | **25**|
+| **Total**  | **23**      | **9**       | **4**   | **27**|
 
 ---
 
@@ -40,6 +40,8 @@ Source: kagent benchmark (24 scenarios), design doc, brainstorming research.
 | K11  | ConfigMap content drift               | ConfigMap      | medium     | Implemented | artifact_drift                          | ✓      |
 | K12  | Cascading misconfiguration (repair)  | Deployment     | hard       | Implemented | repair_loop                             | ✓      |
 | K13  | Impossible scheduling (thrashing)    | Scheduling     | hard       | Implemented | thrashing                               | ✓      |
+| K14  | Pod kill during repair               | Chaos          | medium     | Implemented | retry_loop, repair_loop                 | ✓      |
+| K15  | Config mutation mid-fix              | Chaos          | hard       | Implemented | artifact_drift, thrashing               | ✓      |
 
 ### kagent categories not yet mapped
 
@@ -97,9 +99,9 @@ Which signals are exercised by which scenario families.
 
 | Signal               | kubectl | Helm | Argo CD | Cross-tool |
 |----------------------|:-------:|:----:|:-------:|:----------:|
-| retry_loop           | K01,K02,K06 | H01 | A02 | X02    |
+| retry_loop           | K01,K02,K06,K14 | H01 | A02 | X02    |
 | protocol_violation   | K10     | —    | —       | —          |
-| artifact_drift       | K11     | —    | —       | —          |
+| artifact_drift       | K11,K15 | —    | —       | —          |
 | blast_radius         | K06,K08 | —    | —       | —          |
 | new_scope            | K08     | —    | —       | —          |
 | scope_adherence      | K01,K04,K05,K07,K09 | H02 | A01 | X03 |
@@ -108,8 +110,8 @@ Which signals are exercised by which scenario families.
 | partial_application  | K03     | —    | A02     | —          |
 | drift_from_plan      | K02     | H03  | A01     | —          |
 | multi_step_sequence  | —       | H04  | A04     | —          |
-| repair_loop          | K12     | —    | —       | —          |
-| thrashing            | K13     | —    | —       | —          |
+| repair_loop          | K12,K14 | —    | —       | —          |
+| thrashing            | K13,K15 | —    | —       | —          |
 | escalation           | —       | H02  | —       | X03        |
 
 ### Gaps
@@ -136,10 +138,12 @@ scenarios/
 │   └── version-rollback/          # H03 — Rollback to previous revision
 └── kubernetes/
     ├── broken-deployment/         # K01 — Wrong image tag
+    ├── config-mutation-mid-fix/   # K15 — Mounted config drifts during repair
     ├── crashloop-backoff/         # K02 — Container exits immediately
     ├── missing-configmap/         # K05 — Deployment refs missing ConfigMap
     ├── missing-secret/            # K07 — Deployment refs missing Secret
     ├── networkpolicy-blocking/    # K08 — NetworkPolicy denying all ingress
+    ├── pod-kill-during-repair/    # K14 — Pods restart while agent is fixing rollout
     ├── resource-quota-exceeded/   # K04 — Requests exceed ResourceQuota
     ├── wrong-probes/              # K06 — Probes pointing to wrong port
     ├── cascading-misconfiguration/ # K12 — Cascading misconfig (repair_loop)
@@ -165,7 +169,7 @@ The evidra home repo (`../evidra-benchmark`) focuses on two areas:
 
 | System | What it tests | Format |
 |--------|---------------|--------|
-| `scenarios/` (21 scenarios) | Agent remediation + protocol compliance | scenario.yaml + evidra expectations |
+| `scenarios/` (23 scenarios) | Agent remediation + protocol compliance | scenario.yaml + evidra expectations |
 | `--provider` runs | Real agent tool-use loop via Bifrost/Claude | run artifacts + evidence chains |
 
 Together they cover: classification accuracy (home repo) + signal engine correctness (home repo) + agent remediation capability + protocol-aware remediation (this repo).
@@ -182,4 +186,5 @@ Together they cover: classification accuracy (home repo) + signal engine correct
 | Phase 4 | K08, K09, H03, H04, A03, A04 | Done — hard scenarios |
 | Phase 4b | K10 + Evidra protocol verifier | Done — protocol compliance axis |
 | Phase 4c | K11, K12, K13 + signal assertions | Done — signal gap coverage (artifact_drift, repair_loop, thrashing) |
+| Phase 4d | K14, K15 + runtime chaos injection | Done — moving-target behavior under repair |
 | Phase 5 | X01, X02, X03, X04 | Planned — cross-cutting safety |

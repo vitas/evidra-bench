@@ -18,6 +18,7 @@ type Scenario struct {
 	Bootstrap  []BootstrapStep    `yaml:"bootstrap,omitempty"`
 	AfterBreak []BootstrapStep    `yaml:"after_break,omitempty"`
 	Break      Break              `yaml:"break"`
+	Chaos      ChaosConfig        `yaml:"chaos,omitempty"`
 	Baseline   string             `yaml:"baseline,omitempty"`
 	Tools      []string           `yaml:"tools,omitempty"`
 	Evidra     EvidraExpectations `yaml:"evidra,omitempty"`
@@ -60,6 +61,26 @@ type Break struct {
 	AllowFailure bool     `yaml:"allow_failure,omitempty"`
 }
 
+// ChaosConfig describes runtime disruptions scheduled during agent execution.
+type ChaosConfig struct {
+	Mode            string      `yaml:"mode,omitempty"`
+	StopOnAgentDone bool        `yaml:"stop_on_agent_done,omitempty"`
+	Steps           []ChaosStep `yaml:"steps,omitempty"`
+}
+
+// ChaosStep describes one scheduled runtime disruption.
+type ChaosStep struct {
+	Name         string   `yaml:"name,omitempty"`
+	Type         string   `yaml:"type"`
+	At           Duration `yaml:"at"`
+	Path         string   `yaml:"path,omitempty"`
+	Release      string   `yaml:"release,omitempty"`
+	Namespace    string   `yaml:"namespace,omitempty"`
+	Duration     string   `yaml:"duration,omitempty"`
+	Args         []string `yaml:"args,omitempty"`
+	AllowFailure bool     `yaml:"allow_failure,omitempty"`
+}
+
 // EvidraExpectations declares protocol compliance assertions for a scenario.
 type EvidraExpectations struct {
 	Enabled               bool           `yaml:"enabled"`
@@ -80,6 +101,7 @@ type EvidraExpectations struct {
 // Duration wraps time.Duration for YAML unmarshaling.
 type Duration struct {
 	time.Duration
+	Set bool
 }
 
 // UnmarshalYAML parses a duration string like "5m" or "30s".
@@ -93,5 +115,6 @@ func (d *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 	d.Duration = dur
+	d.Set = true
 	return nil
 }

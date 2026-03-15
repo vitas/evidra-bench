@@ -13,6 +13,10 @@ ConfigMap, failed Helm upgrade, ArgoCD drift) and asks the agent to fix it.
 Success is measured by declarative checks: deployment ready, service endpoints
 reachable, Helm release deployed, ArgoCD app healthy.
 
+Some scenarios also inject deterministic runtime chaos while the agent is
+working, such as deleting pods mid-repair or mutating a ConfigMap after the
+agent has already started reasoning about it.
+
 This tests **operational competence** — does the agent understand Kubernetes
 well enough to find and fix real problems?
 
@@ -51,6 +55,29 @@ The Evidra signal engine detects behavioral patterns in evidence chains:
 
 This tests **behavioral quality** — not just whether the agent succeeds,
 but how it gets there.
+
+## Chaos Injection
+
+Not every scenario should use chaos. Static failures are still valuable for
+baseline remediation. Chaos scenarios are for a narrower question:
+
+**does the agent stay reliable when the environment changes underneath it?**
+
+infra-bench uses a deliberately small chaos model:
+
+- deterministic timed steps
+- the same command vocabulary as bootstrap/break steps
+- no CRDs, controllers, or external chaos framework
+- artifacts that record exactly what changed and when
+
+Current chaos scenarios focus on:
+
+- pod restarts during repair
+- mounted ConfigMap drift during repair
+
+This is enough to surface signals like verification gaps, retry loops, and
+plan/action drift without turning the benchmark into a full chaos engineering
+platform.
 
 ## Memory Window Testing
 
@@ -191,5 +218,5 @@ infra-bench report --runs-dir ./other-runs   # different runs dir
 The report includes:
 - Summary statistics (total runs, pass rate)
 - Scenario matrix (all scenarios, run counts, pass rates)
-- Per-scenario run details (model, provider, duration, checks, turns, memory, tokens)
+- Per-scenario run details (model, provider, duration, checks, turns, memory, tokens, chaos mode)
 - Color-coded pass/fail badges and check marks

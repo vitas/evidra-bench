@@ -11,19 +11,24 @@ import (
 
 // RunBundle holds all data for a single benchmark run.
 type RunBundle struct {
-	ScenarioID string            `json:"scenario_id"`
-	Adapter    string            `json:"adapter"`
-	StartTime  time.Time         `json:"start_time"`
-	EndTime    time.Time         `json:"end_time"`
-	ExitCode   int               `json:"exit_code"`
-	Passed     bool              `json:"passed"`
-	Prompt     string            `json:"prompt,omitempty"`
-	Transcript string            `json:"transcript,omitempty"`
-	Stdout     string            `json:"stdout,omitempty"`
-	Stderr     string            `json:"stderr,omitempty"`
-	ToolCalls  json.RawMessage   `json:"tool_calls,omitempty"`
-	Checks     json.RawMessage   `json:"checks,omitempty"`
-	Metadata   map[string]string `json:"metadata,omitempty"`
+	ScenarioID     string            `json:"scenario_id"`
+	Adapter        string            `json:"adapter"`
+	StartTime      time.Time         `json:"start_time"`
+	EndTime        time.Time         `json:"end_time"`
+	ExitCode       int               `json:"exit_code"`
+	Passed         bool              `json:"passed"`
+	Prompt         string            `json:"prompt,omitempty"`
+	Transcript     string            `json:"transcript,omitempty"`
+	Stdout         string            `json:"stdout,omitempty"`
+	Stderr         string            `json:"stderr,omitempty"`
+	ToolCalls      json.RawMessage   `json:"tool_calls,omitempty"`
+	Checks         json.RawMessage   `json:"checks,omitempty"`
+	ChaosEnabled   bool              `json:"chaos_enabled,omitempty"`
+	ChaosMode      string            `json:"chaos_mode,omitempty"`
+	ChaosStepCount int               `json:"chaos_step_count,omitempty"`
+	ChaosTimeline  json.RawMessage   `json:"chaos_timeline,omitempty"`
+	ChaosLog       string            `json:"-"`
+	Metadata       map[string]string `json:"metadata,omitempty"`
 }
 
 // WriteOutput is the result of writing an artifact bundle.
@@ -74,6 +79,7 @@ func (w *Writer) Write(bundle RunBundle) (*WriteOutput, error) {
 		"transcript.txt": bundle.Transcript,
 		"stdout.txt":     bundle.Stdout,
 		"stderr.txt":     bundle.Stderr,
+		"chaos.log":      bundle.ChaosLog,
 	}
 	for name, content := range textFiles {
 		if content == "" {
@@ -95,6 +101,13 @@ func (w *Writer) Write(bundle RunBundle) (*WriteOutput, error) {
 	if len(bundle.Checks) > 0 {
 		if err := os.WriteFile(filepath.Join(runDir, "verifier.json"), bundle.Checks, 0644); err != nil {
 			return nil, fmt.Errorf("artifact.Writer.Write: write verifier.json: %w", err)
+		}
+	}
+
+	// Write chaos.json if present.
+	if len(bundle.ChaosTimeline) > 0 {
+		if err := os.WriteFile(filepath.Join(runDir, "chaos.json"), bundle.ChaosTimeline, 0644); err != nil {
+			return nil, fmt.Errorf("artifact.Writer.Write: write chaos.json: %w", err)
 		}
 	}
 

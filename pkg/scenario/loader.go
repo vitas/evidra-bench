@@ -42,6 +42,7 @@ func Load(dir string) (*Scenario, error) {
 	}
 	resolveStepPaths(dir, s.Bootstrap)
 	resolveStepPaths(dir, s.AfterBreak)
+	resolveChaosStepPaths(dir, s.Chaos.Steps)
 
 	return &s, nil
 }
@@ -55,6 +56,15 @@ func resolveStepPaths(dir string, steps []BootstrapStep) {
 			continue
 		}
 		steps[i].Path = filepath.Join(dir, steps[i].Path)
+	}
+}
+
+func resolveChaosStepPaths(dir string, steps []ChaosStep) {
+	for i := range steps {
+		if steps[i].Path != "" && !filepath.IsAbs(steps[i].Path) &&
+			!strings.HasPrefix(steps[i].Path, "http://") && !strings.HasPrefix(steps[i].Path, "https://") {
+			steps[i].Path = filepath.Join(dir, steps[i].Path)
+		}
 	}
 }
 
@@ -134,6 +144,24 @@ func validate(s *Scenario) error {
 	}
 	if len(s.Checks) == 0 {
 		return fmt.Errorf("scenario %s: at least one check is required", s.ID)
+	}
+	if err := validateChaos(s); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateChaos(s *Scenario) error {
+	if s.Chaos.Mode != "" && s.Chaos.Mode != "once" && s.Chaos.Mode != "repeat" {
+		return fmt.Errorf("scenario %s: unsupported chaos mode %q", s.ID, s.Chaos.Mode)
+	}
+	for i, step := range s.Chaos.Steps {
+		if step.Type == "" {
+			return fmt.Errorf("scenario %s: chaos step %d missing type", s.ID, i)
+		}
+		if !step.At.Set {
+			return fmt.Errorf("scenario %s: chaos step %d missing at", s.ID, i)
+		}
 	}
 	return nil
 }

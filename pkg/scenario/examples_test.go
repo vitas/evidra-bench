@@ -37,6 +37,9 @@ func TestStarterScenarios_Load(t *testing.T) {
 		"scenarios/helm/dependency-conflict",
 		"scenarios/argocd/degraded-after-sync",
 		"scenarios/argocd/sync-wave-ordering",
+		// Chaos
+		"scenarios/kubernetes/pod-kill-during-repair",
+		"scenarios/kubernetes/config-mutation-mid-fix",
 	}
 	for _, dir := range dirs {
 		dir := dir
@@ -44,7 +47,7 @@ func TestStarterScenarios_Load(t *testing.T) {
 			t.Parallel()
 			fullPath := filepath.Join(root, dir)
 			if _, err := os.Stat(filepath.Join(fullPath, "scenario.yaml")); err != nil {
-				t.Skipf("scenario not found: %s", fullPath)
+				t.Fatalf("scenario not found: %s", fullPath)
 			}
 			s, err := Load(fullPath)
 			if err != nil {
@@ -74,7 +77,7 @@ func TestStarterScenarios_LoadAll(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load all: %v", err)
 	}
-	if len(scenarios) < 17 {
+	if len(scenarios) < 19 {
 		t.Fatalf("expected at least 17 scenarios, got %d", len(scenarios))
 	}
 }

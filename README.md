@@ -7,11 +7,12 @@ Standalone benchmark harness for testing infrastructure agents against realistic
 1. Provisions a disposable `kind` cluster
 2. Bootstraps the healthy baseline declared by the scenario
 3. Injects a known failure or drift condition
-4. Executes your agent via a generic adapter (CLI or MCP)
-5. Verifies infrastructure outcome with declarative checks
-6. Verifies agent protocol compliance against Evidra evidence (opt-in)
-7. Writes a complete local artifact bundle
-8. Always writes local benchmark evidence and can optionally forward it to [Evidra](https://github.com/samebits/evidra)
+4. Optionally injects deterministic runtime chaos while the agent is working
+5. Executes your agent via a generic adapter (CLI or MCP)
+6. Verifies infrastructure outcome with declarative checks
+7. Verifies agent protocol compliance against Evidra evidence (opt-in)
+8. Writes a complete local artifact bundle
+9. Always writes local benchmark evidence and can optionally forward it to [Evidra](https://github.com/samebits/evidra)
 
 ## Prerequisites
 
@@ -54,6 +55,8 @@ Scenarios are YAML-first and live under `scenarios/`:
 ```
 scenarios/
   kubernetes/broken-deployment/   # Bad image tag
+  kubernetes/pod-kill-during-repair/ # Broken deployment + runtime pod restarts
+  kubernetes/config-mutation-mid-fix/ # Mounted config drifts during repair
   helm/failed-upgrade/            # Failed Helm upgrade
   argocd/out-of-sync/             # Argo CD drift
 ```
@@ -62,6 +65,19 @@ Each scenario directory contains:
 - `scenario.yaml` — metadata, break injection, checks, scope
 - `prompts/task.md` — the task prompt given to the agent
 - `fixtures/` — manifests used to inject failures
+
+Scenarios can also declare an optional `chaos:` block to inject deterministic
+runtime disruptions during agent execution:
+
+```yaml
+chaos:
+  stop_on_agent_done: true
+  steps:
+    - at: 10s
+      name: kill-web-pods
+      type: kubectl
+      args: [delete, pod, -n, bench, -l, app=web, --force, --grace-period=0]
+```
 
 ### Adding a Scenario
 
@@ -174,6 +190,8 @@ stdout.txt          # Process stdout
 stderr.txt          # Process stderr
 tool-calls.json     # Tool call log
 verifier.json       # Check results
+chaos.json          # Structured chaos timeline, when enabled
+chaos.log           # Human-readable chaos event log, when enabled
 ```
 
 Offline benchmark evidence is appended under:

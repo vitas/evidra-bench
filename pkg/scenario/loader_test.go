@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 const testScenarioYAML = `id: broken-deployment
@@ -27,6 +28,33 @@ checks:
     name: web
 scope:
   namespaces: [bench]
+`
+
+const testScenarioWithChaosYAML = `id: broken-deployment
+title: Fix a broken deployment
+category: kubernetes
+tags: [deployment, readiness]
+prompt: prompts/task.md
+timeout: "3m"
+bootstrap:
+  - type: kubectl-apply
+    path: fixtures/baseline.yaml
+break:
+  type: apply
+  path: fixtures/broken.yaml
+chaos:
+  mode: repeat
+  stop_on_agent_done: true
+  steps:
+    - at: 20s
+      name: kill-web
+      type: kubectl
+      args: [delete, pod, -n, bench, web-0]
+      allow_failure: true
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
 `
 
 func writeTestScenario(t *testing.T) string {
@@ -62,6 +90,43 @@ func TestLoad_ValidScenario(t *testing.T) {
 	}
 	if len(s.Checks) != 1 {
 		t.Fatalf("expected 1 check, got %d", len(s.Checks))
+	}
+}
+
+func TestLoad_ParsesChaos(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "prompts"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "fixtures"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "scenario.yaml"), []byte(testScenarioWithChaosYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "prompts", "task.md"), []byte("Fix the broken deployment."), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := Load(dir)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if s.Chaos.Mode != "repeat" {
+		t.Fatalf("chaos mode = %q, want repeat", s.Chaos.Mode)
+	}
+	if !s.Chaos.StopOnAgentDone {
+		t.Fatal("chaos stop_on_agent_done = false, want true")
+	}
+	if len(s.Chaos.Steps) != 1 {
+		t.Fatalf("expected 1 chaos step, got %d", len(s.Chaos.Steps))
+	}
+	if s.Chaos.Steps[0].At.Duration != 20*time.Second {
+		t.Fatalf("chaos step at = %s, want 20s", s.Chaos.Steps[0].At.Duration)
+	}
+	if !s.Chaos.Steps[0].AllowFailure {
+		t.Fatal("chaos step allow_failure = false, want true")
 	}
 }
 
@@ -148,6 +213,38 @@ func TestLoad_ResolvesAfterBreakPaths(t *testing.T) {
 	}
 	if !filepath.IsAbs(s.AfterBreak[0].Path) {
 		t.Fatalf("after_break path not resolved: %s", s.AfterBreak[0].Path)
+	}
+}
+
+func TestLoad_ChaosStepMissingAt(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "prompts"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	data := `id: broken-deployment
+title: Fix a broken deployment
+category: kubernetes
+prompt: prompts/task.md
+chaos:
+  steps:
+    - name: kill-web
+      type: kubectl
+      args: [delete, pod, -n, bench, web-0]
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+`
+	if err := os.WriteFile(filepath.Join(dir, "scenario.yaml"), []byte(data), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "prompts", "task.md"), []byte("Fix it."), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Load(dir); err == nil {
+		t.Fatal("expected error for chaos step missing at")
 	}
 }
 
