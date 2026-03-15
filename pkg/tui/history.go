@@ -28,27 +28,22 @@ func (r RunRecord) Duration() time.Duration {
 	return r.EndTime.Sub(r.StartTime)
 }
 
-// LoadHistory reads all run.json files from the runs directory.
+// LoadHistory reads all run.json files under the runs directory, recursively.
 func LoadHistory(runsDir string) []RunRecord {
-	entries, err := os.ReadDir(runsDir)
-	if err != nil {
-		return nil
-	}
 	var records []RunRecord
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
+	_ = filepath.WalkDir(runsDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || d.Name() != "run.json" {
+			return nil
 		}
-		runJSON := filepath.Join(runsDir, entry.Name(), "run.json")
-		data, err := os.ReadFile(runJSON)
-		if err != nil {
-			continue
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil
 		}
 		var rec RunRecord
-		if err := json.Unmarshal(data, &rec); err != nil {
-			continue
+		if json.Unmarshal(data, &rec) != nil {
+			return nil
 		}
-		rec.Dir = filepath.Join(runsDir, entry.Name())
+		rec.Dir = filepath.Dir(path)
 		if len(rec.RawChecks) > 0 {
 			var vr verifier.VerifyResult
 			if json.Unmarshal(rec.RawChecks, &vr) == nil {
@@ -56,7 +51,8 @@ func LoadHistory(runsDir string) []RunRecord {
 			}
 		}
 		records = append(records, rec)
-	}
+		return nil
+	})
 	sort.Slice(records, func(i, j int) bool {
 		return records[i].StartTime.After(records[j].StartTime)
 	})

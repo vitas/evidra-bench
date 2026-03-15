@@ -160,19 +160,14 @@ func GenerateHTML(scenariosDir, runsDir, outputPath string) error {
 }
 
 func loadRuns(runsDir string) []RunSummary {
-	entries, err := os.ReadDir(runsDir)
-	if err != nil {
-		return nil
-	}
 	var runs []RunSummary
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
+	_ = filepath.WalkDir(runsDir, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil || d.IsDir() || d.Name() != "run.json" {
+			return nil
 		}
-		runJSON := filepath.Join(runsDir, entry.Name(), "run.json")
-		data, err := os.ReadFile(runJSON)
+		data, err := os.ReadFile(path)
 		if err != nil {
-			continue
+			return nil
 		}
 		var raw struct {
 			ScenarioID     string            `json:"scenario_id"`
@@ -188,7 +183,7 @@ func loadRuns(runsDir string) []RunSummary {
 			Metadata       map[string]string `json:"metadata"`
 		}
 		if json.Unmarshal(data, &raw) != nil {
-			continue
+			return nil
 		}
 
 		var checks []CheckSummary
@@ -207,7 +202,7 @@ func loadRuns(runsDir string) []RunSummary {
 		}
 
 		runs = append(runs, RunSummary{
-			RunID:          entry.Name(),
+			RunID:          filepath.Base(filepath.Dir(path)),
 			ScenarioID:     raw.ScenarioID,
 			Adapter:        raw.Adapter,
 			Model:          raw.Metadata["model"],
@@ -225,7 +220,8 @@ func loadRuns(runsDir string) []RunSummary {
 			ChaosMode:      raw.ChaosMode,
 			ChaosStepCount: raw.ChaosStepCount,
 		})
-	}
+		return nil
+	})
 	sort.Slice(runs, func(i, j int) bool {
 		return runs[i].StartTime.After(runs[j].StartTime)
 	})
