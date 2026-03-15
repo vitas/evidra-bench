@@ -86,9 +86,11 @@ func (p *ClaudeProvider) Chat(ctx context.Context, req ChatRequest) (*ChatRespon
 // buildToolPrompt creates a structured tool description for the system prompt.
 func buildToolPrompt(tools []ToolDef) string {
 	var b strings.Builder
-	b.WriteString("You have access to the following tools. To use a tool, respond with a JSON block:\n")
+	b.WriteString("CRITICAL: You ONLY have access to the tools listed below.\n")
+	b.WriteString("Do NOT use Bash, Skill, ToolSearch, Agent, or any mcp__ tools — they do not exist in this environment.\n")
+	b.WriteString("To use a tool, respond with a JSON block:\n")
 	b.WriteString("```json\n{\"tool\": \"<tool_name>\", \"arguments\": {<args>}}\n```\n\n")
-	b.WriteString("Available tools:\n\n")
+	b.WriteString("Available tools (ONLY these):\n\n")
 	for _, t := range tools {
 		b.WriteString(fmt.Sprintf("### %s\n%s\n", t.Name, t.Description))
 		if props, ok := t.Parameters["properties"].(map[string]any); ok {
