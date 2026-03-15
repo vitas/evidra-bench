@@ -160,44 +160,96 @@ Features:
 ./bin/infra-bench lab --agent-command /path/to/agent --adapter cli
 ```
 
-Key bindings: `j/k` navigate, `/` search, `t` filter category, `Enter` run,
-`d` toggle dry-run, `e` edit config, `?` help, `q` quit.
+Key bindings: `j/k` navigate, `/` search, `t` filter category, `p` cycle
+provider, `m` cycle model, `h` run history, `Enter` run, `d` toggle dry-run,
+`e` edit config, `?` help, `q` quit.
+
+See `docs/LAB_TUI_GUIDE.md` for the full user guide.
+
+## Pluggable Providers
+
+infra-bench can drive any LLM through a multi-turn tool-use loop:
+
+```bash
+# Claude CLI (default model: haiku)
+infra-bench run --provider claude --model sonnet --scenario ...
+
+# Any model via Bifrost proxy
+infra-bench run --provider bifrost --model openai/gpt-4o --scenario ...
+infra-bench run --provider bifrost --model anthropic/claude-3-5-sonnet --scenario ...
+```
+
+The agent calls `run_command`, `evidra_prescribe`, and `evidra_report` tools.
+infra-bench executes them locally and feeds results back. Rate-limited
+requests are retried automatically with adaptive backoff.
+
+## Memory Window Testing
+
+Test how much conversation history an agent needs:
+
+```bash
+infra-bench run --provider claude --model sonnet --memory-window -1 ...  # full history
+infra-bench run --provider claude --model sonnet --memory-window 0 ...   # stateless
+infra-bench run --provider claude --model sonnet --memory-window 3 ...   # last 3 exchanges
+```
+
+See `docs/TESTING_METHODOLOGY.md` for interpretation guidance.
 
 ## CLI Flags
 
 ```
---scenario          scenario path (e.g., kubernetes/broken-deployment)
---adapter           cli or mcp (default: cli)
---agent-command     command to invoke the agent
---timeout           agent execution timeout (default: 5m)
---reuse-cluster     reuse an existing kind cluster and keep it after the run
---cluster-name      kind cluster name (default: infra-bench)
---dry-run           validate without executing
---evidra-url        Evidra API URL for online reporting
---evidra-api-key    Evidra API key
---evidra-evidence-dir   evidence directory for protocol verification (default: <runs-dir>/evidence)
+--scenario            scenario path (e.g., kubernetes/broken-deployment)
+--provider            LLM provider for tool-use loop (bifrost, claude)
+--model               model name (e.g. sonnet, opus, haiku, openai/gpt-4o)
+--adapter             cli or mcp — legacy external agent path (default: cli)
+--agent-command       command to invoke external agent
+--memory-window       agent context window (-1=full, 0=stateless, N=last N exchanges)
+--timeout             agent execution timeout (default: 5m)
+--reuse-cluster       reuse an existing kind cluster
+--cluster-name        kind cluster name (default: infra-bench)
+--dry-run             validate without executing
+--evidra-bin          path to evidra binary for protocol tools
+--evidra-evidence-dir evidence directory for protocol verification
+--evidra-url          Evidra API URL for online reporting
+--evidra-api-key      Evidra API key
 ```
+
+## Results & Reports
+
+```bash
+# HTML report from all runs
+infra-bench report
+
+# Compare two runs side by side
+infra-bench compare runs/<run-A>/ runs/<run-B>/
+
+# Query results database
+infra-bench db stats                               # aggregate statistics
+infra-bench db query --model haiku                 # filter by model
+infra-bench db query --scenario broken-deployment  # filter by scenario
+infra-bench db query --failed --limit 10           # recent failures
+
+# Rebuild database from JSONL backup
+infra-bench db rebuild
+```
+
+Results are stored in SQLite (`runs/bench.db`, gitignored) with a JSONL backup
+(`runs/results.jsonl`, committable). The DB is always rebuildable from JSONL.
 
 ## Artifacts
 
 Each run writes to `runs/<timestamp>-<scenario>-<adapter>/`:
 
 ```
-run.json            # Run metadata
+run.json            # Run metadata (scenario, model, pass/fail, tokens, cost)
 prompt.txt          # Exact prompt input
-transcript.txt      # Agent transcript
+transcript.txt      # Agent transcript (all turns)
 stdout.txt          # Process stdout
 stderr.txt          # Process stderr
 tool-calls.json     # Tool call log
 verifier.json       # Check results
 chaos.json          # Structured chaos timeline, when enabled
 chaos.log           # Human-readable chaos event log, when enabled
-```
-
-Offline benchmark evidence is appended under:
-
-```
-runs/evidra/evidence.jsonl
 ```
 
 ## Development

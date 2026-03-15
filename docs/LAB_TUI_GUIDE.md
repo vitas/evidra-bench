@@ -209,3 +209,18 @@ tool-calls.json     # Tool call log
 ```
 
 The history view reads these artifacts to show past results.
+
+## Results Database
+
+Every non-dry-run is also stored in `runs/bench.db` (SQLite). Use the CLI
+to query results outside the TUI:
+
+```bash
+infra-bench db stats                               # aggregate stats
+infra-bench db query --model haiku                 # filter by model
+infra-bench db query --scenario broken-deployment  # by scenario
+infra-bench db query --failed --limit 5            # recent failures
+```
+
+The JSONL backup at `runs/results.jsonl` is committable to git for
+tracking progression over time.

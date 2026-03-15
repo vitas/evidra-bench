@@ -54,6 +54,8 @@ type App struct {
 	runsDir      string
 	history      []RunRecord
 	statsMap     map[string]ScenarioStats
+	dbTotal      int
+	dbPassRate   string
 }
 
 // NewApp creates a new TUI app.
@@ -241,6 +243,19 @@ func (a *App) refreshHistory() {
 			a.allItems[i].LastResult = stats.LastResult
 		}
 	}
+	// Compute global stats for title bar
+	totalRuns := 0
+	totalPass := 0
+	for _, stats := range a.statsMap {
+		totalRuns += stats.TotalRuns
+		totalPass += stats.PassCount
+	}
+	a.dbTotal = totalRuns
+	if totalRuns > 0 {
+		a.dbPassRate = fmt.Sprintf("%.0f%%", float64(totalPass)/float64(totalRuns)*100)
+	} else {
+		a.dbPassRate = ""
+	}
 }
 
 // ProviderChoices are the available providers for cycling.
@@ -354,7 +369,11 @@ func (a *App) renderCatalog() string {
 
 	// Title bar
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("99"))
-	b.WriteString(titleStyle.Render("infra-bench lab"))
+	title := "infra-bench lab"
+	if a.dbTotal > 0 {
+		title += fmt.Sprintf("  %d runs %s", a.dbTotal, a.dbPassRate)
+	}
+	b.WriteString(titleStyle.Render(title))
 
 	catFilter := CategoryFilters[a.categoryIdx]
 	if catFilter == "" {
