@@ -195,6 +195,34 @@ func TestHarness_ReuseCluster_NoDestroy(t *testing.T) {
 	}
 }
 
+func TestBuildRunMetadata_UsesCanonicalPromptMetadata(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.Default()
+	cfg.Provider = "claude"
+	cfg.Model = "sonnet"
+	cfg.SystemPromptFile = filepath.Clean("../evidra-benchmark/prompts/experiments/runtime/agent_contract_v1.md")
+
+	meta := buildRunMetadata(cfg, &agent.LoopResult{
+		Turns:        4,
+		MemoryWindow: 12,
+		TotalUsage: agent.Usage{
+			PromptTokens:     120,
+			CompletionTokens: 45,
+		},
+	}, "/tmp/evidence")
+
+	if meta["contract_version"] != "v1.0.1" {
+		t.Fatalf("contract_version = %q", meta["contract_version"])
+	}
+	if meta["skill_version"] != "1.0.1" {
+		t.Fatalf("skill_version = %q", meta["skill_version"])
+	}
+	if meta["prompt_version"] != "sha256:a79fc218d2d69f402fd200de808617de9b770adc95c064d69c6ab22511ad5aef" {
+		t.Fatalf("prompt_version = %q", meta["prompt_version"])
+	}
+}
+
 func TestBreakCommandArgs_HelmUpgrade(t *testing.T) {
 	t.Parallel()
 	s := &scenario.Scenario{

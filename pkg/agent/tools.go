@@ -9,10 +9,14 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"samebits.com/evidra/pkg/execcontract"
 )
 
 // BenchTools returns the tool definitions exposed to the LLM.
 func BenchTools() []ToolDef {
+	prescribeDef, reportDef := mustEvidraToolDefinitions()
+
 	return []ToolDef{
 		{
 			Name:        "run_command",
@@ -29,49 +33,14 @@ func BenchTools() []ToolDef {
 			},
 		},
 		{
-			Name:        "evidra_prescribe",
-			Description: "Record infrastructure intent BEFORE executing a mutation. Returns a prescription_id to use in evidra_report.",
-			Parameters: map[string]any{
-				"type":     "object",
-				"required": []string{"tool", "operation", "artifact"},
-				"properties": map[string]any{
-					"tool": map[string]any{
-						"type":        "string",
-						"description": "Infrastructure tool (kubectl, helm, terraform)",
-					},
-					"operation": map[string]any{
-						"type":        "string",
-						"description": "Operation type (apply, delete, patch, upgrade)",
-					},
-					"artifact": map[string]any{
-						"type":        "string",
-						"description": "Raw artifact content (YAML manifest, values file, etc.)",
-					},
-				},
-			},
+			Name:        prescribeDef.Name,
+			Description: prescribeDef.Description,
+			Parameters:  prescribeDef.Parameters,
 		},
 		{
-			Name:        "evidra_report",
-			Description: "Report the outcome of an infrastructure operation AFTER execution. Use the prescription_id from evidra_prescribe.",
-			Parameters: map[string]any{
-				"type":     "object",
-				"required": []string{"prescription_id", "verdict", "exit_code"},
-				"properties": map[string]any{
-					"prescription_id": map[string]any{
-						"type":        "string",
-						"description": "Prescription ID from evidra_prescribe",
-					},
-					"verdict": map[string]any{
-						"type":        "string",
-						"enum":        []string{"success", "failure", "error", "declined"},
-						"description": "Outcome of the operation",
-					},
-					"exit_code": map[string]any{
-						"type":        "integer",
-						"description": "Exit code of the command (0 for success)",
-					},
-				},
-			},
+			Name:        reportDef.Name,
+			Description: reportDef.Description,
+			Parameters:  reportDef.Parameters,
 		},
 	}
 }
@@ -147,13 +116,12 @@ func (e *ToolExecutor) runCommand(ctx context.Context, argsJSON string) string {
 }
 
 func (e *ToolExecutor) evidraPrescribe(ctx context.Context, argsJSON string) string {
-	var args struct {
-		Tool      string `json:"tool"`
-		Operation string `json:"operation"`
-		Artifact  string `json:"artifact"`
-	}
-	if err := json.Unmarshal([]byte(argsJSON), &args); err != nil {
+	var input execcontract.PrescribeInput
+	if err := json.Unmarshal([]byte(argsJSON), &input); err != nil {
 		return fmt.Sprintf("error parsing arguments: %v", err)
+	}
+	if err := execcontract.ValidatePrescribeInput(input); err != nil {
+		return fmt.Sprintf("error validating arguments: %v", err)
 	}
 
 	bin := e.EvidraBin
@@ -167,19 +135,14 @@ func (e *ToolExecutor) evidraPrescribe(ctx context.Context, argsJSON string) str
 		return fmt.Sprintf("error creating temp file: %v", err)
 	}
 	defer os.Remove(tmpFile.Name())
-	if _, err := tmpFile.WriteString(args.Artifact); err != nil {
+	if _, err := tmpFile.WriteString(input.RawArtifact); err != nil {
 		return fmt.Sprintf("error writing artifact: %v", err)
 	}
 	tmpFile.Close()
 
-	cmdArgs := []string{
-		"prescribe",
-		"--evidence-dir", e.EvidencePath,
-		"--actor", "bench-agent",
-		"--tool", args.Tool,
-		"--operation", args.Operation,
-		"--signing-mode", "optional",
-		"-f", tmpFile.Name(),
+	cmdArgs, err := buildPrescribeCommandArgs(e.EvidencePath, tmpFile.Name(), input)
+	if err != nil {
+		return fmt.Sprintf("error building prescribe command: %v", err)
 	}
 	cmd := exec.CommandContext(ctx, bin, cmdArgs...)
 	cmd.Env = os.Environ()
@@ -191,13 +154,12 @@ func (e *ToolExecutor) evidraPrescribe(ctx context.Context, argsJSON string) str
 }
 
 func (e *ToolExecutor) evidraReport(ctx context.Context, argsJSON string) string {
-	var args struct {
-		PrescriptionID string `json:"prescription_id"`
-		Verdict        string `json:"verdict"`
-		ExitCode       int    `json:"exit_code"`
-	}
-	if err := json.Unmarshal([]byte(argsJSON), &args); err != nil {
+	var input execcontract.ReportInput
+	if err := json.Unmarshal([]byte(argsJSON), &input); err != nil {
 		return fmt.Sprintf("error parsing arguments: %v", err)
+	}
+	if err := execcontract.ValidateReportInput(input); err != nil {
+		return fmt.Sprintf("error validating arguments: %v", err)
 	}
 
 	bin := e.EvidraBin
@@ -205,14 +167,9 @@ func (e *ToolExecutor) evidraReport(ctx context.Context, argsJSON string) string
 		return "error: evidra binary not configured"
 	}
 
-	cmdArgs := []string{
-		"report",
-		"--evidence-dir", e.EvidencePath,
-		"--actor", "bench-agent",
-		"--prescription", args.PrescriptionID,
-		"--verdict", args.Verdict,
-		"--exit-code", fmt.Sprintf("%d", args.ExitCode),
-		"--signing-mode", "optional",
+	cmdArgs, err := buildReportCommandArgs(e.EvidencePath, input)
+	if err != nil {
+		return fmt.Sprintf("error building report command: %v", err)
 	}
 	cmd := exec.CommandContext(ctx, bin, cmdArgs...)
 	cmd.Env = os.Environ()
@@ -221,6 +178,135 @@ func (e *ToolExecutor) evidraReport(ctx context.Context, argsJSON string) string
 		return fmt.Sprintf("evidra report failed: %s\n%v", string(out), err)
 	}
 	return strings.TrimSpace(string(out))
+}
+
+func mustEvidraToolDefinitions() (execcontract.ToolDefinition, execcontract.ToolDefinition) {
+	prescribeDef, err := execcontract.PrescribeToolDefinition()
+	if err != nil {
+		panic(fmt.Sprintf("agent.BenchTools: load prescribe tool definition: %v", err))
+	}
+	reportDef, err := execcontract.ReportToolDefinition()
+	if err != nil {
+		panic(fmt.Sprintf("agent.BenchTools: load report tool definition: %v", err))
+	}
+	return prescribeDef, reportDef
+}
+
+func buildPrescribeCommandArgs(evidencePath, artifactPath string, input execcontract.PrescribeInput) ([]string, error) {
+	if err := execcontract.ValidatePrescribeInput(input); err != nil {
+		return nil, err
+	}
+	args := []string{
+		"prescribe",
+		"--evidence-dir", evidencePath,
+		"--tool", input.Tool,
+		"--operation", input.Operation,
+		"--signing-mode", "optional",
+		"-f", artifactPath,
+	}
+	args = appendActorArgs(args, input.Actor)
+	if input.Environment != "" {
+		args = append(args, "--environment", input.Environment)
+	}
+	if input.SessionID != "" {
+		args = append(args, "--session-id", input.SessionID)
+	}
+	if input.OperationID != "" {
+		args = append(args, "--operation-id", input.OperationID)
+	}
+	if input.Attempt > 0 {
+		args = append(args, "--attempt", fmt.Sprintf("%d", input.Attempt))
+	}
+	if input.TraceID != "" {
+		args = append(args, "--trace-id", input.TraceID)
+	}
+	if input.SpanID != "" {
+		args = append(args, "--span-id", input.SpanID)
+	}
+	if input.ParentSpanID != "" {
+		args = append(args, "--parent-span-id", input.ParentSpanID)
+	}
+	if len(input.ScopeDimensions) > 0 {
+		raw, err := json.Marshal(input.ScopeDimensions)
+		if err != nil {
+			return nil, fmt.Errorf("marshal scope_dimensions: %w", err)
+		}
+		args = append(args, "--scope-dimensions", string(raw))
+	}
+	if input.CanonicalAction != nil {
+		raw, err := json.Marshal(input.CanonicalAction)
+		if err != nil {
+			return nil, fmt.Errorf("marshal canonical_action: %w", err)
+		}
+		args = append(args, "--canonical-action", string(raw))
+	}
+	return args, nil
+}
+
+func buildReportCommandArgs(evidencePath string, input execcontract.ReportInput) ([]string, error) {
+	if err := execcontract.ValidateReportInput(input); err != nil {
+		return nil, err
+	}
+	args := []string{
+		"report",
+		"--evidence-dir", evidencePath,
+		"--prescription", input.PrescriptionID,
+		"--verdict", input.Verdict,
+		"--signing-mode", "optional",
+	}
+	args = appendActorArgs(args, input.Actor)
+	if input.ExitCode != nil {
+		args = append(args, "--exit-code", fmt.Sprintf("%d", *input.ExitCode))
+	}
+	if input.DecisionContext != nil {
+		args = append(args, "--decline-trigger", input.DecisionContext.Trigger)
+		args = append(args, "--decline-reason", input.DecisionContext.Reason)
+	}
+	if input.ArtifactDigest != "" {
+		args = append(args, "--artifact-digest", input.ArtifactDigest)
+	}
+	if input.SessionID != "" {
+		args = append(args, "--session-id", input.SessionID)
+	}
+	if input.OperationID != "" {
+		args = append(args, "--operation-id", input.OperationID)
+	}
+	if input.SpanID != "" {
+		args = append(args, "--span-id", input.SpanID)
+	}
+	if input.ParentSpanID != "" {
+		args = append(args, "--parent-span-id", input.ParentSpanID)
+	}
+	if len(input.ExternalRefs) > 0 {
+		raw, err := json.Marshal(input.ExternalRefs)
+		if err != nil {
+			return nil, fmt.Errorf("marshal external_refs: %w", err)
+		}
+		args = append(args, "--external-refs", string(raw))
+	}
+	return args, nil
+}
+
+func appendActorArgs(args []string, actor execcontract.Actor) []string {
+	if actor.ID != "" {
+		args = append(args, "--actor", actor.ID)
+	}
+	if actor.Type != "" {
+		args = append(args, "--actor-type", actor.Type)
+	}
+	if actor.Origin != "" {
+		args = append(args, "--actor-origin", actor.Origin)
+	}
+	if actor.InstanceID != "" {
+		args = append(args, "--actor-instance-id", actor.InstanceID)
+	}
+	if actor.Version != "" {
+		args = append(args, "--actor-version", actor.Version)
+	}
+	if actor.SkillVersion != "" {
+		args = append(args, "--actor-skill-version", actor.SkillVersion)
+	}
+	return args
 }
 
 func exitCode(err error) int {

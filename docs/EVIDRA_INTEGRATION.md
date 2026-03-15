@@ -54,8 +54,9 @@ Prescription entries contain `risk_inputs` (array of risk sources) and
 risk level assertions and collects tags from all `risk_inputs[].risk_tags`
 for tag assertions.
 
-The harness does NOT import Evidra Go packages. It parses the JSON directly.
-This keeps infra-bench dependency-free from the Evidra codebase.
+The harness uses shared public Evidra packages for provider-tool schemas,
+prompt/version metadata, and benchmark uploads. It still parses evidence JSONL
+directly for verification so the scenario assertions stay simple and file-based.
 
 ## Available Assertions
 

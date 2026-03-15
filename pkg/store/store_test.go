@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -178,5 +179,49 @@ func TestRebuild(t *testing.T) {
 	runs, _ := s2.Query(QueryFilters{})
 	if len(runs) != 2 {
 		t.Fatalf("expected 2 runs after rebuild, got %d", len(runs))
+	}
+}
+
+func TestInsertAndQuery_PersistsMetadataJSONAndEstimatedCost(t *testing.T) {
+	t.Parallel()
+
+	s := testStore(t)
+	now := time.Now().UTC()
+
+	rec := RunRecord{
+		ID:            "run-meta",
+		ScenarioID:    "s1",
+		EstimatedCost: 1.23,
+		MetadataJSON:  `{"contract_version":"v1.0.1","prompt_version":"sha256:test"}`,
+		CreatedAt:     now,
+	}
+	if err := s.Insert(rec); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+
+	runs, err := s.Query(QueryFilters{ScenarioID: "s1"})
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("expected 1 run, got %d", len(runs))
+	}
+	if runs[0].EstimatedCost != 1.23 {
+		t.Fatalf("estimated_cost = %v", runs[0].EstimatedCost)
+	}
+	if runs[0].MetadataJSON != rec.MetadataJSON {
+		t.Fatalf("metadata_json = %q", runs[0].MetadataJSON)
+	}
+
+	data, err := os.ReadFile(s.jsonlPath)
+	if err != nil {
+		t.Fatalf("read jsonl: %v", err)
+	}
+	var decoded RunRecord
+	if err := json.Unmarshal(data[:len(data)-1], &decoded); err != nil {
+		t.Fatalf("decode jsonl: %v", err)
+	}
+	if decoded.MetadataJSON != rec.MetadataJSON {
+		t.Fatalf("jsonl metadata_json = %q", decoded.MetadataJSON)
 	}
 }

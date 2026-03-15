@@ -164,3 +164,24 @@ func TestApplyLabFlagOverrides_PropagatesRunsDir(t *testing.T) {
 		t.Fatalf("provider = %q, want %q", labCfg.Provider, cfg.Provider)
 	}
 }
+
+func TestBuildVersionString_UsesBuildMetadata(t *testing.T) {
+	t.Parallel()
+
+	originalVersion, originalCommit, originalDate := version, commit, date
+	t.Cleanup(func() {
+		version = originalVersion
+		commit = originalCommit
+		date = originalDate
+	})
+
+	version = "v0.1.0-3-gabcdef0"
+	commit = "abcdef0"
+	date = "2026-03-15T12:00:00Z"
+
+	got := buildVersionString()
+	want := "infra-bench v0.1.0-3-gabcdef0 (commit: abcdef0, built: 2026-03-15T12:00:00Z)"
+	if got != want {
+		t.Fatalf("buildVersionString() = %q, want %q", got, want)
+	}
+}

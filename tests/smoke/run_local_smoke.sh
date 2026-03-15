@@ -5,9 +5,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 BINARY="${ROOT_DIR}/bin/infra-bench"
 
-echo "=== Building infra-bench ==="
+echo "=== Using built infra-bench ==="
 cd "$ROOT_DIR"
-go build -o "$BINARY" ./cmd/infra-bench
+if [[ ! -x "$BINARY" ]]; then
+  echo "missing built binary: $BINARY" >&2
+  exit 1
+fi
 
 echo ""
 echo "=== Test: version ==="

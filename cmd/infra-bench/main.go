@@ -23,7 +23,12 @@ import (
 var (
 	version = "dev"
 	commit  = "dev"
+	date    = "dev"
 )
+
+func buildVersionString() string {
+	return fmt.Sprintf("infra-bench %s (commit: %s, built: %s)", version, commit, date)
+}
 
 func newRootCommand() *cobra.Command {
 	cfg := config.Default()
@@ -36,7 +41,7 @@ failures, executes real agents, and verifies outcomes.
 
 It produces local artifact bundles for debugging and dataset generation,
 with optional Evidra reporting for behavioral analysis.`,
-		Version: version,
+		Version: buildVersionString(),
 	}
 
 	runCmd := &cobra.Command{
