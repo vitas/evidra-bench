@@ -133,6 +133,27 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		return nil, fmt.Errorf("harness.Run: create runs dir: %w", err)
 	}
 
+	var chaosDone chan struct{}
+	var chaosCancel context.CancelFunc
+	if len(s.Chaos.Steps) > 0 {
+		chaosCtx, cancel := context.WithCancel(ctx)
+		chaosCancel = cancel
+		chaosDone = make(chan struct{})
+		runner := h.deps.Runner
+		if runner == nil {
+			runner = &environment.ExecRunner{}
+		}
+		cr := &ChaosRunner{
+			Runner:         runner,
+			KubeconfigPath: handle.KubeconfigPath,
+			Config:         s.Chaos,
+		}
+		go func() {
+			defer close(chaosDone)
+			cr.Run(chaosCtx)
+		}()
+	}
+
 	var agentResult *adapter.RunResult
 	var providerEvDir string
 	if req.Config.Provider != "" {
@@ -150,7 +171,22 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		})
 	}
 	if err != nil {
+		if chaosCancel != nil && shouldCancelChaosOnAgentDone(s.Chaos) {
+			chaosCancel()
+		}
+		if chaosDone != nil {
+			<-chaosDone
+		}
 		return nil, fmt.Errorf("harness.Run: execute agent: %w", err)
+	}
+	if chaosCancel != nil && shouldCancelChaosOnAgentDone(s.Chaos) {
+		chaosCancel()
+	}
+	if chaosDone != nil {
+		<-chaosDone
+		if chaosCancel != nil {
+			chaosCancel()
+		}
 	}
 
 	// Step 5: Verify outcome.
@@ -265,6 +301,89 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		ArtifactDir: artifactDir,
 		Checks:      verifyResult,
 	}, nil
+}
+
+// ChaosRunner executes runtime disruption steps while an agent is running.
+type ChaosRunner struct {
+	Runner         environment.CommandRunner
+	KubeconfigPath string
+	Config         scenario.ChaosConfig
+}
+
+// Run executes the configured chaos schedule until completion or cancellation.
+func (r *ChaosRunner) Run(ctx context.Context) {
+	mode := r.Config.Mode
+	if mode == "" {
+		mode = "once"
+	}
+	for {
+		cycleStart := time.Now()
+		for _, step := range r.Config.Steps {
+			if err := waitForChaosStep(ctx, cycleStart, step.At.Duration); err != nil {
+				return
+			}
+			if err := r.executeStep(ctx, step); err != nil {
+				if step.AllowFailure {
+					log.Printf("[chaos] step %s failed as allowed: %v", step.Name, err)
+					continue
+				}
+				log.Printf("[chaos] step %s failed: %v", step.Name, err)
+			}
+		}
+		if mode != "repeat" {
+			return
+		}
+	}
+}
+
+func (r *ChaosRunner) executeStep(ctx context.Context, step scenario.ChaosStep) error {
+	if step.Type == "sleep" {
+		duration, err := time.ParseDuration(step.Duration)
+		if err != nil {
+			return fmt.Errorf("parse chaos sleep duration %q: %w", step.Duration, err)
+		}
+		return sleepContext(ctx, duration)
+	}
+
+	envStep := environment.BootstrapStep{
+		Name:      step.Name,
+		Type:      environment.StepType(step.Type),
+		Path:      step.Path,
+		Release:   step.Release,
+		Namespace: step.Namespace,
+		Duration:  step.Duration,
+		Args:      append([]string(nil), step.Args...),
+	}
+	args := envStep.CommandArgs(r.KubeconfigPath)
+	if len(args) == 0 {
+		return fmt.Errorf("no command for chaos step %s", step.Name)
+	}
+	cmd := makeCmd(args)
+	_, err := r.Runner.Run(ctx, cmd)
+	return err
+}
+
+func waitForChaosStep(ctx context.Context, cycleStart time.Time, at time.Duration) error {
+	wait := at - time.Since(cycleStart)
+	if wait <= 0 {
+		return nil
+	}
+	return sleepContext(ctx, wait)
+}
+
+func sleepContext(ctx context.Context, duration time.Duration) error {
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func shouldCancelChaosOnAgentDone(cfg scenario.ChaosConfig) bool {
+	return cfg.StopOnAgentDone || cfg.Mode == "repeat"
 }
 
 func (h *Harness) applyBreak(ctx context.Context, kubeconfigPath string, s *scenario.Scenario) error {

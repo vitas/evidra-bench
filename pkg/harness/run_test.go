@@ -51,6 +51,21 @@ func (f *fakeAdapter) Run(_ context.Context, _ adapter.RunInput) (*adapter.RunRe
 	}, nil
 }
 
+type sleepingAdapter struct {
+	delay time.Duration
+}
+
+func (s *sleepingAdapter) Run(ctx context.Context, _ adapter.RunInput) (*adapter.RunResult, error) {
+	timer := time.NewTimer(s.delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-timer.C:
+		return &adapter.RunResult{ExitCode: 0, Transcript: "done"}, nil
+	}
+}
+
 type workspaceCheckingAdapter struct {
 	exists bool
 }
@@ -368,5 +383,144 @@ func TestProviderToolCalls_ExportsStructuredResults(t *testing.T) {
 	}
 	if got[1].Args["prescription_id"] != "p1" {
 		t.Fatalf("unexpected second args: %#v", got[1].Args)
+	}
+}
+
+func TestHarness_RunExecutesChaosStepsDuringAgent(t *testing.T) {
+	t.Parallel()
+
+	fp := &fakeProvider{}
+	runner := &recordingRunner{}
+	h := New(Deps{
+		EnvProvider: fp,
+		Runner:      runner,
+		Adapter:     &sleepingAdapter{delay: 40 * time.Millisecond},
+	})
+
+	cfg := config.Default()
+	cfg.Scenario = "pod-kill-during-repair"
+	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
+
+	_, err := h.Run(context.Background(), RunRequest{
+		Config: cfg,
+		Scenario: &scenario.Scenario{
+			ID:       "pod-kill-during-repair",
+			Title:    "Pod kill during repair",
+			Category: "kubernetes",
+			Checks:   []scenario.Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+			Chaos: scenario.ChaosConfig{
+				StopOnAgentDone: true,
+				Steps: []scenario.ChaosStep{
+					{
+						Name: "kill-web",
+						Type: "kubectl",
+						At:   scenario.Duration{Duration: 5 * time.Millisecond, Set: true},
+						Args: []string{"delete", "pod", "-n", "bench", "web-0"},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+	if len(runner.commands) != 1 {
+		t.Fatalf("expected 1 chaos command, got %v", runner.commands)
+	}
+	if !strings.Contains(runner.commands[0], "kubectl --kubeconfig /tmp/fake-kubeconfig delete pod -n bench web-0") {
+		t.Fatalf("unexpected chaos command: %v", runner.commands)
+	}
+}
+
+func TestHarness_ChaosStopsWhenAgentDone(t *testing.T) {
+	t.Parallel()
+
+	fp := &fakeProvider{}
+	runner := &recordingRunner{}
+	h := New(Deps{
+		EnvProvider: fp,
+		Runner:      runner,
+		Adapter:     &sleepingAdapter{delay: 20 * time.Millisecond},
+	})
+
+	cfg := config.Default()
+	cfg.Scenario = "pod-kill-during-repair"
+	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
+
+	_, err := h.Run(context.Background(), RunRequest{
+		Config: cfg,
+		Scenario: &scenario.Scenario{
+			ID:       "pod-kill-during-repair",
+			Title:    "Pod kill during repair",
+			Category: "kubernetes",
+			Checks:   []scenario.Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+			Chaos: scenario.ChaosConfig{
+				StopOnAgentDone: true,
+				Steps: []scenario.ChaosStep{
+					{
+						Name: "kill-web",
+						Type: "kubectl",
+						At:   scenario.Duration{Duration: 5 * time.Millisecond, Set: true},
+						Args: []string{"delete", "pod", "-n", "bench", "web-0"},
+					},
+					{
+						Name: "kill-web-again",
+						Type: "kubectl",
+						At:   scenario.Duration{Duration: 60 * time.Millisecond, Set: true},
+						Args: []string{"delete", "pod", "-n", "bench", "web-1"},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+	if len(runner.commands) != 1 {
+		t.Fatalf("expected pending chaos to be canceled, got %v", runner.commands)
+	}
+}
+
+func TestHarness_ChaosRepeatModeReplaysSteps(t *testing.T) {
+	t.Parallel()
+
+	fp := &fakeProvider{}
+	runner := &recordingRunner{}
+	h := New(Deps{
+		EnvProvider: fp,
+		Runner:      runner,
+		Adapter:     &sleepingAdapter{delay: 35 * time.Millisecond},
+	})
+
+	cfg := config.Default()
+	cfg.Scenario = "pod-kill-during-repair"
+	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
+
+	_, err := h.Run(context.Background(), RunRequest{
+		Config: cfg,
+		Scenario: &scenario.Scenario{
+			ID:       "pod-kill-during-repair",
+			Title:    "Pod kill during repair",
+			Category: "kubernetes",
+			Checks:   []scenario.Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+			Chaos: scenario.ChaosConfig{
+				Mode:            "repeat",
+				StopOnAgentDone: true,
+				Steps: []scenario.ChaosStep{
+					{
+						Name: "kill-web",
+						Type: "kubectl",
+						At:   scenario.Duration{Duration: 5 * time.Millisecond, Set: true},
+						Args: []string{"delete", "pod", "-n", "bench", "web-0"},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+	if len(runner.commands) < 2 {
+		t.Fatalf("expected repeated chaos commands, got %v", runner.commands)
 	}
 }
