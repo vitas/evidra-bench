@@ -136,3 +136,51 @@ func TestWriter_RunJSONContainsScenarioID(t *testing.T) {
 		t.Fatalf("unexpected scenario_id: %s", parsed.ScenarioID)
 	}
 }
+
+func TestWriter_WritesChaosArtifacts(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	w := NewWriter(dir)
+	chaosTimeline, _ := json.Marshal(map[string]any{
+		"mode": "once",
+		"events": []map[string]any{
+			{"name": "kill-web", "type": "kubectl", "success": true},
+		},
+	})
+
+	out, err := w.Write(RunBundle{
+		ScenarioID:      "chaos-scenario",
+		Adapter:         "cli",
+		StartTime:       time.Now(),
+		ChaosEnabled:    true,
+		ChaosMode:       "once",
+		ChaosStepCount:  1,
+		ChaosTimeline:   chaosTimeline,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(filepath.Join(out.Path, "chaos.json")); err != nil {
+		t.Fatalf("missing chaos.json: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(out.Path, "run.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var parsed RunBundle
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatal(err)
+	}
+	if !parsed.ChaosEnabled {
+		t.Fatal("run.json chaos_enabled = false, want true")
+	}
+	if parsed.ChaosMode != "once" {
+		t.Fatalf("run.json chaos_mode = %q, want once", parsed.ChaosMode)
+	}
+	if parsed.ChaosStepCount != 1 {
+		t.Fatalf("run.json chaos_step_count = %d, want 1", parsed.ChaosStepCount)
+	}
+}

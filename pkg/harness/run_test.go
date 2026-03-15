@@ -2,6 +2,7 @@ package harness
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -12,6 +13,7 @@ import (
 
 	"samebits.com/evidra-infra-bench/pkg/adapter"
 	"samebits.com/evidra-infra-bench/pkg/agent"
+	"samebits.com/evidra-infra-bench/pkg/artifact"
 	"samebits.com/evidra-infra-bench/pkg/config"
 	"samebits.com/evidra-infra-bench/pkg/environment"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
@@ -522,5 +524,68 @@ func TestHarness_ChaosRepeatModeReplaysSteps(t *testing.T) {
 	}
 	if len(runner.commands) < 2 {
 		t.Fatalf("expected repeated chaos commands, got %v", runner.commands)
+	}
+}
+
+func TestHarness_RunWritesChaosArtifacts(t *testing.T) {
+	t.Parallel()
+
+	fp := &fakeProvider{}
+	runner := &recordingRunner{}
+	writer := artifact.NewWriter(t.TempDir())
+	h := New(Deps{
+		EnvProvider: fp,
+		Runner:      runner,
+		Adapter:     &sleepingAdapter{delay: 25 * time.Millisecond},
+		Writer:      writer,
+	})
+
+	cfg := config.Default()
+	cfg.Scenario = "pod-kill-during-repair"
+	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
+
+	result, err := h.Run(context.Background(), RunRequest{
+		Config: cfg,
+		Scenario: &scenario.Scenario{
+			ID:       "pod-kill-during-repair",
+			Title:    "Pod kill during repair",
+			Category: "kubernetes",
+			Checks:   []scenario.Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+			Chaos: scenario.ChaosConfig{
+				StopOnAgentDone: true,
+				Steps: []scenario.ChaosStep{
+					{
+						Name: "kill-web",
+						Type: "kubectl",
+						At:   scenario.Duration{Duration: 5 * time.Millisecond, Set: true},
+						Args: []string{"delete", "pod", "-n", "bench", "web-0"},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(result.ArtifactDir, "run.json"))
+	if err != nil {
+		t.Fatalf("read run.json: %v", err)
+	}
+	var parsed struct {
+		ChaosEnabled   bool `json:"chaos_enabled"`
+		ChaosStepCount int  `json:"chaos_step_count"`
+	}
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("parse run.json: %v", err)
+	}
+	if !parsed.ChaosEnabled {
+		t.Fatal("run.json chaos_enabled = false, want true")
+	}
+	if parsed.ChaosStepCount != 1 {
+		t.Fatalf("run.json chaos_step_count = %d, want 1", parsed.ChaosStepCount)
+	}
+	if _, err := os.Stat(filepath.Join(result.ArtifactDir, "chaos.json")); err != nil {
+		t.Fatalf("missing chaos.json: %v", err)
 	}
 }
