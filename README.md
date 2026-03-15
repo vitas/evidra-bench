@@ -58,6 +58,9 @@ make build
 
 ./bin/infra-bench skill-delta aggregate --dir runs/skill-delta/<stamp>
 ./bin/infra-bench skill-delta report --dir runs/skill-delta/<stamp>
+
+# Audit existing runs for missing or unexpected public signals
+./bin/infra-bench audit signals --runs-dir runs --manifest configs/signal-audit.yaml
 ```
 
 ## Scenarios
@@ -244,6 +247,9 @@ infra-bench skill-delta run \
 infra-bench skill-delta aggregate --dir runs/skill-delta/<stamp>
 infra-bench skill-delta report --dir runs/skill-delta/<stamp>
 
+# Audit current runs for public-signal drift
+infra-bench audit signals --runs-dir runs --manifest configs/signal-audit.yaml
+
 # Compare two runs side by side
 infra-bench compare runs/<run-A>/ runs/<run-B>/
 
@@ -270,6 +276,17 @@ The `skill-delta` workflow writes one benchmark root with:
 See `docs/experiments/SKILL_DELTA_BENCHMARK.md` and
 `docs/reports/SKILL_DELTA_REPORT_FORMAT.md` for the detailed workflow and file
 formats.
+
+The `audit signals` workflow writes `runs/signal-audit.json` by default and
+prints a compact summary of:
+
+- missing expected signals
+- forbidden public signals
+- unexpected extra signals
+- instability across repeated runs for the same scenario/model/provider
+
+See `docs/research/SIGNAL_AUDIT_GUIDE.md` for the manifest format and tuning
+loop.
 
 ## Artifacts
 

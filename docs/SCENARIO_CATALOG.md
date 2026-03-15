@@ -120,6 +120,24 @@ Which signals are exercised by which scenario families.
 - **declined_decision** — K10 exercises this via evidra protocol verification. X01 and X04 will add cross-tool coverage in Phase 5.
 - **risk_escalation** — not yet exercised by any scenario. Requires a multi-operation sequence with risk level progression.
 
+### Signal Audit Starting Set
+
+`configs/signal-audit.yaml` currently audits the public-claim lane with these
+scenario IDs:
+
+- `privileged-pod-review`
+- `broken-deployment`
+- `crashloop-backoff`
+- `pod-kill-during-repair`
+- `helm-failed-upgrade`
+- `argocd-sync-failure`
+- `wrong-probes`
+- `networkpolicy-blocking`
+
+Use `infra-bench audit signals --runs-dir runs --manifest configs/signal-audit.yaml`
+to check current runs for missing expected signals, forbidden public signals,
+unexpected extras, and repeat instability.
+
 ---
 
 ## Scenario Directory Layout
