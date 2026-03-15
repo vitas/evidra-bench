@@ -85,11 +85,11 @@ func NewApp(scenariosDir, cfgPath string, cfg LabConfig, deps harness.Deps) (*Ap
 	return app, nil
 }
 
-func (a App) Init() tea.Cmd {
+func (a *App) Init() tea.Cmd {
 	return nil
 }
 
-func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.width = msg.Width
@@ -110,7 +110,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, nil
 }
 
-func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
 
 	// Global keys
@@ -328,7 +328,7 @@ func (a *App) runScenario() tea.Cmd {
 	}
 }
 
-func (a App) View() string {
+func (a *App) View() string {
 	switch a.view {
 	case viewHelp:
 		return a.renderHelp()
@@ -345,7 +345,7 @@ func (a App) View() string {
 	}
 }
 
-func (a App) renderCatalog() string {
+func (a *App) renderCatalog() string {
 	var b strings.Builder
 
 	// Title bar
@@ -442,7 +442,7 @@ func (a App) renderCatalog() string {
 	return b.String()
 }
 
-func (a App) renderDetail(item CatalogItem) string {
+func (a *App) renderDetail(item CatalogItem) string {
 	var b strings.Builder
 	s := item.Scenario
 
@@ -482,11 +482,11 @@ func (a App) renderDetail(item CatalogItem) string {
 	return b.String()
 }
 
-func (a App) renderRunning() string {
+func (a *App) renderRunning() string {
 	return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214")).Render(a.runOutput)
 }
 
-func (a App) renderResult() string {
+func (a *App) renderResult() string {
 	var b strings.Builder
 	if a.runErr != nil {
 		b.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("196")).Render("ERROR"))
@@ -528,7 +528,7 @@ func (a App) renderResult() string {
 	return b.String()
 }
 
-func (a App) renderConfig() string {
+func (a *App) renderConfig() string {
 	var b strings.Builder
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("99"))
 	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
@@ -560,7 +560,7 @@ func (a App) renderConfig() string {
 	return b.String()
 }
 
-func (a App) renderHelp() string {
+func (a *App) renderHelp() string {
 	var b strings.Builder
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("99"))
 	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
@@ -588,7 +588,7 @@ func (a App) renderHelp() string {
 	return b.String()
 }
 
-func (a App) renderHistory() string {
+func (a *App) renderHistory() string {
 	var b strings.Builder
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("99"))
 	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
@@ -680,7 +680,7 @@ func checkDiff(prev, curr RunRecord) string {
 	return strings.Join(changes, "\n")
 }
 
-func (a App) visibleRange() (int, int) {
+func (a *App) visibleRange() (int, int) {
 	maxVisible := a.height - 15 // reserve space for title, detail, status bar
 	if maxVisible < 5 {
 		maxVisible = 5
