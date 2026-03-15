@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -205,6 +206,9 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			chaosCancel()
 		}
 	}
+
+	// Step 4c: Wait for rollouts to settle before verification.
+	waitForRollouts(ctx, handle.KubeconfigPath, s)
 
 	// Step 5: Verify outcome.
 	var checkDefs []verifier.CheckDef
@@ -769,6 +773,32 @@ func providerToolCalls(messages []agent.Message) []adapter.ToolCall {
 	}
 
 	return calls
+}
+
+// waitForRollouts gives deployments time to converge after the agent finishes.
+func waitForRollouts(ctx context.Context, kubeconfigPath string, s *scenario.Scenario) {
+	for _, check := range s.Checks {
+		if check.Type != "deployment-ready" {
+			continue
+		}
+		ns := check.Namespace
+		if ns == "" {
+			ns = "bench"
+		}
+		waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		cmd := exec.CommandContext(waitCtx, "kubectl",
+			"--kubeconfig", kubeconfigPath,
+			"rollout", "status",
+			fmt.Sprintf("deployment/%s", check.Name),
+			"-n", ns,
+			"--timeout=30s",
+		)
+		out, err := cmd.CombinedOutput()
+		cancel()
+		if err != nil {
+			log.Printf("[harness] rollout wait for %s/%s: %v: %s", ns, check.Name, err, strings.TrimSpace(string(out)))
+		}
+	}
 }
 
 func truncateForLog(s string, n int) string {
