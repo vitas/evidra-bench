@@ -15,20 +15,23 @@ import (
 
 // RunSummary is a single run's data for the report.
 type RunSummary struct {
-	RunID      string
-	ScenarioID string
-	Adapter    string
-	Model      string
-	Provider   string
-	Passed     bool
-	StartTime  time.Time
-	EndTime    time.Time
-	Duration   time.Duration
-	ExitCode   int
-	Checks     []CheckSummary
-	Turns      string
-	Memory     string
-	Tokens     string
+	RunID          string
+	ScenarioID     string
+	Adapter        string
+	Model          string
+	Provider       string
+	Passed         bool
+	StartTime      time.Time
+	EndTime        time.Time
+	Duration       time.Duration
+	ExitCode       int
+	Checks         []CheckSummary
+	Turns          string
+	Memory         string
+	Tokens         string
+	ChaosEnabled   bool
+	ChaosMode      string
+	ChaosStepCount int
 }
 
 // CheckSummary is a single check result.
@@ -46,6 +49,7 @@ type ScenarioInfo struct {
 	Category string
 	Tags     []string
 	Evidra   bool
+	Chaos    bool
 	Runs     []RunSummary
 	PassRate string
 }
@@ -79,6 +83,7 @@ func GenerateHTML(scenariosDir, runsDir, outputPath string) error {
 			Category: s.Category,
 			Tags:     s.Tags,
 			Evidra:   s.Evidra.Enabled,
+			Chaos:    len(s.Chaos.Steps) > 0,
 		}
 	}
 
@@ -170,14 +175,17 @@ func loadRuns(runsDir string) []RunSummary {
 			continue
 		}
 		var raw struct {
-			ScenarioID string            `json:"scenario_id"`
-			Adapter    string            `json:"adapter"`
-			Passed     bool              `json:"passed"`
-			StartTime  time.Time         `json:"start_time"`
-			EndTime    time.Time         `json:"end_time"`
-			ExitCode   int               `json:"exit_code"`
-			Checks     json.RawMessage   `json:"checks"`
-			Metadata   map[string]string `json:"metadata"`
+			ScenarioID     string            `json:"scenario_id"`
+			Adapter        string            `json:"adapter"`
+			Passed         bool              `json:"passed"`
+			StartTime      time.Time         `json:"start_time"`
+			EndTime        time.Time         `json:"end_time"`
+			ExitCode       int               `json:"exit_code"`
+			Checks         json.RawMessage   `json:"checks"`
+			ChaosEnabled   bool              `json:"chaos_enabled"`
+			ChaosMode      string            `json:"chaos_mode"`
+			ChaosStepCount int               `json:"chaos_step_count"`
+			Metadata       map[string]string `json:"metadata"`
 		}
 		if json.Unmarshal(data, &raw) != nil {
 			continue
@@ -213,6 +221,9 @@ func loadRuns(runsDir string) []RunSummary {
 			Turns:      raw.Metadata["turns"],
 			Memory:     raw.Metadata["memory_window"],
 			Tokens:     formatTokens(raw.Metadata),
+			ChaosEnabled:   raw.ChaosEnabled,
+			ChaosMode:      raw.ChaosMode,
+			ChaosStepCount: raw.ChaosStepCount,
 		})
 	}
 	sort.Slice(runs, func(i, j int) bool {
@@ -296,6 +307,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <th>Title</th>
   <th>Category</th>
   <th>Evidra</th>
+  <th>Chaos</th>
   <th>Runs</th>
   <th>Pass Rate</th>
 </tr>
@@ -305,6 +317,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <td>{{.Title}}</td>
   <td><span class="badge badge-category">{{.Category}}</span></td>
   <td>{{if .Evidra}}<span class="badge badge-evidra">E</span>{{end}}</td>
+  <td>{{if .Chaos}}<span class="badge badge-category">Chaos</span>{{else}}—{{end}}</td>
   <td>{{len .Runs}}</td>
   <td>{{if .PassRate}}{{.PassRate}}{{else}}—{{end}}</td>
 </tr>
@@ -326,6 +339,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <th>Turns</th>
   <th>Memory</th>
   <th>Tokens</th>
+  <th>Chaos</th>
   <th>Checks</th>
 </tr>
 {{range .Runs}}
@@ -338,6 +352,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <td>{{.Turns}}</td>
   <td>{{.Memory}}</td>
   <td>{{.Tokens}}</td>
+  <td>{{if .ChaosEnabled}}{{.ChaosMode}} / {{.ChaosStepCount}}{{else}}—{{end}}</td>
   <td>
     {{range .Checks}}
       <span class="{{if eq .Verdict "pass"}}check-pass{{else}}check-fail{{end}}">{{if eq .Verdict "pass"}}✓{{else}}✗{{end}}</span>
