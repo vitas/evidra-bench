@@ -150,13 +150,13 @@ func TestWriter_WritesChaosArtifacts(t *testing.T) {
 	})
 
 	out, err := w.Write(RunBundle{
-		ScenarioID:      "chaos-scenario",
-		Adapter:         "cli",
-		StartTime:       time.Now(),
-		ChaosEnabled:    true,
-		ChaosMode:       "once",
-		ChaosStepCount:  1,
-		ChaosTimeline:   chaosTimeline,
+		ScenarioID:     "chaos-scenario",
+		Adapter:        "cli",
+		StartTime:      time.Now(),
+		ChaosEnabled:   true,
+		ChaosMode:      "once",
+		ChaosStepCount: 1,
+		ChaosTimeline:  chaosTimeline,
 	})
 	if err != nil {
 		t.Fatal(err)

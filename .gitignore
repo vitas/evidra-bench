@@ -51,6 +51,7 @@ docker-compose.override.yml
 # Run artifacts (except JSONL backup)
 runs/
 !runs/results.jsonl
+.evidra.lock
 
 # SQLite databases
 *.db
