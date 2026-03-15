@@ -629,14 +629,10 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		return nil, fmt.Errorf("harness: create evidence dir: %w", err)
 	}
 
-	systemPrompt := fmt.Sprintf(
-		"You are an infrastructure agent. Fix the problem described in the task.\n"+
-			"KUBECONFIG is already set. Use kubectl, helm, or other tools via the run_command tool.\n"+
-			"For mutations: call evidra_prescribe BEFORE, then run_command, then evidra_report AFTER.\n"+
-			"For read-only commands (get, describe, logs): just use run_command directly.\n"+
-			"Namespace: %s",
-		strings.Join(s.Scope.Namespaces, ", "),
-	)
+	systemPrompt, err := buildSystemPrompt(req.Config, s)
+	if err != nil {
+		return nil, err
+	}
 
 	agentCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -646,7 +642,7 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		Executor: &agent.ToolExecutor{
 			KubeconfigPath: kubeconfigPath,
 			EvidencePath:   evidenceDir,
-			EvidraBin:      req.Config.EvidraBin,
+			EvidraBin:      req.Config.ResolveEvidraBin(),
 		},
 		Model:        req.Config.Model,
 		MaxTurns:     25,
@@ -678,15 +674,42 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		Stdout:     loopResult.FinalOutput,
 		ToolCalls:  providerToolCalls(loopResult.Messages),
 		Metadata: map[string]string{
-			"provider":          req.Config.Provider,
-			"model":             req.Config.Model,
-			"turns":             fmt.Sprintf("%d", loopResult.Turns),
-			"memory_window":     fmt.Sprintf("%d", loopResult.MemoryWindow),
-			"prompt_tokens":     fmt.Sprintf("%d", loopResult.TotalUsage.PromptTokens),
-			"completion_tokens": fmt.Sprintf("%d", loopResult.TotalUsage.CompletionTokens),
-			"estimated_cost":    agent.EstimateCost(req.Config.Model, loopResult.TotalUsage).String(),
+			"provider":           req.Config.Provider,
+			"model":              req.Config.Model,
+			"turns":              fmt.Sprintf("%d", loopResult.Turns),
+			"memory_window":      fmt.Sprintf("%d", loopResult.MemoryWindow),
+			"prompt_tokens":      fmt.Sprintf("%d", loopResult.TotalUsage.PromptTokens),
+			"completion_tokens":  fmt.Sprintf("%d", loopResult.TotalUsage.CompletionTokens),
+			"estimated_cost":     agent.EstimateCost(req.Config.Model, loopResult.TotalUsage).String(),
+			"system_prompt_file": req.Config.ResolveSystemPromptFile(),
+			"contract_version":   req.Config.ContractVersion,
+			"evidence_dir":       evidenceDir,
 		},
 	}, nil
+}
+
+// buildSystemPrompt loads the system prompt from file or returns the default.
+func buildSystemPrompt(cfg config.Config, s *scenario.Scenario) (string, error) {
+	promptFile := cfg.ResolveSystemPromptFile()
+	if promptFile != "" {
+		data, err := os.ReadFile(promptFile)
+		if err != nil {
+			return "", fmt.Errorf("harness: read system prompt file: %w", err)
+		}
+		prompt := string(data)
+		// Append namespace context
+		prompt += fmt.Sprintf("\n\nTarget namespace: %s\n", strings.Join(s.Scope.Namespaces, ", "))
+		return prompt, nil
+	}
+
+	// Default prompt — no protocol skill
+	return fmt.Sprintf(
+		"You are an infrastructure agent. Fix the problem described in the task.\n"+
+			"KUBECONFIG is already set. Use kubectl, helm, or other tools via the run_command tool.\n"+
+			"For read-only commands (get, describe, logs): just use run_command directly.\n"+
+			"Namespace: %s",
+		strings.Join(s.Scope.Namespaces, ", "),
+	), nil
 }
 
 func providerEvidenceDir(configuredRoot, runsDir, scenarioID string, started time.Time) string {

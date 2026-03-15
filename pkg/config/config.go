@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -26,6 +27,26 @@ type Config struct {
 	Model               string
 	Provider            string
 	MemoryWindow        int
+	SystemPromptFile    string
+	ContractVersion     string
+}
+
+// ResolveSystemPromptFile returns the system prompt file path from flag, env, or empty.
+// Priority: flag > INFRA_BENCH_SYSTEM_PROMPT > empty (use default).
+func (c *Config) ResolveSystemPromptFile() string {
+	if c.SystemPromptFile != "" {
+		return c.SystemPromptFile
+	}
+	return os.Getenv("INFRA_BENCH_SYSTEM_PROMPT")
+}
+
+// ResolveEvidraBin returns the evidra binary path from flag, env, or empty.
+// Priority: flag > EVIDRA_BIN > empty.
+func (c *Config) ResolveEvidraBin() string {
+	if c.EvidraBin != "" {
+		return c.EvidraBin
+	}
+	return os.Getenv("EVIDRA_BIN")
 }
 
 // Default returns a Config with sensible offline-first defaults.
