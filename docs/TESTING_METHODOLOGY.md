@@ -193,3 +193,67 @@ The report includes:
 - Scenario matrix (all scenarios, run counts, pass rates)
 - Per-scenario run details (model, provider, duration, checks, turns, memory, tokens)
 - Color-coded pass/fail badges and check marks
+
+## Run Comparison
+
+Compare two runs side by side:
+
+```bash
+infra-bench compare runs/<run-A>/ runs/<run-B>/
+```
+
+Shows: verdict change (improved/regressed/same), duration delta, check-level
+diffs (which checks changed between runs), model/provider/turns/tokens/cost.
+
+## Cost Tracking
+
+Every provider-path run estimates USD cost from token usage. Pricing is
+built-in for Anthropic (opus/sonnet/haiku), OpenAI (gpt-4o/4o-mini/o1),
+and Google (gemini-2.5-pro/flash). Cost appears in:
+
+- Run metadata (`estimated_cost` field in run.json)
+- HTML report (per-run cost column)
+- `db query` output
+- `compare` output
+
+## Adaptive Retry
+
+The Bifrost provider automatically retries on rate limits (HTTP 429) and
+server errors (500-504). Behavior:
+
+- Reads `Retry-After` header when available
+- Falls back to exponential backoff: 2s → 4s → 8s → 16s... up to 120s
+- Maximum 5 retries per request
+- Context-aware: cancels on timeout
+
+This means benchmark runs survive transient API issues without manual
+intervention.
+
+## Results Database
+
+Every non-dry-run stores structured results in SQLite with a JSONL backup:
+
+```bash
+# Aggregate statistics
+infra-bench db stats
+
+# Query by filters
+infra-bench db query --scenario broken-deployment
+infra-bench db query --model haiku --failed
+infra-bench db query --provider bifrost --limit 50
+
+# Rebuild DB from JSONL backup
+infra-bench db rebuild
+```
+
+**Storage model:**
+- `runs/bench.db` — SQLite, gitignored, queryable
+- `runs/results.jsonl` — append-only, committable (~500 bytes/run)
+- DB is always rebuildable from JSONL
+
+Records include: scenario, model, provider, pass/fail, duration, turns,
+memory window, prompt/completion tokens, estimated cost, checks passed/total.
+
+**Tracking progression:** commit `runs/results.jsonl` to git periodically.
+Query with `db query --scenario X` to see pass rate trending over time.
+The `compare` command shows regressions between specific runs.
