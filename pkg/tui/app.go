@@ -315,7 +315,7 @@ func (a *App) runScenario() tea.Cmd {
 			return RunFinishedMsg{Result: result, Err: err}
 		}
 
-		if cfg.AgentCommand == "" {
+		if agentCommandRequired(a.cfg) {
 			return RunFinishedMsg{Err: fmt.Errorf("agent command not set — press 'e' to configure")}
 		}
 
@@ -326,6 +326,10 @@ func (a *App) runScenario() tea.Cmd {
 		})
 		return RunFinishedMsg{Result: result, Err: err}
 	}
+}
+
+func agentCommandRequired(cfg LabConfig) bool {
+	return cfg.Provider == "" && cfg.AgentCommand == ""
 }
 
 func (a *App) View() string {

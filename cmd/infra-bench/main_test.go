@@ -5,6 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/pflag"
+	"samebits.com/evidra-infra-bench/pkg/config"
+	"samebits.com/evidra-infra-bench/pkg/tui"
 )
 
 func TestMainHelp(t *testing.T) {
@@ -130,5 +134,33 @@ checks:
 	}
 	if !strings.Contains(buf.String(), "kubernetes/broken-deployment") {
 		t.Fatalf("expected relative scenario path in output, got %q", buf.String())
+	}
+}
+
+func TestApplyLabFlagOverrides_PropagatesRunsDir(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.Default()
+	cfg.RunsDir = "/tmp/custom-runs"
+	cfg.Provider = "bifrost"
+
+	labCfg := tui.DefaultLabConfig()
+	flags := pflag.NewFlagSet("lab", pflag.ContinueOnError)
+	flags.String("runs-dir", "", "")
+	flags.String("provider", "", "")
+	if err := flags.Set("runs-dir", cfg.RunsDir); err != nil {
+		t.Fatal(err)
+	}
+	if err := flags.Set("provider", cfg.Provider); err != nil {
+		t.Fatal(err)
+	}
+
+	applyLabFlagOverrides(&labCfg, cfg, flags)
+
+	if labCfg.RunsDir != cfg.RunsDir {
+		t.Fatalf("runs dir = %q, want %q", labCfg.RunsDir, cfg.RunsDir)
+	}
+	if labCfg.Provider != cfg.Provider {
+		t.Fatalf("provider = %q, want %q", labCfg.Provider, cfg.Provider)
 	}
 }

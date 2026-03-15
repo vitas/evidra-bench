@@ -134,8 +134,10 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	}
 
 	var agentResult *adapter.RunResult
+	var providerEvDir string
 	if req.Config.Provider != "" {
-		agentResult, err = h.runWithProvider(ctx, req, s, handle.KubeconfigPath, promptContent, timeout)
+		providerEvDir = providerEvidenceDir(req.Config.EvidraEvidenceDir, req.Config.RunsDir, s.ID, startTime)
+		agentResult, err = h.runWithProvider(ctx, req, s, handle.KubeconfigPath, promptContent, timeout, providerEvDir)
 	} else {
 		agentResult, err = h.deps.Adapter.Run(ctx, adapter.RunInput{
 			ScenarioID:     s.ID,
@@ -169,7 +171,9 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	// Step 5b: Verify Evidra protocol compliance.
 	if s.Evidra.Enabled {
 		evidenceDir := req.Config.EvidraEvidenceDir
-		if evidenceDir == "" {
+		if providerEvDir != "" {
+			evidenceDir = providerEvDir
+		} else if evidenceDir == "" {
 			evidenceDir = filepath.Join(req.Config.RunsDir, "evidence")
 		}
 		// Fall back to simulated evidence if real evidence dir has no segments.
@@ -311,15 +315,14 @@ func buildStepPlan(steps []scenario.BootstrapStep) *environment.BootstrapPlan {
 	return plan
 }
 
-func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenario.Scenario, kubeconfigPath, promptContent string, timeout time.Duration) (*adapter.RunResult, error) {
+func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenario.Scenario, kubeconfigPath, promptContent string, timeout time.Duration, evidenceDir string) (*adapter.RunResult, error) {
 	provider, err := agent.ResolveProvider(req.Config.Provider)
 	if err != nil {
 		return nil, err
 	}
 
-	evidenceDir := req.Config.EvidraEvidenceDir
 	if evidenceDir == "" {
-		evidenceDir = filepath.Join(req.Config.RunsDir, "evidence")
+		evidenceDir = providerEvidenceDir(req.Config.EvidraEvidenceDir, req.Config.RunsDir, s.ID, time.Now())
 	}
 	if err := os.MkdirAll(evidenceDir, 0755); err != nil {
 		return nil, fmt.Errorf("harness: create evidence dir: %w", err)
@@ -372,6 +375,7 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		ExitCode:   exitCode,
 		Transcript: transcript.String(),
 		Stdout:     loopResult.FinalOutput,
+		ToolCalls:  providerToolCalls(loopResult.Messages),
 		Metadata: map[string]string{
 			"provider":          req.Config.Provider,
 			"model":             req.Config.Model,
@@ -382,6 +386,43 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 			"estimated_cost":    agent.EstimateCost(req.Config.Model, loopResult.TotalUsage).String(),
 		},
 	}, nil
+}
+
+func providerEvidenceDir(configuredRoot, runsDir, scenarioID string, started time.Time) string {
+	root := configuredRoot
+	if root == "" {
+		root = filepath.Join(runsDir, "evidence")
+	}
+	safeScenarioID := strings.ReplaceAll(scenarioID, "/", "-")
+	return filepath.Join(root, fmt.Sprintf("%s-%d", safeScenarioID, started.UnixMilli()))
+}
+
+func providerToolCalls(messages []agent.Message) []adapter.ToolCall {
+	var calls []adapter.ToolCall
+	callIndexByID := map[string]int{}
+
+	for _, msg := range messages {
+		switch msg.Role {
+		case "assistant":
+			for _, tc := range msg.ToolCalls {
+				args := map[string]any{}
+				if strings.TrimSpace(tc.Arguments) != "" {
+					_ = json.Unmarshal([]byte(tc.Arguments), &args)
+				}
+				calls = append(calls, adapter.ToolCall{
+					Tool: tc.Name,
+					Args: args,
+				})
+				callIndexByID[tc.ID] = len(calls) - 1
+			}
+		case "tool":
+			if idx, ok := callIndexByID[msg.ToolCallID]; ok {
+				calls[idx].Result = msg.Content
+			}
+		}
+	}
+
+	return calls
 }
 
 func truncateForLog(s string, n int) string {

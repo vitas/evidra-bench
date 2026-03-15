@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"samebits.com/evidra-infra-bench/pkg/adapter"
 	"samebits.com/evidra-infra-bench/pkg/artifact"
 	"samebits.com/evidra-infra-bench/pkg/config"
@@ -89,21 +90,7 @@ with optional Evidra reporting for behavioral analysis.`,
 			}
 			cfgPath := filepath.Join(cfg.RunsDir, ".lab-config.yaml")
 			labCfg = tui.LoadLabConfig(cfgPath)
-			if cmd.Flags().Changed("adapter") {
-				labCfg.Adapter = cfg.Adapter
-			}
-			if cmd.Flags().Changed("agent-command") {
-				labCfg.AgentCommand = cfg.AgentCommand
-			}
-			if cmd.Flags().Changed("dry-run") {
-				labCfg.DryRun = cfg.DryRun
-			}
-			if cmd.Flags().Changed("model") {
-				labCfg.Model = cfg.Model
-			}
-			if cmd.Flags().Changed("provider") {
-				labCfg.Provider = cfg.Provider
-			}
+			applyLabFlagOverrides(&labCfg, cfg, cmd.Flags())
 			deps := harness.Deps{}
 			return tui.Run(scenariosDir, cfgPath, labCfg, deps)
 		},
@@ -155,6 +142,27 @@ with optional Evidra reporting for behavioral analysis.`,
 
 	root.AddCommand(runCmd, scenarioCmd, labCmd, reportCmd, compareCmd)
 	return root
+}
+
+func applyLabFlagOverrides(labCfg *tui.LabConfig, cfg config.Config, flags *pflag.FlagSet) {
+	if flags.Changed("adapter") {
+		labCfg.Adapter = cfg.Adapter
+	}
+	if flags.Changed("agent-command") {
+		labCfg.AgentCommand = cfg.AgentCommand
+	}
+	if flags.Changed("dry-run") {
+		labCfg.DryRun = cfg.DryRun
+	}
+	if flags.Changed("model") {
+		labCfg.Model = cfg.Model
+	}
+	if flags.Changed("provider") {
+		labCfg.Provider = cfg.Provider
+	}
+	if flags.Changed("runs-dir") || labCfg.RunsDir == "" {
+		labCfg.RunsDir = cfg.RunsDir
+	}
 }
 
 func executeRun(cmd *cobra.Command, cfg config.Config) error {
