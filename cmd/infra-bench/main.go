@@ -88,8 +88,12 @@ with optional Evidra reporting for behavioral analysis.`,
 			if err != nil {
 				return fmt.Errorf("resolve scenarios dir: %w", err)
 			}
-			cfgPath := filepath.Join(cfg.RunsDir, ".lab-config.yaml")
+			cfgPath := ".infra-bench-lab.yaml"
 			labCfg = tui.LoadLabConfig(cfgPath)
+			// Inherit runs-dir from saved config if not overridden by flag
+			if !cmd.Flags().Changed("runs-dir") && labCfg.RunsDir != "" {
+				cfg.RunsDir = labCfg.RunsDir
+			}
 			applyLabFlagOverrides(&labCfg, cfg, cmd.Flags())
 			deps := harness.Deps{}
 			return tui.Run(scenariosDir, cfgPath, labCfg, deps)

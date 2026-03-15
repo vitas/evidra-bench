@@ -9,11 +9,12 @@ import (
 )
 
 // ClaudeProvider uses the Claude CLI (`claude -p`) as an LLM backend.
-// It adapts the CLI's stream-json output to the ChatResponse format.
 //
-// Note: Claude CLI handles tool use internally via --allowedTools.
-// For the agent loop, we use Claude's --output-format stream-json to
-// capture the conversation and parse tool calls from the stream.
+// Claude CLI doesn't support arbitrary tool definitions via flags like the
+// OpenAI API does. Instead, we embed tool schemas in the system prompt and
+// instruct Claude to output structured JSON tool calls. The stream-json
+// output format captures tool_use events when Claude invokes its built-in
+// tools, and we parse structured JSON blocks for our custom tools.
 type ClaudeProvider struct{}
 
 // NewClaudeProvider creates a new ClaudeProvider.
@@ -24,18 +25,28 @@ func NewClaudeProvider() *ClaudeProvider {
 func (p *ClaudeProvider) Name() string { return "claude" }
 
 // Chat sends a prompt to Claude CLI and parses the response.
-// For multi-turn tool use, Claude CLI manages its own tool loop internally.
-// This provider sends the full conversation as a single prompt and parses
-// the final output.
+// Tools from req.Tools are embedded in the system prompt as structured
+// descriptions so Claude knows what's available.
 func (p *ClaudeProvider) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
 	model := resolveClaudeModel(req.Model)
 
-	// Build prompt from messages
+	// Build system prompt with embedded tool definitions
+	systemPrompt := ""
+	for _, m := range req.Messages {
+		if m.Role == "system" {
+			systemPrompt = m.Content
+			break
+		}
+	}
+	if len(req.Tools) > 0 {
+		systemPrompt = systemPrompt + "\n\n" + buildToolPrompt(req.Tools)
+	}
+
+	// Build user prompt from message history
 	var prompt strings.Builder
 	for _, m := range req.Messages {
 		switch m.Role {
 		case "system":
-			// System prompt goes via --append-system-prompt
 			continue
 		case "user":
 			prompt.WriteString(m.Content)
@@ -46,15 +57,9 @@ func (p *ClaudeProvider) Chat(ctx context.Context, req ChatRequest) (*ChatRespon
 			if m.Content != "" {
 				prompt.WriteString(fmt.Sprintf("[Assistant]: %s\n", m.Content))
 			}
-		}
-	}
-
-	// Extract system prompt
-	systemPrompt := ""
-	for _, m := range req.Messages {
-		if m.Role == "system" {
-			systemPrompt = m.Content
-			break
+			for _, tc := range m.ToolCalls {
+				prompt.WriteString(fmt.Sprintf("[Tool call]: %s(%s)\n", tc.Name, tc.Arguments))
+			}
 		}
 	}
 
@@ -74,10 +79,38 @@ func (p *ClaudeProvider) Chat(ctx context.Context, req ChatRequest) (*ChatRespon
 		return nil, fmt.Errorf("claude: command failed: %w\noutput: %s", err, truncate(string(out), 500))
 	}
 
-	return parseClaudeStream(string(out))
+	return parseClaudeStream(string(out), req.Tools)
 }
 
-func parseClaudeStream(stream string) (*ChatResponse, error) {
+// buildToolPrompt creates a structured tool description for the system prompt.
+func buildToolPrompt(tools []ToolDef) string {
+	var b strings.Builder
+	b.WriteString("You have access to the following tools. To use a tool, respond with a JSON block:\n")
+	b.WriteString("```json\n{\"tool\": \"<tool_name>\", \"arguments\": {<args>}}\n```\n\n")
+	b.WriteString("Available tools:\n\n")
+	for _, t := range tools {
+		b.WriteString(fmt.Sprintf("### %s\n%s\n", t.Name, t.Description))
+		if props, ok := t.Parameters["properties"].(map[string]any); ok {
+			b.WriteString("Parameters:\n")
+			for name, schema := range props {
+				desc := ""
+				if s, ok := schema.(map[string]any); ok {
+					desc, _ = s["description"].(string)
+				}
+				b.WriteString(fmt.Sprintf("  - %s: %s\n", name, desc))
+			}
+		}
+		b.WriteString("\n")
+	}
+	b.WriteString("After receiving a tool result, continue working toward the goal.\n")
+	b.WriteString("When done, respond with your final answer as plain text (no JSON block).\n")
+	return b.String()
+}
+
+// parseClaudeStream parses Claude CLI stream-json output.
+// It handles both native tool_use events and structured JSON tool calls
+// embedded in text output.
+func parseClaudeStream(stream string, tools []ToolDef) (*ChatResponse, error) {
 	var content strings.Builder
 	var toolCalls []ToolCall
 	var usage Usage
@@ -127,11 +160,116 @@ func parseClaudeStream(stream string) (*ChatResponse, error) {
 		}
 	}
 
+	// If no native tool_use events, check for structured JSON tool calls in text
+	text := content.String()
+	if len(toolCalls) == 0 && len(tools) > 0 {
+		if tc, remaining := extractToolCallFromText(text, tools); tc != nil {
+			toolCalls = append(toolCalls, *tc)
+			text = strings.TrimSpace(remaining)
+		}
+	}
+
 	return &ChatResponse{
-		Content:   strings.TrimSpace(content.String()),
+		Content:   strings.TrimSpace(text),
 		ToolCalls: toolCalls,
 		Usage:     usage,
 	}, nil
+}
+
+// extractToolCallFromText looks for a JSON tool call block in the text.
+func extractToolCallFromText(text string, tools []ToolDef) (*ToolCall, string) {
+	toolNames := make(map[string]bool)
+	for _, t := range tools {
+		toolNames[t.Name] = true
+	}
+
+	// Look for ```json blocks or bare JSON objects with "tool" key
+	candidates := extractJSONBlocks(text)
+	for _, candidate := range candidates {
+		var call struct {
+			Tool      string         `json:"tool"`
+			Arguments map[string]any `json:"arguments"`
+		}
+		if json.Unmarshal([]byte(candidate.json), &call) == nil && toolNames[call.Tool] {
+			argsJSON, _ := json.Marshal(call.Arguments)
+			tc := &ToolCall{
+				ID:        fmt.Sprintf("tc-%s", call.Tool),
+				Name:      call.Tool,
+				Arguments: string(argsJSON),
+			}
+			remaining := text[:candidate.start] + text[candidate.end:]
+			return tc, remaining
+		}
+	}
+	return nil, text
+}
+
+type jsonBlock struct {
+	json       string
+	start, end int
+}
+
+// extractJSONBlocks finds JSON objects in text, both in code fences and bare.
+func extractJSONBlocks(text string) []jsonBlock {
+	var blocks []jsonBlock
+
+	// Check code fences first
+	rest := text
+	offset := 0
+	for {
+		fenceStart := strings.Index(rest, "```")
+		if fenceStart < 0 {
+			break
+		}
+		afterStart := rest[fenceStart+3:]
+		fenceEnd := strings.Index(afterStart, "```")
+		if fenceEnd < 0 {
+			break
+		}
+		inner := afterStart[:fenceEnd]
+		// Strip optional language tag
+		if nl := strings.Index(inner, "\n"); nl >= 0 {
+			tag := strings.TrimSpace(inner[:nl])
+			if tag == "json" || tag == "" {
+				inner = inner[nl+1:]
+			}
+		}
+		inner = strings.TrimSpace(inner)
+		if strings.HasPrefix(inner, "{") {
+			blocks = append(blocks, jsonBlock{
+				json:  inner,
+				start: offset + fenceStart,
+				end:   offset + fenceStart + 3 + fenceEnd + 3,
+			})
+		}
+		advance := fenceStart + 3 + fenceEnd + 3
+		offset += advance
+		rest = rest[advance:]
+	}
+
+	// Check for bare JSON objects if no fenced blocks found
+	if len(blocks) == 0 {
+		for i := 0; i < len(text); i++ {
+			if text[i] == '{' {
+				depth := 0
+				for j := i; j < len(text); j++ {
+					if text[j] == '{' {
+						depth++
+					} else if text[j] == '}' {
+						depth--
+						if depth == 0 {
+							candidate := text[i : j+1]
+							blocks = append(blocks, jsonBlock{json: candidate, start: i, end: j + 1})
+							break
+						}
+					}
+				}
+				break // only first bare object
+			}
+		}
+	}
+
+	return blocks
 }
 
 func resolveClaudeModel(model string) string {
