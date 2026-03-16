@@ -334,6 +334,8 @@ func validateBreakContract(s *Scenario, known map[resourceRef]bool, knownDeploym
 		}
 		known[resourceRef{kind: "Deployment", namespace: ns, name: s.Break.Name}] = true
 		known[resourceRef{kind: "Service", namespace: ns, name: s.Break.Name}] = true
+	case "kubectl":
+		// Raw kubectl break — uses args, no fixture validation needed
 	default:
 		return fmt.Errorf("scenario %s: unsupported break type %q", s.ID, s.Break.Type)
 	}

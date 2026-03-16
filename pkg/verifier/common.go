@@ -217,12 +217,13 @@ func (c *ResourceExistsCheck) Validate() error {
 // Check runs kubectl to verify the resource exists.
 func (c *ResourceExistsCheck) Check(ctx context.Context, kubeconfigPath string) CheckResult {
 	name := fmt.Sprintf("resource-exists/%s/%s/%s", c.Kind, c.Namespace, c.Name)
-	out, err := exec.CommandContext(ctx, "kubectl",
-		"--kubeconfig", kubeconfigPath,
-		"get", c.Kind, c.Name,
-		"-n", c.Namespace,
-		"-o", "name",
-	).CombinedOutput()
+	args := []string{"--kubeconfig", kubeconfigPath, "get", c.Kind, c.Name}
+	// Cluster-scoped resources (Namespace, Node, etc.) don't use -n.
+	if !isClusterScoped(c.Kind) {
+		args = append(args, "-n", c.Namespace)
+	}
+	args = append(args, "-o", "name")
+	out, err := exec.CommandContext(ctx, "kubectl", args...).CombinedOutput()
 	if err != nil {
 		return CheckResult{Name: name, Type: "resource-exists", Verdict: VerdictFail, Message: strings.TrimSpace(string(out))}
 	}
@@ -230,6 +231,14 @@ func (c *ResourceExistsCheck) Check(ctx context.Context, kubeconfigPath string) 
 		return CheckResult{Name: name, Type: "resource-exists", Verdict: VerdictFail, Message: "resource not found"}
 	}
 	return CheckResult{Name: name, Type: "resource-exists", Verdict: VerdictPass}
+}
+
+func isClusterScoped(kind string) bool {
+	switch strings.ToLower(kind) {
+	case "namespace", "node", "persistentvolume", "clusterrole", "clusterrolebinding":
+		return true
+	}
+	return false
 }
 
 // ArgoCDAppHealthyCheck verifies an Argo CD application is healthy and synced.

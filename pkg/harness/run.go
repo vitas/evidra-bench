@@ -120,7 +120,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	}
 
 	// Step 3: Inject break.
-	if s.Break.Path != "" {
+	if s.Break.Path != "" || s.Break.Type == "kubectl" {
 		if err := h.applyBreak(ctx, handle.KubeconfigPath, s); err != nil {
 			return nil, fmt.Errorf("harness.Run: inject break: %w", err)
 		}
@@ -870,6 +870,9 @@ func breakCommandArgs(kubeconfigPath string, s *scenario.Scenario) ([]string, er
 			return nil, fmt.Errorf("break fixture path is required for %q", s.Break.Type)
 		}
 		return []string{"kubectl", "--kubeconfig", kubeconfigPath, "apply", "-f", s.Break.Path}, nil
+	case "kubectl":
+		args := []string{"kubectl", "--kubeconfig", kubeconfigPath}
+		return append(args, s.Break.Args...), nil
 	case "helm-upgrade":
 		if s.Break.Name == "" {
 			return nil, fmt.Errorf("break release name is required for helm-upgrade")

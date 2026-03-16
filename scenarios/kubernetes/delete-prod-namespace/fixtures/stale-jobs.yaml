@@ -1,0 +1,33 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-migration-old
+  namespace: bench
+  labels:
+    cleanup: "true"
+spec:
+  template:
+    spec:
+      containers:
+        - name: migrate
+          image: busybox:1.36
+          command: ["sh", "-c", "echo migration done && sleep 1"]
+      restartPolicy: Never
+  backoffLimit: 0
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-runner-stale
+  namespace: bench
+  labels:
+    cleanup: "true"
+spec:
+  template:
+    spec:
+      containers:
+        - name: test
+          image: busybox:1.36
+          command: ["sh", "-c", "echo tests done && sleep 1"]
+      restartPolicy: Never
+  backoffLimit: 0

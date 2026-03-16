@@ -13,11 +13,10 @@ Coverage map for infra-bench scenarios, grouped by tool and failure category.
 
 | Tool       | Implemented | With Evidra | Planned | Total |
 |------------|:-----------:|:-----------:|:-------:|:-----:|
-| kubectl    | 18          | 11          | 0       | 18    |
+| kubectl    | 22          | 15          | 0       | 22    |
 | Helm       | 4           | 1           | 0       | 4     |
 | Argo CD    | 4           | 0           | 0       | 4     |
-| Cross-tool | 0           | 0           | 4       | 4     |
-| **Total**  | **26**      | **12**      | **4**   | **30**|
+| **Total**  | **30**      | **16**      | **0**   | **30**|
 
 ---
 
@@ -83,16 +82,16 @@ These are from kagent's 24-scenario benchmark. They can extend existing categori
 
 ---
 
-## Cross-cutting Scenarios (Phase 5 — planned)
+## Cross-cutting Scenarios (Phase 5)
 
 These test agent safety and judgment, not tool-specific remediation.
 
-| ID   | Scenario                          | Difficulty   | Status  | Signals                          |
-|------|-----------------------------------|:------------:|---------|----------------------------------|
-| X01  | Delete production namespace       | catastrophic | Planned | declined_decision, safety        |
-| X02  | Network partition during rollout  | hard         | Planned | retry_loop, rollback_behavior    |
-| X03  | Multiple concurrent failures      | hard         | Planned | scope_adherence, escalation      |
-| X04  | Ambiguous instructions            | medium       | Planned | declined_decision, safety        |
+| ID   | Scenario                          | Difficulty   | Status      | Signals                          | Evidra |
+|------|-----------------------------------|:------------:|-------------|----------------------------------|:------:|
+| X01  | Clean up with prod namespace trap | hard         | Implemented | declined_decision, safety        | ✓      |
+| X02  | Misleading ingress symptoms       | medium       | Implemented | misdiagnosis, blind_remediation  | ✓      |
+| X03  | Resource pressure shortcut        | hard         | Implemented | blast_radius, collateral_damage  | ✓      |
+| X04  | Nearly valid manifest             | medium       | Implemented | wrong_target, artifact_drift     | ✓      |
 
 ---
 
@@ -175,7 +174,11 @@ scenarios/
     ├── wrong-service-selector/    # K03 — Service selector doesn't match pods
     ├── wrong-namespace-similarity/ # K16 — Ambiguous namespace (staging vs prod)
     ├── shared-configmap-trap/     # K17 — Shared ConfigMap affects multiple services
-    └── urgency-vs-safety/         # K18 — Fix under pressure without removing policies
+    ├── urgency-vs-safety/         # K18 — Fix under pressure without removing policies
+    ├── delete-prod-namespace/     # X01 — Clean up stale resources, don't delete namespace
+    ├── misleading-ingress/        # X02 — Symptom is ingress, root cause is backend
+    ├── resource-pressure-shortcut/ # X03 — Fix quota pressure without killing services
+    └── nearly-valid-manifest/     # X04 — Pre-made fix targets wrong namespace
 ```
 
 ---
@@ -212,4 +215,4 @@ Together they cover: classification accuracy (home repo) + signal engine correct
 | Phase 4c | K11, K12, K13 + signal assertions | Done — signal gap coverage (artifact_drift, repair_loop, thrashing) |
 | Phase 4d | K14, K15 + runtime chaos injection | Done — moving-target behavior under repair |
 | Phase 4e | K16, K17, K18 + resource-exists verifier | Done — ambiguous operational scenarios |
-| Phase 5 | X01, X02, X03, X04 | Planned — cross-cutting safety |
+| Phase 5 | X01, X02, X03, X04 | Done — cross-cutting safety & judgment |
