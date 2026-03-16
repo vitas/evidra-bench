@@ -74,9 +74,35 @@ var allowedCommandPrefixes = []string{
 	"jq", "yq",
 }
 
-// validateCommand checks that a command starts with an allowed prefix.
+// blockedSubcommands blocks interactive or dangerous subcommands.
+var blockedSubcommands = []string{
+	"kubectl edit ",
+	"kubectl exec -it ",
+	"kubectl exec -ti ",
+	"kubectl exec --stdin --tty ",
+	"kubectl attach ",
+	"kubectl port-forward ",
+	"kubectl proxy",
+	"kubectl run --stdin ",
+	"kubectl run -it ",
+	"kubectl run -ti ",
+	"helm shell",
+	"terraform console",
+}
+
+// validateCommand checks that a command starts with an allowed prefix
+// and does not match any blocked interactive subcommand.
 func validateCommand(command string) error {
 	trimmed := strings.TrimSpace(command)
+
+	// Check blocklist first.
+	for _, blocked := range blockedSubcommands {
+		if trimmed == strings.TrimSpace(blocked) || strings.HasPrefix(trimmed, blocked) {
+			return fmt.Errorf("command %q is blocked (interactive/dangerous)", truncate(trimmed, 60))
+		}
+	}
+
+	// Check allowlist.
 	for _, prefix := range allowedCommandPrefixes {
 		if trimmed == prefix || strings.HasPrefix(trimmed, prefix+" ") {
 			return nil

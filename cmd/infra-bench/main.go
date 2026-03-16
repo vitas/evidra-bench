@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -851,6 +852,12 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 		for _, model := range models {
 			for rep := 1; rep <= repeats; rep++ {
 				total++
+
+				// Clean namespace between scenarios to avoid stale state.
+				if cfg.ReuseCluster {
+					cleanBenchNamespace(cmd.Context(), cfg.ClusterName, s)
+				}
+
 				runDir := filepath.Join(outDir, fmt.Sprintf("%s_%s_r%d", s.ID, model, rep))
 				evidenceDir := filepath.Join(runDir, "evidence")
 
@@ -979,6 +986,44 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 		return fmt.Errorf("bench: %d failed, %d errors out of %d", failed, errors, total)
 	}
 	return nil
+}
+
+// cleanBenchNamespace deletes and recreates the bench namespace between scenario runs
+// to prevent stale state from previous runs causing bootstrap failures.
+func cleanBenchNamespace(ctx context.Context, clusterName string, s *scenario.Scenario) {
+	kubeconfigPath := os.Getenv("KUBECONFIG")
+	if kubeconfigPath == "" {
+		home, _ := os.UserHomeDir()
+		kubeconfigPath = filepath.Join(home, ".kube", "config")
+	}
+
+	// Collect namespaces from the scenario scope, default to "bench".
+	namespaces := s.Scope.Namespaces
+	if len(namespaces) == 0 {
+		namespaces = []string{"bench"}
+	}
+
+	contextArg := ""
+	if clusterName != "" {
+		contextArg = "--context=kind-" + clusterName
+	}
+
+	for _, ns := range namespaces {
+		args := []string{"--kubeconfig", kubeconfigPath}
+		if contextArg != "" {
+			args = append(args, contextArg)
+		}
+		args = append(args, "delete", "namespace", ns, "--ignore-not-found", "--timeout=30s")
+		cmd := exec.CommandContext(ctx, "kubectl", args...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			log.Printf("[bench] namespace cleanup %s: %v: %s", ns, err, strings.TrimSpace(string(out)))
+		} else {
+			log.Printf("[bench] namespace cleanup: %s deleted", ns)
+		}
+	}
+
+	// Brief pause for API server to process deletion.
+	time.Sleep(2 * time.Second)
 }
 
 func main() {
