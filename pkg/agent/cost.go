@@ -99,9 +99,12 @@ var pricingTable = map[string]ModelPricing{
 	"claude-opus-4-20250514":   {InputPerMillion: 15.0, OutputPerMillion: 75.0},
 	"claude-haiku-4-20250514":  {InputPerMillion: 0.80, OutputPerMillion: 4.0},
 
-	// Google
+	// Google Gemini
 	"google/gemini-2.5-pro":   {InputPerMillion: 1.25, OutputPerMillion: 10.0},
 	"google/gemini-2.5-flash": {InputPerMillion: 0.15, OutputPerMillion: 0.60},
+	"gemini-2.5-pro":          {InputPerMillion: 1.25, OutputPerMillion: 10.0},
+	"gemini-2.5-flash":        {InputPerMillion: 0.15, OutputPerMillion: 0.60},
+	"gemini-2.0-flash":        {InputPerMillion: 0.10, OutputPerMillion: 0.40},
 
 	// Alibaba Qwen (DashScope international pricing)
 	"qwen-plus":        {InputPerMillion: 0.80, OutputPerMillion: 2.0},
