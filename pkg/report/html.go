@@ -306,6 +306,8 @@ const htmlTemplate = `<!DOCTYPE html>
   .checks { font-size: 0.85rem; margin-top: 0.25rem; }
   .check-pass { color: #3fb950; }
   .check-fail { color: #f85149; }
+  .check-icon { cursor: help; position: relative; padding: 0 2px; font-size: 0.95rem; }
+  .check-icon[title]:hover::after { content: attr(title); position: absolute; bottom: 125%; left: 50%; transform: translateX(-50%); background: #1c2128; color: #c9d1d9; border: 1px solid #30363d; border-radius: 4px; padding: 0.35rem 0.6rem; font-size: 0.75rem; white-space: nowrap; z-index: 10; pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
   .run-details { margin-left: 1rem; }
   details { margin: 0.5rem 0; }
   summary { cursor: pointer; color: #58a6ff; }
@@ -383,7 +385,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <td>{{if and .ScoreBand (ne .ScoreBand "insufficient_data")}}<span class="badge badge-category">{{printf "%.0f" .Score}} ({{.ScoreBand}})</span>{{else if .ScoreBand}}{{.ScoreBand}}{{else}}—{{end}}</td>
   <td>
     {{range .Checks}}
-      <span class="{{if eq .Verdict "pass"}}check-pass{{else}}check-fail{{end}}">{{if eq .Verdict "pass"}}✓{{else}}✗{{end}}</span>
+      <span class="check-icon {{if eq .Verdict "pass"}}check-pass{{else}}check-fail{{end}}" title="{{.Name}}{{if .Message}} — {{.Message}}{{end}}">{{if eq .Verdict "pass"}}✓{{else}}✗{{end}}</span>
     {{end}}
   </td>
 </tr>
