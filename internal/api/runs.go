@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -105,5 +106,7 @@ func (s *Server) serveArtifactFile(w http.ResponseWriter, artifactDir, filename,
 		return
 	}
 	w.Header().Set("Content-Type", contentType)
-	w.Write(data)
+	if _, err := w.Write(data); err != nil {
+		log.Printf("[api] write artifact %s: %v", filename, err)
+	}
 }

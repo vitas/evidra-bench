@@ -10,13 +10,13 @@ build:
 	go build $(LDFLAGS) -o bin/$(BINARY) ./cmd/infra-bench
 
 build-api:
-	go build -o bin/bench-api ./cmd/bench-api
+	go build $(LDFLAGS) -o bin/bench-api ./cmd/bench-api
 
 ui:
 	cd ui && npm ci && npm run build
 
 build-api-ui: ui
-	go build -tags embed_ui -o bin/bench-api ./cmd/bench-api
+	go build -tags embed_ui $(LDFLAGS) -o bin/bench-api ./cmd/bench-api
 
 db-import: build
 	bin/$(BINARY) db import --runs-dir runs

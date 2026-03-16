@@ -89,9 +89,8 @@ function formatCost(v: number): string {
   return v < 0.01 ? `$${v.toFixed(4)}` : `$${v.toFixed(2)}`;
 }
 
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${Math.round(ms)}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
+function formatDuration(s: number): string {
+  return `${s.toFixed(1)}s`;
 }
 
 function categoryOf(scenario: string): string {
@@ -422,8 +421,8 @@ function RunDiff() {
                   {statRow("Model", diff.run_a.model, diff.run_b.model)}
                   {statRow(
                     "Duration",
-                    formatDuration(diff.run_a.duration_seconds * 1000),
-                    formatDuration(diff.run_b.duration_seconds * 1000),
+                    formatDuration(diff.run_a.duration_seconds),
+                    formatDuration(diff.run_b.duration_seconds),
                     false,
                   )}
                   {statRow("Turns", diff.run_a.turns, diff.run_b.turns, false)}

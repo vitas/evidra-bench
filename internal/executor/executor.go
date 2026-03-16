@@ -49,7 +49,8 @@ type Executor struct {
 	running      map[string]bool // scenarioID -> running, prevents duplicates
 	scenariosDir string
 	runsDir      string
-	store        *store.Store
+	// store is the concrete Store (not BenchStore) because harness.Deps requires *store.Store.
+	store *store.Store
 }
 
 // New creates an Executor.

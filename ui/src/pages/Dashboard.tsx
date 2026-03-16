@@ -7,16 +7,16 @@ import { useApi } from "../hooks/useApi";
 type Period = "24h" | "7d" | "30d" | "90d" | "all";
 
 interface ScenarioStat {
-  ScenarioID: string;
-  Runs: number;
-  Passed: number;
+  scenario_id: string;
+  runs: number;
+  passed: number;
 }
 
 interface Stats {
-  TotalRuns: number;
-  PassCount: number;
-  FailCount: number;
-  ByScenario: ScenarioStat[];
+  total_runs: number;
+  pass_count: number;
+  fail_count: number;
+  by_scenario: ScenarioStat[];
 }
 
 interface Run {
@@ -145,8 +145,8 @@ export function Dashboard() {
 
   /* Derived data */
   const passRate =
-    stats && stats.TotalRuns > 0
-      ? ((stats.PassCount / stats.TotalRuns) * 100).toFixed(1)
+    stats && stats.total_runs > 0
+      ? ((stats.pass_count / stats.total_runs) * 100).toFixed(1)
       : "0.0";
 
   const distinctModels = useMemo(
@@ -214,12 +214,12 @@ export function Dashboard() {
 
   // Worst scenarios (lowest pass rate with >= 2 runs)
   const worstScenarios = useMemo(() => {
-    if (!stats?.ByScenario) return [];
-    return [...stats.ByScenario]
-      .filter((s) => s.Runs >= 2)
+    if (!stats?.by_scenario) return [];
+    return [...stats.by_scenario]
+      .filter((s) => s.runs >= 2)
       .map((s) => ({
         ...s,
-        rate: Math.round((s.Passed / s.Runs) * 100),
+        rate: Math.round((s.passed / s.runs) * 100),
       }))
       .sort((a, b) => a.rate - b.rate)
       .slice(0, 5);
@@ -227,12 +227,12 @@ export function Dashboard() {
 
   // Best scenarios
   const bestScenarios = useMemo(() => {
-    if (!stats?.ByScenario) return [];
-    return [...stats.ByScenario]
-      .filter((s) => s.Runs >= 2)
+    if (!stats?.by_scenario) return [];
+    return [...stats.by_scenario]
+      .filter((s) => s.runs >= 2)
       .map((s) => ({
         ...s,
-        rate: Math.round((s.Passed / s.Runs) * 100),
+        rate: Math.round((s.passed / s.runs) * 100),
       }))
       .sort((a, b) => b.rate - a.rate)
       .slice(0, 5);
@@ -286,14 +286,14 @@ export function Dashboard() {
           <>
             <StatCard
               label="Total Runs"
-              value={String(stats?.TotalRuns ?? 0)}
-              detail={`${stats?.FailCount ?? 0} failed`}
+              value={String(stats?.total_runs ?? 0)}
+              detail={`${stats?.fail_count ?? 0} failed`}
               borderColor="border-l-accent"
             />
             <StatCard
               label="Pass Rate"
               value={`${passRate}%`}
-              detail={`${stats?.PassCount ?? 0} / ${stats?.TotalRuns ?? 0}`}
+              detail={`${stats?.pass_count ?? 0} / ${stats?.total_runs ?? 0}`}
               borderColor="border-l-accent"
             />
             <StatCard
@@ -310,8 +310,8 @@ export function Dashboard() {
             />
             <StatCard
               label="Scenarios"
-              value={String(stats?.ByScenario?.length ?? 0)}
-              detail={`${stats?.ByScenario?.filter((s) => s.Passed === s.Runs).length ?? 0} at 100%`}
+              value={String(stats?.by_scenario?.length ?? 0)}
+              detail={`${stats?.by_scenario?.filter((s) => s.passed === s.runs).length ?? 0} at 100%`}
               borderColor="border-l-fg-muted"
             />
           </>
@@ -532,16 +532,16 @@ export function Dashboard() {
               <tbody>
                 {worstScenarios.map((s) => (
                   <tr
-                    key={s.ScenarioID}
+                    key={s.scenario_id}
                     className="border-t border-border-subtle hover:bg-accent-subtle transition-colors"
                   >
                     <td className="py-2 px-5 font-medium text-fg">
-                      <Link to={`/runs?scenario=${s.ScenarioID}`} className="text-fg hover:text-accent">
-                        {s.ScenarioID}
+                      <Link to={`/runs?scenario=${s.scenario_id}`} className="text-fg hover:text-accent">
+                        {s.scenario_id}
                       </Link>
                     </td>
                     <td className="py-2 px-3 font-mono text-[0.78rem] text-fg-muted text-right">
-                      {s.Passed}/{s.Runs}
+                      {s.passed}/{s.runs}
                     </td>
                     <td className="py-2 px-5 text-right w-20">
                       <span
@@ -580,16 +580,16 @@ export function Dashboard() {
               <tbody>
                 {bestScenarios.map((s) => (
                   <tr
-                    key={s.ScenarioID}
+                    key={s.scenario_id}
                     className="border-t border-border-subtle hover:bg-accent-subtle transition-colors"
                   >
                     <td className="py-2 px-5 font-medium text-fg">
-                      <Link to={`/runs?scenario=${s.ScenarioID}`} className="text-fg hover:text-accent">
-                        {s.ScenarioID}
+                      <Link to={`/runs?scenario=${s.scenario_id}`} className="text-fg hover:text-accent">
+                        {s.scenario_id}
                       </Link>
                     </td>
                     <td className="py-2 px-3 font-mono text-[0.78rem] text-fg-muted text-right">
-                      {s.Passed}/{s.Runs}
+                      {s.passed}/{s.runs}
                     </td>
                     <td className="py-2 px-5 text-right w-20">
                       <span className="font-mono text-[0.78rem] font-semibold text-accent">

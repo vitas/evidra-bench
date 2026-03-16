@@ -6,16 +6,16 @@ import { useApi } from "../hooks/useApi";
 type Period = "24h" | "7d" | "30d" | "90d" | "all";
 
 interface ScenarioStat {
-  ScenarioID: string;
-  Runs: number;
-  Passed: number;
+  scenario_id: string;
+  runs: number;
+  passed: number;
 }
 
 interface Stats {
-  TotalRuns: number;
-  PassCount: number;
-  FailCount: number;
-  ByScenario: ScenarioStat[];
+  total_runs: number;
+  pass_count: number;
+  fail_count: number;
+  by_scenario: ScenarioStat[];
 }
 
 interface Run {
@@ -200,15 +200,15 @@ export function Benchmarks() {
 
   /* Category breakdown */
   const categories = useMemo(() => {
-    const scenarioStats = stats?.ByScenario ?? [];
+    const scenarioStats = stats?.by_scenario ?? [];
     const map = new Map<string, { total: number; passed: number; failed: number; durations: number[]; costs: number[] }>();
 
     for (const sc of scenarioStats) {
-      const cat = extractCategory(sc.ScenarioID);
+      const cat = extractCategory(sc.scenario_id);
       const entry = map.get(cat) ?? { total: 0, passed: 0, failed: 0, durations: [], costs: [] };
-      entry.total += sc.Runs;
-      entry.passed += sc.Passed;
-      entry.failed += sc.Runs - sc.Passed;
+      entry.total += sc.runs;
+      entry.passed += sc.passed;
+      entry.failed += sc.runs - sc.passed;
       map.set(cat, entry);
     }
 

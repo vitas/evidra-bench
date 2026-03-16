@@ -27,7 +27,7 @@ jobs:
       - name: Checkout parent (evidra-benchmark)
         uses: actions/checkout@v6
         with:
-          repository: vitas/evidra-benchmark
+          repository: ${{ github.repository_owner }}/evidra-benchmark
           path: evidra-benchmark
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -71,7 +71,7 @@ jobs:
       - name: Checkout parent (evidra-benchmark)
         uses: actions/checkout@v6
         with:
-          repository: vitas/evidra-benchmark
+          repository: ${{ github.repository_owner }}/evidra-benchmark
           path: evidra-benchmark
           token: ${{ secrets.GITHUB_TOKEN }}
 

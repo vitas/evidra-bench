@@ -318,6 +318,8 @@ type checkEntry struct {
 
 func computeCheckDiffs(checksA, checksB string) []CheckDiff {
 	var a, b checksResult
+	// Unmarshal errors are intentional no-ops: missing or malformed checks_json
+	// produces an empty diff, which is the correct behavior for runs without checks.
 	json.Unmarshal([]byte(checksA), &a)
 	json.Unmarshal([]byte(checksB), &b)
 

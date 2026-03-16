@@ -227,17 +227,17 @@ func (s *Store) Stats() (*StatsResult, error) {
 
 // StatsResult holds aggregate statistics.
 type StatsResult struct {
-	TotalRuns  int
-	PassCount  int
-	FailCount  int
-	ByScenario []ScenarioStat
+	TotalRuns  int            `json:"total_runs"`
+	PassCount  int            `json:"pass_count"`
+	FailCount  int            `json:"fail_count"`
+	ByScenario []ScenarioStat `json:"by_scenario"`
 }
 
 // ScenarioStat holds per-scenario stats.
 type ScenarioStat struct {
-	ScenarioID string
-	Runs       int
-	Passed     int
+	ScenarioID string `json:"scenario_id"`
+	Runs       int    `json:"runs"`
+	Passed     int    `json:"passed"`
 }
 
 // Rebuild recreates the database from the JSONL backup file.

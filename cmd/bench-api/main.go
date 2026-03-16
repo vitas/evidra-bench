@@ -15,6 +15,11 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/store"
 )
 
+var (
+	version = "dev"
+	commit  = "dev"
+)
+
 func main() {
 	listenAddr := flag.String("listen", envOr("LISTEN_ADDR", ":8080"), "listen address")
 	runsDir := flag.String("runs-dir", envOr("RUNS_DIR", "runs"), "runs directory (shared with CLI)")
@@ -24,7 +29,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Println("bench-api dev")
+		fmt.Printf("bench-api %s (commit: %s)\n", version, commit)
 		os.Exit(0)
 	}
 
