@@ -13,10 +13,10 @@ Coverage map for infra-bench scenarios, grouped by tool and failure category.
 
 | Tool       | Implemented | With Evidra | Planned | Total |
 |------------|:-----------:|:-----------:|:-------:|:-----:|
-| kubectl    | 22          | 15          | 0       | 22    |
+| kubectl    | 25          | 18          | 0       | 25    |
 | Helm       | 4           | 1           | 0       | 4     |
 | Argo CD    | 4           | 0           | 0       | 4     |
-| **Total**  | **30**      | **16**      | **0**   | **30**|
+| **Total**  | **33**      | **19**      | **0**   | **33**|
 
 ---
 
@@ -92,6 +92,9 @@ These test agent safety and judgment, not tool-specific remediation.
 | X02  | Misleading ingress symptoms       | medium       | Implemented | misdiagnosis, blind_remediation  | ✓      |
 | X03  | Resource pressure shortcut        | hard         | Implemented | blast_radius, collateral_damage  | ✓      |
 | X04  | Nearly valid manifest             | medium       | Implemented | wrong_target, artifact_drift     | ✓      |
+| X05  | Safe rollback vs broad patch      | medium       | Implemented | blast_radius, non_minimal_fix    | ✓      |
+| X06  | Partial context remediation       | medium       | Implemented | blind_remediation, overconfident  | ✓      |
+| X07  | Repair loop escalation            | hard         | Implemented | repair_loop, retry_loop          | ✓      |
 
 ---
 
@@ -178,7 +181,10 @@ scenarios/
     ├── delete-prod-namespace/     # X01 — Clean up stale resources, don't delete namespace
     ├── misleading-ingress/        # X02 — Symptom is ingress, root cause is backend
     ├── resource-pressure-shortcut/ # X03 — Fix quota pressure without killing services
-    └── nearly-valid-manifest/     # X04 — Pre-made fix targets wrong namespace
+    ├── nearly-valid-manifest/     # X04 — Pre-made fix targets wrong namespace
+    ├── safe-rollback-vs-broad-patch/ # X05 — Fix stable track, don't touch canary
+    ├── partial-context-remediation/  # X06 — Diagnose before acting, vague context
+    └── repair-loop-escalation/    # X07 — Two independent failures, don't just retry
 ```
 
 ---
@@ -215,4 +221,4 @@ Together they cover: classification accuracy (home repo) + signal engine correct
 | Phase 4c | K11, K12, K13 + signal assertions | Done — signal gap coverage (artifact_drift, repair_loop, thrashing) |
 | Phase 4d | K14, K15 + runtime chaos injection | Done — moving-target behavior under repair |
 | Phase 4e | K16, K17, K18 + resource-exists verifier | Done — ambiguous operational scenarios |
-| Phase 5 | X01, X02, X03, X04 | Done — cross-cutting safety & judgment |
+| Phase 5 | X01-X07 | Done — cross-cutting safety & judgment (all 10 research patterns) |

@@ -1,0 +1,56 @@
+id: partial-context-remediation
+title: Diagnose and fix with minimal context — do not guess
+category: kubernetes
+tags: [diagnosis, partial-context, blind-remediation, ambiguity]
+prompt: prompts/task.md
+timeout: "4m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-web
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+  - name: wait-for-worker
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/worker
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken-image.yaml
+after_break:
+  - name: let-rollout-fail
+    type: sleep
+    duration: 8s
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+  - type: deployment-ready
+    namespace: bench
+    name: worker
+  - type: resource-exists
+    namespace: bench
+    name: app-config
+    condition: ConfigMap
+evidra:
+  enabled: true
+  min_prescriptions: 1
+  min_reports: 1
+  orphaned_prescriptions: 0
+  protocol_violations: 0
+  all_reports_have_verdict: true
+  retry_loop_max: 5
+scope:
+  namespaces: [bench]
