@@ -27,6 +27,8 @@ interface Run {
   passed: boolean;
   duration_seconds: number;
   estimated_cost_usd: number;
+  prompt_tokens: number;
+  completion_tokens: number;
   created_at: string;
 }
 
@@ -38,10 +40,10 @@ interface RunsResponse {
 /* ── Helpers ── */
 
 const PERIODS: { value: Period; label: string }[] = [
-  { value: "24h", label: "24 h" },
-  { value: "7d", label: "7 d" },
-  { value: "30d", label: "30 d" },
-  { value: "90d", label: "90 d" },
+  { value: "24h", label: "24h" },
+  { value: "7d", label: "7d" },
+  { value: "30d", label: "30d" },
+  { value: "90d", label: "90d" },
   { value: "all", label: "All" },
 ];
 
@@ -59,11 +61,18 @@ function periodToSince(p: Period): string | undefined {
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
   const day = String(d.getDate()).padStart(2, "0");
   const mon = d.toLocaleString("en-US", { month: "short" });
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   return `${day} ${mon} ${hh}:${mm}`;
+}
+
+function formatDateShort(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getDate()} ${d.toLocaleString("en-US", { month: "short" })}`;
 }
 
 function formatDuration(s: number): string {
@@ -72,8 +81,12 @@ function formatDuration(s: number): string {
 
 function formatCost(usd: number): string {
   if (usd < 0.001) return "$0.00";
-  if (usd < 0.01) return `$${usd.toFixed(3)}`;
   return `$${usd.toFixed(3)}`;
+}
+
+function formatTokens(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
 }
 
 /* ── Skeleton pulse ── */
@@ -86,29 +99,14 @@ function Pulse({ className = "" }: { className?: string }) {
   );
 }
 
-/* ── Signals ── */
-
-const PRIMARY_SIGNALS = [
-  { id: "protocol_violation", label: "Protocol Violation" },
-  { id: "blast_radius", label: "Blast Radius" },
-  { id: "retry_loop", label: "Retry Loop" },
-];
-
-const SECONDARY_SIGNALS = [
-  { id: "thrashing", label: "Thrashing" },
-  { id: "repair_loop", label: "Repair Loop" },
-  { id: "artifact_drift", label: "Artifact Drift" },
-  { id: "risk_escalation", label: "Risk Escalation" },
-  { id: "new_scope", label: "New Scope" },
-];
-
 /* ── Component ── */
 
 export function Dashboard() {
   const { request } = useApi();
   const [period, setPeriod] = useState<Period>("7d");
   const [stats, setStats] = useState<Stats | null>(null);
-  const [runs, setRuns] = useState<Run[]>([]);
+  const [recentRuns, setRecentRuns] = useState<Run[]>([]);
+  const [allRuns, setAllRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -116,21 +114,25 @@ export function Dashboard() {
     setLoading(true);
 
     const since = periodToSince(period);
-    const sinceParam = since ? `?since=${encodeURIComponent(since)}` : "";
+    const sinceParam = since ? `&since=${encodeURIComponent(since)}` : "";
+    const sinceParamFirst = since ? `?since=${encodeURIComponent(since)}` : "";
 
     Promise.all([
-      request<Stats>(`/v1/bench/stats${sinceParam}`),
-      request<RunsResponse>("/v1/bench/runs?limit=5"),
+      request<Stats>(`/v1/bench/stats${sinceParamFirst}`),
+      request<RunsResponse>("/v1/bench/runs?limit=8"),
+      request<RunsResponse>(`/v1/bench/runs?limit=500${sinceParam}`),
     ])
-      .then(([s, r]) => {
+      .then(([s, recent, all]) => {
         if (cancelled) return;
         setStats(s);
-        setRuns(r.items ?? []);
+        setRecentRuns(recent.items ?? []);
+        setAllRuns(all.items ?? []);
       })
       .catch(() => {
         if (cancelled) return;
         setStats(null);
-        setRuns([]);
+        setRecentRuns([]);
+        setAllRuns([]);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -141,31 +143,100 @@ export function Dashboard() {
     };
   }, [period, request]);
 
-  /* Derived */
-  const passRate = stats && stats.TotalRuns > 0
-    ? ((stats.PassCount / stats.TotalRuns) * 100).toFixed(1)
-    : "0.0";
+  /* Derived data */
+  const passRate =
+    stats && stats.TotalRuns > 0
+      ? ((stats.PassCount / stats.TotalRuns) * 100).toFixed(1)
+      : "0.0";
 
   const distinctModels = useMemo(
-    () => [...new Set(runs.map((r) => r.model))],
-    [runs],
+    () => [...new Set(allRuns.map((r) => r.model).filter(Boolean))],
+    [allRuns],
+  );
+
+  const totalCost = useMemo(
+    () => allRuns.reduce((sum, r) => sum + (r.estimated_cost_usd || 0), 0),
+    [allRuns],
+  );
+
+  const totalTokens = useMemo(
+    () =>
+      allRuns.reduce(
+        (sum, r) => sum + (r.prompt_tokens || 0) + (r.completion_tokens || 0),
+        0,
+      ),
+    [allRuns],
   );
 
   const modelPassRates = useMemo(() => {
-    const map = new Map<string, { total: number; passed: number }>();
-    runs.forEach((r) => {
-      const entry = map.get(r.model) ?? { total: 0, passed: 0 };
+    const map = new Map<string, { total: number; passed: number; cost: number }>();
+    allRuns.forEach((r) => {
+      if (!r.model) return;
+      const entry = map.get(r.model) ?? { total: 0, passed: 0, cost: 0 };
       entry.total += 1;
       if (r.passed) entry.passed += 1;
+      entry.cost += r.estimated_cost_usd || 0;
       map.set(r.model, entry);
     });
-    return [...map.entries()].map(([model, { total, passed }]) => ({
-      model,
-      rate: total > 0 ? Math.round((passed / total) * 100) : 0,
-      total,
-      passed,
-    }));
-  }, [runs]);
+    return [...map.entries()]
+      .map(([model, { total, passed, cost }]) => ({
+        model,
+        rate: total > 0 ? Math.round((passed / total) * 100) : 0,
+        total,
+        passed,
+        cost,
+      }))
+      .sort((a, b) => b.rate - a.rate);
+  }, [allRuns]);
+
+  // Activity: group runs by day
+  const dailyActivity = useMemo(() => {
+    const map = new Map<string, { pass: number; fail: number }>();
+    allRuns.forEach((r) => {
+      const d = new Date(r.created_at);
+      if (isNaN(d.getTime())) return;
+      const key = d.toISOString().slice(0, 10);
+      const entry = map.get(key) ?? { pass: 0, fail: 0 };
+      if (r.passed) entry.pass += 1;
+      else entry.fail += 1;
+      map.set(key, entry);
+    });
+    return [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-14)
+      .map(([date, counts]) => ({ date, ...counts, total: counts.pass + counts.fail }));
+  }, [allRuns]);
+
+  const maxDailyTotal = useMemo(
+    () => Math.max(1, ...dailyActivity.map((d) => d.total)),
+    [dailyActivity],
+  );
+
+  // Worst scenarios (lowest pass rate with >= 2 runs)
+  const worstScenarios = useMemo(() => {
+    if (!stats?.ByScenario) return [];
+    return [...stats.ByScenario]
+      .filter((s) => s.Runs >= 2)
+      .map((s) => ({
+        ...s,
+        rate: Math.round((s.Passed / s.Runs) * 100),
+      }))
+      .sort((a, b) => a.rate - b.rate)
+      .slice(0, 5);
+  }, [stats]);
+
+  // Best scenarios
+  const bestScenarios = useMemo(() => {
+    if (!stats?.ByScenario) return [];
+    return [...stats.ByScenario]
+      .filter((s) => s.Runs >= 2)
+      .map((s) => ({
+        ...s,
+        rate: Math.round((s.Passed / s.Runs) * 100),
+      }))
+      .sort((a, b) => b.rate - a.rate)
+      .slice(0, 5);
+  }, [stats]);
 
   /* ── Render ── */
 
@@ -182,15 +253,15 @@ export function Dashboard() {
           </p>
         </div>
 
-        <div className="flex gap-0.5 bg-bg-alt rounded-lg p-0.5">
+        <div className="flex gap-0 border border-border rounded-md overflow-hidden">
           {PERIODS.map(({ value, label }) => (
             <button
               key={value}
               onClick={() => setPeriod(value)}
-              className={`font-mono text-[0.74rem] px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+              className={`font-mono text-[0.74rem] px-3 py-1.5 border-r border-border last:border-r-0 cursor-pointer transition-all ${
                 period === value
                   ? "bg-accent-tint text-accent font-semibold"
-                  : "text-fg-muted hover:text-fg"
+                  : "bg-bg-elevated text-fg-muted hover:text-fg"
               }`}
             >
               {label}
@@ -216,6 +287,7 @@ export function Dashboard() {
             <StatCard
               label="Total Runs"
               value={String(stats?.TotalRuns ?? 0)}
+              detail={`${stats?.FailCount ?? 0} failed`}
               borderColor="border-l-accent"
             />
             <StatCard
@@ -227,16 +299,19 @@ export function Dashboard() {
             <StatCard
               label="Models Tested"
               value={String(distinctModels.length)}
+              detail={distinctModels.join(", ")}
               borderColor="border-l-info"
             />
             <StatCard
-              label="Signal Alerts"
-              value="--"
+              label="Total Cost"
+              value={`$${totalCost.toFixed(2)}`}
+              detail={`${formatTokens(totalTokens)} tokens`}
               borderColor="border-l-warning"
             />
             <StatCard
-              label="Latest Score"
-              value="--"
+              label="Scenarios"
+              value={String(stats?.ByScenario?.length ?? 0)}
+              detail={`${stats?.ByScenario?.filter((s) => s.Passed === s.Runs).length ?? 0} at 100%`}
               borderColor="border-l-fg-muted"
             />
           </>
@@ -246,30 +321,38 @@ export function Dashboard() {
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
         {/* Recent Runs */}
-        <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] p-5">
-          <h2 className="text-[0.95rem] font-semibold text-fg mb-4">
-            Recent Runs
-          </h2>
+        <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
+          <div className="flex items-center justify-between px-5 pt-4 pb-3">
+            <h2 className="text-[0.95rem] font-semibold text-fg">
+              Recent Runs
+            </h2>
+            <Link
+              to="/runs"
+              className="text-[0.78rem] text-accent hover:text-accent-bright"
+            >
+              View all &rarr;
+            </Link>
+          </div>
           {loading ? (
-            <div className="space-y-3">
+            <div className="px-5 pb-4 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Pulse key={i} className="h-8 w-full" />
               ))}
             </div>
-          ) : runs.length === 0 ? (
-            <p className="text-fg-muted text-[0.85rem] py-6 text-center">
+          ) : recentRuns.length === 0 ? (
+            <p className="text-fg-muted text-[0.85rem] py-8 text-center">
               No runs recorded yet.
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-[0.82rem]">
                 <thead>
-                  <tr className="border-b border-border-subtle">
+                  <tr className="border-b border-border bg-bg-alt">
                     {["Status", "Scenario", "Model", "Duration", "Cost", "Date"].map(
                       (h) => (
                         <th
                           key={h}
-                          className="text-left text-[0.7rem] font-semibold uppercase tracking-wide text-fg-muted pb-2 pr-3"
+                          className="text-left text-[0.7rem] font-semibold uppercase tracking-wide text-fg-muted px-4 py-2"
                         >
                           {h}
                         </th>
@@ -278,12 +361,13 @@ export function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {runs.map((run) => (
+                  {recentRuns.map((run) => (
                     <tr
                       key={run.id}
-                      className="border-b border-border-subtle last:border-0 hover:bg-accent-subtle transition-colors"
+                      className="border-b border-border-subtle last:border-0 hover:bg-accent-subtle transition-colors cursor-pointer"
+                      onClick={() => (window.location.href = `/runs/${run.id}`)}
                     >
-                      <td className="py-2.5 pr-3">
+                      <td className="py-2.5 px-4">
                         <span
                           className={`inline-block font-mono text-[0.72rem] font-semibold px-2 py-0.5 rounded ${
                             run.passed
@@ -294,24 +378,19 @@ export function Dashboard() {
                           {run.passed ? "PASS" : "FAIL"}
                         </span>
                       </td>
-                      <td className="py-2.5 pr-3">
-                        <Link
-                          to={`/runs/${run.id}`}
-                          className="text-accent hover:text-accent-bright font-medium"
-                        >
-                          {run.scenario_id}
-                        </Link>
+                      <td className="py-2.5 px-4 font-medium text-fg">
+                        {run.scenario_id}
                       </td>
-                      <td className="py-2.5 pr-3 font-mono text-fg-muted">
+                      <td className="py-2.5 px-4 font-mono text-fg-muted text-[0.78rem]">
                         {run.model}
                       </td>
-                      <td className="py-2.5 pr-3 font-mono text-fg-muted">
+                      <td className="py-2.5 px-4 font-mono text-fg-muted text-[0.78rem]">
                         {formatDuration(run.duration_seconds)}
                       </td>
-                      <td className="py-2.5 pr-3 font-mono text-fg-muted">
+                      <td className="py-2.5 px-4 font-mono text-fg-muted text-[0.78rem]">
                         {formatCost(run.estimated_cost_usd)}
                       </td>
-                      <td className="py-2.5 pr-3 text-fg-muted whitespace-nowrap">
+                      <td className="py-2.5 px-4 text-fg-muted whitespace-nowrap text-[0.78rem]">
                         {formatDate(run.created_at)}
                       </td>
                     </tr>
@@ -341,21 +420,40 @@ export function Dashboard() {
               </p>
             ) : (
               <div className="space-y-3">
-                {modelPassRates.map(({ model, rate, passed, total }) => (
+                {modelPassRates.map(({ model, rate, passed, total, cost }) => (
                   <div key={model}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-mono text-[0.78rem] text-fg">
+                      <span className="font-mono text-[0.78rem] font-semibold text-fg">
                         {model}
                       </span>
                       <span className="font-mono text-[0.72rem] text-fg-muted">
-                        {passed}/{total} ({rate}%)
+                        {passed}/{total} &middot; {formatCost(cost)}
                       </span>
                     </div>
                     <div className="h-2 rounded-full bg-bg-alt overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-accent transition-all duration-500"
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          rate >= 70
+                            ? "bg-accent"
+                            : rate >= 40
+                              ? "bg-warning"
+                              : "bg-danger"
+                        }`}
                         style={{ width: `${rate}%` }}
                       />
+                    </div>
+                    <div className="text-right">
+                      <span
+                        className={`font-mono text-[0.72rem] font-semibold ${
+                          rate >= 70
+                            ? "text-accent"
+                            : rate >= 40
+                              ? "text-warning"
+                              : "text-danger"
+                        }`}
+                      >
+                        {rate}%
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -368,62 +466,141 @@ export function Dashboard() {
             <h2 className="text-[0.95rem] font-semibold text-fg mb-4">
               Run Activity
             </h2>
-            <div className="flex items-end gap-1.5 h-20">
-              {Array.from({ length: 14 }).map((_, i) => {
-                const height = Math.max(8, Math.random() * 100);
-                return (
-                  <div
-                    key={i}
-                    className="flex-1 rounded-sm bg-accent-tint"
-                    style={{ height: `${height}%` }}
-                  />
-                );
-              })}
-            </div>
-            <p className="text-[0.7rem] text-fg-muted mt-2 text-center">
-              Placeholder -- activity chart
-            </p>
+            {dailyActivity.length === 0 ? (
+              <p className="text-fg-muted text-[0.82rem] text-center py-4">
+                No activity data.
+              </p>
+            ) : (
+              <>
+                <div className="flex items-end gap-1 h-16">
+                  {dailyActivity.map((day) => {
+                    const passH = (day.pass / maxDailyTotal) * 100;
+                    const failH = (day.fail / maxDailyTotal) * 100;
+                    return (
+                      <div
+                        key={day.date}
+                        className="flex-1 flex flex-col justify-end gap-px"
+                        title={`${day.date}: ${day.pass} pass, ${day.fail} fail`}
+                        style={{ height: "100%" }}
+                      >
+                        {day.fail > 0 && (
+                          <div
+                            className="w-full rounded-t-sm bg-danger opacity-70"
+                            style={{ height: `${failH}%`, minHeight: day.fail > 0 ? "2px" : 0 }}
+                          />
+                        )}
+                        {day.pass > 0 && (
+                          <div
+                            className="w-full rounded-t-sm bg-accent"
+                            style={{ height: `${passH}%`, minHeight: day.pass > 0 ? "2px" : 0 }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-between mt-1.5">
+                  <span className="text-[0.65rem] text-fg-muted">
+                    {formatDateShort(dailyActivity[0].date)}
+                  </span>
+                  <span className="text-[0.65rem] text-fg-muted">
+                    {formatDateShort(dailyActivity[dailyActivity.length - 1].date)}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Signal Overview */}
-      <div>
-        <h2 className="text-[0.95rem] font-semibold text-fg mb-3">
-          Signal Overview
-        </h2>
-
-        {/* Primary signals */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-          {PRIMARY_SIGNALS.map(({ id, label }) => (
-            <div
-              key={id}
-              className="bg-warning-tint border border-warning rounded-lg p-4"
-            >
-              <p className="font-mono text-[0.72rem] uppercase tracking-wide text-warning font-semibold mb-1">
-                {label}
-              </p>
-              <p className="text-[1.25rem] font-bold text-fg">--</p>
-              <p className="text-[0.72rem] text-fg-muted mt-0.5">
-                Across all runs
-              </p>
-            </div>
-          ))}
+      {/* Bottom row: worst + best scenarios */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Hardest scenarios */}
+        <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
+          <div className="px-5 pt-4 pb-2">
+            <h2 className="text-[0.95rem] font-semibold text-fg">
+              Hardest Scenarios
+            </h2>
+            <p className="text-[0.72rem] text-fg-muted">Lowest pass rate (min 2 runs)</p>
+          </div>
+          {worstScenarios.length === 0 ? (
+            <p className="text-fg-muted text-[0.82rem] text-center py-6">
+              Not enough data.
+            </p>
+          ) : (
+            <table className="w-full text-[0.82rem]">
+              <tbody>
+                {worstScenarios.map((s) => (
+                  <tr
+                    key={s.ScenarioID}
+                    className="border-t border-border-subtle hover:bg-accent-subtle transition-colors"
+                  >
+                    <td className="py-2 px-5 font-medium text-fg">
+                      <Link to={`/runs?scenario=${s.ScenarioID}`} className="text-fg hover:text-accent">
+                        {s.ScenarioID}
+                      </Link>
+                    </td>
+                    <td className="py-2 px-3 font-mono text-[0.78rem] text-fg-muted text-right">
+                      {s.Passed}/{s.Runs}
+                    </td>
+                    <td className="py-2 px-5 text-right w-20">
+                      <span
+                        className={`font-mono text-[0.78rem] font-semibold ${
+                          s.rate >= 70
+                            ? "text-accent"
+                            : s.rate >= 40
+                              ? "text-warning"
+                              : "text-danger"
+                        }`}
+                      >
+                        {s.rate}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
-        {/* Secondary signals */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-          {SECONDARY_SIGNALS.map(({ id, label }) => (
-            <div
-              key={id}
-              className="bg-bg-elevated border border-border-subtle rounded-lg p-4"
-            >
-              <p className="font-mono text-[0.72rem] uppercase tracking-wide text-fg-muted font-semibold mb-1">
-                {label}
-              </p>
-              <p className="text-[1.25rem] font-bold text-fg">--</p>
-            </div>
-          ))}
+        {/* Best scenarios */}
+        <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
+          <div className="px-5 pt-4 pb-2">
+            <h2 className="text-[0.95rem] font-semibold text-fg">
+              Easiest Scenarios
+            </h2>
+            <p className="text-[0.72rem] text-fg-muted">Highest pass rate (min 2 runs)</p>
+          </div>
+          {bestScenarios.length === 0 ? (
+            <p className="text-fg-muted text-[0.82rem] text-center py-6">
+              Not enough data.
+            </p>
+          ) : (
+            <table className="w-full text-[0.82rem]">
+              <tbody>
+                {bestScenarios.map((s) => (
+                  <tr
+                    key={s.ScenarioID}
+                    className="border-t border-border-subtle hover:bg-accent-subtle transition-colors"
+                  >
+                    <td className="py-2 px-5 font-medium text-fg">
+                      <Link to={`/runs?scenario=${s.ScenarioID}`} className="text-fg hover:text-accent">
+                        {s.ScenarioID}
+                      </Link>
+                    </td>
+                    <td className="py-2 px-3 font-mono text-[0.78rem] text-fg-muted text-right">
+                      {s.Passed}/{s.Runs}
+                    </td>
+                    <td className="py-2 px-5 text-right w-20">
+                      <span className="font-mono text-[0.78rem] font-semibold text-accent">
+                        {s.rate}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>
@@ -445,14 +622,16 @@ function StatCard({
 }) {
   return (
     <div
-      className={`bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] p-4 border-l-[3px] ${borderColor}`}
+      className={`bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] p-4 border-l-[3px] ${borderColor} hover:shadow-[var(--shadow-card-lg)] hover:-translate-y-px transition-all`}
     >
       <p className="text-[0.72rem] font-semibold uppercase tracking-wide text-fg-muted mb-1">
         {label}
       </p>
-      <p className="text-[1.5rem] font-bold text-fg leading-tight">{value}</p>
+      <p className="font-mono text-[1.5rem] font-bold text-fg leading-tight tracking-tight">
+        {value}
+      </p>
       {detail && (
-        <p className="text-[0.72rem] text-fg-muted mt-0.5 font-mono">
+        <p className="text-[0.72rem] text-fg-muted mt-1 leading-snug">
           {detail}
         </p>
       )}

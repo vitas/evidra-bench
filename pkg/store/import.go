@@ -126,6 +126,22 @@ func parseInt(s string) int {
 }
 
 func parseFloat(s string) float64 {
-	f, _ := strconv.ParseFloat(s, 64)
-	return f
+	f, err := strconv.ParseFloat(s, 64)
+	if err == nil {
+		return f
+	}
+	// Handle "$0.0287 (in: ...)" format: extract first number after $
+	if idx := strings.Index(s, "$"); idx >= 0 {
+		num := s[idx+1:]
+		// Take until space or paren
+		for i, c := range num {
+			if c == ' ' || c == '(' {
+				num = num[:i]
+				break
+			}
+		}
+		f, _ = strconv.ParseFloat(num, 64)
+		return f
+	}
+	return 0
 }
