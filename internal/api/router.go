@@ -25,6 +25,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
+	mux.HandleFunc("GET /v1/bench/info", s.handleInfo)
 
 	// Runs
 	mux.HandleFunc("GET /v1/bench/runs", s.handleListRuns)

@@ -1,6 +1,7 @@
 import { type ReactNode } from "react";
 import { NavLink } from "react-router";
 import { useTheme } from "./hooks/useTheme";
+import { useAppInfo } from "./hooks/useAppInfo";
 
 const navItems = [
   { to: "/", label: "Dashboard" },
@@ -12,6 +13,7 @@ const navItems = [
 
 export function Layout({ children }: { children: ReactNode }) {
   const { theme, toggle } = useTheme();
+  const { readonly } = useAppInfo();
 
   return (
     <>
@@ -37,6 +39,12 @@ export function Layout({ children }: { children: ReactNode }) {
             Evidra Bench
           </a>
         </div>
+
+        {readonly && (
+          <span className="text-[0.68rem] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-warning-tint text-warning border border-warning">
+            Demo
+          </span>
+        )}
 
         <nav className="flex gap-1 flex-1">
           {navItems.map(({ to, label }) => (
