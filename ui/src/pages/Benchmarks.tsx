@@ -121,7 +121,7 @@ function Pulse({ className = "" }: { className?: string }) {
 
 export function Benchmarks() {
   const { request } = useApi();
-  const [period, setPeriod] = useState<Period>("30d");
+  const [period, setPeriod] = useState<Period>("7d");
   const [stats, setStats] = useState<Stats | null>(null);
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);

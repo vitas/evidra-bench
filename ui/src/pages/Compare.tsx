@@ -22,13 +22,15 @@ interface ModelMatrixResponse {
 
 interface RunRecord {
   id: string;
-  scenario: string;
+  scenario_id: string;
   model: string;
-  status: string;
-  duration: number;
+  provider: string;
+  passed: boolean;
+  duration_seconds: number;
   turns: number;
-  tokens: number;
-  cost: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  estimated_cost_usd: number;
   checks_passed: number;
   checks_total: number;
 }
@@ -114,31 +116,31 @@ function ModelMatrix() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Initial load to discover available models
+  // Discover available models from stats endpoint, then fetch matrix
   useEffect(() => {
     setLoading(true);
-    request<ModelMatrixResponse>("/v1/bench/compare/models")
+    request<{ items: Array<{ model: string }> }>("/v1/bench/runs?limit=200")
       .then((res) => {
-        setAllModels(res.models);
-        setActiveModels(res.models);
-        setData(res);
+        const models = Array.from(new Set((res.items ?? []).map((r) => r.model).filter(Boolean))).sort();
+        setAllModels(models);
+        setActiveModels(models);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [request]);
 
-  // Refetch when active models change (skip initial)
+  // Fetch matrix when active models change
   useEffect(() => {
-    if (allModels.length === 0) return;
+    if (activeModels.length === 0) return;
     setLoading(true);
     const params = new URLSearchParams();
-    if (activeModels.length > 0) params.set("models", activeModels.join(","));
+    params.set("models", activeModels.join(","));
     if (category) params.set("scenarios", category);
     request<ModelMatrixResponse>(`/v1/bench/compare/models?${params}`)
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [activeModels, category, allModels.length, request]);
+  }, [activeModels, category, request]);
 
   const toggleModel = useCallback((m: string) => {
     setActiveModels((prev) =>
@@ -298,8 +300,8 @@ function RunDiff() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    request<{ runs: RunRecord[] }>("/v1/bench/runs?limit=100")
-      .then((res) => setRuns(res.runs ?? []))
+    request<{ items: RunRecord[] }>("/v1/bench/runs?limit=100")
+      .then((res) => setRuns(res.items ?? []))
       .catch((e) => setError(e.message))
       .finally(() => setLoadingRuns(false));
   }, [request]);
@@ -315,7 +317,7 @@ function RunDiff() {
   }, [runA, runB, request]);
 
   const runLabel = (r: RunRecord) =>
-    `${r.id.slice(0, 8)} -- ${r.scenario} -- ${r.model} -- ${r.status}`;
+    `${r.id.slice(0, 20)} -- ${r.scenario_id} -- ${r.model} -- ${r.passed ? "PASS" : "FAIL"}`;
 
   function statRow(label: string, a: number | string, b: number | string, higherIsBetter = true) {
     const numA = typeof a === "number" ? a : 0;
