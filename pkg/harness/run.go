@@ -217,6 +217,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			Type:      c.Type,
 			Namespace: c.Namespace,
 			Name:      c.Name,
+			Condition: c.Condition,
 		})
 	}
 	checkers, err := verifier.BuildCheckers(checkDefs)

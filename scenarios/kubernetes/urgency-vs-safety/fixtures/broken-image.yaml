@@ -4,7 +4,13 @@ metadata:
   name: web
   namespace: bench
 spec:
+  selector:
+    matchLabels:
+      app: web
   template:
+    metadata:
+      labels:
+        app: web
     spec:
       containers:
         - name: nginx
