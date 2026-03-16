@@ -164,6 +164,41 @@ func TestModelMatrix(t *testing.T) {
 	}
 }
 
+func TestListRuns_Sorting(t *testing.T) {
+	t.Parallel()
+	s := testStore(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	s.Insert(RunRecord{ID: "r1", ScenarioID: "alpha", Model: "sonnet", Duration: 10, CreatedAt: now})
+	s.Insert(RunRecord{ID: "r2", ScenarioID: "beta", Model: "sonnet", Duration: 30, CreatedAt: now.Add(time.Second)})
+	s.Insert(RunRecord{ID: "r3", ScenarioID: "gamma", Model: "sonnet", Duration: 20, CreatedAt: now.Add(2 * time.Second)})
+
+	// Default sort: created_at DESC
+	runs, _, _ := s.ListRuns(ctx, RunFilters{})
+	if runs[0].ID != "r3" {
+		t.Fatalf("default sort: expected r3 first, got %s", runs[0].ID)
+	}
+
+	// Sort by scenario_id ASC
+	runs, _, _ = s.ListRuns(ctx, RunFilters{SortBy: "scenario_id", SortOrder: "asc"})
+	if runs[0].ScenarioID != "alpha" {
+		t.Fatalf("sort by scenario asc: expected alpha first, got %s", runs[0].ScenarioID)
+	}
+
+	// Sort by duration DESC
+	runs, _, _ = s.ListRuns(ctx, RunFilters{SortBy: "duration_seconds", SortOrder: "desc"})
+	if runs[0].Duration != 30 {
+		t.Fatalf("sort by duration desc: expected 30 first, got %f", runs[0].Duration)
+	}
+
+	// Invalid sort column ignored (falls back to created_at)
+	runs, _, _ = s.ListRuns(ctx, RunFilters{SortBy: "DROP TABLE runs; --"})
+	if len(runs) != 3 {
+		t.Fatalf("invalid sort: expected 3 runs, got %d", len(runs))
+	}
+}
+
 func TestFilteredStats(t *testing.T) {
 	t.Parallel()
 	s := testStore(t)

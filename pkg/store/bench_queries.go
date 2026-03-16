@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -25,7 +27,20 @@ func (s *Store) ListRuns(ctx context.Context, f RunFilters) ([]RunRecord, int, e
 	}
 
 	// Fetch page
-	query := "SELECT id, scenario_id, model, provider, adapter, passed, duration_seconds, exit_code, turns, memory_window, prompt_tokens, completion_tokens, estimated_cost, checks_passed, checks_total, checks_json, metadata_json, artifact_dir, created_at FROM runs" + where + " ORDER BY created_at DESC"
+	orderCol := "created_at"
+	validSortColumns := map[string]bool{
+		"created_at": true, "duration_seconds": true, "estimated_cost": true,
+		"scenario_id": true, "model": true, "provider": true,
+		"checks_passed": true, "turns": true, "passed": true,
+	}
+	if f.SortBy != "" && validSortColumns[f.SortBy] {
+		orderCol = f.SortBy
+	}
+	orderDir := "DESC"
+	if f.SortOrder == "asc" {
+		orderDir = "ASC"
+	}
+	query := "SELECT id, scenario_id, model, provider, adapter, passed, duration_seconds, exit_code, turns, memory_window, prompt_tokens, completion_tokens, estimated_cost, checks_passed, checks_total, checks_json, metadata_json, artifact_dir, created_at FROM runs" + where + fmt.Sprintf(" ORDER BY %s %s", orderCol, orderDir)
 	if f.Limit > 0 {
 		query += fmt.Sprintf(" LIMIT %d", f.Limit)
 	}
@@ -314,6 +329,73 @@ type checkEntry struct {
 	Type    string `json:"type"`
 	Verdict string `json:"verdict"`
 	Message string `json:"message,omitempty"`
+}
+
+// SignalSummary aggregates signal counts from scorecard.json files across matching runs.
+func (s *Store) SignalSummary(ctx context.Context, f RunFilters) (*SignalAggregation, error) {
+	runs, _, err := s.ListRuns(ctx, RunFilters{
+		ScenarioID: f.ScenarioID,
+		Model:      f.Model,
+		Provider:   f.Provider,
+		PassedOnly: f.PassedOnly,
+		FailedOnly: f.FailedOnly,
+		Since:      f.Since,
+		Limit:      1000,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("store.SignalSummary: %w", err)
+	}
+
+	agg := &SignalAggregation{
+		TotalRuns: len(runs),
+		Signals:   make(map[string]SignalCount),
+	}
+
+	var scoreSum float64
+	for _, run := range runs {
+		if run.ArtifactDir == "" {
+			continue
+		}
+		sc, err := readScorecard(run.ArtifactDir)
+		if err != nil {
+			continue // scorecard not available for this run
+		}
+		agg.RunsWithScorecard++
+		if sc.Score > 0 {
+			scoreSum += sc.Score
+		}
+		for signal, count := range sc.Signals {
+			entry := agg.Signals[signal]
+			entry.Total += count
+			if count > 0 {
+				entry.RunCount++
+			}
+			agg.Signals[signal] = entry
+		}
+	}
+	if agg.RunsWithScorecard > 0 {
+		agg.AvgScore = scoreSum / float64(agg.RunsWithScorecard)
+	}
+
+	return agg, nil
+}
+
+type scorecard struct {
+	Signals map[string]int `json:"signals"`
+	Score   float64        `json:"score"`
+	Band    string         `json:"band"`
+}
+
+func readScorecard(artifactDir string) (*scorecard, error) {
+	data, err := os.ReadFile(filepath.Join(artifactDir, "scorecard.json"))
+	if err != nil {
+		return nil, err
+	}
+	var sc scorecard
+	if err := json.Unmarshal(data, &sc); err != nil {
+		return nil, err
+	}
+	return &sc, nil
 }
 
 func computeCheckDiffs(checksA, checksB string) []CheckDiff {

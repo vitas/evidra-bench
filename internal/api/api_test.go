@@ -86,6 +86,15 @@ func (m *mockStore) ListScenarios(_ context.Context) ([]store.ScenarioSummary, e
 	return m.scenarios, nil
 }
 
+func (m *mockStore) SignalSummary(_ context.Context, _ store.RunFilters) (*store.SignalAggregation, error) {
+	return &store.SignalAggregation{
+		TotalRuns:         2,
+		RunsWithScorecard: 1,
+		Signals:           map[string]store.SignalCount{"protocol_violation": {Total: 1, RunCount: 1}},
+		AvgScore:          87.5,
+	}, nil
+}
+
 type notFoundError struct{ id string }
 
 func (e *notFoundError) Error() string { return "not found: " + e.id }
@@ -291,6 +300,18 @@ func TestExecuteStatus_NoExecutor(t *testing.T) {
 
 	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("expected 503, got %d", w.Code)
+	}
+}
+
+func TestSignals(t *testing.T) {
+	t.Parallel()
+	srv, _ := newTestServer()
+	req := httptest.NewRequest("GET", "/v1/bench/signals", nil)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
 	}
 }
 

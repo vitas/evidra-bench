@@ -12,6 +12,21 @@ type BenchStore interface {
 	ModelMatrix(ctx context.Context, models, scenarios []string) (*ModelMatrix, error)
 	FilteredStats(ctx context.Context, f RunFilters) (*StatsResult, error)
 	ListScenarios(ctx context.Context) ([]ScenarioSummary, error)
+	SignalSummary(ctx context.Context, f RunFilters) (*SignalAggregation, error)
+}
+
+// SignalAggregation holds aggregated signal counts across runs.
+type SignalAggregation struct {
+	TotalRuns         int                    `json:"total_runs"`
+	RunsWithScorecard int                    `json:"runs_with_scorecard"`
+	Signals           map[string]SignalCount `json:"signals"`
+	AvgScore          float64                `json:"avg_score"`
+}
+
+// SignalCount holds detection stats for a single signal type.
+type SignalCount struct {
+	Total    int `json:"total"`     // total detections
+	RunCount int `json:"run_count"` // runs where detected > 0
 }
 
 // RunFilters specifies filters for listing runs. Extends QueryFilters with Offset.
@@ -24,6 +39,8 @@ type RunFilters struct {
 	Since      string // RFC3339 or date string
 	Limit      int
 	Offset     int
+	SortBy     string // column to sort by: created_at, duration_seconds, estimated_cost, scenario_id, model, checks_passed
+	SortOrder  string // asc or desc (default: desc)
 }
 
 // RunComparison holds the result of comparing two runs.

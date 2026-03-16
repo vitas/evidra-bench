@@ -29,6 +29,8 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 		Since:      q.Get("since"),
 		Limit:      limit,
 		Offset:     offset,
+		SortBy:     q.Get("sort_by"),
+		SortOrder:  q.Get("sort_order"),
 	}
 	if q.Get("passed") == "true" {
 		f.PassedOnly = true
