@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -40,8 +41,8 @@ func (s *Store) ListRuns(ctx context.Context, f RunFilters) ([]RunRecord, int, e
 
 	var records []RunRecord
 	for rows.Next() {
-		var r RunRecord
-		if err := rows.Scan(&r.ID, &r.ScenarioID, &r.Model, &r.Provider, &r.Adapter, &r.Passed, &r.Duration, &r.ExitCode, &r.Turns, &r.MemoryWindow, &r.PromptTokens, &r.CompletionTokens, &r.EstimatedCost, &r.ChecksPassed, &r.ChecksTotal, &r.ChecksJSON, &r.MetadataJSON, &r.ArtifactDir, &r.CreatedAt); err != nil {
+		r, err := scanRunRecord(rows)
+		if err != nil {
 			return nil, 0, fmt.Errorf("store.ListRuns: scan: %w", err)
 		}
 		records = append(records, r)
@@ -51,13 +52,65 @@ func (s *Store) ListRuns(ctx context.Context, f RunFilters) ([]RunRecord, int, e
 
 // GetRun returns a single run by ID.
 func (s *Store) GetRun(ctx context.Context, id string) (*RunRecord, error) {
-	var r RunRecord
-	err := s.db.QueryRowContext(ctx, "SELECT id, scenario_id, model, provider, adapter, passed, duration_seconds, exit_code, turns, memory_window, prompt_tokens, completion_tokens, estimated_cost, checks_passed, checks_total, checks_json, metadata_json, artifact_dir, created_at FROM runs WHERE id = ?", id).
-		Scan(&r.ID, &r.ScenarioID, &r.Model, &r.Provider, &r.Adapter, &r.Passed, &r.Duration, &r.ExitCode, &r.Turns, &r.MemoryWindow, &r.PromptTokens, &r.CompletionTokens, &r.EstimatedCost, &r.ChecksPassed, &r.ChecksTotal, &r.ChecksJSON, &r.MetadataJSON, &r.ArtifactDir, &r.CreatedAt)
+	row := s.db.QueryRowContext(ctx, "SELECT id, scenario_id, model, provider, adapter, passed, duration_seconds, exit_code, turns, memory_window, prompt_tokens, completion_tokens, estimated_cost, checks_passed, checks_total, checks_json, metadata_json, artifact_dir, created_at FROM runs WHERE id = ?", id)
+	r, err := scanRunRecordRow(row)
 	if err != nil {
 		return nil, fmt.Errorf("store.GetRun: %w", err)
 	}
 	return &r, nil
+}
+
+// scanner is satisfied by both *sql.Rows and *sql.Row.
+type scanner interface {
+	Scan(dest ...any) error
+}
+
+func scanRunRecord(s scanner) (RunRecord, error) {
+	var r RunRecord
+	var createdAt string
+	err := s.Scan(&r.ID, &r.ScenarioID, &r.Model, &r.Provider, &r.Adapter, &r.Passed,
+		&r.Duration, &r.ExitCode, &r.Turns, &r.MemoryWindow,
+		&r.PromptTokens, &r.CompletionTokens, &r.EstimatedCost,
+		&r.ChecksPassed, &r.ChecksTotal, &r.ChecksJSON, &r.MetadataJSON,
+		&r.ArtifactDir, &createdAt)
+	if err != nil {
+		return r, err
+	}
+	r.CreatedAt = parseTime(createdAt)
+	return r, nil
+}
+
+func scanRunRecordRow(row *sql.Row) (RunRecord, error) {
+	var r RunRecord
+	var createdAt string
+	err := row.Scan(&r.ID, &r.ScenarioID, &r.Model, &r.Provider, &r.Adapter, &r.Passed,
+		&r.Duration, &r.ExitCode, &r.Turns, &r.MemoryWindow,
+		&r.PromptTokens, &r.CompletionTokens, &r.EstimatedCost,
+		&r.ChecksPassed, &r.ChecksTotal, &r.ChecksJSON, &r.MetadataJSON,
+		&r.ArtifactDir, &createdAt)
+	if err != nil {
+		return r, err
+	}
+	r.CreatedAt = parseTime(createdAt)
+	return r, nil
+}
+
+// parseTime tries common SQLite time formats.
+func parseTime(s string) time.Time {
+	for _, layout := range []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02T15:04:05",
+		"2006-01-02 15:04:05",
+		"2006-01-02T15:04:05Z07:00",
+		"2006-01-02 15:04:05-07:00",
+		"2006-01-02 15:04:05.999999999-07:00",
+	} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
 }
 
 // CompareRuns loads two runs and computes check diffs.
