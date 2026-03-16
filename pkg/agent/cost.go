@@ -79,6 +79,10 @@ var pricingTable = map[string]ModelPricing{
 	"anthropic/claude-opus-4":     {InputPerMillion: 15.0, OutputPerMillion: 75.0},
 
 	// OpenAI
+	"gpt-5.2":            {InputPerMillion: 2.0, OutputPerMillion: 8.0},
+	"gpt-5.2-pro":        {InputPerMillion: 10.0, OutputPerMillion: 40.0},
+	"gpt-5":              {InputPerMillion: 2.0, OutputPerMillion: 8.0},
+	"gpt-5-mini":         {InputPerMillion: 0.30, OutputPerMillion: 1.20},
 	"gpt-4.1":            {InputPerMillion: 2.0, OutputPerMillion: 8.0},
 	"gpt-4.1-mini":       {InputPerMillion: 0.40, OutputPerMillion: 1.60},
 	"gpt-4.1-nano":       {InputPerMillion: 0.10, OutputPerMillion: 0.40},

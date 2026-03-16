@@ -144,7 +144,12 @@ func buildOpenAIPayload(req ChatRequest) map[string]any {
 		"temperature": req.Temperature,
 	}
 	if req.MaxTokens > 0 {
-		payload["max_tokens"] = req.MaxTokens
+		// GPT-5+ models use max_completion_tokens instead of max_tokens.
+		if strings.HasPrefix(req.Model, "gpt-5") || strings.HasPrefix(req.Model, "o3") || strings.HasPrefix(req.Model, "o4") {
+			payload["max_completion_tokens"] = req.MaxTokens
+		} else {
+			payload["max_tokens"] = req.MaxTokens
+		}
 	}
 
 	if len(req.Tools) > 0 {
