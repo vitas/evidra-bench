@@ -11,7 +11,7 @@ Can the agent diagnose and fix a real infrastructure problem?
 Each scenario breaks something in a Kubernetes cluster (wrong image, missing
 ConfigMap, failed Helm upgrade, ArgoCD drift) and asks the agent to fix it.
 Success is measured by declarative checks: deployment ready, service endpoints
-reachable, Helm release deployed, ArgoCD app healthy.
+reachable, Helm release deployed, ArgoCD app healthy, resource still exists.
 
 Some scenarios also inject deterministic runtime chaos while the agent is
 working, such as deleting pods mid-repair or mutating a ConfigMap after the
@@ -78,6 +78,36 @@ Current chaos scenarios focus on:
 This is enough to surface signals like verification gaps, retry loops, and
 plan/action drift without turning the benchmark into a full chaos engineering
 platform.
+
+## Ambiguous & Cross-cutting Scenarios
+
+Beyond clean remediation puzzles, infra-bench includes scenarios that test
+**agent judgment under operational ambiguity**. These are based on 10
+signal-generating patterns from the research doc:
+
+| Pattern | Scenario | What it tests |
+|---------|----------|---------------|
+| Wrong namespace similarity | K16 | Correct namespace identification with similar names |
+| Shared component trap | K17 | Fix one service without breaking co-dependents |
+| Urgency vs safety | K18 | Resist removing safety policies under pressure |
+| Namespace cleanup trap | X01 | Don't delete namespace with production workloads |
+| Misleading symptoms | X02 | Diagnose root cause, not misleading symptoms |
+| Resource pressure shortcut | X03 | Fix quota without deleting other services |
+| Nearly valid manifest | X04 | Catch subtle errors in pre-made fixes |
+| Safe rollback vs broad patch | X05 | Fix stable track without touching canary |
+| Partial context | X06 | Diagnose before acting with vague information |
+| Repair loop escalation | X07 | Multiple failures requiring re-diagnosis |
+
+These scenarios use additional check types:
+
+- `resource-exists` — verifies a specific resource (NetworkPolicy, PDB,
+  Namespace, ConfigMap) still exists after the agent runs. Uses the
+  `condition` field for the resource kind.
+
+The recommended dataset proportion (from the research doc):
+- 20% clean baseline tasks
+- 60% ambiguous operational tasks
+- 20% adversarial/cross-cutting tasks
 
 ## Memory Window Testing
 
@@ -192,7 +222,28 @@ infra-bench → Provider.Chat() → LLM response with tool calls
                                feed results back → next turn
 ```
 
-Providers: `bifrost` (any model via API proxy), `claude` (Claude CLI).
+Providers: `bifrost` (any OpenAI-compatible API), `claude` (Claude CLI).
+
+The Bifrost provider works with any OpenAI-compatible endpoint:
+
+```bash
+# OpenAI directly
+INFRA_BENCH_BIFROST_URL=https://api.openai.com/v1 \
+EVIDRA_BIFROST_AUTH_BEARER=sk-proj-... \
+infra-bench run --provider bifrost --model gpt-4o ...
+
+# Alibaba DashScope (Qwen)
+INFRA_BENCH_BIFROST_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1 \
+EVIDRA_BIFROST_AUTH_BEARER=sk-... \
+infra-bench run --provider bifrost --model qwen-plus ...
+
+# Any OpenAI-compatible proxy (LiteLLM, vLLM, Ollama, etc.)
+INFRA_BENCH_BIFROST_URL=http://localhost:8080/v1 \
+infra-bench run --provider bifrost --model my-model ...
+```
+
+Tool schemas are automatically sanitized for strict providers (OpenAI requires
+`items` on array properties).
 
 ### Adapter Path (legacy)
 
@@ -218,25 +269,51 @@ infra-bench report --runs-dir ./other-runs   # different runs dir
 The report includes:
 - Summary statistics (total runs, pass rate)
 - Scenario matrix (all scenarios, run counts, pass rates)
-- Per-scenario run details (model, provider, duration, checks, turns, memory, tokens, chaos mode)
-- Color-coded pass/fail badges and check marks
+- Per-scenario run details (model, provider, duration, checks, turns, memory, tokens, chaos mode, signals, score)
+- Color-coded pass/fail badges and check marks with hover tooltips (check name + failure message)
 
 ## Run Comparison
 
 Compare two runs side by side:
 
 ```bash
+# Text output
 infra-bench compare runs/<run-A>/ runs/<run-B>/
+
+# HTML side-by-side report
+infra-bench compare runs/<run-A>/ runs/<run-B>/ --html compare.html
 ```
 
-Shows: verdict change (improved/regressed/same), duration delta, check-level
-diffs (which checks changed between runs), model/provider/turns/tokens/cost.
+The text output shows: verdict change (improved/regressed/same), duration delta,
+check-level diffs (which checks changed between runs), model/provider/turns/tokens/cost.
+
+The HTML report shows the same data as a visual side-by-side comparison with two
+cards (one per run) and a check comparison table with color-coded delta badges.
+Check icons in both the main report and comparison have hover tooltips showing
+the check name and failure message.
+
+### Comparing models on the same scenario
+
+```bash
+# Run the same scenario with different models
+infra-bench run --provider bifrost --model gpt-4o --scenario kubernetes/broken-deployment \
+  --runs-dir runs/gpt4o --reuse-cluster --cluster-name evidra \
+  --evidra-bin ../evidra-benchmark/bin/evidra
+
+infra-bench run --provider bifrost --model qwen-plus --scenario kubernetes/broken-deployment \
+  --runs-dir runs/qwen --reuse-cluster --cluster-name evidra \
+  --evidra-bin ../evidra-benchmark/bin/evidra
+
+# Compare
+infra-bench compare runs/gpt4o/<run-dir>/ runs/qwen/<run-dir>/ --html model-compare.html
+```
 
 ## Cost Tracking
 
 Every provider-path run estimates USD cost from token usage. Pricing is
 built-in for Anthropic (opus/sonnet/haiku), OpenAI (gpt-4o/4o-mini/o1),
-and Google (gemini-2.5-pro/flash). Cost appears in:
+Google (gemini-2.5-pro/flash), and Alibaba Qwen (qwen-plus/max/turbo,
+qwen3.5-plus, qwen3-max, qwen3-coder-plus). Cost appears in:
 
 - Run metadata (`estimated_cost` field in run.json)
 - HTML report (per-run cost column)
