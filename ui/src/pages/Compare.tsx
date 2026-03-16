@@ -422,16 +422,21 @@ function RunDiff() {
                   {statRow("Model", diff.run_a.model, diff.run_b.model)}
                   {statRow(
                     "Duration",
-                    formatDuration(diff.run_a.duration),
-                    formatDuration(diff.run_b.duration),
+                    formatDuration(diff.run_a.duration_seconds * 1000),
+                    formatDuration(diff.run_b.duration_seconds * 1000),
                     false,
                   )}
                   {statRow("Turns", diff.run_a.turns, diff.run_b.turns, false)}
-                  {statRow("Tokens", diff.run_a.tokens, diff.run_b.tokens, false)}
+                  {statRow(
+                    "Tokens",
+                    diff.run_a.prompt_tokens + diff.run_a.completion_tokens,
+                    diff.run_b.prompt_tokens + diff.run_b.completion_tokens,
+                    false,
+                  )}
                   {statRow(
                     "Cost",
-                    formatCost(diff.run_a.cost),
-                    formatCost(diff.run_b.cost),
+                    formatCost(diff.run_a.estimated_cost_usd),
+                    formatCost(diff.run_b.estimated_cost_usd),
                     false,
                   )}
                   {statRow(
