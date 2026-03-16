@@ -4,7 +4,12 @@ metadata:
   name: shared-config
   namespace: bench
 data:
-  DATABASE_HOST: "postgres.bench.svc.cluster.local"
-  LOG_LEVEL: "info"
-  WEB_PORT: "INVALID_PORT"
-  API_PORT: "9090"
+  nginx.conf: |
+    server {
+        listen INVALID_PORT;
+        server_name localhost;
+        location / {
+            return 200 'ok\n';
+            add_header Content-Type text/plain;
+        }
+    }
