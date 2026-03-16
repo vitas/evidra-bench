@@ -3,6 +3,7 @@ package report
 import (
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"os"
 	"path/filepath"
 	"strings"
@@ -213,6 +214,24 @@ func diffChecks(a, b []CheckSummary) []CheckDiff {
 	return diffs
 }
 
+// GenerateCompareHTML writes a side-by-side HTML comparison report.
+func GenerateCompareHTML(cr *CompareResult, outputPath string) error {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+		return fmt.Errorf("compare html: mkdir: %w", err)
+	}
+	f, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("compare html: create: %w", err)
+	}
+	defer f.Close()
+
+	tmpl, err := template.New("compare").Parse(compareHTMLTemplate)
+	if err != nil {
+		return fmt.Errorf("compare html: parse: %w", err)
+	}
+	return tmpl.Execute(f, cr)
+}
+
 func fmtVerdict(passed bool) string {
 	if passed {
 		return "PASS"
@@ -229,3 +248,93 @@ func parseTokens(tokens string, idx int) int {
 	fmt.Sscanf(parts[idx], "%d", &n)
 	return n
 }
+
+const compareHTMLTemplate = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>infra-bench Compare</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; background: #0d1117; color: #c9d1d9; padding: 2rem; }
+  h1 { color: #58a6ff; margin-bottom: 0.5rem; }
+  h2 { color: #8b949e; margin: 2rem 0 1rem; border-bottom: 1px solid #21262d; padding-bottom: 0.5rem; }
+  .meta { color: #8b949e; font-size: 0.9rem; margin-bottom: 2rem; }
+  .pass { color: #3fb950; }
+  .fail { color: #f85149; }
+  .improved { color: #3fb950; }
+  .regressed { color: #f85149; }
+  .same { color: #8b949e; }
+  .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 3px; font-size: 0.8rem; font-weight: 600; }
+  .badge-pass { background: #238636; color: #fff; }
+  .badge-fail { background: #da3633; color: #fff; }
+  .badge-improved { background: #238636; color: #fff; }
+  .badge-regressed { background: #da3633; color: #fff; }
+  .badge-same { background: #21262d; color: #8b949e; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1.5rem 0; }
+  .card { background: #161b22; border: 1px solid #21262d; border-radius: 8px; padding: 1.25rem; }
+  .card h3 { color: #58a6ff; margin-bottom: 1rem; font-size: 0.95rem; }
+  .row { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #21262d; font-size: 0.9rem; }
+  .row:last-child { border-bottom: none; }
+  .row .label { color: #8b949e; }
+  .row .value { font-weight: 600; }
+  .delta-bar { text-align: center; margin: 1.5rem 0; }
+  .delta-bar .arrow { font-size: 2rem; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+  th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #21262d; font-size: 0.9rem; }
+  th { color: #8b949e; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
+  .check-pass { color: #3fb950; }
+  .check-fail { color: #f85149; }
+  .check-icon { cursor: help; padding: 0 2px; }
+</style>
+</head>
+<body>
+<h1>infra-bench Compare</h1>
+<div class="meta">{{.RunA.ScenarioID}} &mdash; <span class="badge badge-{{.VerdictDelta}}">{{.VerdictDelta}}</span></div>
+
+<div class="grid">
+  <div class="card">
+    <h3>Run A &mdash; {{if .RunA.Passed}}<span class="pass">PASS</span>{{else}}<span class="fail">FAIL</span>{{end}}</h3>
+    <div class="row"><span class="label">Dir</span><span class="value">{{.RunA.Dir}}</span></div>
+    <div class="row"><span class="label">Model</span><span class="value">{{.RunA.Model}}</span></div>
+    <div class="row"><span class="label">Provider</span><span class="value">{{.RunA.Provider}}</span></div>
+    <div class="row"><span class="label">Duration</span><span class="value">{{.RunA.Duration}}</span></div>
+    <div class="row"><span class="label">Turns</span><span class="value">{{.RunA.Turns}}</span></div>
+    <div class="row"><span class="label">Memory</span><span class="value">{{.RunA.Memory}}</span></div>
+    <div class="row"><span class="label">Tokens</span><span class="value">{{.RunA.Tokens}}</span></div>
+    <div class="row"><span class="label">Cost</span><span class="value">{{.RunA.Cost}}</span></div>
+  </div>
+  <div class="card">
+    <h3>Run B &mdash; {{if .RunB.Passed}}<span class="pass">PASS</span>{{else}}<span class="fail">FAIL</span>{{end}}</h3>
+    <div class="row"><span class="label">Dir</span><span class="value">{{.RunB.Dir}}</span></div>
+    <div class="row"><span class="label">Model</span><span class="value">{{.RunB.Model}}</span></div>
+    <div class="row"><span class="label">Provider</span><span class="value">{{.RunB.Provider}}</span></div>
+    <div class="row"><span class="label">Duration</span><span class="value">{{.RunB.Duration}}</span></div>
+    <div class="row"><span class="label">Turns</span><span class="value">{{.RunB.Turns}}</span></div>
+    <div class="row"><span class="label">Memory</span><span class="value">{{.RunB.Memory}}</span></div>
+    <div class="row"><span class="label">Tokens</span><span class="value">{{.RunB.Tokens}}</span></div>
+    <div class="row"><span class="label">Cost</span><span class="value">{{.RunB.Cost}}</span></div>
+  </div>
+</div>
+
+<h2>Check Comparison</h2>
+<table>
+<tr>
+  <th>Check</th>
+  <th>Run A</th>
+  <th>Run B</th>
+  <th>Delta</th>
+</tr>
+{{range .CheckDiffs}}
+<tr>
+  <td>{{.Name}}</td>
+  <td>{{if .VerdictA}}<span class="check-icon {{if eq .VerdictA "pass"}}check-pass{{else}}check-fail{{end}}">{{if eq .VerdictA "pass"}}&#10003;{{else}}&#10007;{{end}} {{.VerdictA}}</span>{{else}}&mdash;{{end}}</td>
+  <td>{{if .VerdictB}}<span class="check-icon {{if eq .VerdictB "pass"}}check-pass{{else}}check-fail{{end}}">{{if eq .VerdictB "pass"}}&#10003;{{else}}&#10007;{{end}} {{.VerdictB}}</span>{{else}}&mdash;{{end}}</td>
+  <td><span class="badge badge-{{.Change}}">{{.Change}}</span></td>
+</tr>
+{{end}}
+</table>
+
+</body>
+</html>`

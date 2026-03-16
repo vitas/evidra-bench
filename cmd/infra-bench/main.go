@@ -163,6 +163,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	reportCmd.Flags().StringVar(&cfg.ScenariosDir, "scenarios-dir", cfg.ScenariosDir, "base directory for scenarios")
 	reportCmd.Flags().StringVar(&cfg.RunsDir, "runs-dir", cfg.RunsDir, "runs directory to scan")
 
+	var compareHTML string
 	compareCmd := &cobra.Command{
 		Use:   "compare <run-dir-A> <run-dir-B>",
 		Short: "Compare two run artifacts side by side",
@@ -173,9 +174,16 @@ with optional Evidra reporting for behavioral analysis.`,
 				return err
 			}
 			fmt.Fprint(cmd.OutOrStdout(), report.FormatComparison(result))
+			if compareHTML != "" {
+				if err := report.GenerateCompareHTML(result, compareHTML); err != nil {
+					return err
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "\nHTML report: %s\n", compareHTML)
+			}
 			return nil
 		},
 	}
+	compareCmd.Flags().StringVar(&compareHTML, "html", "", "output HTML comparison report to file")
 
 	dbCmd := &cobra.Command{
 		Use:   "db",
