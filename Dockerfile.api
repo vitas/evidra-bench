@@ -14,18 +14,29 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=ui-builder /ui/dist ./ui/dist
-ARG VERSION=dev
-ARG COMMIT=unknown
+
+# Build both binaries
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -tags embed_ui \
     -ldflags="-s -w" \
     -o /bench-api ./cmd/bench-api
 
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-s -w" \
+    -o /infra-bench ./cmd/infra-bench
+
+# ── Data stage: rebuild DB from committed JSONL ──
+FROM builder AS data-builder
+RUN mkdir -p /data/runs
+COPY runs/results.jsonl /data/runs/results.jsonl
+RUN /infra-bench db rebuild --runs-dir /data/runs
+
 # ── Runtime stage (all-in-one demo) ──
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /bench-api /usr/local/bin/bench-api
-COPY runs/ /data/runs/
+COPY --from=data-builder /data/runs/bench.db /data/runs/bench.db
+COPY --from=data-builder /data/runs/results.jsonl /data/runs/results.jsonl
 COPY scenarios/ /data/scenarios/
 
 ENV RUNS_DIR=/data/runs

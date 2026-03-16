@@ -75,11 +75,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Import run data into DB
-        run: |
-          go build -o bin/infra-bench ./cmd/infra-bench
-          bin/infra-bench db import --runs-dir runs
-
       - name: Build image
         uses: docker/build-push-action@v6
         with:
