@@ -9,18 +9,22 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
 
 // BifrostProvider talks to any LLM via an OpenAI-compatible API proxy.
 type BifrostProvider struct {
-	BaseURL    string
-	HTTPClient *http.Client
-	Retry      RetryConfig
+	BaseURL     string
+	HTTPClient  *http.Client
+	Retry       RetryConfig
+	minInterval time.Duration // minimum delay between requests (anti-throttle)
+	lastRequest time.Time
 }
 
 // NewBifrostProvider creates a BifrostProvider from environment variables.
+// Set INFRA_BENCH_BIFROST_RPM to throttle requests (e.g. "10" for 10 req/min).
 func NewBifrostProvider() *BifrostProvider {
 	baseURL := os.Getenv("INFRA_BENCH_BIFROST_URL")
 	if baseURL == "" {
@@ -29,10 +33,20 @@ func NewBifrostProvider() *BifrostProvider {
 	if baseURL == "" {
 		baseURL = "http://localhost:8080/openai"
 	}
+
+	var minInterval time.Duration
+	if rpmStr := os.Getenv("INFRA_BENCH_BIFROST_RPM"); rpmStr != "" {
+		if rpm, err := strconv.Atoi(rpmStr); err == nil && rpm > 0 {
+			minInterval = time.Minute / time.Duration(rpm)
+			log.Printf("[bifrost] throttle: %d RPM (min interval %s)", rpm, minInterval)
+		}
+	}
+
 	return &BifrostProvider{
-		BaseURL:    strings.TrimRight(baseURL, "/"),
-		HTTPClient: &http.Client{Timeout: 5 * time.Minute},
-		Retry:      DefaultRetryConfig(),
+		BaseURL:     strings.TrimRight(baseURL, "/"),
+		HTTPClient:  &http.Client{Timeout: 5 * time.Minute},
+		Retry:       DefaultRetryConfig(),
+		minInterval: minInterval,
 	}
 }
 
@@ -40,6 +54,18 @@ func (p *BifrostProvider) Name() string { return "bifrost" }
 
 // Chat sends a chat completion request to the Bifrost proxy with adaptive retry.
 func (p *BifrostProvider) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	// Anti-throttle: wait if needed to respect RPM limit.
+	if p.minInterval > 0 && !p.lastRequest.IsZero() {
+		elapsed := time.Since(p.lastRequest)
+		if wait := p.minInterval - elapsed; wait > 0 {
+			log.Printf("[bifrost] throttle: waiting %s", wait.Round(time.Millisecond))
+			if err := SleepWithContext(ctx, wait); err != nil {
+				return nil, err
+			}
+		}
+	}
+	p.lastRequest = time.Now()
+
 	payload := buildOpenAIPayload(req)
 	body, err := json.Marshal(payload)
 	if err != nil {
