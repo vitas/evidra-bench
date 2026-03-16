@@ -88,4 +88,12 @@ var pricingTable = map[string]ModelPricing{
 	// Google
 	"google/gemini-2.5-pro":   {InputPerMillion: 1.25, OutputPerMillion: 10.0},
 	"google/gemini-2.5-flash": {InputPerMillion: 0.15, OutputPerMillion: 0.60},
+
+	// Alibaba Qwen (DashScope international pricing)
+	"qwen-plus":        {InputPerMillion: 0.80, OutputPerMillion: 2.0},
+	"qwen-max":         {InputPerMillion: 1.60, OutputPerMillion: 6.40},
+	"qwen-turbo":       {InputPerMillion: 0.30, OutputPerMillion: 0.60},
+	"qwen3.5-plus":     {InputPerMillion: 0.80, OutputPerMillion: 2.0},
+	"qwen3-max":        {InputPerMillion: 1.60, OutputPerMillion: 6.40},
+	"qwen3-coder-plus": {InputPerMillion: 2.0, OutputPerMillion: 8.0},
 }
