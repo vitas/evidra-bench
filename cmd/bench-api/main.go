@@ -3,11 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 
+	evidrastand "samebits.com/evidra-infra-bench"
 	"samebits.com/evidra-infra-bench/internal/api"
 	"samebits.com/evidra-infra-bench/internal/executor"
 	"samebits.com/evidra-infra-bench/pkg/store"
@@ -17,7 +19,14 @@ func main() {
 	listenAddr := flag.String("listen", envOr("LISTEN_ADDR", ":8080"), "listen address")
 	runsDir := flag.String("runs-dir", envOr("RUNS_DIR", "runs"), "runs directory (shared with CLI)")
 	scenariosDir := flag.String("scenarios-dir", envOr("SCENARIOS_DIR", "scenarios"), "scenarios directory")
+	readonly := flag.Bool("readonly", envOr("READONLY", "") != "", "disable execute endpoints (demo mode)")
+	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println("bench-api dev")
+		os.Exit(0)
+	}
 
 	absRunsDir, err := filepath.Abs(*runsDir)
 	if err != nil {
@@ -34,16 +43,61 @@ func main() {
 	}
 	defer s.Close()
 
-	exec := executor.New(s, absScenariosDir, absRunsDir)
+	var exec *executor.Executor
+	if !*readonly {
+		exec = executor.New(s, absScenariosDir, absRunsDir)
+	}
+
 	srv := api.NewServer(s, exec, absScenariosDir)
+	handler := srv.Handler()
+
+	// Serve embedded UI if available (built with -tags embed_ui).
+	if evidrastand.UIDistFS != nil {
+		handler = withUI(evidrastand.UIDistFS, handler)
+		fmt.Println("  ui:        embedded")
+	}
+
+	mode := "read-write"
+	if *readonly {
+		mode = "read-only (demo)"
+	}
 
 	fmt.Printf("bench-api listening on %s\n", *listenAddr)
 	fmt.Printf("  runs:      %s\n", absRunsDir)
 	fmt.Printf("  scenarios: %s\n", absScenariosDir)
+	fmt.Printf("  mode:      %s\n", mode)
 
-	if err := http.ListenAndServe(*listenAddr, srv.Handler()); err != nil {
+	if err := http.ListenAndServe(*listenAddr, handler); err != nil {
 		log.Fatalf("server: %v", err)
 	}
+}
+
+// withUI wraps the API handler to serve the embedded UI for non-API paths.
+// API paths (/v1/*, /healthz) pass through to the API handler.
+// Everything else serves the SPA (index.html for client-side routing).
+func withUI(uiFS fs.FS, apiHandler http.Handler) http.Handler {
+	fileServer := http.FileServerFS(uiFS)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+
+		// API routes pass through.
+		if len(path) >= 3 && path[:3] == "/v1" || path == "/healthz" {
+			apiHandler.ServeHTTP(w, r)
+			return
+		}
+
+		// Try to serve static file.
+		if f, err := uiFS.Open(path[1:]); err == nil {
+			f.Close()
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+
+		// SPA fallback: serve index.html for client-side routing.
+		r.URL.Path = "/"
+		fileServer.ServeHTTP(w, r)
+	})
 }
 
 func envOr(key, fallback string) string {

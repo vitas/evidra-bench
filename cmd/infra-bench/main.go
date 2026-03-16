@@ -273,7 +273,25 @@ with optional Evidra reporting for behavioral analysis.`,
 		},
 	}
 
-	dbCmd.AddCommand(dbStatsCmd, dbQueryCmd, dbRebuildCmd)
+	dbImportCmd := &cobra.Command{
+		Use:   "import",
+		Short: "Import run.json artifacts into the database",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := store.Open(cfg.RunsDir)
+			if err != nil {
+				return err
+			}
+			defer s.Close()
+			count, err := s.ImportFromArtifacts(cfg.RunsDir)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Imported %d records from run artifacts\n", count)
+			return nil
+		},
+	}
+
+	dbCmd.AddCommand(dbStatsCmd, dbQueryCmd, dbRebuildCmd, dbImportCmd)
 	dbCmd.PersistentFlags().StringVar(&cfg.RunsDir, "runs-dir", cfg.RunsDir, "runs directory")
 
 	skillDeltaCmd := &cobra.Command{

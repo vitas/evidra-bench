@@ -5,10 +5,8 @@ services:
       dockerfile: Dockerfile.api
     ports:
       - "8080:8080"
-    volumes:
-      - ./runs:/data/runs
-      - ./scenarios:/data/scenarios
     environment:
       - RUNS_DIR=/data/runs
       - SCENARIOS_DIR=/data/scenarios
       - LISTEN_ADDR=:8080
+      - READONLY=1
