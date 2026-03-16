@@ -22,7 +22,7 @@ db-import: build
 	bin/$(BINARY) db import --runs-dir runs
 
 docker:
-	docker build -f Dockerfile.api -t bench-api:local .
+	docker build -f Dockerfile.api --build-context parent=../evidra-benchmark -t bench-api:local .
 
 test:
 	go test ./... -v -count=1

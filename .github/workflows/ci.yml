@@ -12,14 +12,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          path: evidra-stand
+
+      - name: Checkout parent (evidra-benchmark)
+        uses: actions/checkout@v6
+        with:
+          repository: vitas/evidra-benchmark
+          path: evidra-benchmark
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version-file: go.mod
+          go-version-file: evidra-stand/go.mod
           cache: true
 
       - name: Check formatting
+        working-directory: evidra-stand
         run: |
           files=$(gofmt -l .)
           if [ -n "$files" ]; then
@@ -29,9 +39,11 @@ jobs:
           fi
 
       - name: Run tests
+        working-directory: evidra-stand
         run: go test ./... -count=1
 
       - name: Race detector
+        working-directory: evidra-stand
         run: go test -race ./... -count=1
 
   ui-build:

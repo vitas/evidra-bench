@@ -10,8 +10,18 @@ RUN npm run build
 FROM golang:1.25-alpine AS builder
 RUN apk add --no-cache git
 WORKDIR /src
+
+# Copy parent repo for replace directive (samebits.com/evidra => ../evidra-benchmark)
+# In CI: passed via --build-context parent=evidra-benchmark
+# Locally: passed via --build-context parent=../evidra-benchmark
+COPY --from=parent . /evidra-benchmark/
+
 COPY go.mod go.sum ./
+
+# Rewrite replace directive to match build layout
+RUN sed -i 's|=> ../evidra-benchmark|=> /evidra-benchmark|' go.mod
 RUN go mod download
+
 COPY . .
 COPY --from=ui-builder /ui/dist ./ui/dist
 
