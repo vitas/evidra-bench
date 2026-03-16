@@ -183,6 +183,31 @@ func validateRuntimeContract(s *Scenario) error {
 	}
 	knownDeploymentContainers := map[resourceRef]map[string]bool{}
 
+	// If any bootstrap step is a shell script, we can't statically analyze
+	// what resources it creates. Pre-register resources from checks so that
+	// later kubectl wait steps don't trigger false "unknown resource" errors.
+	hasShellBootstrap := false
+	for _, step := range s.Bootstrap {
+		if step.Type == "shell" {
+			hasShellBootstrap = true
+			break
+		}
+	}
+	if hasShellBootstrap {
+		for _, c := range s.Checks {
+			ns := c.Namespace
+			if ns == "" {
+				ns = "bench"
+			}
+			switch c.Type {
+			case "deployment-ready":
+				known[resourceRef{kind: "Deployment", namespace: ns, name: c.Name}] = true
+			case "service-endpoints":
+				known[resourceRef{kind: "Service", namespace: ns, name: c.Name}] = true
+			}
+		}
+	}
+
 	for _, step := range s.Bootstrap {
 		if err := applyStepContract("bootstrap", step, known, knownDeploymentContainers); err != nil {
 			return err
@@ -265,6 +290,10 @@ func applyStepContract(phase string, step BootstrapStep, known map[resourceRef]b
 		if err := validateKubectlStep(step, known); err != nil {
 			return fmt.Errorf("%s step %q: %w", phase, step.Name, err)
 		}
+	case "shell":
+		// Shell script step — may create resources not statically analyzable.
+		// Mark all check-referenced resources as known to avoid false negatives.
+		return nil
 	case "sleep":
 		if step.Duration == "" {
 			return fmt.Errorf("%s step %q: sleep is missing duration", phase, step.Name)
@@ -336,6 +365,8 @@ func validateBreakContract(s *Scenario, known map[resourceRef]bool, knownDeploym
 		known[resourceRef{kind: "Service", namespace: ns, name: s.Break.Name}] = true
 	case "kubectl":
 		// Raw kubectl break — uses args, no fixture validation needed
+	case "shell":
+		// Shell script break — uses path + args, no fixture validation needed
 	default:
 		return fmt.Errorf("scenario %s: unsupported break type %q", s.ID, s.Break.Type)
 	}

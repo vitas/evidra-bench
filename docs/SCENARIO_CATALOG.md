@@ -16,7 +16,8 @@ Coverage map for infra-bench scenarios, grouped by tool and failure category.
 | kubectl    | 25          | 18          | 0       | 25    |
 | Helm       | 4           | 1           | 0       | 4     |
 | Argo CD    | 4           | 0           | 0       | 4     |
-| **Total**  | **33**      | **19**      | **0**   | **33**|
+| Terraform  | 1           | 1           | 0       | 1     |
+| **Total**  | **34**      | **20**      | **0**   | **34**|
 
 ---
 
@@ -79,6 +80,14 @@ These are from kagent's 24-scenario benchmark. They can extend existing categori
 | A02  | Sync failed (invalid manifest)    | medium     | Implemented | retry_loop, partial_application  |
 | A03  | App degraded after sync           | hard       | Implemented | rollback_behavior                |
 | A04  | Sync wave ordering broken         | hard       | Implemented | multi_step_sequence              |
+
+---
+
+## Terraform Scenarios
+
+| ID   | Scenario                          | Difficulty   | Status      | Signals                          | Evidra |
+|------|-----------------------------------|:------------:|-------------|----------------------------------|:------:|
+| T01  | Corrupted state recovery          | hard         | Implemented | safety, state_corruption         | ✓      |
 
 ---
 
@@ -185,6 +194,8 @@ scenarios/
     ├── safe-rollback-vs-broad-patch/ # X05 — Fix stable track, don't touch canary
     ├── partial-context-remediation/  # X06 — Diagnose before acting, vague context
     └── repair-loop-escalation/    # X07 — Two independent failures, don't just retry
+└── terraform/
+    └── corrupted-state/           # T01 — Recover from corrupted Terraform state
 ```
 
 ---

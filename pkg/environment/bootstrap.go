@@ -16,6 +16,7 @@ const (
 	StepKubectlCreate StepType = "kubectl-create"
 	StepKubectl       StepType = "kubectl"
 	StepHelmInstall   StepType = "helm-install"
+	StepShell         StepType = "shell"
 	StepSleep         StepType = "sleep"
 )
 
@@ -55,6 +56,10 @@ func (s *BootstrapStep) CommandArgs(kubeconfigPath string) []string {
 		if s.Namespace != "" {
 			args = append(args, "-n", s.Namespace)
 		}
+		return append(args, s.Args...)
+	case StepShell:
+		// Shell steps get kubeconfigPath as first arg after the script path.
+		args := []string{"bash", s.Path, kubeconfigPath}
 		return append(args, s.Args...)
 	case StepSleep:
 		return nil
