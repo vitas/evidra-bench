@@ -37,6 +37,25 @@ interface RunsResponse {
   total: number;
 }
 
+interface SignalCount {
+  total: number;
+  run_count: number;
+}
+
+interface SignalAggregation {
+  total_runs: number;
+  runs_with_scorecard: number;
+  signals: Record<string, SignalCount>;
+  avg_score: number;
+}
+
+const PRIMARY_SIGNALS = ["protocol_violation", "blast_radius", "retry_loop"] as const;
+const SECONDARY_SIGNALS = ["thrashing", "repair_loop", "artifact_drift", "risk_escalation", "new_scope"] as const;
+
+function signalLabel(id: string): string {
+  return id.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 /* ── Helpers ── */
 
 const PERIODS: { value: Period; label: string }[] = [
@@ -107,6 +126,7 @@ export function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentRuns, setRecentRuns] = useState<Run[]>([]);
   const [allRuns, setAllRuns] = useState<Run[]>([]);
+  const [signals, setSignals] = useState<SignalAggregation | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -121,18 +141,21 @@ export function Dashboard() {
       request<Stats>(`/v1/bench/stats${sinceParamFirst}`),
       request<RunsResponse>("/v1/bench/runs?limit=8"),
       request<RunsResponse>(`/v1/bench/runs?limit=500${sinceParam}`),
+      request<SignalAggregation>(`/v1/bench/signals${sinceParamFirst}`),
     ])
-      .then(([s, recent, all]) => {
+      .then(([s, recent, all, sig]) => {
         if (cancelled) return;
         setStats(s);
         setRecentRuns(recent.items ?? []);
         setAllRuns(all.items ?? []);
+        setSignals(sig);
       })
       .catch(() => {
         if (cancelled) return;
         setStats(null);
         setRecentRuns([]);
         setAllRuns([]);
+        setSignals(null);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -167,6 +190,11 @@ export function Dashboard() {
       ),
     [allRuns],
   );
+
+  const totalSignals = useMemo(() => {
+    if (!signals?.signals) return 0;
+    return Object.values(signals.signals).reduce((sum, s) => sum + s.total, 0);
+  }, [signals]);
 
   const modelPassRates = useMemo(() => {
     const map = new Map<string, { total: number; passed: number; cost: number }>();
@@ -309,10 +337,10 @@ export function Dashboard() {
               borderColor="border-l-warning"
             />
             <StatCard
-              label="Scenarios"
-              value={String(stats?.by_scenario?.length ?? 0)}
-              detail={`${stats?.by_scenario?.filter((s) => s.passed === s.runs).length ?? 0} at 100%`}
-              borderColor="border-l-fg-muted"
+              label="Signal Alerts"
+              value={String(totalSignals)}
+              detail={signals?.runs_with_scorecard ? `${signals.runs_with_scorecard} runs scored` : "no scorecards"}
+              borderColor={totalSignals > 0 ? "border-l-warning" : "border-l-fg-muted"}
             />
           </>
         )}
@@ -512,6 +540,86 @@ export function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Signal Overview */}
+      {signals && signals.runs_with_scorecard > 0 && (
+        <div>
+          <h2 className="text-[0.95rem] font-semibold text-fg mb-3">
+            Signal Overview
+            <span className="text-[0.72rem] text-fg-muted font-normal ml-2">
+              {signals.runs_with_scorecard} runs with scorecards
+            </span>
+          </h2>
+
+          {/* Primary signals — highlighted */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+            {PRIMARY_SIGNALS.map((id) => {
+              const s = signals.signals[id];
+              const count = s?.total ?? 0;
+              const runCount = s?.run_count ?? 0;
+              const detected = count > 0;
+              return (
+                <div
+                  key={id}
+                  className={`rounded-lg p-4 border ${
+                    detected
+                      ? "bg-warning-tint border-warning"
+                      : "bg-bg-elevated border-border-subtle"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-[0.9rem] ${detected ? "text-warning" : "text-fg-muted"}`}>
+                      {detected ? "\u26A0" : "\u2713"}
+                    </span>
+                    <span className="font-mono text-[0.72rem] uppercase tracking-wide font-semibold text-fg">
+                      {signalLabel(id)}
+                    </span>
+                  </div>
+                  <p className="font-mono text-[1.3rem] font-bold text-fg leading-tight">
+                    {count}
+                  </p>
+                  <p className="text-[0.7rem] text-fg-muted mt-0.5">
+                    {detected ? `in ${runCount} run${runCount !== 1 ? "s" : ""}` : "clear"}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Secondary signals */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            {SECONDARY_SIGNALS.map((id) => {
+              const s = signals.signals[id];
+              const count = s?.total ?? 0;
+              const runCount = s?.run_count ?? 0;
+              const detected = count > 0;
+              return (
+                <div
+                  key={id}
+                  className="bg-bg-elevated border border-border-subtle rounded-lg p-3"
+                >
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className={`text-[0.8rem] ${detected ? "text-warning" : "text-fg-muted"}`}>
+                      {detected ? "\u26A0" : "\u2713"}
+                    </span>
+                    <span className="font-mono text-[0.68rem] uppercase tracking-wide font-semibold text-fg-muted">
+                      {signalLabel(id)}
+                    </span>
+                  </div>
+                  <p className="font-mono text-[1.1rem] font-bold text-fg">
+                    {count}
+                  </p>
+                  {detected && (
+                    <p className="text-[0.65rem] text-fg-muted">
+                      {runCount} run{runCount !== 1 ? "s" : ""}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Bottom row: worst + best scenarios */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
