@@ -68,7 +68,9 @@ func ResolveProvider(name string) (Provider, error) {
 		return NewBifrostProvider(), nil
 	case "claude":
 		return NewClaudeProvider(), nil
+	case "anthropic":
+		return NewAnthropicProvider(), nil
 	default:
-		return nil, fmt.Errorf("agent.ResolveProvider: unknown provider %q (available: bifrost, claude)", name)
+		return nil, fmt.Errorf("agent.ResolveProvider: unknown provider %q (available: bifrost, claude, anthropic)", name)
 	}
 }

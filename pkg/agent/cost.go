@@ -79,11 +79,21 @@ var pricingTable = map[string]ModelPricing{
 	"anthropic/claude-opus-4":     {InputPerMillion: 15.0, OutputPerMillion: 75.0},
 
 	// OpenAI
+	"gpt-4.1":            {InputPerMillion: 2.0, OutputPerMillion: 8.0},
+	"gpt-4.1-mini":       {InputPerMillion: 0.40, OutputPerMillion: 1.60},
+	"gpt-4.1-nano":       {InputPerMillion: 0.10, OutputPerMillion: 0.40},
+	"gpt-4o":             {InputPerMillion: 2.5, OutputPerMillion: 10.0},
+	"gpt-4o-mini":        {InputPerMillion: 0.15, OutputPerMillion: 0.60},
 	"openai/gpt-4o":      {InputPerMillion: 2.5, OutputPerMillion: 10.0},
 	"openai/gpt-4o-mini": {InputPerMillion: 0.15, OutputPerMillion: 0.60},
 	"openai/gpt-4-turbo": {InputPerMillion: 10.0, OutputPerMillion: 30.0},
 	"openai/o1":          {InputPerMillion: 15.0, OutputPerMillion: 60.0},
 	"openai/o1-mini":     {InputPerMillion: 3.0, OutputPerMillion: 12.0},
+
+	// Anthropic (direct API)
+	"claude-sonnet-4-20250514": {InputPerMillion: 3.0, OutputPerMillion: 15.0},
+	"claude-opus-4-20250514":   {InputPerMillion: 15.0, OutputPerMillion: 75.0},
+	"claude-haiku-4-20250514":  {InputPerMillion: 0.80, OutputPerMillion: 4.0},
 
 	// Google
 	"google/gemini-2.5-pro":   {InputPerMillion: 1.25, OutputPerMillion: 10.0},
