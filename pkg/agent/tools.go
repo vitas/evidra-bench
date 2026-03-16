@@ -193,7 +193,28 @@ func mustEvidraToolDefinitions() (execcontract.ToolDefinition, execcontract.Tool
 	if err != nil {
 		panic(fmt.Sprintf("agent.BenchTools: load report tool definition: %v", err))
 	}
+	// Sanitize schemas for strict providers (OpenAI requires "items" on arrays).
+	sanitizeArrayItems(prescribeDef.Parameters)
+	sanitizeArrayItems(reportDef.Parameters)
 	return prescribeDef, reportDef
+}
+
+// sanitizeArrayItems walks a JSON Schema map and adds "items": {} to any
+// array-typed property that lacks it. OpenAI rejects tool schemas without items.
+func sanitizeArrayItems(schema map[string]any) {
+	typ, _ := schema["type"].(string)
+	if typ == "array" {
+		if _, ok := schema["items"]; !ok {
+			schema["items"] = map[string]any{}
+		}
+	}
+	if props, ok := schema["properties"].(map[string]any); ok {
+		for _, v := range props {
+			if sub, ok := v.(map[string]any); ok {
+				sanitizeArrayItems(sub)
+			}
+		}
+	}
 }
 
 func buildPrescribeCommandArgs(evidencePath, artifactPath string, input execcontract.PrescribeInput) ([]string, error) {

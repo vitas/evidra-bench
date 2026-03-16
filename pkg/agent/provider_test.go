@@ -104,6 +104,10 @@ func TestBenchTools_EvidraSchemasMatchParentContract(t *testing.T) {
 		t.Fatalf("ReportToolDefinition: %v", err)
 	}
 
+	// Sanitize parent schemas the same way BenchTools does (adds "items" to arrays for OpenAI compat).
+	sanitizeArrayItems(prescribeDef.Parameters)
+	sanitizeArrayItems(reportDef.Parameters)
+
 	if got := byName["evidra_prescribe"]; !reflect.DeepEqual(got.Parameters, prescribeDef.Parameters) {
 		t.Fatalf("evidra_prescribe parameters drifted from parent contract")
 	}
