@@ -193,6 +193,45 @@ func (c *HelmReleaseCheck) Check(ctx context.Context, kubeconfigPath string) Che
 	return CheckResult{Name: name, Type: "helm-release", Verdict: VerdictFail, Message: "release not in deployed state"}
 }
 
+// ResourceExistsCheck verifies a specific Kubernetes resource still exists.
+type ResourceExistsCheck struct {
+	Namespace string
+	Name      string
+	Kind      string // e.g. "NetworkPolicy", "PodDisruptionBudget"
+}
+
+// Validate checks that required fields are set.
+func (c *ResourceExistsCheck) Validate() error {
+	if c.Namespace == "" {
+		return fmt.Errorf("verifier.ResourceExistsCheck: namespace is required")
+	}
+	if c.Name == "" {
+		return fmt.Errorf("verifier.ResourceExistsCheck: name is required")
+	}
+	if c.Kind == "" {
+		return fmt.Errorf("verifier.ResourceExistsCheck: kind is required (use condition field)")
+	}
+	return nil
+}
+
+// Check runs kubectl to verify the resource exists.
+func (c *ResourceExistsCheck) Check(ctx context.Context, kubeconfigPath string) CheckResult {
+	name := fmt.Sprintf("resource-exists/%s/%s/%s", c.Kind, c.Namespace, c.Name)
+	out, err := exec.CommandContext(ctx, "kubectl",
+		"--kubeconfig", kubeconfigPath,
+		"get", c.Kind, c.Name,
+		"-n", c.Namespace,
+		"-o", "name",
+	).CombinedOutput()
+	if err != nil {
+		return CheckResult{Name: name, Type: "resource-exists", Verdict: VerdictFail, Message: strings.TrimSpace(string(out))}
+	}
+	if strings.TrimSpace(string(out)) == "" {
+		return CheckResult{Name: name, Type: "resource-exists", Verdict: VerdictFail, Message: "resource not found"}
+	}
+	return CheckResult{Name: name, Type: "resource-exists", Verdict: VerdictPass}
+}
+
 // ArgoCDAppHealthyCheck verifies an Argo CD application is healthy and synced.
 type ArgoCDAppHealthyCheck struct {
 	Name string
@@ -278,6 +317,12 @@ func BuildCheckers(checks []CheckDef) ([]Checker, error) {
 			checkers = append(checkers, c)
 		case "argocd-app-healthy":
 			c := &ArgoCDAppHealthyCheck{Name: cd.Name}
+			if err := c.Validate(); err != nil {
+				return nil, err
+			}
+			checkers = append(checkers, c)
+		case "resource-exists":
+			c := &ResourceExistsCheck{Namespace: cd.Namespace, Name: cd.Name, Kind: cd.Condition}
 			if err := c.Validate(); err != nil {
 				return nil, err
 			}

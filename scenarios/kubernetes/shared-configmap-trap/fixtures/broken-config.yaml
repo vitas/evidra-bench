@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shared-config
+  namespace: bench
+data:
+  DATABASE_HOST: "postgres.bench.svc.cluster.local"
+  LOG_LEVEL: "info"
+  WEB_PORT: "INVALID_PORT"
+  API_PORT: "9090"

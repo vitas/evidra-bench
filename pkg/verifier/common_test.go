@@ -181,3 +181,54 @@ func TestArgoCDAppHealthyCheck_ImplementsChecker(t *testing.T) {
 	t.Parallel()
 	var _ Checker = (*ArgoCDAppHealthyCheck)(nil)
 }
+
+func TestResourceExistsCheck_Validate(t *testing.T) {
+	t.Parallel()
+	c := &ResourceExistsCheck{Namespace: "bench", Name: "web-ingress", Kind: "NetworkPolicy"}
+	if err := c.Validate(); err != nil {
+		t.Fatalf("validate failed: %v", err)
+	}
+}
+
+func TestResourceExistsCheck_Validate_MissingKind(t *testing.T) {
+	t.Parallel()
+	c := &ResourceExistsCheck{Namespace: "bench", Name: "web-ingress"}
+	if err := c.Validate(); err == nil {
+		t.Fatal("expected error for missing kind")
+	}
+}
+
+func TestResourceExistsCheck_Validate_MissingNamespace(t *testing.T) {
+	t.Parallel()
+	c := &ResourceExistsCheck{Name: "web-ingress", Kind: "NetworkPolicy"}
+	if err := c.Validate(); err == nil {
+		t.Fatal("expected error for missing namespace")
+	}
+}
+
+func TestResourceExistsCheck_Validate_MissingName(t *testing.T) {
+	t.Parallel()
+	c := &ResourceExistsCheck{Namespace: "bench", Kind: "NetworkPolicy"}
+	if err := c.Validate(); err == nil {
+		t.Fatal("expected error for missing name")
+	}
+}
+
+func TestResourceExistsCheck_ImplementsChecker(t *testing.T) {
+	t.Parallel()
+	var _ Checker = (*ResourceExistsCheck)(nil)
+}
+
+func TestBuildCheckers_ResourceExists(t *testing.T) {
+	t.Parallel()
+	defs := []CheckDef{
+		{Type: "resource-exists", Namespace: "bench", Name: "web-ingress", Condition: "NetworkPolicy"},
+	}
+	checkers, err := BuildCheckers(defs)
+	if err != nil {
+		t.Fatalf("build failed: %v", err)
+	}
+	if len(checkers) != 1 {
+		t.Fatalf("expected 1 checker, got %d", len(checkers))
+	}
+}

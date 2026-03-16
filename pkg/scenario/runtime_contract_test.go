@@ -376,6 +376,11 @@ func validateChecks(s *Scenario, known map[resourceRef]bool) error {
 			if !known[ref] {
 				return fmt.Errorf("scenario %s: argocd-app-healthy check references unknown application %q", s.ID, check.Name)
 			}
+		case "resource-exists":
+			if check.Condition == "" {
+				return fmt.Errorf("scenario %s: resource-exists check requires condition (kind) field", s.ID)
+			}
+			// resource-exists checks verify a resource still exists; we trust the kind/name/namespace are valid
 		default:
 			return fmt.Errorf("scenario %s: unsupported check type %q", s.ID, check.Type)
 		}

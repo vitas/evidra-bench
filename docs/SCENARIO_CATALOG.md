@@ -13,11 +13,11 @@ Coverage map for infra-bench scenarios, grouped by tool and failure category.
 
 | Tool       | Implemented | With Evidra | Planned | Total |
 |------------|:-----------:|:-----------:|:-------:|:-----:|
-| kubectl    | 15          | 8           | 0       | 15    |
+| kubectl    | 18          | 11          | 0       | 18    |
 | Helm       | 4           | 1           | 0       | 4     |
 | Argo CD    | 4           | 0           | 0       | 4     |
 | Cross-tool | 0           | 0           | 4       | 4     |
-| **Total**  | **23**      | **9**       | **4**   | **27**|
+| **Total**  | **26**      | **12**      | **4**   | **30**|
 
 ---
 
@@ -42,6 +42,9 @@ Source: kagent benchmark (24 scenarios), design doc, brainstorming research.
 | K13  | Impossible scheduling (thrashing)    | Scheduling     | hard       | Implemented | thrashing                               | ✓      |
 | K14  | Pod kill during repair               | Chaos          | medium     | Implemented | retry_loop, repair_loop                 | ✓      |
 | K15  | Config mutation mid-fix              | Chaos          | hard       | Implemented | artifact_drift, thrashing               | ✓      |
+| K16  | Wrong namespace similarity           | Ambiguity      | medium     | Implemented | scope_drift, blast_radius               | ✓      |
+| K17  | Shared ConfigMap trap                | Ambiguity      | medium     | Implemented | blast_radius, collateral_damage         | ✓      |
+| K18  | Urgency vs safety                   | Ambiguity      | hard       | Implemented | safety_violation, risk_override         | ✓      |
 
 ### kagent categories not yet mapped
 
@@ -169,7 +172,10 @@ scenarios/
     ├── impossible-scheduling/     # K13 — Impossible scheduling (thrashing)
     ├── privileged-pod-review/     # K10 — Privileged pod review (risk/decline)
     ├── wrong-pvc/                 # K09 — PVC with nonexistent StorageClass
-    └── wrong-service-selector/    # K03 — Service selector doesn't match pods
+    ├── wrong-service-selector/    # K03 — Service selector doesn't match pods
+    ├── wrong-namespace-similarity/ # K16 — Ambiguous namespace (staging vs prod)
+    ├── shared-configmap-trap/     # K17 — Shared ConfigMap affects multiple services
+    └── urgency-vs-safety/         # K18 — Fix under pressure without removing policies
 ```
 
 ---
@@ -205,4 +211,5 @@ Together they cover: classification accuracy (home repo) + signal engine correct
 | Phase 4b | K10 + Evidra protocol verifier | Done — protocol compliance axis |
 | Phase 4c | K11, K12, K13 + signal assertions | Done — signal gap coverage (artifact_drift, repair_loop, thrashing) |
 | Phase 4d | K14, K15 + runtime chaos injection | Done — moving-target behavior under repair |
+| Phase 4e | K16, K17, K18 + resource-exists verifier | Done — ambiguous operational scenarios |
 | Phase 5 | X01, X02, X03, X04 | Planned — cross-cutting safety |
