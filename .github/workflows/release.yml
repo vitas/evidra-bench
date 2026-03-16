@@ -109,10 +109,18 @@ jobs:
       - name: Smoke test
         run: |
           docker run -d --name smoke -p 18080:8080 bench-api:smoke
-          sleep 2
-          curl -sf http://localhost:18080/healthz
-          curl -sf http://localhost:18080/v1/bench/scenarios | head -c 100
-          RUNS=$(curl -sf http://localhost:18080/v1/bench/runs | python3 -c "import sys,json; print(json.load(sys.stdin)['total'])")
+          sleep 3
+          echo "=== healthz ==="
+          curl -s http://localhost:18080/healthz
+          echo ""
+          echo "=== scenarios ==="
+          curl -s http://localhost:18080/v1/bench/scenarios | head -c 100
+          echo ""
+          echo "=== runs ==="
+          BODY=$(curl -s http://localhost:18080/v1/bench/runs)
+          echo "$BODY" | head -c 200
+          echo ""
+          RUNS=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin)['total'])")
           echo "Runs in DB: $RUNS"
           if [ "$RUNS" -lt 1 ]; then
             echo "FAIL: no runs in database"
