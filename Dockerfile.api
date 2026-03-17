@@ -25,14 +25,18 @@ RUN go mod download
 COPY . .
 COPY --from=ui-builder /ui/dist ./ui/dist
 
+# Inject version at build time
+ARG VERSION=dev
+ARG COMMIT=unknown
+
 # Build both binaries
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -tags embed_ui \
-    -ldflags="-s -w" \
+    -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
     -o /bench-api ./cmd/bench-api
 
 RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags="-s -w" \
+    -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
     -o /infra-bench ./cmd/infra-bench
 
 # ── Data stage: rebuild DB from committed JSONL ──

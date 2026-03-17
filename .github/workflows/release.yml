@@ -103,6 +103,9 @@ jobs:
           file: evidra-stand/Dockerfile.api
           build-contexts: |
             parent=evidra-benchmark
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
           load: true
           tags: bench-api:smoke
 
@@ -138,6 +141,9 @@ jobs:
           file: evidra-stand/Dockerfile.api
           build-contexts: |
             parent=evidra-benchmark
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
           push: true
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
