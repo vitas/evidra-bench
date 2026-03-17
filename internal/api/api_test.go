@@ -16,6 +16,7 @@ import (
 type mockStore struct {
 	runs      []store.RunRecord
 	scenarios []store.ScenarioSummary
+	lastStats store.RunFilters
 }
 
 func (m *mockStore) ListRuns(_ context.Context, f store.RunFilters) ([]store.RunRecord, int, error) {
@@ -75,7 +76,8 @@ func (m *mockStore) ModelMatrix(_ context.Context, models, scenarios []string) (
 	}, nil
 }
 
-func (m *mockStore) FilteredStats(_ context.Context, _ store.RunFilters) (*store.StatsResult, error) {
+func (m *mockStore) FilteredStats(_ context.Context, f store.RunFilters) (*store.StatsResult, error) {
+	m.lastStats = f
 	return &store.StatsResult{
 		TotalRuns: len(m.runs),
 		PassCount: len(m.runs),
@@ -275,6 +277,21 @@ func TestStats(t *testing.T) {
 	json.NewDecoder(w.Body).Decode(&st)
 	if st.TotalRuns != 2 {
 		t.Fatalf("expected 2 total, got %d", st.TotalRuns)
+	}
+}
+
+func TestStats_SinceFilter(t *testing.T) {
+	t.Parallel()
+	srv, ms := newTestServer()
+	req := httptest.NewRequest("GET", "/v1/bench/stats?since=2026-03-17T10:00:00Z", nil)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if ms.lastStats.Since != "2026-03-17T10:00:00Z" {
+		t.Fatalf("since filter = %q, want %q", ms.lastStats.Since, "2026-03-17T10:00:00Z")
 	}
 }
 

@@ -12,6 +12,7 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 		ScenarioID: q.Get("scenario"),
 		Model:      q.Get("model"),
 		Provider:   q.Get("provider"),
+		Since:      q.Get("since"),
 	}
 
 	st, err := s.store.FilteredStats(r.Context(), f)

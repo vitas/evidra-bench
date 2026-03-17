@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useApi } from "../hooks/useApi";
+import { resolveRunsLimit } from "../lib/benchmarkData.mts";
 
 /* ── Types ── */
 
@@ -141,13 +142,14 @@ export function Benchmarks() {
     const since = periodToSince(period);
     const sinceParam = since ? `since=${encodeURIComponent(since)}` : "";
 
-    Promise.all([
-      request<Stats>(`/v1/bench/stats${sinceParam ? `?${sinceParam}` : ""}`),
-      request<RunsResponse>(`/v1/bench/runs?limit=200${sinceParam ? `&${sinceParam}` : ""}`),
-    ])
-      .then(([s, r]) => {
+    request<Stats>(`/v1/bench/stats${sinceParam ? `?${sinceParam}` : ""}`)
+      .then(async (s) => {
         if (cancelled) return;
         setStats(s);
+        const runsLimit = resolveRunsLimit(s.total_runs);
+        const runsPath = `/v1/bench/runs?limit=${runsLimit}${sinceParam ? `&${sinceParam}` : ""}`;
+        const r = await request<RunsResponse>(runsPath);
+        if (cancelled) return;
         setRuns(r.items ?? []);
       })
       .catch(() => {

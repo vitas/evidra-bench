@@ -1,7 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
 import { useAppInfo } from "../hooks/useAppInfo";
+import {
+  DEFAULT_RUN_SELECTION,
+  RUN_PROVIDERS,
+  SCENARIO_CATEGORIES,
+  getModelsForProvider,
+  normalizeRunSelection,
+} from "../lib/runOptions.mts";
 
 interface Scenario {
   id: string;
@@ -44,10 +51,7 @@ interface JobStatus {
   error?: string;
 }
 
-const CATEGORIES = ["All", "kubectl", "helm", "argocd", "terraform"] as const;
 const FEATURES = ["All", "Chaos enabled", "Evidra enabled"] as const;
-const MODELS = ["sonnet", "haiku", "opus", "gpt-4.1", "gpt-4o", "gpt-5.2", "gemini-2.5-flash", "gemini-2.5-pro", "qwen-plus"] as const;
-const PROVIDERS = ["claude", "bifrost", "anthropic"] as const;
 type ViewMode = "cards" | "list";
 
 export function Scenarios() {
@@ -65,12 +69,14 @@ export function Scenarios() {
 
   // Run trigger state
   const [runModal, setRunModal] = useState<string | null>(null); // scenario id
-  const [runModel, setRunModel] = useState("sonnet");
-  const [runProvider, setRunProvider] = useState("claude");
+  const [runModel, setRunModel] = useState<string>(DEFAULT_RUN_SELECTION.model);
+  const [runProvider, setRunProvider] = useState<string>(DEFAULT_RUN_SELECTION.provider);
   const [runDryRun, setRunDryRun] = useState(false);
   const [runSubmitting, setRunSubmitting] = useState(false);
   const [runJob, setRunJob] = useState<JobStatus | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
+  const pollTimeoutRef = useRef<number | null>(null);
+  const pollTokenRef = useRef(0);
 
   useEffect(() => {
     Promise.all([
@@ -113,9 +119,23 @@ export function Scenarios() {
     return groups;
   }, [filtered]);
 
+  const runModels = useMemo(() => getModelsForProvider(runProvider), [runProvider]);
+
+  const cancelPolling = useCallback(() => {
+    pollTokenRef.current += 1;
+    if (pollTimeoutRef.current !== null) {
+      window.clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => cancelPolling(), [cancelPolling]);
+
   // Submit run
   const submitRun = useCallback(async () => {
     if (!runModal) return;
+    const selection = normalizeRunSelection(runProvider, runModel);
+    cancelPolling();
     setRunSubmitting(true);
     setRunError(null);
     setRunJob(null);
@@ -124,32 +144,60 @@ export function Scenarios() {
         method: "POST",
         body: JSON.stringify({
           scenario_id: runModal,
-          model: runModel,
-          provider: runProvider,
+          model: selection.model,
+          provider: selection.provider,
           dry_run: runDryRun,
         }),
       });
-      // Poll for status
       const jobId = res.job_id;
+      const pendingJob: JobStatus = {
+        id: jobId,
+        scenario_id: runModal,
+        model: selection.model,
+        provider: selection.provider,
+        status: "pending",
+        started_at: new Date().toISOString(),
+      };
+      setRunJob(pendingJob);
+      const pollToken = pollTokenRef.current + 1;
+      pollTokenRef.current = pollToken;
       const poll = async () => {
-        const status = await request<JobStatus>(`/v1/bench/execute/${jobId}/status`);
-        setRunJob(status);
-        if (status.status === "pending" || status.status === "running") {
-          setTimeout(poll, 2000);
+        try {
+          const status = await request<JobStatus>(`/v1/bench/execute/${jobId}/status`);
+          if (pollTokenRef.current !== pollToken) return;
+          setRunJob(status);
+          if (status.status === "pending" || status.status === "running") {
+            pollTimeoutRef.current = window.setTimeout(() => {
+              void poll();
+            }, 2000);
+            return;
+          }
+          pollTimeoutRef.current = null;
+        } catch (err) {
+          if (pollTokenRef.current !== pollToken) return;
+          const message = err instanceof Error ? err.message : String(err);
+          setRunJob((current) =>
+            current
+              ? { ...current, status: "failed", error: message }
+              : { ...pendingJob, status: "failed", error: message },
+          );
+          pollTimeoutRef.current = null;
         }
       };
-      poll();
+      void poll();
     } catch (err) {
       setRunError(err instanceof Error ? err.message : String(err));
     } finally {
       setRunSubmitting(false);
     }
-  }, [runModal, runModel, runProvider, runDryRun, request]);
+  }, [cancelPolling, runDryRun, runModal, runModel, runProvider, request]);
 
   const closeModal = () => {
+    cancelPolling();
     setRunModal(null);
     setRunJob(null);
     setRunError(null);
+    setRunSubmitting(false);
   };
 
   if (loading) {
@@ -174,7 +222,7 @@ export function Scenarios() {
       <div>
         <h1 className="text-xl font-bold text-fg">Scenarios</h1>
         <p className="text-[0.83rem] text-fg-muted mt-1">
-          {data?.total ?? 0} scenarios across kubectl, Helm, Argo CD, and Terraform
+          {data?.total ?? 0} scenarios across Kubernetes, Helm, Argo CD, and Terraform
         </p>
       </div>
 
@@ -193,7 +241,7 @@ export function Scenarios() {
           onChange={(e) => setCategory(e.target.value)}
           className="h-9 px-3 text-[0.83rem] text-fg bg-bg-elevated border border-border-subtle rounded-lg focus:outline-none focus:border-accent transition-colors cursor-pointer"
         >
-          {CATEGORIES.map((c) => (
+          {SCENARIO_CATEGORIES.map((c) => (
             <option key={c} value={c}>
               {c === "All" ? "All categories" : c}
             </option>
@@ -402,7 +450,7 @@ export function Scenarios() {
                       onChange={(e) => setRunModel(e.target.value)}
                       className="h-9 px-3 text-[0.83rem] text-fg bg-bg-alt border border-border-subtle rounded-lg cursor-pointer"
                     >
-                      {MODELS.map((m) => (
+                      {runModels.map((m) => (
                         <option key={m} value={m}>{m}</option>
                       ))}
                     </select>
@@ -414,10 +462,14 @@ export function Scenarios() {
                     </span>
                     <select
                       value={runProvider}
-                      onChange={(e) => setRunProvider(e.target.value)}
+                      onChange={(e) => {
+                        const selection = normalizeRunSelection(e.target.value, runModel);
+                        setRunProvider(selection.provider);
+                        setRunModel(selection.model);
+                      }}
                       className="h-9 px-3 text-[0.83rem] text-fg bg-bg-alt border border-border-subtle rounded-lg cursor-pointer"
                     >
-                      {PROVIDERS.map((p) => (
+                      {RUN_PROVIDERS.map((p) => (
                         <option key={p} value={p}>{p}</option>
                       ))}
                     </select>
