@@ -122,6 +122,10 @@ func (m *mockStore) SignalSummary(_ context.Context, _ store.RunFilters) (*store
 	}, nil
 }
 
+func (m *mockStore) Regressions(_ context.Context) ([]store.Regression, error) {
+	return []store.Regression{}, nil
+}
+
 type notFoundError struct{ id string }
 
 func (e *notFoundError) Error() string { return "not found: " + e.id }

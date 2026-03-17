@@ -7,6 +7,7 @@ const navItems = [
   { to: "/", label: "Dashboard" },
   { to: "/leaderboard", label: "Leaderboard" },
   { to: "/skill-impact", label: "Skill Impact" },
+  { to: "/regressions", label: "Regressions" },
   { to: "/runs", label: "Runs" },
   { to: "/scenarios", label: "Scenarios" },
   { to: "/compare", label: "Compare" },

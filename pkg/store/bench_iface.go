@@ -14,6 +14,20 @@ type BenchStore interface {
 	FilteredStats(ctx context.Context, f RunFilters) (*StatsResult, error)
 	ListScenarios(ctx context.Context) ([]ScenarioSummary, error)
 	SignalSummary(ctx context.Context, f RunFilters) (*SignalAggregation, error)
+	Regressions(ctx context.Context) ([]Regression, error)
+}
+
+// Regression describes a scenario/model pair where the latest run failed
+// but previous runs had a positive pass rate.
+type Regression struct {
+	ScenarioID   string  `json:"scenario_id"`
+	Model        string  `json:"model"`
+	LatestRunID  string  `json:"latest_run_id"`
+	LatestPassed bool    `json:"latest_passed"`
+	PrevPassed   int     `json:"prev_passed"`
+	PrevTotal    int     `json:"prev_total"`
+	PrevRate     float64 `json:"prev_rate"`
+	Severity     string  `json:"severity"` // critical, warning
 }
 
 // RunCatalog holds distinct metadata values used for UI filters.

@@ -452,6 +452,54 @@ func readScorecard(artifactDir string) (*scorecard, error) {
 	return &sc, nil
 }
 
+// Regressions finds scenario/model pairs where the latest run failed but
+// previous runs had passes — indicating a regression.
+func (s *Store) Regressions(ctx context.Context) ([]Regression, error) {
+	query := `
+		SELECT r.scenario_id, r.model, r.id,
+			(SELECT COUNT(*) FROM runs r2
+			 WHERE r2.scenario_id = r.scenario_id AND r2.model = r.model
+			   AND r2.passed = 1 AND r2.id != r.id) as prev_passed,
+			(SELECT COUNT(*) FROM runs r2
+			 WHERE r2.scenario_id = r.scenario_id AND r2.model = r.model
+			   AND r2.id != r.id) as prev_total
+		FROM runs r
+		WHERE r.passed = 0
+		  AND r.created_at = (
+		    SELECT MAX(r3.created_at) FROM runs r3
+		    WHERE r3.scenario_id = r.scenario_id AND r3.model = r.model
+		  )
+		  AND (SELECT COUNT(*) FROM runs r2
+		       WHERE r2.scenario_id = r.scenario_id AND r2.model = r.model
+		         AND r2.passed = 1 AND r2.id != r.id) > 0
+		ORDER BY prev_passed DESC`
+
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("store.Regressions: %w", err)
+	}
+	defer rows.Close()
+
+	var results []Regression
+	for rows.Next() {
+		var reg Regression
+		if err := rows.Scan(&reg.ScenarioID, &reg.Model, &reg.LatestRunID, &reg.PrevPassed, &reg.PrevTotal); err != nil {
+			return nil, fmt.Errorf("store.Regressions: scan: %w", err)
+		}
+		reg.LatestPassed = false
+		if reg.PrevTotal > 0 {
+			reg.PrevRate = float64(reg.PrevPassed) / float64(reg.PrevTotal) * 100
+		}
+		if reg.PrevRate >= 80 {
+			reg.Severity = "critical"
+		} else {
+			reg.Severity = "warning"
+		}
+		results = append(results, reg)
+	}
+	return results, rows.Err()
+}
+
 func computeCheckDiffs(checksA, checksB string) []CheckDiff {
 	var a, b checksResult
 	// Unmarshal errors are intentional no-ops: missing or malformed checks_json
