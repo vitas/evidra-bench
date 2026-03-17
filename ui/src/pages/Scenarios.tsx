@@ -43,7 +43,7 @@ export function Scenarios() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("All");
   const [feature, setFeature] = useState<string>("All");
-  const [view, setView] = useState<ViewMode>("cards");
+  const [view, setView] = useState<ViewMode>("list");
 
   useEffect(() => {
     Promise.all([
