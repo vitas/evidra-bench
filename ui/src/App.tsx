@@ -8,6 +8,7 @@ import { Compare } from "./pages/Compare";
 import { Benchmarks } from "./pages/Benchmarks";
 import { Leaderboard } from "./pages/Leaderboard";
 import { ScenarioDetail } from "./pages/ScenarioDetail";
+import { SkillImpact } from "./pages/SkillImpact";
 
 export function App() {
   return (
@@ -16,6 +17,7 @@ export function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/skill-impact" element={<SkillImpact />} />
           <Route path="/runs" element={<Runs />} />
           <Route path="/runs/:id" element={<RunDetail />} />
           <Route path="/scenarios" element={<Scenarios />} />
