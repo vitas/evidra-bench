@@ -347,7 +347,7 @@ export function Scenarios() {
                   <tr
                     key={s.id}
                     className="border-b border-border-subtle last:border-0 hover:bg-accent-subtle transition-colors cursor-pointer"
-                    onClick={() => (window.location.href = `/runs?scenario=${s.id}`)}
+                    onClick={() => (window.location.href = `/scenarios/${s.id}`)}
                   >
                     <td className="py-2.5 px-4 font-mono text-[0.78rem] text-accent whitespace-nowrap">
                       {s.id}

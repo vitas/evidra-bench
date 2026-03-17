@@ -7,6 +7,7 @@ import { Scenarios } from "./pages/Scenarios";
 import { Compare } from "./pages/Compare";
 import { Benchmarks } from "./pages/Benchmarks";
 import { Leaderboard } from "./pages/Leaderboard";
+import { ScenarioDetail } from "./pages/ScenarioDetail";
 
 export function App() {
   return (
@@ -18,6 +19,7 @@ export function App() {
           <Route path="/runs" element={<Runs />} />
           <Route path="/runs/:id" element={<RunDetail />} />
           <Route path="/scenarios" element={<Scenarios />} />
+          <Route path="/scenarios/:id" element={<ScenarioDetail />} />
           <Route path="/compare" element={<Compare />} />
           <Route path="/benchmarks" element={<Benchmarks />} />
         </Routes>
