@@ -8,11 +8,18 @@ import "context"
 type BenchStore interface {
 	ListRuns(ctx context.Context, f RunFilters) ([]RunRecord, int, error)
 	GetRun(ctx context.Context, id string) (*RunRecord, error)
+	Catalog(ctx context.Context) (*RunCatalog, error)
 	CompareRuns(ctx context.Context, idA, idB string) (*RunComparison, error)
 	ModelMatrix(ctx context.Context, models, scenarios []string) (*ModelMatrix, error)
 	FilteredStats(ctx context.Context, f RunFilters) (*StatsResult, error)
 	ListScenarios(ctx context.Context) ([]ScenarioSummary, error)
 	SignalSummary(ctx context.Context, f RunFilters) (*SignalAggregation, error)
+}
+
+// RunCatalog holds distinct metadata values used for UI filters.
+type RunCatalog struct {
+	Models    []string `json:"models"`
+	Providers []string `json:"providers"`
 }
 
 // SignalAggregation holds aggregated signal counts across runs.

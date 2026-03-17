@@ -75,6 +75,22 @@ func (s *Store) GetRun(ctx context.Context, id string) (*RunRecord, error) {
 	return &r, nil
 }
 
+// Catalog returns distinct models and providers from stored runs.
+func (s *Store) Catalog(ctx context.Context) (*RunCatalog, error) {
+	models, err := distinctStringColumn(ctx, s.db, "model")
+	if err != nil {
+		return nil, fmt.Errorf("store.Catalog models: %w", err)
+	}
+	providers, err := distinctStringColumn(ctx, s.db, "provider")
+	if err != nil {
+		return nil, fmt.Errorf("store.Catalog providers: %w", err)
+	}
+	return &RunCatalog{
+		Models:    models,
+		Providers: providers,
+	}, nil
+}
+
 // scanner is satisfied by both *sql.Rows and *sql.Row.
 type scanner interface {
 	Scan(dest ...any) error
@@ -108,6 +124,25 @@ func scanRunRecordRow(row *sql.Row) (RunRecord, error) {
 	}
 	r.CreatedAt = parseTime(createdAt)
 	return r, nil
+}
+
+func distinctStringColumn(ctx context.Context, db *sql.DB, column string) ([]string, error) {
+	query := fmt.Sprintf("SELECT DISTINCT %s FROM runs WHERE %s != '' ORDER BY %s", column, column, column)
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var values []string
+	for rows.Next() {
+		var value string
+		if err := rows.Scan(&value); err != nil {
+			return nil, err
+		}
+		values = append(values, value)
+	}
+	return values, rows.Err()
 }
 
 // parseTime tries common SQLite time formats.

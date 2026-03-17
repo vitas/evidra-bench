@@ -47,6 +47,7 @@ docker-compose.override.yml
 
 # Worktrees
 .worktrees/
+.playwright-mcp/
 
 # Run artifacts (except JSONL backup)
 runs/

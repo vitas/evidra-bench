@@ -29,6 +29,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/bench/info", s.handleInfo)
 
 	// Runs
+	mux.HandleFunc("GET /v1/bench/catalog", s.handleCatalog)
 	mux.HandleFunc("GET /v1/bench/runs", s.handleListRuns)
 	mux.HandleFunc("GET /v1/bench/runs/{id}", s.handleGetRun)
 	mux.HandleFunc("GET /v1/bench/runs/{id}/transcript", s.handleGetTranscript)

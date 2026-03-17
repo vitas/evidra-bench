@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useApi } from "../hooks/useApi";
+import { normalizeCatalog, type CatalogResponse } from "../lib/catalogData.mts";
 
 interface RunRecord {
   id: string;
@@ -42,8 +43,6 @@ type SortField =
 
 type SortDir = "asc" | "desc";
 
-const MODELS = ["All", "sonnet", "haiku", "gpt-4.1", "opus"] as const;
-const PROVIDERS = ["All", "claude", "bifrost"] as const;
 const STATUSES = ["All", "Passed", "Failed"] as const;
 const PAGE_SIZE = 25;
 
@@ -80,6 +79,7 @@ export function Runs() {
   const navigate = useNavigate();
 
   const [data, setData] = useState<RunsResponse | null>(null);
+  const [catalog, setCatalog] = useState<CatalogResponse>({ models: [], providers: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -133,6 +133,12 @@ export function Runs() {
   useEffect(() => {
     fetchRuns();
   }, [fetchRuns]);
+
+  useEffect(() => {
+    request<CatalogResponse>("/v1/bench/catalog")
+      .then((res) => setCatalog(normalizeCatalog(res)))
+      .catch(() => setCatalog({ models: [], providers: [] }));
+  }, [request]);
 
   function handleApply() {
     setAppliedFilters({ scenario, model, provider, status, since });
@@ -220,7 +226,7 @@ export function Runs() {
         <label className="flex flex-col gap-1">
           <span className="text-[0.7rem] font-medium text-fg-muted uppercase tracking-wide">Model</span>
           <select value={model} onChange={(e) => setModel(e.target.value)} className={inputClass + " w-32"}>
-            {MODELS.map((m) => (
+            {["All", ...catalog.models].map((m) => (
               <option key={m} value={m}>
                 {m}
               </option>
@@ -231,7 +237,7 @@ export function Runs() {
         <label className="flex flex-col gap-1">
           <span className="text-[0.7rem] font-medium text-fg-muted uppercase tracking-wide">Provider</span>
           <select value={provider} onChange={(e) => setProvider(e.target.value)} className={inputClass + " w-32"}>
-            {PROVIDERS.map((p) => (
+            {["All", ...catalog.providers].map((p) => (
               <option key={p} value={p}>
                 {p}
               </option>

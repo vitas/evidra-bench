@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useApi } from "../hooks/useApi";
+import { normalizeCatalog, type CatalogResponse } from "../lib/catalogData.mts";
+import {
+  categoriesFromScenarios,
+  scenarioIdsForCategory,
+  type ScenarioCategoryRecord,
+} from "../lib/compareData.mts";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -93,15 +99,6 @@ function formatDuration(s: number): string {
   return `${s.toFixed(1)}s`;
 }
 
-function categoryOf(scenario: string): string {
-  const prefix = scenario.split("-")[0]?.toUpperCase() ?? "";
-  if (prefix.startsWith("K")) return "kubectl";
-  if (prefix.startsWith("H")) return "helm";
-  if (prefix.startsWith("A")) return "argocd";
-  if (prefix.startsWith("T")) return "terraform";
-  return "other";
-}
-
 /* ------------------------------------------------------------------ */
 /*  Model Matrix                                                       */
 /* ------------------------------------------------------------------ */
@@ -110,19 +107,25 @@ function ModelMatrix() {
   const { request } = useApi();
   const [allModels, setAllModels] = useState<string[]>([]);
   const [activeModels, setActiveModels] = useState<string[]>([]);
+  const [scenarios, setScenarios] = useState<ScenarioCategoryRecord[]>([]);
   const [category, setCategory] = useState("");
   const [data, setData] = useState<ModelMatrixResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Discover available models from stats endpoint, then fetch matrix
+  // Discover available models and scenario metadata before fetching matrix.
   useEffect(() => {
     setLoading(true);
-    request<{ items: Array<{ model: string }> }>("/v1/bench/runs?limit=200")
-      .then((res) => {
-        const models = Array.from(new Set((res.items ?? []).map((r) => r.model).filter(Boolean))).sort();
+    Promise.all([
+      request<CatalogResponse>("/v1/bench/catalog"),
+      request<{ items: ScenarioCategoryRecord[] }>("/v1/bench/scenarios"),
+    ])
+      .then(([catalogRes, scenariosRes]) => {
+        const catalog = normalizeCatalog(catalogRes);
+        const models = catalog.models;
         setAllModels(models);
-        setActiveModels(models);
+        setActiveModels((current) => (current.length > 0 ? current : models));
+        setScenarios(scenariosRes.items ?? []);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -131,15 +134,20 @@ function ModelMatrix() {
   // Fetch matrix when active models change
   useEffect(() => {
     if (activeModels.length === 0) return;
+    const selectedScenarioIDs = scenarioIdsForCategory(scenarios, category);
+    if (category && selectedScenarioIDs.length === 0) {
+      setData({ models: activeModels, scenarios: [], cells: {} });
+      return;
+    }
     setLoading(true);
     const params = new URLSearchParams();
     params.set("models", activeModels.join(","));
-    if (category) params.set("scenarios", category);
+    if (selectedScenarioIDs.length > 0) params.set("scenarios", selectedScenarioIDs.join(","));
     request<ModelMatrixResponse>(`/v1/bench/compare/models?${params}`)
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [activeModels, category, request]);
+  }, [activeModels, category, request, scenarios]);
 
   const toggleModel = useCallback((m: string) => {
     setActiveModels((prev) =>
@@ -148,16 +156,13 @@ function ModelMatrix() {
   }, []);
 
   const categories = useMemo(() => {
-    if (!data) return [];
-    const set = new Set(data.scenarios.map(categoryOf));
-    return Array.from(set).sort();
-  }, [data]);
+    return categoriesFromScenarios(scenarios);
+  }, [scenarios]);
 
   const filteredScenarios = useMemo(() => {
     if (!data) return [];
-    if (!category) return data.scenarios;
-    return data.scenarios.filter((s) => categoryOf(s) === category);
-  }, [data, category]);
+    return data.scenarios;
+  }, [data]);
 
   if (error) {
     return <p className="text-danger text-sm py-6">Error: {error}</p>;

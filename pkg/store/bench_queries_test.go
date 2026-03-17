@@ -106,6 +106,31 @@ func TestGetRun(t *testing.T) {
 	}
 }
 
+func TestCatalog(t *testing.T) {
+	t.Parallel()
+	s := testStore(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	s.Insert(RunRecord{ID: "r1", ScenarioID: "s1", Model: "sonnet", Provider: "claude", CreatedAt: now})
+	s.Insert(RunRecord{ID: "r2", ScenarioID: "s2", Model: "haiku", Provider: "claude", CreatedAt: now})
+	s.Insert(RunRecord{ID: "r3", ScenarioID: "s3", Model: "gpt-4o", Provider: "bifrost", CreatedAt: now})
+
+	catalog, err := s.Catalog(ctx)
+	if err != nil {
+		t.Fatalf("Catalog: %v", err)
+	}
+	if got, want := len(catalog.Models), 3; got != want {
+		t.Fatalf("models len = %d, want %d", got, want)
+	}
+	if catalog.Models[0] != "gpt-4o" || catalog.Models[1] != "haiku" || catalog.Models[2] != "sonnet" {
+		t.Fatalf("models = %#v", catalog.Models)
+	}
+	if len(catalog.Providers) != 2 || catalog.Providers[0] != "bifrost" || catalog.Providers[1] != "claude" {
+		t.Fatalf("providers = %#v", catalog.Providers)
+	}
+}
+
 func TestCompareRuns(t *testing.T) {
 	t.Parallel()
 	s := testStore(t)

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
+import { buildRunsPath } from "../lib/catalogData.mts";
 
 /* ── Types ── */
 
@@ -139,7 +140,7 @@ export function Dashboard() {
 
     Promise.all([
       request<Stats>(`/v1/bench/stats${sinceParamFirst}`),
-      request<RunsResponse>("/v1/bench/runs?limit=8"),
+      request<RunsResponse>(buildRunsPath(8, since)),
       request<RunsResponse>(`/v1/bench/runs?limit=500${sinceParam}`),
       request<SignalAggregation>(`/v1/bench/signals${sinceParamFirst}`),
     ])

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -50,6 +51,30 @@ func (m *mockStore) GetRun(_ context.Context, id string) (*store.RunRecord, erro
 		}
 	}
 	return nil, &notFoundError{id: id}
+}
+
+func (m *mockStore) Catalog(_ context.Context) (*store.RunCatalog, error) {
+	models := map[string]struct{}{}
+	providers := map[string]struct{}{}
+	for _, r := range m.runs {
+		if r.Model != "" {
+			models[r.Model] = struct{}{}
+		}
+		if r.Provider != "" {
+			providers[r.Provider] = struct{}{}
+		}
+	}
+	modelList := make([]string, 0, len(models))
+	for model := range models {
+		modelList = append(modelList, model)
+	}
+	providerList := make([]string, 0, len(providers))
+	for provider := range providers {
+		providerList = append(providerList, provider)
+	}
+	slices.Sort(modelList)
+	slices.Sort(providerList)
+	return &store.RunCatalog{Models: modelList, Providers: providerList}, nil
 }
 
 func (m *mockStore) CompareRuns(_ context.Context, idA, idB string) (*store.RunComparison, error) {
@@ -259,6 +284,32 @@ func TestCompareModels_MissingParam(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestCatalog(t *testing.T) {
+	t.Parallel()
+	srv, _ := newTestServer()
+	req := httptest.NewRequest("GET", "/v1/bench/catalog", nil)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var resp struct {
+		Models    []string `json:"models"`
+		Providers []string `json:"providers"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode catalog: %v", err)
+	}
+	if len(resp.Models) != 2 || resp.Models[0] != "haiku" || resp.Models[1] != "sonnet" {
+		t.Fatalf("models = %#v, want [haiku sonnet]", resp.Models)
+	}
+	if len(resp.Providers) != 1 || resp.Providers[0] != "claude" {
+		t.Fatalf("providers = %#v, want [claude]", resp.Providers)
 	}
 }
 
