@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
+import { useAppInfo } from "../hooks/useAppInfo";
 
 interface Scenario {
   id: string;
@@ -29,12 +30,29 @@ interface Stats {
   by_scenario: ScenarioStat[];
 }
 
+interface JobStatus {
+  id: string;
+  scenario_id: string;
+  model: string;
+  provider: string;
+  status: string;
+  started_at: string;
+  ended_at?: string;
+  run_id?: string;
+  exit_code?: number;
+  passed?: boolean;
+  error?: string;
+}
+
 const CATEGORIES = ["All", "kubectl", "helm", "argocd", "terraform"] as const;
 const FEATURES = ["All", "Chaos enabled", "Evidra enabled"] as const;
+const MODELS = ["sonnet", "haiku", "opus", "gpt-4.1", "gpt-4o", "gpt-5.2", "gemini-2.5-flash", "gemini-2.5-pro", "qwen-plus"] as const;
+const PROVIDERS = ["claude", "bifrost", "anthropic"] as const;
 type ViewMode = "cards" | "list";
 
 export function Scenarios() {
   const { request } = useApi();
+  const { readonly } = useAppInfo();
   const [data, setData] = useState<ScenariosResponse | null>(null);
   const [stats, setStats] = useState<Map<string, ScenarioStat>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -44,6 +62,15 @@ export function Scenarios() {
   const [category, setCategory] = useState<string>("All");
   const [feature, setFeature] = useState<string>("All");
   const [view, setView] = useState<ViewMode>("list");
+
+  // Run trigger state
+  const [runModal, setRunModal] = useState<string | null>(null); // scenario id
+  const [runModel, setRunModel] = useState("sonnet");
+  const [runProvider, setRunProvider] = useState("claude");
+  const [runDryRun, setRunDryRun] = useState(false);
+  const [runSubmitting, setRunSubmitting] = useState(false);
+  const [runJob, setRunJob] = useState<JobStatus | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -85,6 +112,45 @@ export function Scenarios() {
     }
     return groups;
   }, [filtered]);
+
+  // Submit run
+  const submitRun = useCallback(async () => {
+    if (!runModal) return;
+    setRunSubmitting(true);
+    setRunError(null);
+    setRunJob(null);
+    try {
+      const res = await request<{ job_id: string }>("/v1/bench/execute", {
+        method: "POST",
+        body: JSON.stringify({
+          scenario_id: runModal,
+          model: runModel,
+          provider: runProvider,
+          dry_run: runDryRun,
+        }),
+      });
+      // Poll for status
+      const jobId = res.job_id;
+      const poll = async () => {
+        const status = await request<JobStatus>(`/v1/bench/execute/${jobId}/status`);
+        setRunJob(status);
+        if (status.status === "pending" || status.status === "running") {
+          setTimeout(poll, 2000);
+        }
+      };
+      poll();
+    } catch (err) {
+      setRunError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRunSubmitting(false);
+    }
+  }, [runModal, runModel, runProvider, runDryRun, request]);
+
+  const closeModal = () => {
+    setRunModal(null);
+    setRunJob(null);
+    setRunError(null);
+  };
 
   if (loading) {
     return (
@@ -192,7 +258,13 @@ export function Scenarios() {
 
             <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
               {scenarios.map((s) => (
-                <ScenarioCard key={s.id} scenario={s} stat={stats.get(s.id)} />
+                <ScenarioCard
+                  key={s.id}
+                  scenario={s}
+                  stat={stats.get(s.id)}
+                  readonly={readonly}
+                  onRun={() => setRunModal(s.id)}
+                />
               ))}
             </div>
           </section>
@@ -204,9 +276,9 @@ export function Scenarios() {
           <table className="w-full text-[0.82rem]">
             <thead>
               <tr className="border-b border-border bg-bg-alt">
-                {["Scenario", "Title", "Category", "Tags", "Runs", "Passed", "Rate"].map((h) => (
+                {["Scenario", "Title", "Category", "Tags", "Runs", "Passed", "Rate", ...(readonly ? [] : [""])].map((h) => (
                   <th
-                    key={h}
+                    key={h || "actions"}
                     className="text-left text-[0.7rem] font-semibold uppercase tracking-wide text-fg-muted px-4 py-2"
                   >
                     {h}
@@ -261,10 +333,10 @@ export function Scenarios() {
                       </div>
                     </td>
                     <td className="py-2.5 px-4 font-mono text-[0.78rem] text-fg-muted">
-                      {stat?.runs ?? "—"}
+                      {stat?.runs ?? "\u2014"}
                     </td>
                     <td className="py-2.5 px-4 font-mono text-[0.78rem] text-fg-muted">
-                      {stat ? `${stat.passed}/${stat.runs}` : "—"}
+                      {stat ? `${stat.passed}/${stat.runs}` : "\u2014"}
                     </td>
                     <td className="py-2.5 px-4">
                       {passRate !== null ? (
@@ -280,9 +352,22 @@ export function Scenarios() {
                           {passRate}%
                         </span>
                       ) : (
-                        <span className="font-mono text-[0.78rem] text-fg-muted">—</span>
+                        <span className="font-mono text-[0.78rem] text-fg-muted">{"\u2014"}</span>
                       )}
                     </td>
+                    {!readonly && (
+                      <td className="py-2.5 px-4">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRunModal(s.id);
+                          }}
+                          className="text-[0.72rem] font-semibold px-2.5 py-1 rounded bg-accent text-[#064e3b] hover:bg-accent-bright transition-colors cursor-pointer"
+                        >
+                          Run
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -290,25 +375,169 @@ export function Scenarios() {
           </table>
         </div>
       )}
+
+      {/* Run modal */}
+      {runModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
+          onClick={closeModal}
+        >
+          <div
+            className="bg-bg-elevated border border-border-subtle rounded-[12px] shadow-[var(--shadow-card-lg)] p-6 w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[1rem] font-bold text-fg mb-1">Run Scenario</h3>
+            <p className="font-mono text-[0.78rem] text-accent mb-4">{runModal}</p>
+
+            {!runJob ? (
+              <>
+                <div className="space-y-3 mb-5">
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[0.72rem] font-semibold uppercase tracking-wide text-fg-muted">
+                      Model
+                    </span>
+                    <select
+                      value={runModel}
+                      onChange={(e) => setRunModel(e.target.value)}
+                      className="h-9 px-3 text-[0.83rem] text-fg bg-bg-alt border border-border-subtle rounded-lg cursor-pointer"
+                    >
+                      {MODELS.map((m) => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[0.72rem] font-semibold uppercase tracking-wide text-fg-muted">
+                      Provider
+                    </span>
+                    <select
+                      value={runProvider}
+                      onChange={(e) => setRunProvider(e.target.value)}
+                      className="h-9 px-3 text-[0.83rem] text-fg bg-bg-alt border border-border-subtle rounded-lg cursor-pointer"
+                    >
+                      {PROVIDERS.map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={runDryRun}
+                      onChange={(e) => setRunDryRun(e.target.checked)}
+                      className="accent-accent"
+                    />
+                    <span className="text-[0.82rem] text-fg-muted">Dry run (validate only)</span>
+                  </label>
+                </div>
+
+                {runError && (
+                  <p className="text-danger text-[0.78rem] mb-3">{runError}</p>
+                )}
+
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={closeModal}
+                    className="px-4 py-2 text-[0.82rem] font-medium rounded-lg border border-border text-fg-muted hover:text-fg cursor-pointer transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={submitRun}
+                    disabled={runSubmitting}
+                    className="px-4 py-2 text-[0.82rem] font-semibold rounded-lg bg-accent text-[#064e3b] hover:bg-accent-bright disabled:opacity-50 cursor-pointer transition-colors"
+                  >
+                    {runSubmitting ? "Starting..." : "Start Run"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-block w-2 h-2 rounded-full ${
+                      runJob.status === "running"
+                        ? "bg-info animate-pulse"
+                        : runJob.status === "completed"
+                          ? "bg-accent"
+                          : runJob.status === "failed"
+                            ? "bg-danger"
+                            : "bg-fg-muted"
+                    }`}
+                  />
+                  <span className="text-[0.85rem] font-semibold text-fg capitalize">
+                    {runJob.status}
+                  </span>
+                </div>
+
+                <div className="text-[0.78rem] text-fg-muted space-y-1">
+                  <p>Model: <span className="font-mono text-fg">{runJob.model}</span></p>
+                  <p>Provider: <span className="font-mono text-fg">{runJob.provider}</span></p>
+                  {runJob.passed !== undefined && (
+                    <p>Result: <span className={`font-semibold ${runJob.passed ? "text-accent" : "text-danger"}`}>{runJob.passed ? "PASS" : "FAIL"}</span></p>
+                  )}
+                  {runJob.error && (
+                    <p className="text-danger">{runJob.error}</p>
+                  )}
+                  {runJob.run_id && (
+                    <p>
+                      Run:{" "}
+                      <Link
+                        to={`/runs/${runJob.run_id}`}
+                        className="text-accent hover:text-accent-bright"
+                        onClick={closeModal}
+                      >
+                        {runJob.run_id}
+                      </Link>
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    onClick={closeModal}
+                    className="px-4 py-2 text-[0.82rem] font-medium rounded-lg bg-accent text-[#064e3b] hover:bg-accent-bright cursor-pointer transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function ScenarioCard({ scenario, stat }: { scenario: Scenario; stat?: ScenarioStat }) {
+function ScenarioCard({
+  scenario,
+  stat,
+  readonly,
+  onRun,
+}: {
+  scenario: Scenario;
+  stat?: ScenarioStat;
+  readonly: boolean;
+  onRun: () => void;
+}) {
   const passRate = stat && stat.runs > 0
     ? Math.round((stat.passed / stat.runs) * 100)
     : null;
 
   return (
-    <Link
-      to={`/runs?scenario=${scenario.id}`}
-      className="bg-bg-elevated border border-border-subtle rounded-[10px] p-4 hover:border-accent hover:shadow-[var(--shadow-card-lg)] hover:-translate-y-px transition-all cursor-pointer flex flex-col gap-2"
-      style={{ textDecoration: "none", color: "inherit" }}
-    >
-      <div className="flex flex-col gap-1">
+    <div className="bg-bg-elevated border border-border-subtle rounded-[10px] p-4 hover:border-accent hover:shadow-[var(--shadow-card-lg)] hover:-translate-y-px transition-all flex flex-col gap-2">
+      <Link
+        to={`/runs?scenario=${scenario.id}`}
+        className="flex flex-col gap-1"
+        style={{ textDecoration: "none", color: "inherit" }}
+      >
         <span className="text-[0.85rem] font-bold text-fg">{scenario.title}</span>
         <span className="font-mono text-[0.73rem] text-fg-muted">{scenario.id}</span>
-      </div>
+      </Link>
 
       {scenario.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -357,7 +586,18 @@ function ScenarioCard({ scenario, stat }: { scenario: Scenario; stat?: ScenarioS
         ) : (
           <span className="text-fg-muted">No runs yet</span>
         )}
+        {!readonly && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              onRun();
+            }}
+            className="ml-auto text-[0.72rem] font-semibold px-2.5 py-1 rounded bg-accent text-[#064e3b] hover:bg-accent-bright transition-colors cursor-pointer"
+          >
+            Run
+          </button>
+        )}
       </div>
-    </Link>
+    </div>
   );
 }
