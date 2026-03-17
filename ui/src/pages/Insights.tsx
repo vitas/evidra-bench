@@ -66,11 +66,11 @@ export function Insights() {
   }, [selected, request]);
 
   const failSignals = useMemo(
-    () => insights?.command_patterns.filter((c) => c.indicator === "fail_signal") ?? [],
+    () => (insights?.command_patterns ?? []).filter((c) => c.indicator === "fail_signal"),
     [insights],
   );
   const passSignals = useMemo(
-    () => insights?.command_patterns.filter((c) => c.indicator === "pass_signal") ?? [],
+    () => (insights?.command_patterns ?? []).filter((c) => c.indicator === "pass_signal"),
     [insights],
   );
 
@@ -124,7 +124,7 @@ export function Insights() {
           </div>
 
           {/* Check failures — the "what failed" */}
-          {insights.check_failures.length > 0 && (
+          {(insights.check_failures ?? []).length > 0 && (
             <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
               <div className="px-5 pt-4 pb-2">
                 <h2 className="text-[0.95rem] font-semibold text-fg">What Failed</h2>
@@ -141,7 +141,7 @@ export function Insights() {
                   </tr>
                 </thead>
                 <tbody>
-                  {insights.check_failures.map((cf) => (
+                  {(insights.check_failures ?? []).map((cf) => (
                     <tr key={`${cf.check_type}/${cf.check_name}`} className="border-b border-border-subtle last:border-0">
                       <td className="px-5 py-2.5 font-mono text-[0.78rem] text-fg">{cf.check_name}</td>
                       <td className="px-4 py-2.5 text-fg-muted text-[0.76rem]">{cf.check_type}</td>
@@ -227,14 +227,14 @@ export function Insights() {
           </div>
 
           {/* Model breakdown */}
-          {insights.model_breakdown.length > 0 && (
+          {(insights.model_breakdown ?? []).length > 0 && (
             <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
               <div className="px-5 pt-4 pb-2">
                 <h2 className="text-[0.95rem] font-semibold text-fg">Model Breakdown</h2>
                 <p className="text-[0.72rem] text-fg-muted">Which models pass and fail this scenario</p>
               </div>
               <div className="px-5 pb-4 space-y-2">
-                {insights.model_breakdown.map((m) => (
+                {(insights.model_breakdown ?? []).map((m) => (
                   <div key={m.model} className="flex items-center gap-3">
                     <span className="font-mono text-[0.78rem] text-fg font-semibold w-44 truncate">{m.model}</span>
                     <div className="flex-1 h-2 rounded-full bg-bg-alt overflow-hidden">
