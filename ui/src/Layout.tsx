@@ -49,11 +49,6 @@ export function Layout({ children }: { children: ReactNode }) {
             Demo
           </span>
         )}
-        {version && (
-          <span className="text-[0.65rem] font-mono text-fg-muted">
-            {version}
-          </span>
-        )}
 
         <nav className="flex gap-1 flex-1">
           {navItems.map(({ to, label }) => (
@@ -99,6 +94,38 @@ export function Layout({ children }: { children: ReactNode }) {
       <main className="max-w-[1280px] mx-auto px-6 py-5 pb-12">
         {children}
       </main>
+
+      <footer className="border-t border-border-subtle mt-8">
+        <div className="max-w-[1280px] mx-auto px-6 py-6 flex flex-wrap items-center justify-between gap-4 text-[0.75rem] text-fg-muted">
+          <div className="flex items-center gap-4">
+            <a
+              href="https://evidra.cc"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-accent transition-colors"
+            >
+              evidra.cc
+            </a>
+            <a
+              href="mailto:contact@samebits.com"
+              className="hover:text-accent transition-colors"
+            >
+              contact@samebits.com
+            </a>
+            <a
+              href="https://github.com/vitas/evidra"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-accent transition-colors"
+            >
+              GitHub
+            </a>
+          </div>
+          {version && (
+            <span className="font-mono text-[0.7rem]">{version}</span>
+          )}
+        </div>
+      </footer>
     </>
   );
 }
