@@ -10,6 +10,7 @@ import { Leaderboard } from "./pages/Leaderboard";
 import { ScenarioDetail } from "./pages/ScenarioDetail";
 import { SkillImpact } from "./pages/SkillImpact";
 import { Regressions } from "./pages/Regressions";
+import { Insights } from "./pages/Insights";
 
 export function App() {
   return (
@@ -20,6 +21,7 @@ export function App() {
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/skill-impact" element={<SkillImpact />} />
           <Route path="/regressions" element={<Regressions />} />
+          <Route path="/insights" element={<Insights />} />
           <Route path="/runs" element={<Runs />} />
           <Route path="/runs/:id" element={<RunDetail />} />
           <Route path="/scenarios" element={<Scenarios />} />

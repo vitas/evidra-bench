@@ -126,6 +126,10 @@ func (m *mockStore) Regressions(_ context.Context) ([]store.Regression, error) {
 	return []store.Regression{}, nil
 }
 
+func (m *mockStore) FailureAnalysis(_ context.Context, scenarioID string) (*store.FailureInsights, error) {
+	return &store.FailureInsights{ScenarioID: scenarioID}, nil
+}
+
 type notFoundError struct{ id string }
 
 func (e *notFoundError) Error() string { return "not found: " + e.id }

@@ -452,6 +452,187 @@ func readScorecard(artifactDir string) (*scorecard, error) {
 	return &sc, nil
 }
 
+// FailureAnalysis computes failure patterns for a specific scenario.
+func (s *Store) FailureAnalysis(ctx context.Context, scenarioID string) (*FailureInsights, error) {
+	runs, _, err := s.ListRuns(ctx, RunFilters{ScenarioID: scenarioID, Limit: 500})
+	if err != nil {
+		return nil, fmt.Errorf("store.FailureAnalysis: %w", err)
+	}
+
+	insights := &FailureInsights{ScenarioID: scenarioID, TotalRuns: len(runs)}
+
+	var passRuns, failRuns []RunRecord
+	for _, r := range runs {
+		if r.Passed {
+			passRuns = append(passRuns, r)
+		} else {
+			failRuns = append(failRuns, r)
+		}
+	}
+	insights.PassedRuns = len(passRuns)
+	insights.FailedRuns = len(failRuns)
+
+	// Check failure stats
+	checkFails := map[string]*CheckFailureStat{}
+	for _, r := range failRuns {
+		var cr checksResult
+		if json.Unmarshal([]byte(r.ChecksJSON), &cr) != nil {
+			continue
+		}
+		for _, c := range cr.Checks {
+			if c.Verdict != "fail" {
+				continue
+			}
+			key := c.Type + "/" + c.Name
+			stat, ok := checkFails[key]
+			if !ok {
+				stat = &CheckFailureStat{CheckName: c.Name, CheckType: c.Type, Message: c.Message}
+				checkFails[key] = stat
+			}
+			stat.FailCount++
+		}
+	}
+	for _, stat := range checkFails {
+		if insights.FailedRuns > 0 {
+			stat.FailRate = float64(stat.FailCount) / float64(insights.FailedRuns) * 100
+		}
+		insights.CheckFailures = append(insights.CheckFailures, *stat)
+	}
+	sort.Slice(insights.CheckFailures, func(i, j int) bool {
+		return insights.CheckFailures[i].FailCount > insights.CheckFailures[j].FailCount
+	})
+
+	// Command patterns — compare commands used in pass vs fail runs
+	passCommands := extractCommands(passRuns)
+	failCommands := extractCommands(failRuns)
+	allCommands := map[string]bool{}
+	for cmd := range passCommands {
+		allCommands[cmd] = true
+	}
+	for cmd := range failCommands {
+		allCommands[cmd] = true
+	}
+	for cmd := range allCommands {
+		pc := passCommands[cmd]
+		fc := failCommands[cmd]
+		indicator := "neutral"
+		if pc > 0 && fc == 0 {
+			indicator = "pass_signal"
+		} else if fc > 0 && pc == 0 {
+			indicator = "fail_signal"
+		}
+		if indicator != "neutral" {
+			insights.CommandPatterns = append(insights.CommandPatterns, CommandPattern{
+				Command:    cmd,
+				InPassRuns: pc,
+				InFailRuns: fc,
+				Indicator:  indicator,
+			})
+		}
+	}
+	sort.Slice(insights.CommandPatterns, func(i, j int) bool {
+		if insights.CommandPatterns[i].Indicator != insights.CommandPatterns[j].Indicator {
+			return insights.CommandPatterns[i].Indicator < insights.CommandPatterns[j].Indicator
+		}
+		return insights.CommandPatterns[i].InPassRuns+insights.CommandPatterns[i].InFailRuns >
+			insights.CommandPatterns[j].InPassRuns+insights.CommandPatterns[j].InFailRuns
+	})
+	if len(insights.CommandPatterns) > 15 {
+		insights.CommandPatterns = insights.CommandPatterns[:15]
+	}
+
+	// Model breakdown
+	modelMap := map[string]*ModelFailureStat{}
+	for _, r := range runs {
+		stat, ok := modelMap[r.Model]
+		if !ok {
+			stat = &ModelFailureStat{Model: r.Model}
+			modelMap[r.Model] = stat
+		}
+		stat.Runs++
+		if r.Passed {
+			stat.Passed++
+		} else {
+			stat.Failed++
+		}
+	}
+	for _, stat := range modelMap {
+		if stat.Runs > 0 {
+			stat.Rate = float64(stat.Passed) / float64(stat.Runs) * 100
+		}
+		insights.ModelBreakdown = append(insights.ModelBreakdown, *stat)
+	}
+	sort.Slice(insights.ModelBreakdown, func(i, j int) bool {
+		return insights.ModelBreakdown[i].Rate > insights.ModelBreakdown[j].Rate
+	})
+
+	// Behavior comparison
+	insights.BehaviorMetrics = BehaviorComparison{
+		PassAvgTurns:    avgField(passRuns, func(r RunRecord) float64 { return float64(r.Turns) }),
+		FailAvgTurns:    avgField(failRuns, func(r RunRecord) float64 { return float64(r.Turns) }),
+		PassAvgDuration: avgField(passRuns, func(r RunRecord) float64 { return r.Duration }),
+		FailAvgDuration: avgField(failRuns, func(r RunRecord) float64 { return r.Duration }),
+		PassAvgTokens:   avgField(passRuns, func(r RunRecord) float64 { return float64(r.PromptTokens + r.CompletionTokens) }),
+		FailAvgTokens:   avgField(failRuns, func(r RunRecord) float64 { return float64(r.PromptTokens + r.CompletionTokens) }),
+		PassAvgCost:     avgField(passRuns, func(r RunRecord) float64 { return r.EstimatedCost }),
+		FailAvgCost:     avgField(failRuns, func(r RunRecord) float64 { return r.EstimatedCost }),
+	}
+
+	return insights, nil
+}
+
+func extractCommands(runs []RunRecord) map[string]int {
+	counts := map[string]int{}
+	for _, r := range runs {
+		if r.ArtifactDir == "" {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(r.ArtifactDir, "tool-calls.json"))
+		if err != nil {
+			continue
+		}
+		var calls []struct {
+			Tool string         `json:"tool"`
+			Args map[string]any `json:"args"`
+		}
+		if json.Unmarshal(data, &calls) != nil {
+			continue
+		}
+		for _, c := range calls {
+			if c.Tool != "run_command" {
+				continue
+			}
+			cmd, _ := c.Args["command"].(string)
+			if cmd == "" {
+				continue
+			}
+			// Normalize: extract the base command (first 3 words)
+			parts := strings.Fields(cmd)
+			key := strings.Join(parts[:min(len(parts), 3)], " ")
+			counts[key]++
+		}
+	}
+	return counts
+}
+
+func avgField(runs []RunRecord, f func(RunRecord) float64) float64 {
+	if len(runs) == 0 {
+		return 0
+	}
+	var sum float64
+	for _, r := range runs {
+		sum += f(r)
+	}
+	return sum / float64(len(runs))
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 // Regressions finds scenario/model pairs where the latest run failed but
 // previous runs had passes — indicating a regression.
 func (s *Store) Regressions(ctx context.Context) ([]Regression, error) {

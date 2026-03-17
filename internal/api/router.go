@@ -46,8 +46,9 @@ func (s *Server) Handler() http.Handler {
 	// Signals
 	mux.HandleFunc("GET /v1/bench/signals", s.handleSignals)
 
-	// Regressions
+	// Regressions & Insights
 	mux.HandleFunc("GET /v1/bench/regressions", s.handleRegressions)
+	mux.HandleFunc("GET /v1/bench/insights", s.handleFailureAnalysis)
 
 	// Execute
 	mux.HandleFunc("POST /v1/bench/execute", s.handleExecute)

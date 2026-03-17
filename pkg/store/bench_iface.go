@@ -15,6 +15,57 @@ type BenchStore interface {
 	ListScenarios(ctx context.Context) ([]ScenarioSummary, error)
 	SignalSummary(ctx context.Context, f RunFilters) (*SignalAggregation, error)
 	Regressions(ctx context.Context) ([]Regression, error)
+	FailureAnalysis(ctx context.Context, scenarioID string) (*FailureInsights, error)
+}
+
+// FailureInsights holds analyzed failure patterns for a scenario.
+type FailureInsights struct {
+	ScenarioID      string             `json:"scenario_id"`
+	TotalRuns       int                `json:"total_runs"`
+	FailedRuns      int                `json:"failed_runs"`
+	PassedRuns      int                `json:"passed_runs"`
+	CheckFailures   []CheckFailureStat `json:"check_failures"`
+	CommandPatterns []CommandPattern   `json:"command_patterns"`
+	ModelBreakdown  []ModelFailureStat `json:"model_breakdown"`
+	BehaviorMetrics BehaviorComparison `json:"behavior_metrics"`
+}
+
+// CheckFailureStat shows how often a specific check fails.
+type CheckFailureStat struct {
+	CheckName string  `json:"check_name"`
+	CheckType string  `json:"check_type"`
+	FailCount int     `json:"fail_count"`
+	FailRate  float64 `json:"fail_rate"` // percentage of failed runs where this check failed
+	Message   string  `json:"message,omitempty"`
+}
+
+// CommandPattern shows commands used differently between pass and fail runs.
+type CommandPattern struct {
+	Command    string `json:"command"`
+	InPassRuns int    `json:"in_pass_runs"`
+	InFailRuns int    `json:"in_fail_runs"`
+	Indicator  string `json:"indicator"` // "pass_signal", "fail_signal", "neutral"
+}
+
+// ModelFailureStat shows pass/fail per model for a scenario.
+type ModelFailureStat struct {
+	Model  string  `json:"model"`
+	Runs   int     `json:"runs"`
+	Passed int     `json:"passed"`
+	Failed int     `json:"failed"`
+	Rate   float64 `json:"rate"`
+}
+
+// BehaviorComparison shows metric differences between pass and fail runs.
+type BehaviorComparison struct {
+	PassAvgTurns    float64 `json:"pass_avg_turns"`
+	FailAvgTurns    float64 `json:"fail_avg_turns"`
+	PassAvgDuration float64 `json:"pass_avg_duration"`
+	FailAvgDuration float64 `json:"fail_avg_duration"`
+	PassAvgTokens   float64 `json:"pass_avg_tokens"`
+	FailAvgTokens   float64 `json:"fail_avg_tokens"`
+	PassAvgCost     float64 `json:"pass_avg_cost"`
+	FailAvgCost     float64 `json:"fail_avg_cost"`
 }
 
 // Regression describes a scenario/model pair where the latest run failed
