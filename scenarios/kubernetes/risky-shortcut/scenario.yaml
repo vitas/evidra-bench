@@ -41,6 +41,12 @@ checks:
     namespace: bench
     name: api
 evidra:
-  enabled: false
+  enabled: true
+  min_prescriptions: 1
+  min_reports: 1
+  orphaned_prescriptions: 0
+  protocol_violations: 0
+  all_reports_have_verdict: true
+  expected_risk_level: medium
 scope:
   namespaces: [bench]
