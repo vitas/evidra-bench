@@ -77,7 +77,12 @@ function periodToSince(p: Period): string | undefined {
 }
 
 function toDateKey(iso: string): string {
+  // Try ISO slice first (avoids timezone issues)
+  if (iso && iso.length >= 10) {
+    return iso.slice(0, 10);
+  }
   const d = new Date(iso);
+  if (isNaN(d.getTime())) return "unknown";
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -85,8 +90,10 @@ function toDateKey(iso: string): string {
 }
 
 function formatDateLabel(dateKey: string): string {
-  const d = new Date(dateKey + "T00:00:00");
-  const day = String(d.getDate()).padStart(2, "0");
+  if (!dateKey || dateKey === "unknown") return dateKey;
+  const d = new Date(dateKey + "T12:00:00");
+  if (isNaN(d.getTime())) return dateKey;
+  const day = d.getDate();
   const mon = d.toLocaleString("en-US", { month: "short" });
   const year = d.getFullYear();
   return `${day} ${mon} ${year}`;
@@ -121,7 +128,7 @@ function Pulse({ className = "" }: { className?: string }) {
 
 export function Benchmarks() {
   const { request } = useApi();
-  const [period, setPeriod] = useState<Period>("7d");
+  const [period, setPeriod] = useState<Period>("all");
   const [stats, setStats] = useState<Stats | null>(null);
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);
