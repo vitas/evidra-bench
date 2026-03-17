@@ -53,7 +53,7 @@ func main() {
 		exec = executor.New(s, absScenariosDir, absRunsDir)
 	}
 
-	srv := api.NewServer(s, exec, absScenariosDir)
+	srv := api.NewServer(s, exec, absScenariosDir, version)
 	handler := srv.Handler()
 
 	// Serve embedded UI if available (built with -tags embed_ui).

@@ -13,7 +13,7 @@ const navItems = [
 
 export function Layout({ children }: { children: ReactNode }) {
   const { theme, toggle } = useTheme();
-  const { readonly } = useAppInfo();
+  const { readonly, version } = useAppInfo();
 
   return (
     <>
@@ -43,6 +43,11 @@ export function Layout({ children }: { children: ReactNode }) {
         {readonly && (
           <span className="text-[0.68rem] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-warning-tint text-warning border border-warning">
             Demo
+          </span>
+        )}
+        {version && (
+          <span className="text-[0.65rem] font-mono text-fg-muted">
+            {version}
           </span>
         )}
 

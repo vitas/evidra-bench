@@ -17,6 +17,7 @@ func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleInfo(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]any{
 		"readonly": s.exec == nil,
+		"version":  s.version,
 	})
 }
 

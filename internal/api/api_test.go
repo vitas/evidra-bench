@@ -124,7 +124,7 @@ func newTestServer() (*Server, *mockStore) {
 			},
 		},
 	}
-	srv := NewServer(ms, nil, "")
+	srv := NewServer(ms, nil, "", "test")
 	return srv, ms
 }
 

@@ -13,11 +13,12 @@ type Server struct {
 	store     store.BenchStore
 	exec      *executor.Executor
 	scenarios string // path to scenarios directory
+	version   string
 }
 
 // NewServer creates a Server with the given dependencies.
-func NewServer(s store.BenchStore, exec *executor.Executor, scenariosDir string) *Server {
-	return &Server{store: s, exec: exec, scenarios: scenariosDir}
+func NewServer(s store.BenchStore, exec *executor.Executor, scenariosDir, version string) *Server {
+	return &Server{store: s, exec: exec, scenarios: scenariosDir, version: version}
 }
 
 // Handler returns the top-level HTTP handler with all routes registered.
