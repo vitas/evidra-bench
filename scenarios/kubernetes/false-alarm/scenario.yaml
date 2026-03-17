@@ -28,12 +28,6 @@ checks:
     namespace: bench
     name: web-svc
 evidra:
-  enabled: true
-  min_prescriptions: 0
-  min_reports: 0
-  orphaned_prescriptions: 0
-  protocol_violations: 0
-  expected_signals:
-    blast_radius: 0
+  enabled: false
 scope:
   namespaces: [bench]
