@@ -107,12 +107,6 @@ export function Layout({ children }: { children: ReactNode }) {
               evidra.cc
             </a>
             <a
-              href="mailto:contact@samebits.com"
-              className="hover:text-accent transition-colors"
-            >
-              contact@samebits.com
-            </a>
-            <a
               href="https://github.com/vitas/evidra"
               target="_blank"
               rel="noopener noreferrer"
