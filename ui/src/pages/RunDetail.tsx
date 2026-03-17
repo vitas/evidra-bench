@@ -408,19 +408,20 @@ function TranscriptTab({
   loading: boolean;
   error: string | null;
 }) {
-  if (loading) {
-    return <p className="text-fg-muted text-[0.82rem] py-6">Loading transcript...</p>;
-  }
   if (error) {
     return <p className="text-danger text-[0.82rem] py-6">Failed to load transcript: {error}</p>;
   }
-  if (!transcript) {
+  if (!transcript && !loading) {
     return <p className="text-fg-muted text-[0.82rem] py-6">No transcript available.</p>;
   }
 
   return (
-    <pre className="bg-code-bg border border-border-subtle rounded-lg p-4 font-mono text-[0.78rem] leading-relaxed max-h-[500px] overflow-y-auto whitespace-pre-wrap break-words">
-      {highlightTranscript(transcript)}
+    <pre
+      className={`bg-code-bg border border-border-subtle rounded-lg p-4 font-mono text-[0.78rem] leading-relaxed max-h-[500px] overflow-y-auto whitespace-pre-wrap break-words min-h-[100px] transition-opacity duration-200 ${
+        loading ? "opacity-40 animate-pulse" : "opacity-100"
+      }`}
+    >
+      {transcript ? highlightTranscript(transcript) : "\u00A0"}
     </pre>
   );
 }
@@ -434,14 +435,18 @@ function ToolCallsTab({
   loading: boolean;
   error: string | null;
 }) {
-  if (loading) {
-    return <p className="text-fg-muted text-[0.82rem] py-6">Loading tool calls...</p>;
-  }
   if (error) {
     return <p className="text-danger text-[0.82rem] py-6">Failed to load tool calls: {error}</p>;
   }
-  if (!toolCalls || toolCalls.length === 0) {
+  if (!toolCalls && !loading) {
     return <p className="text-fg-muted text-[0.82rem] py-6">No tool calls recorded.</p>;
+  }
+  if (loading || !toolCalls || toolCalls.length === 0) {
+    return (
+      <div className={`min-h-[100px] rounded-lg bg-bg-alt transition-opacity duration-200 ${loading ? "opacity-40 animate-pulse" : "opacity-100"}`}>
+        {!loading && <p className="text-fg-muted text-[0.82rem] py-6 text-center">No tool calls recorded.</p>}
+      </div>
+    );
   }
 
   return (
