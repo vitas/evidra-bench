@@ -36,19 +36,21 @@ export function Insights() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    request<ScenariosResponse>("/v1/bench/scenarios")
-      .then((res) => {
-        setScenarios(res.items ?? []);
-        // Auto-select the hardest scenario
-        if (res.items?.length) {
-          request<{ by_scenario: { scenario_id: string; runs: number; passed: number }[] }>("/v1/bench/stats")
-            .then((stats) => {
-              const worst = [...(stats.by_scenario ?? [])]
-                .filter((s) => s.runs >= 3)
-                .sort((a, b) => a.passed / a.runs - b.passed / b.runs);
-              if (worst.length > 0) setSelected(worst[0].scenario_id);
-            })
-            .catch(() => {});
+    Promise.all([
+      request<ScenariosResponse>("/v1/bench/scenarios"),
+      request<{ by_scenario: { scenario_id: string; runs: number; passed: number }[] }>("/v1/bench/stats"),
+    ])
+      .then(([scenariosRes, stats]) => {
+        const items = scenariosRes.items ?? [];
+        setScenarios(items);
+        // Auto-select the hardest scenario with enough data
+        const ranked = [...(stats.by_scenario ?? [])]
+          .filter((s) => s.runs >= 3 && s.passed < s.runs)
+          .sort((a, b) => a.passed / a.runs - b.passed / b.runs);
+        if (ranked.length > 0) {
+          setSelected(ranked[0].scenario_id);
+        } else if (items.length > 0) {
+          setSelected(items[0].id);
         }
       })
       .catch(() => {});
