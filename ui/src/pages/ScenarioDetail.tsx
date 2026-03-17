@@ -29,6 +29,7 @@ interface RunsResponse {
 interface Scenario {
   id: string;
   title: string;
+  description?: string;
   category: string;
   tags: string[];
   chaos: boolean;
@@ -187,6 +188,11 @@ export function ScenarioDetail() {
       {scenario && (
         <div className="bg-bg-elevated border border-border-subtle rounded-[10px] p-5 shadow-[var(--shadow-card)]">
           <h1 className="text-[1.2rem] font-bold text-fg">{scenario.title}</h1>
+          {scenario.description && (
+            <p className="text-[0.82rem] text-fg-muted mt-2 leading-relaxed whitespace-pre-line">
+              {scenario.description.trim()}
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-2 mt-2">
             <span className="bg-accent-subtle text-fg-muted font-medium text-[0.72rem] px-2 py-0.5 rounded">
               {scenario.category}

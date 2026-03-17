@@ -14,6 +14,7 @@ import {
 interface Scenario {
   id: string;
   title: string;
+  description?: string;
   category: string;
   tags: string[];
   chaos: boolean;
@@ -591,6 +592,9 @@ function ScenarioCard({
       >
         <span className="text-[0.85rem] font-bold text-fg">{scenario.title}</span>
         <span className="font-mono text-[0.73rem] text-fg-muted">{scenario.id}</span>
+        {scenario.description && (
+          <span className="text-[0.73rem] text-fg-muted leading-snug line-clamp-2">{scenario.description.trim().split('\n')[0]}</span>
+        )}
       </Link>
 
       {scenario.tags.length > 0 && (
