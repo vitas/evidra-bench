@@ -175,20 +175,23 @@ export function RunDetail() {
 
   // Fetch scorecard on tab switch
   useEffect(() => {
-    if (activeTab !== "scorecard" || scorecard !== null || scorecardLoading || !id) return;
+    if (activeTab !== "scorecard" || scorecard !== null || scorecardError !== null || scorecardLoading || !id) return;
     setScorecardLoading(true);
-    request<Scorecard>(`/v1/bench/runs/${id}/scorecard`)
-      .then(setScorecard)
-      .catch((err) => {
-        if (err.message.includes("Not Found") || err.message.includes("404")) {
-          setScorecard(null);
+    fetch(`/v1/bench/runs/${id}/scorecard`)
+      .then((res) => {
+        if (res.status === 404) {
           setScorecardError("not-found");
-        } else {
-          setScorecardError(err.message);
+          return;
         }
+        if (!res.ok) throw new Error(res.statusText);
+        return res.json();
       })
+      .then((data) => {
+        if (data) setScorecard(data as Scorecard);
+      })
+      .catch((err) => setScorecardError(err.message))
       .finally(() => setScorecardLoading(false));
-  }, [activeTab, scorecard, scorecardLoading, id, request]);
+  }, [activeTab, scorecard, scorecardError, scorecardLoading, id]);
 
   if (loading) {
     return (
@@ -228,8 +231,8 @@ export function RunDetail() {
         <span
           className={`inline-block px-2 py-0.5 rounded text-[0.7rem] font-semibold uppercase tracking-wide ${
             run.passed
-              ? "bg-success/15 text-success"
-              : "bg-danger/15 text-danger"
+              ? "bg-accent-tint text-accent"
+              : "bg-[var(--color-danger-badge-bg)] text-[var(--color-danger-badge-fg)]"
           }`}
         >
           {run.passed ? "Pass" : "Fail"}
@@ -349,7 +352,7 @@ function SummaryTab({
               >
                 <span
                   className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${
-                    c.verdict === "pass" ? "bg-success" : "bg-danger"
+                    c.verdict === "pass" ? "bg-accent" : "bg-danger"
                   }`}
                 />
                 <span className="font-mono text-fg-muted text-[0.75rem] min-w-[140px]">
@@ -544,7 +547,7 @@ function ScorecardTab({
                       className={`inline-block px-2 py-0.5 rounded text-[0.7rem] font-semibold ${
                         count > 0
                           ? "bg-warning/15 text-warning"
-                          : "bg-success/15 text-success"
+                          : "bg-accent-tint text-accent"
                       }`}
                     >
                       {count > 0 ? "detected" : "clear"}
