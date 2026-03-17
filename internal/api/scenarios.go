@@ -14,12 +14,13 @@ func (s *Server) handleListScenarios(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type scenarioResponse struct {
-		ID       string   `json:"id"`
-		Title    string   `json:"title"`
-		Category string   `json:"category"`
-		Tags     []string `json:"tags"`
-		Chaos    bool     `json:"chaos"`
-		Evidra   bool     `json:"evidra"`
+		ID          string   `json:"id"`
+		Title       string   `json:"title"`
+		Description string   `json:"description,omitempty"`
+		Category    string   `json:"category"`
+		Tags        []string `json:"tags"`
+		Chaos       bool     `json:"chaos"`
+		Evidra      bool     `json:"evidra"`
 	}
 
 	items := make([]scenarioResponse, 0, len(scenarios))
@@ -29,12 +30,13 @@ func (s *Server) handleListScenarios(w http.ResponseWriter, r *http.Request) {
 			tags = []string{}
 		}
 		items = append(items, scenarioResponse{
-			ID:       sc.ID,
-			Title:    sc.Title,
-			Category: sc.Category,
-			Tags:     tags,
-			Chaos:    len(sc.Chaos.Steps) > 0,
-			Evidra:   sc.Evidra.Enabled,
+			ID:          sc.ID,
+			Title:       sc.Title,
+			Description: sc.Description,
+			Category:    sc.Category,
+			Tags:        tags,
+			Chaos:       len(sc.Chaos.Steps) > 0,
+			Evidra:      sc.Evidra.Enabled,
 		})
 	}
 

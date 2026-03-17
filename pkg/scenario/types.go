@@ -5,25 +5,26 @@ import "time"
 
 // Scenario is the parsed representation of a scenario.yaml file.
 type Scenario struct {
-	ID         string             `yaml:"id"`
-	Title      string             `yaml:"title"`
-	Category   string             `yaml:"category"`
-	Path       string             `yaml:"-"`
-	Dir        string             `yaml:"-"`
-	Tags       []string           `yaml:"tags,omitempty"`
-	Prompt     string             `yaml:"prompt"`
-	Timeout    Duration           `yaml:"timeout,omitempty"`
-	Checks     []Check            `yaml:"checks"`
-	Scope      Scope              `yaml:"scope,omitempty"`
-	Bootstrap  []BootstrapStep    `yaml:"bootstrap,omitempty"`
-	AfterBreak []BootstrapStep    `yaml:"after_break,omitempty"`
-	Break      Break              `yaml:"break"`
-	Chaos      ChaosConfig        `yaml:"chaos,omitempty"`
-	Baseline   string             `yaml:"baseline,omitempty"`
-	Tools      []string           `yaml:"tools,omitempty"`
-	Evidra     EvidraExpectations `yaml:"evidra,omitempty"`
-	Skip       bool               `yaml:"skip,omitempty"`
-	SkipReason string             `yaml:"skip_reason,omitempty"`
+	ID          string             `yaml:"id"`
+	Title       string             `yaml:"title"`
+	Description string             `yaml:"description,omitempty"`
+	Category    string             `yaml:"category"`
+	Path        string             `yaml:"-"`
+	Dir         string             `yaml:"-"`
+	Tags        []string           `yaml:"tags,omitempty"`
+	Prompt      string             `yaml:"prompt"`
+	Timeout     Duration           `yaml:"timeout,omitempty"`
+	Checks      []Check            `yaml:"checks"`
+	Scope       Scope              `yaml:"scope,omitempty"`
+	Bootstrap   []BootstrapStep    `yaml:"bootstrap,omitempty"`
+	AfterBreak  []BootstrapStep    `yaml:"after_break,omitempty"`
+	Break       Break              `yaml:"break"`
+	Chaos       ChaosConfig        `yaml:"chaos,omitempty"`
+	Baseline    string             `yaml:"baseline,omitempty"`
+	Tools       []string           `yaml:"tools,omitempty"`
+	Evidra      EvidraExpectations `yaml:"evidra,omitempty"`
+	Skip        bool               `yaml:"skip,omitempty"`
+	SkipReason  string             `yaml:"skip_reason,omitempty"`
 }
 
 // Check describes a verification assertion.
