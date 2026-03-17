@@ -31,6 +31,7 @@ interface Stats {
 
 const CATEGORIES = ["All", "kubectl", "helm", "argocd", "terraform"] as const;
 const FEATURES = ["All", "Chaos enabled", "Evidra enabled"] as const;
+type ViewMode = "cards" | "list";
 
 export function Scenarios() {
   const { request } = useApi();
@@ -42,6 +43,7 @@ export function Scenarios() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("All");
   const [feature, setFeature] = useState<string>("All");
+  const [view, setView] = useState<ViewMode>("cards");
 
   useEffect(() => {
     Promise.all([
@@ -143,6 +145,31 @@ export function Scenarios() {
             </option>
           ))}
         </select>
+
+        <div className="ml-auto flex gap-0 border border-border rounded-md overflow-hidden">
+          <button
+            onClick={() => setView("cards")}
+            className={`px-2.5 py-1.5 text-[0.78rem] border-r border-border cursor-pointer transition-all ${
+              view === "cards"
+                ? "bg-accent-tint text-accent font-semibold"
+                : "bg-bg-elevated text-fg-muted hover:text-fg"
+            }`}
+            title="Card view"
+          >
+            {"\u25A6"}
+          </button>
+          <button
+            onClick={() => setView("list")}
+            className={`px-2.5 py-1.5 text-[0.78rem] cursor-pointer transition-all ${
+              view === "list"
+                ? "bg-accent-tint text-accent font-semibold"
+                : "bg-bg-elevated text-fg-muted hover:text-fg"
+            }`}
+            title="List view"
+          >
+            {"\u2630"}
+          </button>
+        </div>
       </div>
 
       {/* Empty state */}
@@ -152,23 +179,117 @@ export function Scenarios() {
         </div>
       )}
 
-      {/* Grouped cards */}
-      {Array.from(grouped.entries()).map(([cat, scenarios]) => (
-        <section key={cat} className="flex flex-col gap-3">
-          <h2 className="text-[0.85rem] font-semibold text-fg-muted uppercase tracking-wide">
-            {cat}
-            <span className="ml-2 font-normal normal-case tracking-normal">
-              ({scenarios.length})
-            </span>
-          </h2>
+      {/* Card view */}
+      {view === "cards" &&
+        Array.from(grouped.entries()).map(([cat, scenarios]) => (
+          <section key={cat} className="flex flex-col gap-3">
+            <h2 className="text-[0.85rem] font-semibold text-fg-muted uppercase tracking-wide">
+              {cat}
+              <span className="ml-2 font-normal normal-case tracking-normal">
+                ({scenarios.length})
+              </span>
+            </h2>
 
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
-            {scenarios.map((s) => (
-              <ScenarioCard key={s.id} scenario={s} stat={stats.get(s.id)} />
-            ))}
-          </div>
-        </section>
-      ))}
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
+              {scenarios.map((s) => (
+                <ScenarioCard key={s.id} scenario={s} stat={stats.get(s.id)} />
+              ))}
+            </div>
+          </section>
+        ))}
+
+      {/* List view */}
+      {view === "list" && filtered.length > 0 && (
+        <div className="bg-bg-elevated border border-border-subtle rounded-[10px] overflow-hidden">
+          <table className="w-full text-[0.82rem]">
+            <thead>
+              <tr className="border-b border-border bg-bg-alt">
+                {["Scenario", "Title", "Category", "Tags", "Runs", "Passed", "Rate"].map((h) => (
+                  <th
+                    key={h}
+                    className="text-left text-[0.7rem] font-semibold uppercase tracking-wide text-fg-muted px-4 py-2"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((s) => {
+                const stat = stats.get(s.id);
+                const passRate =
+                  stat && stat.runs > 0
+                    ? Math.round((stat.passed / stat.runs) * 100)
+                    : null;
+                return (
+                  <tr
+                    key={s.id}
+                    className="border-b border-border-subtle last:border-0 hover:bg-accent-subtle transition-colors cursor-pointer"
+                    onClick={() => (window.location.href = `/runs?scenario=${s.id}`)}
+                  >
+                    <td className="py-2.5 px-4 font-mono text-[0.78rem] text-accent whitespace-nowrap">
+                      {s.id}
+                    </td>
+                    <td className="py-2.5 px-4 text-fg font-medium">
+                      {s.title}
+                    </td>
+                    <td className="py-2.5 px-4">
+                      <span className="bg-accent-subtle text-fg-muted font-medium text-[0.72rem] px-2 py-0.5 rounded">
+                        {s.category}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-4">
+                      <div className="flex flex-wrap gap-1">
+                        {s.tags.slice(0, 3).map((tag) => (
+                          <span
+                            key={tag}
+                            className="bg-bg-alt text-fg-muted text-[0.68rem] px-1.5 py-0.5 rounded"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        {s.chaos && (
+                          <span className="bg-warning-tint text-warning text-[0.68rem] px-1.5 py-0.5 rounded">
+                            chaos
+                          </span>
+                        )}
+                        {s.evidra && (
+                          <span className="bg-info-tint text-info text-[0.68rem] px-1.5 py-0.5 rounded">
+                            evidra
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-4 font-mono text-[0.78rem] text-fg-muted">
+                      {stat?.runs ?? "—"}
+                    </td>
+                    <td className="py-2.5 px-4 font-mono text-[0.78rem] text-fg-muted">
+                      {stat ? `${stat.passed}/${stat.runs}` : "—"}
+                    </td>
+                    <td className="py-2.5 px-4">
+                      {passRate !== null ? (
+                        <span
+                          className={`font-mono text-[0.78rem] font-semibold ${
+                            passRate >= 70
+                              ? "text-accent"
+                              : passRate >= 40
+                                ? "text-warning"
+                                : "text-danger"
+                          }`}
+                        >
+                          {passRate}%
+                        </span>
+                      ) : (
+                        <span className="font-mono text-[0.78rem] text-fg-muted">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
