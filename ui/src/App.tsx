@@ -17,8 +17,8 @@ export function App() {
     <BrowserRouter>
       <Layout>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/" element={<Leaderboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/skill-impact" element={<SkillImpact />} />
           <Route path="/regressions" element={<Regressions />} />
           <Route path="/insights" element={<Insights />} />

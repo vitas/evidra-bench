@@ -4,8 +4,8 @@ import { useTheme } from "./hooks/useTheme";
 import { useAppInfo } from "./hooks/useAppInfo";
 
 const navItems = [
-  { to: "/", label: "Dashboard" },
-  { to: "/leaderboard", label: "Leaderboard" },
+  { to: "/", label: "Leaderboard" },
+  { to: "/dashboard", label: "Dashboard" },
   { to: "/skill-impact", label: "Skill Impact" },
   { to: "/regressions", label: "Regressions" },
   { to: "/insights", label: "Insights" },
