@@ -34,7 +34,7 @@ interface ChecksPayload {
 
 interface ToolCall {
   tool: string;
-  args: string;
+  args: Record<string, unknown>;
   result: string;
 }
 

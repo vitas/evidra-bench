@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
 
 interface Scenario {
@@ -15,12 +16,26 @@ interface ScenariosResponse {
   total: number;
 }
 
+interface ScenarioStat {
+  scenario_id: string;
+  runs: number;
+  passed: number;
+}
+
+interface Stats {
+  total_runs: number;
+  pass_count: number;
+  fail_count: number;
+  by_scenario: ScenarioStat[];
+}
+
 const CATEGORIES = ["All", "kubectl", "helm", "argocd", "terraform"] as const;
 const FEATURES = ["All", "Chaos enabled", "Evidra enabled"] as const;
 
 export function Scenarios() {
   const { request } = useApi();
   const [data, setData] = useState<ScenariosResponse | null>(null);
+  const [stats, setStats] = useState<Map<string, ScenarioStat>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,8 +44,18 @@ export function Scenarios() {
   const [feature, setFeature] = useState<string>("All");
 
   useEffect(() => {
-    request<ScenariosResponse>("/v1/bench/scenarios")
-      .then(setData)
+    Promise.all([
+      request<ScenariosResponse>("/v1/bench/scenarios"),
+      request<Stats>("/v1/bench/stats"),
+    ])
+      .then(([scenarios, st]) => {
+        setData(scenarios);
+        const map = new Map<string, ScenarioStat>();
+        for (const s of st.by_scenario ?? []) {
+          map.set(s.scenario_id, s);
+        }
+        setStats(map);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [request]);
@@ -69,7 +94,7 @@ export function Scenarios() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center py-20 text-red-400 text-[0.85rem]">
+      <div className="flex items-center justify-center py-20 text-danger text-[0.85rem]">
         Failed to load scenarios: {error}
       </div>
     );
@@ -81,7 +106,7 @@ export function Scenarios() {
       <div>
         <h1 className="text-xl font-bold text-fg">Scenarios</h1>
         <p className="text-[0.83rem] text-fg-muted mt-1">
-          {data?.total ?? 0} scenarios available
+          {data?.total ?? 0} scenarios across kubectl, Helm, Argo CD, and Terraform
         </p>
       </div>
 
@@ -139,7 +164,7 @@ export function Scenarios() {
 
           <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
             {scenarios.map((s) => (
-              <ScenarioCard key={s.id} scenario={s} />
+              <ScenarioCard key={s.id} scenario={s} stat={stats.get(s.id)} />
             ))}
           </div>
         </section>
@@ -148,9 +173,17 @@ export function Scenarios() {
   );
 }
 
-function ScenarioCard({ scenario }: { scenario: Scenario }) {
+function ScenarioCard({ scenario, stat }: { scenario: Scenario; stat?: ScenarioStat }) {
+  const passRate = stat && stat.runs > 0
+    ? Math.round((stat.passed / stat.runs) * 100)
+    : null;
+
   return (
-    <div className="bg-bg-elevated border border-border-subtle rounded-[10px] p-4 hover:border-accent hover:shadow-[var(--shadow-card-lg)] hover:-translate-y-px transition-all cursor-pointer flex flex-col gap-2">
+    <Link
+      to={`/runs?scenario=${scenario.id}`}
+      className="bg-bg-elevated border border-border-subtle rounded-[10px] p-4 hover:border-accent hover:shadow-[var(--shadow-card-lg)] hover:-translate-y-px transition-all cursor-pointer flex flex-col gap-2"
+      style={{ textDecoration: "none", color: "inherit" }}
+    >
       <div className="flex flex-col gap-1">
         <span className="text-[0.85rem] font-bold text-fg">{scenario.title}</span>
         <span className="font-mono text-[0.73rem] text-fg-muted">{scenario.id}</span>
@@ -166,14 +199,44 @@ function ScenarioCard({ scenario }: { scenario: Scenario }) {
               {tag}
             </span>
           ))}
+          {scenario.chaos && (
+            <span className="bg-warning-tint text-warning font-medium text-[0.72rem] px-2 py-0.5 rounded">
+              chaos
+            </span>
+          )}
+          {scenario.evidra && (
+            <span className="bg-info-tint text-info font-medium text-[0.72rem] px-2 py-0.5 rounded">
+              evidra
+            </span>
+          )}
         </div>
       )}
 
       <div className="mt-auto pt-3 border-t border-border-subtle flex items-center gap-4 font-mono text-[0.73rem] text-fg-muted">
-        <span>Runs: —</span>
-        <span>Pass: —</span>
-        <span>Avg: —</span>
+        {stat ? (
+          <>
+            <span>
+              <strong className="text-fg">{stat.runs}</strong> runs
+            </span>
+            <span>
+              <strong className="text-fg">{stat.passed}</strong>/{stat.runs} passed
+            </span>
+            <span
+              className={`font-semibold ${
+                passRate !== null && passRate >= 70
+                  ? "text-accent"
+                  : passRate !== null && passRate >= 40
+                    ? "text-warning"
+                    : "text-danger"
+              }`}
+            >
+              {passRate}%
+            </span>
+          </>
+        ) : (
+          <span className="text-fg-muted">No runs yet</span>
+        )}
       </div>
-    </div>
+    </Link>
   );
 }
