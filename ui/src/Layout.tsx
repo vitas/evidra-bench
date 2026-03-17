@@ -5,6 +5,7 @@ import { useAppInfo } from "./hooks/useAppInfo";
 
 const navItems = [
   { to: "/", label: "Dashboard" },
+  { to: "/leaderboard", label: "Leaderboard" },
   { to: "/runs", label: "Runs" },
   { to: "/scenarios", label: "Scenarios" },
   { to: "/compare", label: "Compare" },
