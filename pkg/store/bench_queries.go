@@ -147,17 +147,36 @@ func distinctStringColumn(ctx context.Context, db *sql.DB, column string) ([]str
 
 // parseTime tries common SQLite time formats.
 func parseTime(s string) time.Time {
+	// Try standard formats first with original string.
 	for _, layout := range []string{
 		time.RFC3339Nano,
 		time.RFC3339,
 		"2006-01-02T15:04:05",
 		"2006-01-02 15:04:05",
-		"2006-01-02T15:04:05Z07:00",
 		"2006-01-02 15:04:05-07:00",
 		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05.999999999 -0700",
+		"2006-01-02 15:04:05.999999 -0700",
+		"2006-01-02 15:04:05 -0700",
 	} {
 		if t, err := time.Parse(layout, s); err == nil {
 			return t
+		}
+	}
+	// Strip trailing timezone abbreviation (e.g. " CET", " UTC")
+	// Go's time.Parse doesn't handle these. Only strip if the last
+	// space-separated token is all uppercase letters.
+	if idx := strings.LastIndex(s, " "); idx > 0 {
+		suffix := s[idx+1:]
+		allUpper := true
+		for _, c := range suffix {
+			if c < 'A' || c > 'Z' {
+				allUpper = false
+				break
+			}
+		}
+		if allUpper && len(suffix) >= 2 {
+			return parseTime(s[:idx])
 		}
 	}
 	return time.Time{}
