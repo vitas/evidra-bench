@@ -1,3 +1,4 @@
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
@@ -94,6 +95,7 @@ function medalEmoji(rank: number): string {
 /* ── Component ── */
 
 export function Leaderboard() {
+  usePageTitle("Model Leaderboard");
   const { request } = useApi();
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);

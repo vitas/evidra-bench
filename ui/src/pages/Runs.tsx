@@ -1,3 +1,4 @@
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useApi } from "../hooks/useApi";
@@ -75,6 +76,7 @@ function SortArrow({ field, sort }: { field: SortField; sort: { field: SortField
 }
 
 export function Runs() {
+  usePageTitle("Runs");
   const { request } = useApi();
   const navigate = useNavigate();
 

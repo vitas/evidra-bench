@@ -1,3 +1,4 @@
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useState, useEffect, useMemo } from "react";
 import { useApi } from "../hooks/useApi";
 import { resolveRunsLimit } from "../lib/benchmarkData.mts";
@@ -128,6 +129,7 @@ function Pulse({ className = "" }: { className?: string }) {
 /* ── Component ── */
 
 export function Benchmarks() {
+  usePageTitle("Benchmarks");
   const { request } = useApi();
   const [period, setPeriod] = useState<Period>("all");
   const [stats, setStats] = useState<Stats | null>(null);

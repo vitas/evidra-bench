@@ -1,3 +1,4 @@
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
@@ -55,6 +56,7 @@ const FEATURES = ["All", "Chaos enabled", "Evidra enabled"] as const;
 type ViewMode = "cards" | "list";
 
 export function Scenarios() {
+  usePageTitle("Scenarios");
   const { request } = useApi();
   const { readonly } = useAppInfo();
   const [data, setData] = useState<ScenariosResponse | null>(null);

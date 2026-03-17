@@ -1,3 +1,4 @@
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
@@ -122,6 +123,7 @@ function Pulse({ className = "" }: { className?: string }) {
 /* ── Component ── */
 
 export function Dashboard() {
+  usePageTitle("Dashboard");
   const { request } = useApi();
   const [period, setPeriod] = useState<Period>("7d");
   const [stats, setStats] = useState<Stats | null>(null);

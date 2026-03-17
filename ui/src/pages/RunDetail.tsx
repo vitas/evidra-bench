@@ -1,3 +1,4 @@
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router";
 import { useApi } from "../hooks/useApi";
@@ -103,6 +104,7 @@ function highlightTranscript(text: string): (React.ReactElement | string)[] {
 export function RunDetail() {
   const { id } = useParams<{ id: string }>();
   const { request } = useApi();
+  usePageTitle(id ? `Run ${id}` : "Run Detail");
 
   const [run, setRun] = useState<RunRecord | null>(null);
   const [loading, setLoading] = useState(true);

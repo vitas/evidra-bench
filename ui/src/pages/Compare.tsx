@@ -1,3 +1,4 @@
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useApi } from "../hooks/useApi";
 import { normalizeCatalog, type CatalogResponse } from "../lib/catalogData.mts";
@@ -513,6 +514,7 @@ function RunDiff() {
 /* ------------------------------------------------------------------ */
 
 export function Compare() {
+  usePageTitle("Compare Models");
   const [tab, setTab] = useState<Tab>("matrix");
 
   return (
