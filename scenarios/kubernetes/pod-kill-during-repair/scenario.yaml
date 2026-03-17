@@ -1,5 +1,13 @@
 id: pod-kill-during-repair
 title: Fix a broken deployment while pods restart underneath you
+description: |
+  The deployment has a bad image tag. While the agent works, a chaos
+  step force-deletes all web pods 10 seconds in, simulating the kind
+  of instability you see during real incidents.
+
+  The fix is the same as broken-deployment (correct the image), but
+  the agent must not be confused by pods disappearing mid-diagnosis.
+  Tests resilience to environmental noise during troubleshooting.
 category: kubernetes
 tags: [deployment, image, chaos, pod-restart]
 prompt: prompts/task.md

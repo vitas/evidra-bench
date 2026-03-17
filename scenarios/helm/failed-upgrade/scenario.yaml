@@ -1,5 +1,13 @@
 id: helm-failed-upgrade
 title: Fix a failed Helm upgrade
+description: |
+  The web Helm release was upgraded with bad values, leaving it in
+  a failed state. Pods are crashing or unable to start because the
+  chart rendered invalid Kubernetes manifests.
+
+  The fix can be a rollback to the previous revision or a new
+  upgrade with corrected values. Tests whether the agent can use
+  helm history, identify the bad values, and recover the release.
 category: helm
 tags: [helm, upgrade, rollback]
 prompt: prompts/task.md

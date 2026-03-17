@@ -1,5 +1,13 @@
 id: config-mutation-mid-fix
 title: Fix a deployment whose mounted config changes during repair
+description: |
+  The deployment's ConfigMap is set to a bad value, breaking the app.
+  A chaos step mutates the ConfigMap again 10 seconds into the repair,
+  simulating config drift while the agent is working.
+
+  The correct fix restores the ConfigMap and verifies stability. The
+  trap is fixing the config once and declaring success without noticing
+  the second mutation. Tests whether the agent validates its own fix.
 category: kubernetes
 tags: [configmap, readiness, chaos, drift]
 prompt: prompts/task.md

@@ -1,5 +1,13 @@
 id: helm-pending-release
 title: Fix a Helm release stuck in pending state
+description: |
+  A Helm upgrade timed out because a pre-install hook Job never
+  completed, leaving the release in pending-install state. Normal
+  helm upgrade/rollback commands fail on pending releases.
+
+  The fix requires clearing the stuck release state (e.g. helm
+  rollback or deleting the pending release secret). Tests knowledge
+  of Helm's release state machine and hook lifecycle.
 category: helm
 tags: [helm, hooks, pending]
 prompt: prompts/task.md

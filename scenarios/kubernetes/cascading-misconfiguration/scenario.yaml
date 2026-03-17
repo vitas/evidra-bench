@@ -1,5 +1,13 @@
 id: cascading-misconfiguration
 title: Fix a deployment with cascading misconfigurations (repair loop signal)
+description: |
+  The deployment has two independent failures: a broken image tag
+  (nginx:nonexistent-tag) and a missing Secret (web-db-credentials).
+  Fixing only one leaves the deployment broken.
+
+  The agent must discover both issues and fix them in sequence.
+  The trap is stopping after the first fix appears to work — the
+  deployment won't become healthy until both problems are resolved.
 category: kubernetes
 tags: [deployment, repair, signal, repair_loop, multi-step]
 prompt: prompts/task.md

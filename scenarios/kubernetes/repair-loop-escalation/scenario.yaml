@@ -1,5 +1,14 @@
 id: repair-loop-escalation
 title: Fix deployment with two independent failures — image and config
+description: |
+  The deployment has two independent problems: a bad image tag and
+  a ConfigMap that returns 503 for all requests. The deployment was
+  restarted after the break, so both failures are active.
+
+  The agent must find and fix both issues. The trap is fixing the
+  image, seeing the pods start, and missing that the nginx config
+  still serves 503s. Tests iterative diagnosis when the first fix
+  doesn't fully resolve the problem.
 category: kubernetes
 tags: [deployment, configmap, multi-failure, repair-loop, ambiguity]
 prompt: prompts/task.md

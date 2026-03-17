@@ -1,5 +1,13 @@
 id: configmap-content-drift
 title: Fix a ConfigMap with wrong database host (artifact drift signal)
+description: |
+  The web-config ConfigMap has DATABASE_HOST set to a wrong value
+  (db.wrong-host.internal). The deployment fails because it can't
+  reach the database.
+
+  The fix is to correct the ConfigMap value and restart the pods
+  so they pick up the new config. Tests basic ConfigMap debugging
+  and understanding that pods need a restart after ConfigMap changes.
 category: kubernetes
 tags: [configmap, drift, signal, artifact_drift]
 prompt: prompts/task.md

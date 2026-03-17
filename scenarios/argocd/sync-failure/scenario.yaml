@@ -1,5 +1,13 @@
 id: argocd-sync-failure
 title: Fix an Argo CD application that fails to sync
+description: |
+  The guestbook app fails to sync because its source path was changed
+  to a directory that doesn't exist in the Git repository. Argo CD
+  reports a sync error with a clear path-not-found message.
+
+  The fix is to correct the application's source path back to a valid
+  location. Tests whether the agent can read Argo CD sync error
+  details and update the application spec accordingly.
 category: argocd
 tags: [argocd, sync, manifest]
 prompt: prompts/task.md

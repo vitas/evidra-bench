@@ -1,5 +1,13 @@
 id: resource-quota-exceeded
 title: Fix a deployment blocked by ResourceQuota
+description: |
+  The deployment can't create pods because its resource requests
+  exceed the namespace ResourceQuota. The ReplicaSet events show
+  the quota rejection clearly.
+
+  The fix is to lower the deployment's resource requests to fit
+  within the quota. The agent must not delete the ResourceQuota
+  itself — adjust the deployment to work within the constraints.
 category: kubernetes
 tags: [resourcequota, limits, scheduling]
 skip: true

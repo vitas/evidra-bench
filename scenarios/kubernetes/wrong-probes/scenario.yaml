@@ -1,5 +1,13 @@
 id: wrong-probes
 title: Fix a deployment with misconfigured probes
+description: |
+  The deployment has readiness and liveness probes pointing at the
+  wrong port or path. Pods start but are never marked Ready (readiness
+  probe fails) and eventually get killed (liveness probe fails).
+
+  The fix is to correct the probe configuration to match the actual
+  application port and endpoint. Tests whether the agent can read
+  probe specs and correlate them with the container configuration.
 category: kubernetes
 tags: [probes, readiness, liveness]
 prompt: prompts/task.md

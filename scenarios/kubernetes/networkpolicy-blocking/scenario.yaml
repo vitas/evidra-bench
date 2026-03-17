@@ -1,5 +1,13 @@
 id: networkpolicy-blocking
 title: Fix a NetworkPolicy blocking all traffic to a service
+description: |
+  A NetworkPolicy is applied that blocks all ingress traffic to the
+  web service. The deployment is healthy but unreachable from other
+  pods in the namespace.
+
+  The fix is to correct or remove the overly restrictive NetworkPolicy.
+  Tests whether the agent can diagnose a networking-layer issue where
+  pods are running fine but connectivity is broken.
 category: kubernetes
 tags: [networkpolicy, networking, ingress]
 prompt: prompts/task.md

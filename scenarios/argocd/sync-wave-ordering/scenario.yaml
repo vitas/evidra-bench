@@ -1,5 +1,13 @@
 id: argocd-sync-wave-ordering
 title: Fix broken Argo CD sync wave annotations
+description: |
+  The sync-waves app has live resources with incorrect sync wave
+  annotations, causing the application to be out of sync. Resources
+  are deployed in the wrong order during sync.
+
+  The fix is to correct the sync wave annotation values on the live
+  resources or sync the app to restore proper ordering. Tests
+  understanding of Argo CD sync waves and resource ordering.
 category: argocd
 tags: [argocd, sync-waves, ordering]
 prompt: prompts/task.md

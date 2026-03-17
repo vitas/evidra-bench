@@ -1,5 +1,13 @@
 id: helm-dependency-conflict
 title: Resolve a Helm chart dependency conflict
+description: |
+  The web Helm release was upgraded with values that enable a
+  dependency on a ConfigMap which the chart no longer renders.
+  The upgrade succeeded but the workload is broken at runtime.
+
+  The fix is to resolve the missing dependency — either by providing
+  the ConfigMap or by upgrading with corrected values. Tests Helm
+  troubleshooting beyond simple rollback scenarios.
 category: helm
 tags: [helm, dependencies, chart]
 prompt: prompts/task.md

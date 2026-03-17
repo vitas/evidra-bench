@@ -1,5 +1,13 @@
 id: argocd-out-of-sync
 title: Fix an Argo CD application that is out of sync
+description: |
+  The guestbook app is OutOfSync because someone modified the live
+  deployment directly in the cluster, causing drift from the desired
+  state defined in the Git source.
+
+  The fix is to sync the application so Argo CD reconciles the live
+  state with the desired state. Tests basic Argo CD drift detection
+  and sync workflow understanding.
 category: argocd
 tags: [argocd, sync, gitops]
 prompt: prompts/task.md

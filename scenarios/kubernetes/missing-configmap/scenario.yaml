@@ -1,5 +1,12 @@
 id: missing-configmap
 title: Fix a deployment referencing a missing ConfigMap
+description: |
+  The deployment references a ConfigMap that doesn't exist. Pods are
+  stuck in ContainerCreating because the volume mount can't resolve.
+
+  The fix is to either create the missing ConfigMap or remove the
+  volume reference from the deployment. A straightforward resource
+  dependency problem with clear error messages in pod events.
 category: kubernetes
 tags: [configmap, volume, mount]
 prompt: prompts/task.md

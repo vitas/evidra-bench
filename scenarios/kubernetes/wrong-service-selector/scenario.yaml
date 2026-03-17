@@ -1,5 +1,13 @@
 id: wrong-service-selector
 title: Fix a service with wrong selector labels
+description: |
+  The Service's selector labels don't match the pod labels, so the
+  Service has zero endpoints. Traffic sent to the service goes nowhere
+  even though the pods are running and healthy.
+
+  The fix is to align the Service selector with the deployment's pod
+  labels. Tests basic understanding of how Services route to pods
+  via label selectors.
 category: kubernetes
 tags: [service, selector, networking]
 prompt: prompts/task.md

@@ -1,5 +1,14 @@
 id: argocd-degraded-after-sync
 title: Fix an Argo CD app that is Degraded after sync
+description: |
+  The guestbook Argo CD app synced successfully but shows Degraded
+  health because someone applied a broken deployment image directly
+  to the cluster. The app is Synced but not Healthy.
+
+  The fix is to correct the deployment image so pods can start.
+  The issue is in the workload, not in Argo CD configuration.
+  Tests whether the agent looks at pod-level errors rather than
+  chasing Argo CD sync settings.
 category: argocd
 tags: [argocd, health, degraded]
 prompt: prompts/task.md

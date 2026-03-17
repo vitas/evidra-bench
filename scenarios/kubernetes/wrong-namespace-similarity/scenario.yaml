@@ -1,5 +1,13 @@
 id: wrong-namespace-similarity
 title: Fix broken staging deployment with similar production namespace
+description: |
+  The web deployment in bench-staging has a broken image. A healthy
+  web deployment exists in the bench namespace with a similar name.
+  The prompt mentions "web service" without specifying which namespace.
+
+  The fix is to patch the staging deployment in bench-staging. The
+  trap is accidentally modifying the production deployment in bench,
+  or not noticing that the broken deployment is in a different namespace.
 category: kubernetes
 tags: [deployment, namespace, ambiguity, staging]
 prompt: prompts/task.md
