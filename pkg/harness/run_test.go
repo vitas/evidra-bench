@@ -212,13 +212,13 @@ func TestBuildRunMetadata_UsesCanonicalPromptMetadata(t *testing.T) {
 		},
 	}, "/tmp/evidence")
 
-	if meta["contract_version"] != "v1.0.1" {
+	if meta["contract_version"] != "v1.1.0" {
 		t.Fatalf("contract_version = %q", meta["contract_version"])
 	}
-	if meta["skill_version"] != "1.0.1" {
+	if meta["skill_version"] != "1.1.0" {
 		t.Fatalf("skill_version = %q", meta["skill_version"])
 	}
-	if meta["prompt_version"] != "sha256:a79fc218d2d69f402fd200de808617de9b770adc95c064d69c6ab22511ad5aef" {
+	if meta["prompt_version"] != "sha256:6d94c115a8d5c5641be5be89a526f3b27f7a54f9fdd5b8e96f16905696dc100e" {
 		t.Fatalf("prompt_version = %q", meta["prompt_version"])
 	}
 }

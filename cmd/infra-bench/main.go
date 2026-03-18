@@ -395,6 +395,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	bf.StringVar(&benchCfg.SystemPromptFile, "system-prompt-file", benchCfg.SystemPromptFile, "system prompt file")
 	bf.StringVar(&benchCfg.ContractVersion, "contract-version", benchCfg.ContractVersion, "contract version")
 	bf.BoolVar(&benchCfg.ProxyMode, "proxy-mode", false, "auto-record evidence for mutations")
+	bf.BoolVar(&benchCfg.SmartPrescribe, "smart-prescribe", false, "simplified prescribe (tool+operation+resource, v1.1.0)")
 	bf.DurationVar(&benchCfg.Timeout, "timeout", benchCfg.Timeout, "per-scenario timeout")
 	bf.BoolVar(&benchCfg.ReuseCluster, "reuse-cluster", benchCfg.ReuseCluster, "reuse kind cluster")
 	bf.StringVar(&benchCfg.ClusterName, "cluster-name", benchCfg.ClusterName, "kind cluster name")
