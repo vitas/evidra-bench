@@ -47,10 +47,40 @@ interface Scorecard {
   [key: string]: unknown;
 }
 
-type Tab = "summary" | "transcript" | "tool-calls" | "scorecard";
+interface TimelineStep {
+  index: number;
+  phase: string;
+  tool: string;
+  operation: string;
+  command: string;
+  summary: string;
+  exit_code: number;
+}
+
+interface TimelineData {
+  steps: TimelineStep[];
+  phase_count: Record<string, number>;
+  mutation_count: number;
+  total_steps: number;
+  diagnosis_depth: number;
+}
+
+const PHASE_STYLES: Record<string, string> = {
+  discover: "text-blue-400 bg-blue-400/10",
+  diagnose: "text-purple-400 bg-purple-400/10",
+  decide: "text-amber-400 bg-amber-400/10",
+  act: "text-green-400 bg-green-400/10",
+  verify: "text-teal-400 bg-teal-400/10",
+  explain: "text-gray-400 bg-gray-400/10",
+};
+
+const PHASE_ORDER = ["discover", "diagnose", "decide", "act", "verify", "explain"];
+
+type Tab = "summary" | "timeline" | "transcript" | "tool-calls" | "scorecard";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "summary", label: "Summary" },
+  { key: "timeline", label: "Timeline" },
   { key: "transcript", label: "Transcript" },
   { key: "tool-calls", label: "Tool Calls" },
   { key: "scorecard", label: "Scorecard" },
@@ -124,6 +154,10 @@ export function RunDetail() {
   const [scorecardLoading, setScorecardLoading] = useState(false);
   const [scorecardError, setScorecardError] = useState<string | null>(null);
 
+  const [timeline, setTimeline] = useState<TimelineData | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
+
   // Fetch run record
   useEffect(() => {
     if (!id) return;
@@ -195,6 +229,26 @@ export function RunDetail() {
       .catch((err) => setScorecardError(err.message))
       .finally(() => setScorecardLoading(false));
   }, [activeTab, scorecard, scorecardError, scorecardLoading, id]);
+
+  // Fetch timeline on tab switch
+  useEffect(() => {
+    if (activeTab !== "timeline" || timeline !== null || timelineError !== null || timelineLoading || !id) return;
+    setTimelineLoading(true);
+    fetch(`/v1/bench/runs/${id}/timeline${evidenceModeParam("?")}`)
+      .then((res) => {
+        if (res.status === 404) {
+          setTimelineError("not-found");
+          return;
+        }
+        if (!res.ok) throw new Error(res.statusText);
+        return res.json();
+      })
+      .then((data) => {
+        if (data) setTimeline(data as TimelineData);
+      })
+      .catch((err) => setTimelineError(err.message))
+      .finally(() => setTimelineLoading(false));
+  }, [activeTab, timeline, timelineError, timelineLoading, id]);
 
   if (loading) {
     return (
@@ -285,6 +339,13 @@ export function RunDetail() {
 
       {/* Tab content */}
       {activeTab === "summary" && <SummaryTab checks={checks} scorecard={scorecard} />}
+      {activeTab === "timeline" && (
+        <TimelineTab
+          timeline={timeline}
+          loading={timelineLoading}
+          error={timelineError}
+        />
+      )}
       {activeTab === "transcript" && (
         <TranscriptTab
           transcript={transcript}
@@ -488,6 +549,79 @@ function ToolCallsTab({
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function TimelineTab({
+  timeline,
+  loading,
+  error,
+}: {
+  timeline: TimelineData | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  if (loading) {
+    return <p className="text-fg-muted text-[0.82rem] py-6">Loading timeline...</p>;
+  }
+  if (error === "not-found" || (!timeline && !loading && !error)) {
+    return <p className="text-fg-muted text-[0.82rem] py-6">No timeline available.</p>;
+  }
+  if (error) {
+    return <p className="text-danger text-[0.82rem] py-6">Failed to load timeline: {error}</p>;
+  }
+  if (!timeline || timeline.steps.length === 0) {
+    return <p className="text-fg-muted text-[0.82rem] py-6">No timeline available.</p>;
+  }
+
+  const summaryParts = PHASE_ORDER
+    .filter((p) => timeline.phase_count[p] && timeline.phase_count[p] > 0)
+    .map((p) => `${timeline.phase_count[p]} ${p}`);
+
+  return (
+    <div className="space-y-4">
+      {/* Summary line */}
+      <p className="text-fg-muted text-[0.82rem]">
+        {timeline.total_steps} step{timeline.total_steps !== 1 ? "s" : ""}
+        {summaryParts.length > 0 && ": "}
+        {summaryParts.join(" \u2192 ")}
+      </p>
+
+      {/* Step list */}
+      <div className="space-y-1.5">
+        {timeline.steps.map((step) => {
+          const phaseStyle = PHASE_STYLES[step.phase] || PHASE_STYLES.explain;
+          return (
+            <div
+              key={step.index}
+              className="flex items-start gap-3 px-3 py-2 bg-bg-alt rounded-md text-[0.8rem]"
+            >
+              <span className="font-mono text-fg-muted text-[0.75rem] min-w-[1.5rem] text-right flex-shrink-0 pt-0.5">
+                {step.index + 1}
+              </span>
+              <span
+                className={`inline-block px-2 py-0.5 rounded text-[0.7rem] font-semibold uppercase tracking-wide flex-shrink-0 ${phaseStyle}`}
+              >
+                {step.phase}
+              </span>
+              <div className="min-w-0 flex-1">
+                <span className="text-fg">{step.summary}</span>
+                {step.command && (
+                  <div className="font-mono text-fg-muted text-[0.72rem] mt-0.5 truncate">
+                    {step.command}
+                  </div>
+                )}
+              </div>
+              {step.exit_code !== 0 && (
+                <span className="text-[0.7rem] font-mono text-danger flex-shrink-0 pt-0.5">
+                  exit {step.exit_code}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
