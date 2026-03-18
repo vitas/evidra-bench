@@ -145,7 +145,8 @@ func buildOpenAIPayload(req ChatRequest) map[string]any {
 		msg := map[string]any{"role": m.Role}
 		if m.Content != "" {
 			msg["content"] = m.Content
-		} else if isDeepSeek && m.Role == "assistant" {
+		} else if m.Role == "tool" || (isDeepSeek && m.Role == "assistant") {
+			// Tool messages require content field even when empty (Anthropic API).
 			// DeepSeek requires content field on all assistant messages.
 			msg["content"] = ""
 		}

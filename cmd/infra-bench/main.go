@@ -1016,17 +1016,27 @@ func cleanBenchNamespace(ctx context.Context, clusterName string, s *scenario.Sc
 		if contextArg != "" {
 			args = append(args, contextArg)
 		}
-		args = append(args, "delete", "namespace", ns, "--ignore-not-found", "--timeout=30s")
+		args = append(args, "delete", "namespace", ns, "--ignore-not-found", "--timeout=60s")
 		cmd := exec.CommandContext(ctx, "kubectl", args...)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			log.Printf("[bench] namespace cleanup %s: %v: %s", ns, err, strings.TrimSpace(string(out)))
 		} else {
 			log.Printf("[bench] namespace cleanup: %s deleted", ns)
 		}
-	}
 
-	// Brief pause for API server to process deletion.
-	time.Sleep(2 * time.Second)
+		// Wait until namespace is fully gone to avoid "being terminated" errors.
+		baseArgs := []string{"--kubeconfig", kubeconfigPath}
+		if contextArg != "" {
+			baseArgs = append(baseArgs, contextArg)
+		}
+		for i := 0; i < 15; i++ {
+			checkArgs := append(baseArgs, "get", "namespace", ns, "--no-headers")
+			if err := exec.CommandContext(ctx, "kubectl", checkArgs...).Run(); err != nil {
+				break // namespace gone
+			}
+			time.Sleep(2 * time.Second)
+		}
+	}
 }
 
 func main() {
