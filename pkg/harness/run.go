@@ -729,9 +729,17 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 // buildRunMetadata creates the metadata map for a provider-path run,
 // including all version information for reproducibility.
 func buildRunMetadata(cfg config.Config, loopResult *agent.LoopResult, evidenceDir string) map[string]string {
+	evidenceMode := "direct"
+	if cfg.ProxyMode {
+		evidenceMode = "proxy"
+	} else if cfg.ResolveEvidraBin() == "" && cfg.ResolveSystemPromptFile() == "" {
+		evidenceMode = "none"
+	}
+
 	meta := map[string]string{
 		"provider":          cfg.Provider,
 		"model":             cfg.Model,
+		"evidence_mode":     evidenceMode,
 		"turns":             fmt.Sprintf("%d", loopResult.Turns),
 		"memory_window":     fmt.Sprintf("%d", loopResult.MemoryWindow),
 		"prompt_tokens":     fmt.Sprintf("%d", loopResult.TotalUsage.PromptTokens),

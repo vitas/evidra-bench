@@ -54,12 +54,19 @@ func (s *Store) ImportFromArtifacts(runsDir string) (int, error) {
 
 		checksPassed, checksTotal := countChecksFromJSON(checksJSON)
 
+		// Determine evidence mode from metadata.
+		evidenceMode := "direct"
+		if rj.Metadata["evidence_mode"] != "" {
+			evidenceMode = rj.Metadata["evidence_mode"]
+		}
+
 		rec := RunRecord{
 			ID:               buildRunID(rj, artifactDir),
 			ScenarioID:       rj.ScenarioID,
 			Model:            rj.Metadata["model"],
 			Provider:         rj.Metadata["provider"],
 			Adapter:          rj.Adapter,
+			EvidenceMode:     evidenceMode,
 			Passed:           rj.Passed,
 			Duration:         rj.EndTime.Sub(rj.StartTime).Seconds(),
 			ExitCode:         rj.ExitCode,

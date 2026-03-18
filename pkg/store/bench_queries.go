@@ -40,7 +40,7 @@ func (s *Store) ListRuns(ctx context.Context, f RunFilters) ([]RunRecord, int, e
 	if f.SortOrder == "asc" {
 		orderDir = "ASC"
 	}
-	query := "SELECT id, scenario_id, model, provider, adapter, passed, duration_seconds, exit_code, turns, memory_window, prompt_tokens, completion_tokens, estimated_cost, checks_passed, checks_total, checks_json, metadata_json, artifact_dir, created_at FROM runs" + where + fmt.Sprintf(" ORDER BY %s %s", orderCol, orderDir)
+	query := "SELECT " + runRecordColumns + " FROM runs" + where + fmt.Sprintf(" ORDER BY %s %s", orderCol, orderDir)
 	if f.Limit > 0 {
 		query += fmt.Sprintf(" LIMIT %d", f.Limit)
 	}
@@ -67,7 +67,7 @@ func (s *Store) ListRuns(ctx context.Context, f RunFilters) ([]RunRecord, int, e
 
 // GetRun returns a single run by ID.
 func (s *Store) GetRun(ctx context.Context, id string) (*RunRecord, error) {
-	row := s.db.QueryRowContext(ctx, "SELECT id, scenario_id, model, provider, adapter, passed, duration_seconds, exit_code, turns, memory_window, prompt_tokens, completion_tokens, estimated_cost, checks_passed, checks_total, checks_json, metadata_json, artifact_dir, created_at FROM runs WHERE id = ?", id)
+	row := s.db.QueryRowContext(ctx, "SELECT "+runRecordColumns+" FROM runs WHERE id = ?", id)
 	r, err := scanRunRecordRow(row)
 	if err != nil {
 		return nil, fmt.Errorf("store.GetRun: %w", err)
@@ -96,10 +96,13 @@ type scanner interface {
 	Scan(dest ...any) error
 }
 
+// runRecordColumns is the SELECT column list for RunRecord scans.
+const runRecordColumns = "id, scenario_id, model, provider, adapter, evidence_mode, passed, duration_seconds, exit_code, turns, memory_window, prompt_tokens, completion_tokens, estimated_cost, checks_passed, checks_total, checks_json, metadata_json, artifact_dir, created_at"
+
 func scanRunRecord(s scanner) (RunRecord, error) {
 	var r RunRecord
 	var createdAt string
-	err := s.Scan(&r.ID, &r.ScenarioID, &r.Model, &r.Provider, &r.Adapter, &r.Passed,
+	err := s.Scan(&r.ID, &r.ScenarioID, &r.Model, &r.Provider, &r.Adapter, &r.EvidenceMode, &r.Passed,
 		&r.Duration, &r.ExitCode, &r.Turns, &r.MemoryWindow,
 		&r.PromptTokens, &r.CompletionTokens, &r.EstimatedCost,
 		&r.ChecksPassed, &r.ChecksTotal, &r.ChecksJSON, &r.MetadataJSON,
@@ -114,7 +117,7 @@ func scanRunRecord(s scanner) (RunRecord, error) {
 func scanRunRecordRow(row *sql.Row) (RunRecord, error) {
 	var r RunRecord
 	var createdAt string
-	err := row.Scan(&r.ID, &r.ScenarioID, &r.Model, &r.Provider, &r.Adapter, &r.Passed,
+	err := row.Scan(&r.ID, &r.ScenarioID, &r.Model, &r.Provider, &r.Adapter, &r.EvidenceMode, &r.Passed,
 		&r.Duration, &r.ExitCode, &r.Turns, &r.MemoryWindow,
 		&r.PromptTokens, &r.CompletionTokens, &r.EstimatedCost,
 		&r.ChecksPassed, &r.ChecksTotal, &r.ChecksJSON, &r.MetadataJSON,

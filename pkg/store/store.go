@@ -20,6 +20,7 @@ type RunRecord struct {
 	Model            string    `json:"model"`
 	Provider         string    `json:"provider"`
 	Adapter          string    `json:"adapter"`
+	EvidenceMode     string    `json:"evidence_mode"` // direct, proxy, or none
 	Passed           bool      `json:"passed"`
 	Duration         float64   `json:"duration_seconds"`
 	ExitCode         int       `json:"exit_code"`
@@ -102,7 +103,10 @@ func (s *Store) migrate() error {
 	if err != nil {
 		return err
 	}
-	return s.ensureColumn("runs", "metadata_json", "TEXT NOT NULL DEFAULT ''")
+	if err := s.ensureColumn("runs", "metadata_json", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
+	return s.ensureColumn("runs", "evidence_mode", "TEXT NOT NULL DEFAULT 'direct'")
 }
 
 // Insert adds a run record to the database and appends to JSONL backup.
@@ -110,14 +114,17 @@ func (s *Store) Insert(r RunRecord) error {
 	if r.CreatedAt.IsZero() {
 		r.CreatedAt = time.Now().UTC()
 	}
+	if r.EvidenceMode == "" {
+		r.EvidenceMode = "direct"
+	}
 	_, err := s.db.Exec(`
 		INSERT OR REPLACE INTO runs (
-			id, scenario_id, model, provider, adapter, passed,
+			id, scenario_id, model, provider, adapter, evidence_mode, passed,
 			duration_seconds, exit_code, turns, memory_window,
 			prompt_tokens, completion_tokens, estimated_cost,
 			checks_passed, checks_total, checks_json, metadata_json, artifact_dir, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		r.ID, r.ScenarioID, r.Model, r.Provider, r.Adapter, r.Passed,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		r.ID, r.ScenarioID, r.Model, r.Provider, r.Adapter, r.EvidenceMode, r.Passed,
 		r.Duration, r.ExitCode, r.Turns, r.MemoryWindow,
 		r.PromptTokens, r.CompletionTokens, r.EstimatedCost,
 		r.ChecksPassed, r.ChecksTotal, r.ChecksJSON, r.MetadataJSON, r.ArtifactDir, r.CreatedAt,
@@ -259,14 +266,17 @@ func (s *Store) Rebuild() (int, error) {
 		if json.Unmarshal(line, &r) != nil {
 			continue
 		}
+		if r.EvidenceMode == "" {
+			r.EvidenceMode = "direct"
+		}
 		if _, err := s.db.Exec(`
 			INSERT OR REPLACE INTO runs (
-				id, scenario_id, model, provider, adapter, passed,
+				id, scenario_id, model, provider, adapter, evidence_mode, passed,
 				duration_seconds, exit_code, turns, memory_window,
 				prompt_tokens, completion_tokens, estimated_cost,
 				checks_passed, checks_total, checks_json, metadata_json, artifact_dir, created_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			r.ID, r.ScenarioID, r.Model, r.Provider, r.Adapter, r.Passed,
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			r.ID, r.ScenarioID, r.Model, r.Provider, r.Adapter, r.EvidenceMode, r.Passed,
 			r.Duration, r.ExitCode, r.Turns, r.MemoryWindow,
 			r.PromptTokens, r.CompletionTokens, r.EstimatedCost,
 			r.ChecksPassed, r.ChecksTotal, r.ChecksJSON, r.MetadataJSON, r.ArtifactDir, r.CreatedAt,
