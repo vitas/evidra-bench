@@ -2,7 +2,7 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useApi } from "../hooks/useApi";
-import { normalizeCatalog, type CatalogResponse } from "../lib/catalogData.mts";
+import { applyEvidenceMode, evidenceModeParam, normalizeCatalog, type CatalogResponse } from "../lib/catalogData.mts";
 
 interface RunRecord {
   id: string;
@@ -121,6 +121,7 @@ export function Runs() {
       if (appliedFilters.since) params.set("since", appliedFilters.since);
       params.set("limit", String(PAGE_SIZE));
       params.set("offset", String(page * PAGE_SIZE));
+      applyEvidenceMode(params);
 
       const qs = params.toString();
       const resp = await request<RunsResponse>(`/v1/bench/runs${qs ? `?${qs}` : ""}`);
@@ -137,7 +138,7 @@ export function Runs() {
   }, [fetchRuns]);
 
   useEffect(() => {
-    request<CatalogResponse>("/v1/bench/catalog")
+    request<CatalogResponse>(`/v1/bench/catalog${evidenceModeParam("?")}`)
       .then((res) => setCatalog(normalizeCatalog(res)))
       .catch(() => setCatalog({ models: [], providers: [] }));
   }, [request]);

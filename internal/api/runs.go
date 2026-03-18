@@ -30,14 +30,15 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 	offset, _ := strconv.Atoi(q.Get("offset"))
 
 	f := store.RunFilters{
-		ScenarioID: q.Get("scenario"),
-		Model:      q.Get("model"),
-		Provider:   q.Get("provider"),
-		Since:      q.Get("since"),
-		Limit:      limit,
-		Offset:     offset,
-		SortBy:     q.Get("sort_by"),
-		SortOrder:  q.Get("sort_order"),
+		ScenarioID:   q.Get("scenario"),
+		Model:        q.Get("model"),
+		Provider:     q.Get("provider"),
+		EvidenceMode: q.Get("evidence_mode"),
+		Since:        q.Get("since"),
+		Limit:        limit,
+		Offset:       offset,
+		SortBy:       q.Get("sort_by"),
+		SortOrder:    q.Get("sort_order"),
 	}
 	if q.Get("passed") == "true" {
 		f.PassedOnly = true

@@ -103,16 +103,17 @@ type SignalCount struct {
 
 // RunFilters specifies filters for listing runs. Extends QueryFilters with Offset.
 type RunFilters struct {
-	ScenarioID string
-	Model      string
-	Provider   string
-	PassedOnly bool
-	FailedOnly bool
-	Since      string // RFC3339 or date string
-	Limit      int
-	Offset     int
-	SortBy     string // column to sort by: created_at, duration_seconds, estimated_cost, scenario_id, model, checks_passed
-	SortOrder  string // asc or desc (default: desc)
+	ScenarioID   string
+	Model        string
+	Provider     string
+	EvidenceMode string // proxy, direct, smart, none — empty means all
+	PassedOnly   bool
+	FailedOnly   bool
+	Since        string // RFC3339 or date string
+	Limit        int
+	Offset       int
+	SortBy       string // column to sort by: created_at, duration_seconds, estimated_cost, scenario_id, model, checks_passed
+	SortOrder    string // asc or desc (default: desc)
 }
 
 // RunComparison holds the result of comparing two runs.

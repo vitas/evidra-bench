@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
 import { useAppInfo } from "../hooks/useAppInfo";
+import { evidenceModeParam } from "../lib/catalogData.mts";
 import {
   DEFAULT_RUN_SELECTION,
   RUN_PROVIDERS,
@@ -83,8 +84,8 @@ export function Scenarios() {
 
   useEffect(() => {
     Promise.all([
-      request<ScenariosResponse>("/v1/bench/scenarios"),
-      request<Stats>("/v1/bench/stats"),
+      request<ScenariosResponse>(`/v1/bench/scenarios${evidenceModeParam("?")}`),
+      request<Stats>(`/v1/bench/stats${evidenceModeParam("?")}`),
     ])
       .then(([scenarios, st]) => {
         setData(scenarios);

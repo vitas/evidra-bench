@@ -2,6 +2,7 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
+import { evidenceModeParam } from "../lib/catalogData.mts";
 
 /* ── Types ── */
 
@@ -129,7 +130,7 @@ export function Leaderboard() {
   const [sortDesc, setSortDesc] = useState(true);
 
   useEffect(() => {
-    request<RunsResponse>("/v1/bench/runs?limit=1000")
+    request<RunsResponse>(`/v1/bench/runs?limit=1000${evidenceModeParam("&")}`)
       .then((res) => setRuns(res.items ?? []))
       .catch(() => setRuns([]))
       .finally(() => setLoading(false));

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
 import { usePageTitle } from "../hooks/usePageTitle";
+import { evidenceModeParam } from "../lib/catalogData.mts";
 
 interface Regression {
   scenario_id: string;
@@ -21,7 +22,7 @@ export function Regressions() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    request<Regression[]>("/v1/bench/regressions")
+    request<Regression[]>(`/v1/bench/regressions${evidenceModeParam("?")}`)
       .then(setRegressions)
       .catch(() => setRegressions([]))
       .finally(() => setLoading(false));

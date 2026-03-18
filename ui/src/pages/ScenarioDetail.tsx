@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router";
 import { useApi } from "../hooks/useApi";
 import { usePageTitle } from "../hooks/usePageTitle";
+import { evidenceModeParam } from "../lib/catalogData.mts";
 
 /* ── Types ── */
 
@@ -105,8 +106,8 @@ export function ScenarioDetail() {
     if (!id) return;
     setLoading(true);
     Promise.all([
-      request<RunsResponse>(`/v1/bench/runs?scenario=${encodeURIComponent(id)}&limit=100`),
-      request<ScenariosResponse>("/v1/bench/scenarios"),
+      request<RunsResponse>(`/v1/bench/runs?scenario=${encodeURIComponent(id)}&limit=100${evidenceModeParam("&")}`),
+      request<ScenariosResponse>(`/v1/bench/scenarios${evidenceModeParam("?")}`),
     ])
       .then(([runsRes, scenariosRes]) => {
         setRuns(runsRes.items ?? []);
@@ -121,7 +122,7 @@ export function ScenarioDetail() {
   useEffect(() => {
     if (!expandedRun || transcripts[expandedRun] !== undefined) return;
     setTranscriptLoading(expandedRun);
-    fetch(`/v1/bench/runs/${expandedRun}/transcript`)
+    fetch(`/v1/bench/runs/${expandedRun}/transcript${evidenceModeParam("?")}`)
       .then((res) => (res.ok ? res.text() : Promise.resolve("")))
       .then((text) => setTranscripts((prev) => ({ ...prev, [expandedRun]: text })))
       .catch(() => setTranscripts((prev) => ({ ...prev, [expandedRun]: "" })))

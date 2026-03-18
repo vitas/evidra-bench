@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
 import { usePageTitle } from "../hooks/usePageTitle";
+import { evidenceModeParam } from "../lib/catalogData.mts";
 
 interface FailureInsights {
   scenario_id: string;
@@ -37,8 +38,8 @@ export function Insights() {
 
   useEffect(() => {
     Promise.all([
-      request<ScenariosResponse>("/v1/bench/scenarios"),
-      request<{ by_scenario: { scenario_id: string; runs: number; passed: number }[] }>("/v1/bench/stats"),
+      request<ScenariosResponse>(`/v1/bench/scenarios${evidenceModeParam("?")}`),
+      request<{ by_scenario: { scenario_id: string; runs: number; passed: number }[] }>(`/v1/bench/stats${evidenceModeParam("?")}`),
     ])
       .then(([scenariosRes, stats]) => {
         const items = scenariosRes.items ?? [];
@@ -59,7 +60,7 @@ export function Insights() {
   useEffect(() => {
     if (!selected) return;
     setLoading(true);
-    request<FailureInsights>(`/v1/bench/insights?scenario=${encodeURIComponent(selected)}`)
+    request<FailureInsights>(`/v1/bench/insights?scenario=${encodeURIComponent(selected)}${evidenceModeParam("&")}`)
       .then(setInsights)
       .catch(() => setInsights(null))
       .finally(() => setLoading(false));

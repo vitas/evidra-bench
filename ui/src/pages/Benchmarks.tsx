@@ -2,6 +2,7 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import { useState, useEffect, useMemo } from "react";
 import { useApi } from "../hooks/useApi";
 import { resolveRunsLimit } from "../lib/benchmarkData.mts";
+import { evidenceModeParam } from "../lib/catalogData.mts";
 
 /* ── Types ── */
 
@@ -144,12 +145,12 @@ export function Benchmarks() {
     const since = periodToSince(period);
     const sinceParam = since ? `since=${encodeURIComponent(since)}` : "";
 
-    request<Stats>(`/v1/bench/stats${sinceParam ? `?${sinceParam}` : ""}`)
+    request<Stats>(`/v1/bench/stats${sinceParam ? `?${sinceParam}` : ""}${evidenceModeParam(sinceParam ? "&" : "?")}`)
       .then(async (s) => {
         if (cancelled) return;
         setStats(s);
         const runsLimit = resolveRunsLimit(s.total_runs);
-        const runsPath = `/v1/bench/runs?limit=${runsLimit}${sinceParam ? `&${sinceParam}` : ""}`;
+        const runsPath = `/v1/bench/runs?limit=${runsLimit}${sinceParam ? `&${sinceParam}` : ""}${evidenceModeParam("&")}`;
         const r = await request<RunsResponse>(runsPath);
         if (cancelled) return;
         setRuns(r.items ?? []);

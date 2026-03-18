@@ -2,6 +2,7 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router";
 import { useApi } from "../hooks/useApi";
+import { evidenceModeParam } from "../lib/catalogData.mts";
 
 interface RunRecord {
   id: string;
@@ -127,7 +128,7 @@ export function RunDetail() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    request<RunRecord>(`/v1/bench/runs/${id}`)
+    request<RunRecord>(`/v1/bench/runs/${id}${evidenceModeParam("?")}`)
       .then(setRun)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -137,7 +138,7 @@ export function RunDetail() {
   useEffect(() => {
     if (activeTab !== "transcript" || transcript !== null || transcriptLoading || !id) return;
     setTranscriptLoading(true);
-    fetch(`/v1/bench/runs/${id}/transcript`)
+    fetch(`/v1/bench/runs/${id}/transcript${evidenceModeParam("?")}`)
       .then((res) => {
         if (!res.ok) throw new Error(res.statusText);
         return res.text();
@@ -151,7 +152,7 @@ export function RunDetail() {
   useEffect(() => {
     if (activeTab !== "tool-calls" || toolCalls !== null || toolCallsLoading || !id) return;
     setToolCallsLoading(true);
-    fetch(`/v1/bench/runs/${id}/tool-calls`)
+    fetch(`/v1/bench/runs/${id}/tool-calls${evidenceModeParam("?")}`)
       .then((res) => {
         if (!res.ok) {
           if (res.status === 404) return null;
@@ -179,7 +180,7 @@ export function RunDetail() {
   useEffect(() => {
     if (activeTab !== "scorecard" || scorecard !== null || scorecardError !== null || scorecardLoading || !id) return;
     setScorecardLoading(true);
-    fetch(`/v1/bench/runs/${id}/scorecard`)
+    fetch(`/v1/bench/runs/${id}/scorecard${evidenceModeParam("?")}`)
       .then((res) => {
         if (res.status === 404) {
           setScorecardError("not-found");

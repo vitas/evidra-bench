@@ -1,7 +1,7 @@
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useApi } from "../hooks/useApi";
-import { normalizeCatalog, type CatalogResponse } from "../lib/catalogData.mts";
+import { evidenceModeParam, normalizeCatalog, type CatalogResponse } from "../lib/catalogData.mts";
 import {
   categoriesFromScenarios,
   scenarioIdsForCategory,
@@ -118,8 +118,8 @@ function ModelMatrix() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      request<CatalogResponse>("/v1/bench/catalog"),
-      request<{ items: ScenarioCategoryRecord[] }>("/v1/bench/scenarios"),
+      request<CatalogResponse>(`/v1/bench/catalog${evidenceModeParam("?")}`),
+      request<{ items: ScenarioCategoryRecord[] }>(`/v1/bench/scenarios${evidenceModeParam("?")}`),
     ])
       .then(([catalogRes, scenariosRes]) => {
         const catalog = normalizeCatalog(catalogRes);
@@ -144,7 +144,7 @@ function ModelMatrix() {
     const params = new URLSearchParams();
     params.set("models", activeModels.join(","));
     if (selectedScenarioIDs.length > 0) params.set("scenarios", selectedScenarioIDs.join(","));
-    request<ModelMatrixResponse>(`/v1/bench/compare/models?${params}`)
+    request<ModelMatrixResponse>(`/v1/bench/compare/models?${params}${evidenceModeParam("&")}`)
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -305,7 +305,7 @@ function RunDiff() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    request<{ items: RunRecord[] }>("/v1/bench/runs?limit=100")
+    request<{ items: RunRecord[] }>(`/v1/bench/runs?limit=100${evidenceModeParam("&")}`)
       .then((res) => setRuns(res.items ?? []))
       .catch((e) => setError(e.message))
       .finally(() => setLoadingRuns(false));
@@ -315,7 +315,7 @@ function RunDiff() {
     if (!runA || !runB) return;
     setLoading(true);
     setError(null);
-    request<RunDiffResponse>(`/v1/bench/compare/runs?a=${runA}&b=${runB}`)
+    request<RunDiffResponse>(`/v1/bench/compare/runs?a=${runA}&b=${runB}${evidenceModeParam("&")}`)
       .then(setDiff)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));

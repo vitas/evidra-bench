@@ -343,6 +343,10 @@ func buildWhere(f RunFilters) (string, []any) {
 		clauses = append(clauses, "provider = ?")
 		args = append(args, f.Provider)
 	}
+	if f.EvidenceMode != "" {
+		clauses = append(clauses, "evidence_mode = ?")
+		args = append(args, f.EvidenceMode)
+	}
 	if f.PassedOnly {
 		clauses = append(clauses, "passed = 1")
 	}

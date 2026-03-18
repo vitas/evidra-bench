@@ -2,7 +2,7 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
-import { buildRunsPath } from "../lib/catalogData.mts";
+import { buildRunsPath, evidenceModeParam } from "../lib/catalogData.mts";
 
 /* ── Types ── */
 
@@ -138,13 +138,15 @@ export function Dashboard() {
 
     const since = periodToSince(period);
     const sinceParam = since ? `&since=${encodeURIComponent(since)}` : "";
-    const sinceParamFirst = since ? `?since=${encodeURIComponent(since)}` : "";
+    const modeFirst = evidenceModeParam("?");
+    const modeAmp = evidenceModeParam("&");
+    const sinceAmp = since ? `&since=${encodeURIComponent(since)}` : "";
 
     Promise.all([
-      request<Stats>(`/v1/bench/stats${sinceParamFirst}`),
+      request<Stats>(`/v1/bench/stats${modeFirst}${sinceAmp}`),
       request<RunsResponse>(buildRunsPath(8, since)),
-      request<RunsResponse>(`/v1/bench/runs?limit=500${sinceParam}`),
-      request<SignalAggregation>(`/v1/bench/signals${sinceParamFirst}`),
+      request<RunsResponse>(`/v1/bench/runs?limit=500${modeAmp}${sinceParam}`),
+      request<SignalAggregation>(`/v1/bench/signals${modeFirst}${sinceAmp}`),
     ])
       .then(([s, recent, all, sig]) => {
         if (cancelled) return;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useApi } from "../hooks/useApi";
 import { usePageTitle } from "../hooks/usePageTitle";
+import { evidenceModeParam } from "../lib/catalogData.mts";
 
 /* ── Types ── */
 
@@ -97,7 +98,7 @@ export function SkillImpact() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    request<RunsResponse>("/v1/bench/runs?limit=1000")
+    request<RunsResponse>(`/v1/bench/runs?limit=1000${evidenceModeParam("&")}`)
       .then((res) => setRuns(res.items ?? []))
       .catch(() => setRuns([]))
       .finally(() => setLoading(false));

@@ -9,10 +9,11 @@ import (
 func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	f := store.RunFilters{
-		ScenarioID: q.Get("scenario"),
-		Model:      q.Get("model"),
-		Provider:   q.Get("provider"),
-		Since:      q.Get("since"),
+		ScenarioID:   q.Get("scenario"),
+		Model:        q.Get("model"),
+		Provider:     q.Get("provider"),
+		EvidenceMode: q.Get("evidence_mode"),
+		Since:        q.Get("since"),
 	}
 
 	st, err := s.store.FilteredStats(r.Context(), f)
