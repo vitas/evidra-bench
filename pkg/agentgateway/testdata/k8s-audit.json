@@ -1,0 +1,26 @@
+[
+  {
+    "stageTimestamp": "2026-03-18T12:35:03Z",
+    "verb": "patch",
+    "objectRef": {
+      "resource": "deployments",
+      "namespace": "bench",
+      "name": "web"
+    },
+    "responseStatus": {
+      "code": 200
+    }
+  },
+  {
+    "stageTimestamp": "2026-03-18T12:40:00Z",
+    "verb": "delete",
+    "objectRef": {
+      "resource": "configmaps",
+      "namespace": "other",
+      "name": "unused"
+    },
+    "responseStatus": {
+      "code": 200
+    }
+  }
+]
