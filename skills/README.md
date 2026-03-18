@@ -1,41 +1,73 @@
 # Evidra Skills
 
-Proven, benchmarked skill prompts for infrastructure AI agents.
+Free, open source skill prompts for infrastructure AI agents.
+Benchmarked against real Kubernetes failures at [bench.evidra.cc](https://bench.evidra.cc).
 
-Each skill is tested against real Kubernetes failures using the
-[Evidra Bench](https://bench.evidra.cc) harness. Pass rates and
-behavioral analysis are published on the benchmark dashboard.
+## The Three Layers
 
-## Structure
+Benchmark data shows three distinct reliability tiers:
+
+| Layer | Skill | Pass Rate | Cost |
+|-------|-------|-----------|------|
+| **Naked model** | None — raw model ability | ~36% | - |
+| **+ Generic skill** | `k8s-agent.md` / `helm-agent.md` | ~55%* | Free |
+| **+ Evidra protocol** | Generic + `evidra/protocol.md` | ~100%* | With evidra |
+
+*Benchmarked across 9 models and 36 Kubernetes failure scenarios.
+
+Generic skills are **free best practices** — they improve any agent without
+vendor lock-in. The evidra protocol adds structured evidence recording
+on top, closing the gap to full reliability.
+
+## Skills
 
 ```
 skills/
-├── kubernetes/      # K8s diagnostic, repair, and safety skills
-├── helm/            # Helm release management skills
-├── devops/          # Cross-tool operational skills
-└── evidra/          # Evidra protocol skills (prescribe/report)
+├── kubernetes/k8s-agent.md   # Generic K8s principles (free, open source)
+├── helm/helm-agent.md        # Generic Helm principles (free, open source)
+└── evidra/protocol.md        # Evidra prescribe/report protocol (with product)
 ```
 
-## Skill Format
+### Generic Skills (free)
 
-Each skill is a markdown file with a focused prompt. Skills are:
-- **Slim** — one page, one purpose
-- **Tested** — benchmarked with pass rate and failure analysis
-- **Composable** — combine skills for complex workflows
+Short, principled prompts that teach any AI agent basic operational discipline.
+No step-by-step instructions — just rules any DevOps engineer would agree with.
 
-## Usage
+- **Diagnose before you act.** Understand the root cause first.
+- **Smallest change.** Patch, don't replace.
+- **Verify your fix.** Don't assume it worked.
+- **Respect safety mechanisms.** Never remove probes or policies.
 
-Pass a skill as the system prompt:
+### Evidra Protocol Skill (with product)
+
+Adds structured evidence recording: every mutation gets a prescribe/report
+cycle. The agent proves what it did and why — not just that it ran a command.
+
+## Composition
+
+Skills are composable. Combine them for your use case:
 
 ```bash
-# With infra-bench
-infra-bench run --system-prompt-file skills/kubernetes/diagnostic.md ...
+# Generic K8s principles only
+--system-prompt-file skills/kubernetes/k8s-agent.md
 
-# With any MCP agent
-Set as system prompt or CLAUDE.md content
+# K8s + evidra protocol (full stack)
+# Concatenate or include both in your system prompt
 ```
+
+## For Third-Party Agents
+
+When benchmarking third-party agents (kagent, custom MCP agents), we do NOT
+inject our skills. We test their agent as-is in two modes:
+
+| Mode | What we add | Measures |
+|------|------------|----------|
+| Proxy only | evidra-mcp --proxy | "How reliable is your agent?" |
+| Proxy + protocol | proxy + evidra skill | "How much does evidra improve it?" |
+
+The delta between the two IS the product value.
 
 ## Benchmark Scores
 
 See [bench.evidra.cc/skill-impact](https://bench.evidra.cc/skill-impact) for
-with/without skill comparison data.
+live comparison data across models and skills.
