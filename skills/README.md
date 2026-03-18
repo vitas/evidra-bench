@@ -43,29 +43,24 @@ No step-by-step instructions — just rules any DevOps engineer would agree with
 Adds structured evidence recording: every mutation gets a prescribe/report
 cycle. The agent proves what it did and why — not just that it ran a command.
 
-## Composition
-
-Skills are composable. Combine them for your use case:
+## Usage
 
 ```bash
-# Generic K8s principles only
+# Add to any agent as system prompt
 --system-prompt-file skills/kubernetes/k8s-agent.md
-
-# K8s + evidra protocol (full stack)
-# Concatenate or include both in your system prompt
 ```
 
 ## For Third-Party Agents
 
 When benchmarking third-party agents (kagent, custom MCP agents), we do NOT
-inject our skills. We test their agent as-is in two modes:
+inject our skills. We test their agent as-is:
 
-| Mode | What we add | Measures |
-|------|------------|----------|
-| Proxy only | evidra-mcp --proxy | "How reliable is your agent?" |
-| Proxy + protocol | proxy + evidra skill | "How much does evidra improve it?" |
+| Mode | Evidence | Measures |
+|------|----------|----------|
+| **Proxy** | Auto-recorded by evidra-mcp --proxy | "How reliable is your agent?" |
+| **Direct** | Agent calls prescribe/report (evidra protocol) | "Full compliance + risk assessment" |
 
-The delta between the two IS the product value.
+Choose one mode per run. They don't mix.
 
 ## Benchmark Scores
 
