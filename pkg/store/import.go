@@ -55,9 +55,14 @@ func (s *Store) ImportFromArtifacts(runsDir string) (int, error) {
 		checksPassed, checksTotal := countChecksFromJSON(checksJSON)
 
 		// Determine evidence mode from metadata.
-		evidenceMode := "direct"
+		// - Explicit evidence_mode in metadata takes priority
+		// - skill_version present → direct (agent used the skill)
+		// - Otherwise → none (baseline run, no evidence recording)
+		evidenceMode := "none"
 		if rj.Metadata["evidence_mode"] != "" {
 			evidenceMode = rj.Metadata["evidence_mode"]
+		} else if rj.Metadata["skill_version"] != "" {
+			evidenceMode = "direct"
 		}
 
 		rec := RunRecord{
