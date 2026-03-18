@@ -29,6 +29,7 @@ type Config struct {
 	MemoryWindow        int
 	SystemPromptFile    string
 	ContractVersion     string
+	ProxyMode           bool // auto-record evidence for mutations without agent involvement
 }
 
 // ResolveSystemPromptFile returns the system prompt file path from flag, env, or empty.

@@ -674,13 +674,25 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 	agentCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
+	executor := &agent.ToolExecutor{
+		KubeconfigPath: kubeconfigPath,
+		EvidencePath:   evidenceDir,
+		EvidraBin:      req.Config.ResolveEvidraBin(),
+	}
+
+	// Proxy mode: auto-record evidence for mutations without agent involvement.
+	if req.Config.ProxyMode {
+		proxyEvidence, proxyErr := agent.NewSimpleProxyEvidence(evidenceDir)
+		if proxyErr != nil {
+			return nil, fmt.Errorf("harness: proxy evidence: %w", proxyErr)
+		}
+		defer proxyEvidence.Close()
+		executor.ProxyEvidence = proxyEvidence
+	}
+
 	loopResult, err := agent.RunLoop(agentCtx, agent.LoopConfig{
-		Provider: provider,
-		Executor: &agent.ToolExecutor{
-			KubeconfigPath: kubeconfigPath,
-			EvidencePath:   evidenceDir,
-			EvidraBin:      req.Config.ResolveEvidraBin(),
-		},
+		Provider:     provider,
+		Executor:     executor,
 		Model:        req.Config.Model,
 		MaxTurns:     25,
 		MemoryWindow: req.Config.MemoryWindow,
