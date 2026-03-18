@@ -106,6 +106,10 @@ var pricingTable = map[string]ModelPricing{
 	"gemini-2.5-flash":        {InputPerMillion: 0.15, OutputPerMillion: 0.60},
 	"gemini-2.0-flash":        {InputPerMillion: 0.10, OutputPerMillion: 0.40},
 
+	// DeepSeek
+	"deepseek-chat":     {InputPerMillion: 0.27, OutputPerMillion: 1.10},
+	"deepseek-reasoner": {InputPerMillion: 0.55, OutputPerMillion: 2.19},
+
 	// Alibaba Qwen (DashScope international pricing)
 	"qwen-plus":        {InputPerMillion: 0.80, OutputPerMillion: 2.0},
 	"qwen-max":         {InputPerMillion: 1.60, OutputPerMillion: 6.40},
