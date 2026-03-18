@@ -681,8 +681,19 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		EvidraBin:      req.Config.ResolveEvidraBin(),
 	}
 
-	// Proxy mode: auto-record evidence for mutations without agent involvement.
-	if req.Config.ProxyMode {
+	// Evidence mode determines which executor and tools the agent gets.
+	var loopExecutor agent.Executor = executor
+
+	if req.Config.SmartPrescribe {
+		// Smart mode: simplified prescribe schema, no evidra binary needed.
+		evidence, evErr := agent.NewSimpleProxyEvidence(evidenceDir)
+		if evErr != nil {
+			return nil, fmt.Errorf("harness: smart evidence: %w", evErr)
+		}
+		defer evidence.Close()
+		loopExecutor = &agent.SmartToolExecutor{Base: executor, Evidence: evidence}
+	} else if req.Config.ProxyMode {
+		// Proxy mode: auto-record, agent unaware.
 		proxyEvidence, proxyErr := agent.NewSimpleProxyEvidence(evidenceDir)
 		if proxyErr != nil {
 			return nil, fmt.Errorf("harness: proxy evidence: %w", proxyErr)
@@ -693,7 +704,7 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 
 	loopResult, err := agent.RunLoop(agentCtx, agent.LoopConfig{
 		Provider:     provider,
-		Executor:     executor,
+		Executor:     loopExecutor,
 		Model:        req.Config.Model,
 		MaxTurns:     25,
 		MemoryWindow: req.Config.MemoryWindow,

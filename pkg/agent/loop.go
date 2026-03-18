@@ -21,8 +21,10 @@ type EvidenceMode int
 const (
 	// EvidenceModeNone — no evidence recording. Baseline runs.
 	EvidenceModeNone EvidenceMode = iota
-	// EvidenceModeDirect — agent calls prescribe/report explicitly via MCP tools.
+	// EvidenceModeDirect — agent calls full prescribe/report with artifact.
 	EvidenceModeDirect
+	// EvidenceModeSmart — agent calls simplified prescribe (tool+operation only, no artifact).
+	EvidenceModeSmart
 	// EvidenceModeProxy — harness auto-records prescribe/report for mutations.
 	EvidenceModeProxy
 )
@@ -62,11 +64,18 @@ func RunLoop(ctx context.Context, cfg LoopConfig) (*LoopResult, error) {
 	start := time.Now()
 
 	// Tool list depends on evidence mode:
-	// - Direct: full tools including evidra_prescribe/report
-	// - Proxy/None: only run_command (no evidra tools — proxy records automatically)
-	tools := BenchTools()
+	// - Direct: full evidra tools (prescribe with artifact, report)
+	// - Smart: simplified evidra tools (prescribe with tool+operation only)
+	// - Proxy/None: only run_command (no evidra tools)
 	mode := cfg.Executor.EvidenceMode()
-	if mode != EvidenceModeDirect {
+	var tools []ToolDef
+	switch mode {
+	case EvidenceModeSmart:
+		tools = SmartPrescribeTools()
+	case EvidenceModeDirect:
+		tools = BenchTools()
+	default:
+		tools = BenchTools()
 		filtered := make([]ToolDef, 0, len(tools))
 		for _, t := range tools {
 			if !strings.HasPrefix(t.Name, "evidra_") {
