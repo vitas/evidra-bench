@@ -139,10 +139,15 @@ func (p *BifrostProvider) doRequest(ctx context.Context, body []byte) (*http.Res
 
 func buildOpenAIPayload(req ChatRequest) map[string]any {
 	messages := make([]map[string]any, 0, len(req.Messages))
+	isDeepSeek := strings.Contains(req.Model, "deepseek")
+
 	for _, m := range req.Messages {
 		msg := map[string]any{"role": m.Role}
 		if m.Content != "" {
 			msg["content"] = m.Content
+		} else if isDeepSeek && m.Role == "assistant" {
+			// DeepSeek requires content field on all assistant messages.
+			msg["content"] = ""
 		}
 		if len(m.ToolCalls) > 0 {
 			tcs := make([]map[string]any, len(m.ToolCalls))
