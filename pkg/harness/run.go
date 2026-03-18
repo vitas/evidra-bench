@@ -235,7 +235,8 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	}
 
 	// Step 5b: Verify Evidra protocol compliance.
-	if s.Evidra.Enabled {
+	// Skip in proxy mode — agent has no way to call prescribe/report.
+	if s.Evidra.Enabled && !req.Config.ProxyMode {
 		// Fall back to simulated evidence if real evidence dir has no segments.
 		if s.Evidra.SimulatedEvidenceDir != "" {
 			if _, err := os.Stat(filepath.Join(evidenceDir, "segments")); err != nil {
