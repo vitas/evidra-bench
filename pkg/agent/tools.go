@@ -68,6 +68,17 @@ type ToolExecutor struct {
 	ProxyEvidence  ProxyEvidenceWriter // nil = proxy mode disabled
 }
 
+// EvidenceMode returns how this executor records evidence.
+func (e *ToolExecutor) EvidenceMode() EvidenceMode {
+	if e.ProxyEvidence != nil {
+		return EvidenceModeProxy
+	}
+	if e.EvidraBin != "" {
+		return EvidenceModeDirect
+	}
+	return EvidenceModeNone
+}
+
 // Execute runs a single tool call and returns the result string.
 func (e *ToolExecutor) Execute(ctx context.Context, tc ToolCall) string {
 	switch tc.Name {

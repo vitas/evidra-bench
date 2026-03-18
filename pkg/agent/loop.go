@@ -8,10 +8,29 @@ import (
 	"time"
 )
 
+// Executor runs tool calls. Implemented by ToolExecutor.
+type Executor interface {
+	Execute(ctx context.Context, tc ToolCall) string
+	// EvidenceMode returns how evidence is recorded for this executor.
+	EvidenceMode() EvidenceMode
+}
+
+// EvidenceMode describes how evidence is recorded during a run.
+type EvidenceMode int
+
+const (
+	// EvidenceModeNone — no evidence recording. Baseline runs.
+	EvidenceModeNone EvidenceMode = iota
+	// EvidenceModeDirect — agent calls prescribe/report explicitly via MCP tools.
+	EvidenceModeDirect
+	// EvidenceModeProxy — harness auto-records prescribe/report for mutations.
+	EvidenceModeProxy
+)
+
 // LoopConfig configures the agent loop.
 type LoopConfig struct {
 	Provider     Provider
-	Executor     *ToolExecutor
+	Executor     Executor
 	Model        string
 	MaxTurns     int
 	MemoryWindow int // -1 = full history (default), 0 = stateless, N = keep last N exchanges
@@ -41,10 +60,13 @@ func RunLoop(ctx context.Context, cfg LoopConfig) (*LoopResult, error) {
 		cfg.MaxTokens = 4096
 	}
 	start := time.Now()
-	tools := BenchTools()
 
-	// Don't include evidra tools if no evidra binary configured
-	if cfg.Executor.EvidraBin == "" {
+	// Tool list depends on evidence mode:
+	// - Direct: full tools including evidra_prescribe/report
+	// - Proxy/None: only run_command (no evidra tools — proxy records automatically)
+	tools := BenchTools()
+	mode := cfg.Executor.EvidenceMode()
+	if mode != EvidenceModeDirect {
 		filtered := make([]ToolDef, 0, len(tools))
 		for _, t := range tools {
 			if !strings.HasPrefix(t.Name, "evidra_") {
