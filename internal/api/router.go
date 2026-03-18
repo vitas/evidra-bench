@@ -35,6 +35,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/bench/runs/{id}/transcript", s.handleGetTranscript)
 	mux.HandleFunc("GET /v1/bench/runs/{id}/tool-calls", s.handleGetToolCalls)
 	mux.HandleFunc("GET /v1/bench/runs/{id}/scorecard", s.handleGetScorecard)
+	mux.HandleFunc("GET /v1/bench/runs/{id}/timeline", s.handleGetTimeline)
 
 	// Compare
 	mux.HandleFunc("GET /v1/bench/compare/runs", s.handleCompareRuns)

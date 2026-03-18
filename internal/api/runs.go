@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 
 	"samebits.com/evidra-infra-bench/pkg/store"
+	"samebits.com/evidra-infra-bench/pkg/timeline"
 )
 
 func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
@@ -102,6 +104,31 @@ func (s *Server) handleGetScorecard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.serveArtifactFile(w, run.ArtifactDir, "scorecard.json", "application/json")
+}
+
+func (s *Server) handleGetTimeline(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	run, err := s.store.GetRun(r.Context(), id)
+	if err != nil {
+		respondError(w, http.StatusNotFound, "run not found")
+		return
+	}
+	if run.ArtifactDir == "" {
+		respondError(w, http.StatusNotFound, "no artifact directory")
+		return
+	}
+	data, err := os.ReadFile(filepath.Join(run.ArtifactDir, "tool-calls.json"))
+	if err != nil {
+		respondError(w, http.StatusNotFound, "tool-calls not found")
+		return
+	}
+	var calls []timeline.ToolCall
+	if err := json.Unmarshal(data, &calls); err != nil {
+		respondError(w, http.StatusInternalServerError, "parse tool-calls: "+err.Error())
+		return
+	}
+	tl := timeline.Parse(calls)
+	respondJSON(w, http.StatusOK, tl)
 }
 
 func (s *Server) serveArtifactFile(w http.ResponseWriter, artifactDir, filename, contentType string) {
