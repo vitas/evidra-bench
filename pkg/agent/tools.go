@@ -46,11 +46,26 @@ func BenchTools() []ToolDef {
 	}
 }
 
+// ProxyEvidenceWriter records proxy-mode evidence (auto prescribe/report).
+// Implemented by proxy.EvidenceWriter from the parent evidra project.
+// When nil, proxy mode is disabled.
+type ProxyEvidenceWriter interface {
+	Prescribe(command string) string
+	Report(prescriptionID string, exitCode int)
+}
+
 // ToolExecutor runs tool calls against the real environment.
+//
+// When ProxyEvidence is set, the executor auto-records prescribe/report
+// evidence for mutation commands (kubectl apply, helm upgrade, etc.)
+// without any agent involvement — zero extra tokens. This is "proxy mode"
+// as opposed to "direct mode" where the agent calls evidra_prescribe/report
+// explicitly.
 type ToolExecutor struct {
 	KubeconfigPath string
 	EvidencePath   string
 	EvidraBin      string
+	ProxyEvidence  ProxyEvidenceWriter // nil = proxy mode disabled
 }
 
 // Execute runs a single tool call and returns the result string.
@@ -125,6 +140,12 @@ func (e *ToolExecutor) runCommand(ctx context.Context, argsJSON string) string {
 		return fmt.Sprintf("error: %v", err)
 	}
 
+	// Proxy mode: auto-prescribe before mutations, auto-report after.
+	var prescriptionID string
+	if e.ProxyEvidence != nil && isMutationCommand(args.Command) {
+		prescriptionID = e.ProxyEvidence.Prescribe(args.Command)
+	}
+
 	cmd := exec.CommandContext(ctx, "bash", "-c", args.Command)
 	cmd.Env = append(os.Environ(), "KUBECONFIG="+e.KubeconfigPath)
 	var stdout, stderr bytes.Buffer
@@ -136,10 +157,42 @@ func (e *ToolExecutor) runCommand(ctx context.Context, argsJSON string) string {
 	if stderr.Len() > 0 {
 		result += "\nSTDERR: " + stderr.String()
 	}
+	ec := 0
 	if err != nil {
-		result += fmt.Sprintf("\nExit code: %d", exitCode(err))
+		ec = exitCode(err)
+		result += fmt.Sprintf("\nExit code: %d", ec)
 	}
+
+	// Proxy mode: auto-report after execution.
+	if prescriptionID != "" {
+		e.ProxyEvidence.Report(prescriptionID, ec)
+	}
+
 	return strings.TrimSpace(result)
+}
+
+// mutationSubcommands maps infrastructure tools to their mutating subcommands.
+// Mirrors pkg/proxy/detect.go from the parent evidra project.
+var mutationSubcommands = map[string]map[string]bool{
+	"kubectl": {"apply": true, "create": true, "patch": true, "replace": true, "delete": true,
+		"set": true, "annotate": true, "label": true, "rollout": true, "scale": true,
+		"taint": true, "cordon": true, "uncordon": true, "drain": true},
+	"helm":      {"install": true, "upgrade": true, "uninstall": true, "rollback": true},
+	"terraform": {"apply": true, "destroy": true, "import": true},
+	"argocd":    {"sync": true, "delete": true},
+}
+
+// isMutationCommand returns true if the command modifies infrastructure state.
+func isMutationCommand(command string) bool {
+	words := strings.Fields(strings.TrimSpace(command))
+	if len(words) < 2 {
+		return false
+	}
+	subs, ok := mutationSubcommands[words[0]]
+	if !ok {
+		return false
+	}
+	return subs[words[1]]
 }
 
 func (e *ToolExecutor) evidraPrescribe(ctx context.Context, argsJSON string) string {

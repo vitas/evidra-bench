@@ -57,6 +57,42 @@ func TestBuildPrescribeCommandArgs_UsesActorMetadata(t *testing.T) {
 	}
 }
 
+func TestIsMutationCommand(t *testing.T) {
+	t.Parallel()
+
+	mutations := []string{
+		"kubectl apply -f manifest.yaml",
+		"kubectl delete pod nginx",
+		"kubectl patch deployment web",
+		"kubectl scale deployment web --replicas=3",
+		"helm install myrelease ./chart",
+		"helm upgrade myrelease ./chart",
+		"terraform apply -auto-approve",
+		"terraform destroy",
+	}
+	for _, cmd := range mutations {
+		if !isMutationCommand(cmd) {
+			t.Errorf("expected %q to be a mutation", cmd)
+		}
+	}
+
+	readOnly := []string{
+		"kubectl get pods",
+		"kubectl describe deployment web",
+		"kubectl logs nginx",
+		"helm list",
+		"terraform plan",
+		"cat /etc/hosts",
+		"",
+		"kubectl",
+	}
+	for _, cmd := range readOnly {
+		if isMutationCommand(cmd) {
+			t.Errorf("expected %q to be read-only", cmd)
+		}
+	}
+}
+
 func TestValidateCommand_BlockedInteractive(t *testing.T) {
 	t.Parallel()
 
