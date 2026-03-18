@@ -1,0 +1,10 @@
+{
+  "timestamp": "2026-03-18T12:35:00Z",
+  "attributes": {
+    "trace.id": "trace-allow-1",
+    "mcp.session.id": "sess-123",
+    "extauthz.decision": "allow",
+    "extauthz.policy_id": "policy.safe",
+    "extauthz.reason": "namespaced_patch"
+  }
+}

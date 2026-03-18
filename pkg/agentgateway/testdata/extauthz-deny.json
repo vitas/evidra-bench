@@ -1,0 +1,10 @@
+{
+  "timestamp": "2026-03-18T12:35:02Z",
+  "attributes": {
+    "trace.id": "trace-deny-1",
+    "mcp.session.id": "sess-123",
+    "extauthz.decision": "deny",
+    "extauthz.policy_id": "policy.block",
+    "extauthz.reason": "cluster_scope_forbidden"
+  }
+}

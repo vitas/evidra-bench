@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-03-18T12:34:56Z",
+  "attributes": {
+    "mcp.method.name": "tools/call",
+    "gen_ai.tool.name": "kubectl_apply",
+    "mcp.target": "cluster-a",
+    "mcp.session.id": "sess-123",
+    "http.status": 200,
+    "reason": "upstream"
+  }
+}
