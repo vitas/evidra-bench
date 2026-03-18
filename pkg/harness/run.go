@@ -785,6 +785,7 @@ func buildSystemPrompt(cfg config.Config, s *scenario.Scenario) (string, error) 
 
 	// Smart prescribe mode: auto-load the smart prescribe skill if no prompt file given.
 	if cfg.SmartPrescribe {
+		// Load smart prescribe skill. Source of truth: evidra/prompts/skill/SKILL_SMART.md
 		skillPath := filepath.Join(cfg.ScenariosDir, "..", "skills", "evidra", "smart-prescribe.md")
 		if data, err := os.ReadFile(skillPath); err == nil {
 			prompt := string(data)
