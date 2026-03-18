@@ -783,6 +783,28 @@ func buildSystemPrompt(cfg config.Config, s *scenario.Scenario) (string, error) 
 		return prompt, nil
 	}
 
+	// Smart prescribe mode: auto-load the smart prescribe skill if no prompt file given.
+	if cfg.SmartPrescribe {
+		skillPath := filepath.Join(cfg.ScenariosDir, "..", "skills", "evidra", "smart-prescribe.md")
+		if data, err := os.ReadFile(skillPath); err == nil {
+			prompt := string(data)
+			prompt += fmt.Sprintf("\n\nTarget namespace: %s\n", strings.Join(s.Scope.Namespaces, ", "))
+			return prompt, nil
+		}
+		// Fallback: inline minimal smart prescribe instructions.
+		return fmt.Sprintf(
+			"You are an infrastructure agent. Fix the problem described in the task.\n"+
+				"KUBECONFIG is already set. Use kubectl, helm, or other tools via the run_command tool.\n"+
+				"For read-only commands (get, describe, logs): just use run_command directly.\n\n"+
+				"IMPORTANT: Before every infrastructure mutation (kubectl apply/patch/delete, helm upgrade, etc.),\n"+
+				"call evidra_prescribe_smart with tool, operation, resource, namespace, and actor fields.\n"+
+				"After the mutation, call evidra_report with the prescription_id and verdict.\n"+
+				"Skip the protocol for read-only commands.\n\n"+
+				"Namespace: %s",
+			strings.Join(s.Scope.Namespaces, ", "),
+		), nil
+	}
+
 	// Default prompt — no protocol skill
 	return fmt.Sprintf(
 		"You are an infrastructure agent. Fix the problem described in the task.\n"+
