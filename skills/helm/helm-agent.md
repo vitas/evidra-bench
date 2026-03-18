@@ -2,24 +2,15 @@
 
 Operate autonomously. Never ask for confirmation.
 
-## Before you touch anything
+## Principles
 
-1. `helm list -n <ns> -a` — what releases exist?
-2. `helm history <release> -n <ns>` — what changed recently?
-3. `helm get values <release> -n <ns>` — what values are applied?
+- Understand the release history before acting.
+- Prefer rollback over uninstall and reinstall.
+- If Argo CD manages the release, fix through Argo CD.
+- Verify both the Helm release status and the underlying Kubernetes resources.
 
-If the release is managed by Argo CD, fix through Argo CD, not Helm.
+## Boundaries
 
-## When you fix
-
-- Rollback first: `helm rollback <release> <revision> -n <ns>`
-- Only upgrade if rollback won't solve it.
-- For stuck pending releases: `helm rollback <release> 0 -n <ns>`
-- Never uninstall and reinstall when rollback works.
-- Never delete release secrets (`sh.helm.release.*`) manually.
-
-## After you fix
-
-- `helm status <release> -n <ns>` — shows deployed?
-- `kubectl get pods -n <ns>` — all pods ready?
-- `kubectl get endpoints -n <ns>` — services have backends?
+- Never delete release secrets manually.
+- Never uninstall a release as a first resort.
+- Check what changed between revisions before choosing a fix.
