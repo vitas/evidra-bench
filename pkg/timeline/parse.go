@@ -19,6 +19,9 @@ var mutationSubcommands = map[string]map[string]bool{
 	"terraform": {
 		"apply": true, "destroy": true, "import": true,
 	},
+	"argocd": {
+		"sync": true, "delete": true,
+	},
 }
 
 // diagnosisCommands are subcommands that always indicate diagnosis.
@@ -70,12 +73,10 @@ func Parse(calls []ToolCall) *Timeline {
 			step.ExitCode = extractExitCode(call.Result)
 
 			if isMutationCmd(infraTool, subcommand, cmd) {
-				if !seenMutation {
-					step.Phase = PhaseAct
-					seenMutation = true
-				} else {
-					step.Phase = PhaseAct
-				}
+				// Explicit decide phase only comes from evidra_prescribe calls.
+				// Mutations without prescribe are classified as act directly.
+				step.Phase = PhaseAct
+				seenMutation = true
 				tl.MutationCount++
 				step.Summary = buildMutationSummary(subcommand, step.Resource, ns)
 			} else {

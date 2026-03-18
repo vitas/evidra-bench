@@ -38,9 +38,11 @@ type TimelineStep struct {
 
 // Timeline is the full classified sequence of agent actions.
 type Timeline struct {
-	Steps          []TimelineStep `json:"steps"`
-	PhaseCount     map[Phase]int  `json:"phase_count"`
-	MutationCount  int            `json:"mutation_count"`
-	TotalSteps     int            `json:"total_steps"`
-	DiagnosisDepth int            `json:"diagnosis_depth"`
+	Steps         []TimelineStep `json:"steps"`
+	PhaseCount    map[Phase]int  `json:"phase_count"`
+	MutationCount int            `json:"mutation_count"`
+	TotalSteps    int            `json:"total_steps"`
+	// DiagnosisDepth counts diagnose-phase steps, which by construction
+	// only occur before the first mutation.
+	DiagnosisDepth int `json:"diagnosis_depth"`
 }
