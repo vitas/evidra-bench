@@ -26,10 +26,14 @@ type ToolCall struct {
 // TimelineStep is a single classified step in the decision timeline.
 type TimelineStep struct {
 	Index     int    `json:"index"`
+	Kind      string `json:"kind,omitempty"`
 	Phase     Phase  `json:"phase"`
+	Timestamp string `json:"timestamp,omitempty"`
 	Tool      string `json:"tool"`
 	Operation string `json:"operation"`
 	Command   string `json:"command"`
+	SessionID string `json:"session_id,omitempty"`
+	Target    string `json:"target,omitempty"`
 	Resource  string `json:"resource,omitempty"`
 	Namespace string `json:"namespace,omitempty"`
 	ExitCode  int    `json:"exit_code"`

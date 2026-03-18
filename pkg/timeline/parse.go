@@ -33,10 +33,7 @@ var diagnosisCommands = map[string]bool{
 
 // Parse classifies a sequence of tool calls into a decision timeline.
 func Parse(calls []ToolCall) *Timeline {
-	tl := &Timeline{
-		Steps:      make([]TimelineStep, 0, len(calls)),
-		PhaseCount: make(map[Phase]int),
-	}
+	tl := newTimeline(len(calls))
 	if len(calls) == 0 {
 		return tl
 	}
@@ -103,6 +100,13 @@ func Parse(calls []ToolCall) *Timeline {
 
 	tl.TotalSteps = len(tl.Steps)
 	return tl
+}
+
+func newTimeline(capacity int) *Timeline {
+	return &Timeline{
+		Steps:      make([]TimelineStep, 0, capacity),
+		PhaseCount: make(map[Phase]int),
+	}
 }
 
 // extractCommand pulls the command string from tool call args JSON.
