@@ -60,7 +60,7 @@ func TestBenchTools_Count(t *testing.T) {
 	for _, tool := range tools {
 		names[tool.Name] = true
 	}
-	for _, expected := range []string{"run_command", "evidra_prescribe", "evidra_report"} {
+	for _, expected := range []string{"run_command", "evidra_prescribe_full", "evidra_report"} {
 		if !names[expected] {
 			t.Fatalf("missing tool: %s", expected)
 		}
@@ -95,9 +95,9 @@ func TestBenchTools_EvidraSchemasMatchParentContract(t *testing.T) {
 		byName[tool.Name] = tool
 	}
 
-	prescribeDef, err := execcontract.PrescribeToolDefinition()
+	prescribeDef, err := execcontract.PrescribeFullToolDefinition()
 	if err != nil {
-		t.Fatalf("PrescribeToolDefinition: %v", err)
+		t.Fatalf("PrescribeFullToolDefinition: %v", err)
 	}
 	reportDef, err := execcontract.ReportToolDefinition()
 	if err != nil {
@@ -108,8 +108,8 @@ func TestBenchTools_EvidraSchemasMatchParentContract(t *testing.T) {
 	sanitizeArrayItems(prescribeDef.Parameters)
 	sanitizeArrayItems(reportDef.Parameters)
 
-	if got := byName["evidra_prescribe"]; !reflect.DeepEqual(got.Parameters, prescribeDef.Parameters) {
-		t.Fatalf("evidra_prescribe parameters drifted from parent contract")
+	if got := byName["evidra_prescribe_full"]; !reflect.DeepEqual(got.Parameters, prescribeDef.Parameters) {
+		t.Fatalf("evidra_prescribe_full parameters drifted from parent contract")
 	}
 	if got := byName["evidra_report"]; !reflect.DeepEqual(got.Parameters, reportDef.Parameters) {
 		t.Fatalf("evidra_report parameters drifted from parent contract")

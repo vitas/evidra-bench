@@ -84,7 +84,7 @@ func (e *ToolExecutor) Execute(ctx context.Context, tc ToolCall) string {
 	switch tc.Name {
 	case "run_command":
 		return e.runCommand(ctx, tc.Arguments)
-	case "evidra_prescribe":
+	case "evidra_prescribe", "evidra_prescribe_full":
 		return e.evidraPrescribe(ctx, tc.Arguments)
 	case "evidra_report":
 		return e.evidraReport(ctx, tc.Arguments)
@@ -275,7 +275,7 @@ func (e *ToolExecutor) evidraReport(ctx context.Context, argsJSON string) string
 }
 
 func mustEvidraToolDefinitions() (execcontract.ToolDefinition, execcontract.ToolDefinition) {
-	prescribeDef, err := execcontract.PrescribeToolDefinition()
+	prescribeDef, err := execcontract.PrescribeFullToolDefinition()
 	if err != nil {
 		panic(fmt.Sprintf("agent.BenchTools: load prescribe tool definition: %v", err))
 	}
