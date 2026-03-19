@@ -23,10 +23,11 @@ type ChatRequest struct {
 
 // Message is a single message in the conversation.
 type Message struct {
-	Role       string     `json:"role"`
-	Content    string     `json:"content,omitempty"`
-	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
-	ToolCallID string     `json:"tool_call_id,omitempty"`
+	Role             string     `json:"role"`
+	Content          string     `json:"content,omitempty"`
+	ReasoningContent string     `json:"reasoning_content,omitempty"` // DeepSeek Reasoner thinking tokens
+	ToolCalls        []ToolCall `json:"tool_calls,omitempty"`
+	ToolCallID       string     `json:"tool_call_id,omitempty"`
 }
 
 // ToolDef defines a tool the model can call.
@@ -45,9 +46,10 @@ type ToolCall struct {
 
 // ChatResponse is the model's response to a ChatRequest.
 type ChatResponse struct {
-	Content   string     `json:"content,omitempty"`
-	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
-	Usage     Usage      `json:"usage"`
+	Content          string     `json:"content,omitempty"`
+	ReasoningContent string     `json:"reasoning_content,omitempty"` // DeepSeek Reasoner
+	ToolCalls        []ToolCall `json:"tool_calls,omitempty"`
+	Usage            Usage      `json:"usage"`
 }
 
 // Usage tracks token consumption.

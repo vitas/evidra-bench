@@ -122,9 +122,10 @@ func RunLoop(ctx context.Context, cfg LoopConfig) (*LoopResult, error) {
 
 		// Append assistant message to full history
 		assistantMsg := Message{
-			Role:      "assistant",
-			Content:   resp.Content,
-			ToolCalls: resp.ToolCalls,
+			Role:             "assistant",
+			Content:          resp.Content,
+			ReasoningContent: resp.ReasoningContent,
+			ToolCalls:        resp.ToolCalls,
 		}
 		allMessages = append(allMessages, assistantMsg)
 

@@ -150,6 +150,10 @@ func buildOpenAIPayload(req ChatRequest) map[string]any {
 			// DeepSeek requires content field on all assistant messages.
 			msg["content"] = ""
 		}
+		// DeepSeek Reasoner requires reasoning_content on assistant messages.
+		if isDeepSeek && m.Role == "assistant" && m.ReasoningContent != "" {
+			msg["reasoning_content"] = m.ReasoningContent
+		}
 		if len(m.ToolCalls) > 0 {
 			tcs := make([]map[string]any, len(m.ToolCalls))
 			for i, tc := range m.ToolCalls {
@@ -206,8 +210,9 @@ func parseOpenAIResponse(body []byte) (*ChatResponse, error) {
 	var raw struct {
 		Choices []struct {
 			Message struct {
-				Content   string `json:"content"`
-				ToolCalls []struct {
+				Content          string `json:"content"`
+				ReasoningContent string `json:"reasoning_content"`
+				ToolCalls        []struct {
 					ID       string `json:"id"`
 					Type     string `json:"type"`
 					Function struct {
@@ -241,8 +246,9 @@ func parseOpenAIResponse(body []byte) (*ChatResponse, error) {
 	}
 
 	return &ChatResponse{
-		Content:   choice.Message.Content,
-		ToolCalls: toolCalls,
+		Content:          choice.Message.Content,
+		ReasoningContent: choice.Message.ReasoningContent,
+		ToolCalls:        toolCalls,
 		Usage: Usage{
 			PromptTokens:     raw.Usage.PromptTokens,
 			CompletionTokens: raw.Usage.CompletionTokens,
