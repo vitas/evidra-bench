@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	evidrastand "samebits.com/evidra-infra-bench"
 	"samebits.com/evidra-infra-bench/internal/api"
@@ -95,14 +96,26 @@ func withUI(uiFS fs.FS, apiHandler http.Handler) http.Handler {
 		// Try to serve static file.
 		if f, err := uiFS.Open(path[1:]); err == nil {
 			f.Close()
+			setCacheHeaders(w, path)
 			fileServer.ServeHTTP(w, r)
 			return
 		}
 
 		// SPA fallback: serve index.html for client-side routing.
+		w.Header().Set("Cache-Control", "no-cache")
 		r.URL.Path = "/"
 		fileServer.ServeHTTP(w, r)
 	})
+}
+
+// setCacheHeaders sets Cache-Control based on whether the asset has a
+// content-hash in the filename (Vite's /assets/* output).
+func setCacheHeaders(w http.ResponseWriter, path string) {
+	if strings.HasPrefix(path, "/assets/") {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		return
+	}
+	w.Header().Set("Cache-Control", "no-cache")
 }
 
 func envOr(key, fallback string) string {
