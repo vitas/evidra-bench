@@ -49,15 +49,20 @@ RUN /infra-bench db rebuild --runs-dir /data/runs
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /bench-api /usr/local/bin/bench-api
-COPY --from=data-builder /data/runs/bench.db /data/runs/bench.db
-COPY --from=data-builder /data/runs/results.jsonl /data/runs/results.jsonl
 COPY scenarios/ /data/scenarios/
+
+# Bundle run artifacts (transcripts, tool-calls, scorecards) for timeline/transcript UI
+COPY runs/ /data/runs/
+
+# Overwrite DB with rebuilt version (from JSONL, includes all imported records)
+COPY --from=data-builder /data/runs/bench.db /data/runs/bench.db
 
 ENV RUNS_DIR=/data/runs
 ENV SCENARIOS_DIR=/data/scenarios
 ENV LISTEN_ADDR=:8080
 ENV READONLY=1
 
+WORKDIR /data
 EXPOSE 8080
 ENTRYPOINT ["bench-api"]
 CMD ["--readonly"]
