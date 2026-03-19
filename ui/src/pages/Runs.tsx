@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useApi } from "../hooks/useApi";
 import { applyEvidenceMode, evidenceModeParam, normalizeCatalog, type CatalogResponse } from "../lib/catalogData.mts";
+import { useEvidenceMode } from "../hooks/useEvidenceMode";
 
 interface RunRecord {
   id: string;
@@ -78,6 +79,7 @@ function SortArrow({ field, sort }: { field: SortField; sort: { field: SortField
 export function Runs() {
   usePageTitle("Runs");
   const { request } = useApi();
+  const { mode } = useEvidenceMode();
   const navigate = useNavigate();
 
   const [data, setData] = useState<RunsResponse | null>(null);
@@ -121,7 +123,7 @@ export function Runs() {
       if (appliedFilters.since) params.set("since", appliedFilters.since);
       params.set("limit", String(PAGE_SIZE));
       params.set("offset", String(page * PAGE_SIZE));
-      applyEvidenceMode(params);
+      applyEvidenceMode(params, mode);
 
       const qs = params.toString();
       const resp = await request<RunsResponse>(`/v1/bench/runs${qs ? `?${qs}` : ""}`);
@@ -131,17 +133,17 @@ export function Runs() {
     } finally {
       setLoading(false);
     }
-  }, [request, appliedFilters, page]);
+  }, [request, appliedFilters, page, mode]);
 
   useEffect(() => {
     fetchRuns();
   }, [fetchRuns]);
 
   useEffect(() => {
-    request<CatalogResponse>(`/v1/bench/catalog${evidenceModeParam("?")}`)
+    request<CatalogResponse>(`/v1/bench/catalog${evidenceModeParam("?", mode)}`)
       .then((res) => setCatalog(normalizeCatalog(res)))
       .catch(() => setCatalog({ models: [], providers: [] }));
-  }, [request]);
+  }, [request, mode]);
 
   function handleApply() {
     setAppliedFilters({ scenario, model, provider, status, since });

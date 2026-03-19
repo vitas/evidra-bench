@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router";
 import { useApi } from "../hooks/useApi";
 import { evidenceModeParam } from "../lib/catalogData.mts";
+import { useEvidenceMode } from "../hooks/useEvidenceMode";
 
 interface RunRecord {
   id: string;
@@ -135,6 +136,7 @@ function highlightTranscript(text: string): (React.ReactElement | string)[] {
 export function RunDetail() {
   const { id } = useParams<{ id: string }>();
   const { request } = useApi();
+  const { mode } = useEvidenceMode();
   usePageTitle(id ? `Run ${id}` : "Run Detail");
 
   const [run, setRun] = useState<RunRecord | null>(null);
@@ -162,17 +164,17 @@ export function RunDetail() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    request<RunRecord>(`/v1/bench/runs/${id}${evidenceModeParam("?")}`)
+    request<RunRecord>(`/v1/bench/runs/${id}${evidenceModeParam("?", mode)}`)
       .then(setRun)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [id, request]);
+  }, [id, request, mode]);
 
   // Fetch transcript on tab switch
   useEffect(() => {
     if (activeTab !== "transcript" || transcript !== null || transcriptLoading || !id) return;
     setTranscriptLoading(true);
-    fetch(`/v1/bench/runs/${id}/transcript${evidenceModeParam("?")}`)
+    fetch(`/v1/bench/runs/${id}/transcript${evidenceModeParam("?", mode)}`)
       .then((res) => {
         if (!res.ok) throw new Error(res.statusText);
         return res.text();
@@ -180,13 +182,13 @@ export function RunDetail() {
       .then(setTranscript)
       .catch((err) => setTranscriptError(err.message))
       .finally(() => setTranscriptLoading(false));
-  }, [activeTab, transcript, transcriptLoading, id]);
+  }, [activeTab, transcript, transcriptLoading, id, mode]);
 
   // Fetch tool calls on tab switch
   useEffect(() => {
     if (activeTab !== "tool-calls" || toolCalls !== null || toolCallsLoading || !id) return;
     setToolCallsLoading(true);
-    fetch(`/v1/bench/runs/${id}/tool-calls${evidenceModeParam("?")}`)
+    fetch(`/v1/bench/runs/${id}/tool-calls${evidenceModeParam("?", mode)}`)
       .then((res) => {
         if (!res.ok) {
           if (res.status === 404) return null;
@@ -208,13 +210,13 @@ export function RunDetail() {
       })
       .catch((err) => setToolCallsError(err.message))
       .finally(() => setToolCallsLoading(false));
-  }, [activeTab, toolCalls, toolCallsLoading, id]);
+  }, [activeTab, toolCalls, toolCallsLoading, id, mode]);
 
   // Fetch scorecard on tab switch
   useEffect(() => {
     if (activeTab !== "scorecard" || scorecard !== null || scorecardError !== null || scorecardLoading || !id) return;
     setScorecardLoading(true);
-    fetch(`/v1/bench/runs/${id}/scorecard${evidenceModeParam("?")}`)
+    fetch(`/v1/bench/runs/${id}/scorecard${evidenceModeParam("?", mode)}`)
       .then((res) => {
         if (res.status === 404) {
           setScorecardError("not-found");
@@ -228,13 +230,13 @@ export function RunDetail() {
       })
       .catch((err) => setScorecardError(err.message))
       .finally(() => setScorecardLoading(false));
-  }, [activeTab, scorecard, scorecardError, scorecardLoading, id]);
+  }, [activeTab, scorecard, scorecardError, scorecardLoading, id, mode]);
 
   // Fetch timeline on tab switch
   useEffect(() => {
     if (activeTab !== "timeline" || timeline !== null || timelineError !== null || timelineLoading || !id) return;
     setTimelineLoading(true);
-    fetch(`/v1/bench/runs/${id}/timeline${evidenceModeParam("?")}`)
+    fetch(`/v1/bench/runs/${id}/timeline${evidenceModeParam("?", mode)}`)
       .then((res) => {
         if (res.status === 404) {
           setTimelineError("not-found");
@@ -248,7 +250,7 @@ export function RunDetail() {
       })
       .catch((err) => setTimelineError(err.message))
       .finally(() => setTimelineLoading(false));
-  }, [activeTab, timeline, timelineError, timelineLoading, id]);
+  }, [activeTab, timeline, timelineError, timelineLoading, id, mode]);
 
   if (loading) {
     return (

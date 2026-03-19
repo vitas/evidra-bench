@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { evidenceModeParam } from "../lib/catalogData.mts";
+import { useEvidenceMode } from "../hooks/useEvidenceMode";
 
 interface FailureInsights {
   scenario_id: string;
@@ -31,6 +32,7 @@ function fmtTokens(n: number): string { return n >= 1000 ? `${(n/1000).toFixed(1
 export function Insights() {
   usePageTitle("Failure Analysis");
   const { request } = useApi();
+  const { mode } = useEvidenceMode();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [selected, setSelected] = useState("");
   const [insights, setInsights] = useState<FailureInsights | null>(null);
@@ -38,8 +40,8 @@ export function Insights() {
 
   useEffect(() => {
     Promise.all([
-      request<ScenariosResponse>(`/v1/bench/scenarios${evidenceModeParam("?")}`),
-      request<{ by_scenario: { scenario_id: string; runs: number; passed: number }[] }>(`/v1/bench/stats${evidenceModeParam("?")}`),
+      request<ScenariosResponse>(`/v1/bench/scenarios${evidenceModeParam("?", mode)}`),
+      request<{ by_scenario: { scenario_id: string; runs: number; passed: number }[] }>(`/v1/bench/stats${evidenceModeParam("?", mode)}`),
     ])
       .then(([scenariosRes, stats]) => {
         const items = scenariosRes.items ?? [];
@@ -55,16 +57,16 @@ export function Insights() {
         }
       })
       .catch(() => {});
-  }, [request]);
+  }, [request, mode]);
 
   useEffect(() => {
     if (!selected) return;
     setLoading(true);
-    request<FailureInsights>(`/v1/bench/insights?scenario=${encodeURIComponent(selected)}${evidenceModeParam("&")}`)
+    request<FailureInsights>(`/v1/bench/insights?scenario=${encodeURIComponent(selected)}${evidenceModeParam("&", mode)}`)
       .then(setInsights)
       .catch(() => setInsights(null))
       .finally(() => setLoading(false));
-  }, [selected, request]);
+  }, [selected, request, mode]);
 
   const failSignals = useMemo(
     () => (insights?.command_patterns ?? []).filter((c) => c.indicator === "fail_signal"),

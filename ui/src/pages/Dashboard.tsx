@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
 import { buildRunsPath, evidenceModeParam } from "../lib/catalogData.mts";
+import { useEvidenceMode } from "../hooks/useEvidenceMode";
 
 /* ── Types ── */
 
@@ -125,6 +126,7 @@ function Pulse({ className = "" }: { className?: string }) {
 export function Dashboard() {
   usePageTitle("Dashboard");
   const { request } = useApi();
+  const { mode } = useEvidenceMode();
   const [period, setPeriod] = useState<Period>("7d");
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentRuns, setRecentRuns] = useState<Run[]>([]);
@@ -138,13 +140,13 @@ export function Dashboard() {
 
     const since = periodToSince(period);
     const sinceParam = since ? `&since=${encodeURIComponent(since)}` : "";
-    const modeFirst = evidenceModeParam("?");
-    const modeAmp = evidenceModeParam("&");
+    const modeFirst = evidenceModeParam("?", mode);
+    const modeAmp = evidenceModeParam("&", mode);
     const sinceAmp = since ? `&since=${encodeURIComponent(since)}` : "";
 
     Promise.all([
       request<Stats>(`/v1/bench/stats${modeFirst}${sinceAmp}`),
-      request<RunsResponse>(buildRunsPath(8, since)),
+      request<RunsResponse>(buildRunsPath(8, since, mode)),
       request<RunsResponse>(`/v1/bench/runs?limit=500${modeAmp}${sinceParam}`),
       request<SignalAggregation>(`/v1/bench/signals${modeFirst}${sinceAmp}`),
     ])
@@ -169,7 +171,7 @@ export function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [period, request]);
+  }, [period, request, mode]);
 
   /* Derived data */
   const passRate =

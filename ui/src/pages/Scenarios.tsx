@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
 import { useAppInfo } from "../hooks/useAppInfo";
 import { evidenceModeParam } from "../lib/catalogData.mts";
+import { useEvidenceMode } from "../hooks/useEvidenceMode";
 import {
   DEFAULT_RUN_SELECTION,
   RUN_PROVIDERS,
@@ -60,6 +61,7 @@ type ViewMode = "cards" | "list";
 export function Scenarios() {
   usePageTitle("Scenarios");
   const { request } = useApi();
+  const { mode } = useEvidenceMode();
   const { readonly } = useAppInfo();
   const [data, setData] = useState<ScenariosResponse | null>(null);
   const [stats, setStats] = useState<Map<string, ScenarioStat>>(new Map());
@@ -84,8 +86,8 @@ export function Scenarios() {
 
   useEffect(() => {
     Promise.all([
-      request<ScenariosResponse>(`/v1/bench/scenarios${evidenceModeParam("?")}`),
-      request<Stats>(`/v1/bench/stats${evidenceModeParam("?")}`),
+      request<ScenariosResponse>(`/v1/bench/scenarios${evidenceModeParam("?", mode)}`),
+      request<Stats>(`/v1/bench/stats${evidenceModeParam("?", mode)}`),
     ])
       .then(([scenarios, st]) => {
         setData(scenarios);
@@ -97,7 +99,7 @@ export function Scenarios() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [request]);
+  }, [request, mode]);
 
   const filtered = useMemo(() => {
     if (!data) return [];

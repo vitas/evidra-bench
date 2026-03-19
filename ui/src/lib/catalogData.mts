@@ -29,12 +29,12 @@ export function evidenceModeParam(prefix: "?" | "&", mode?: string): string {
   return m ? `${prefix}evidence_mode=${encodeURIComponent(m)}` : "";
 }
 
-export function buildRunsPath(limit: number, since?: string): string {
+export function buildRunsPath(limit: number, since?: string, mode?: string): string {
   const params = new URLSearchParams();
   params.set("limit", String(limit));
   if (since) {
     params.set("since", since);
   }
-  applyEvidenceMode(params);
+  applyEvidenceMode(params, mode);
   return `/v1/bench/runs?${params.toString()}`;
 }

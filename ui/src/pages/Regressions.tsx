@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { evidenceModeParam } from "../lib/catalogData.mts";
+import { useEvidenceMode } from "../hooks/useEvidenceMode";
 
 interface Regression {
   scenario_id: string;
@@ -18,15 +19,16 @@ interface Regression {
 export function Regressions() {
   usePageTitle("Regressions");
   const { request } = useApi();
+  const { mode } = useEvidenceMode();
   const [regressions, setRegressions] = useState<Regression[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    request<Regression[]>(`/v1/bench/regressions${evidenceModeParam("?")}`)
+    request<Regression[]>(`/v1/bench/regressions${evidenceModeParam("?", mode)}`)
       .then(setRegressions)
       .catch(() => setRegressions([]))
       .finally(() => setLoading(false));
-  }, [request]);
+  }, [request, mode]);
 
   const critical = regressions.filter((r) => r.severity === "critical");
   const warnings = regressions.filter((r) => r.severity === "warning");

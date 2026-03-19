@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useApi } from "../hooks/useApi";
 import { evidenceModeParam } from "../lib/catalogData.mts";
+import { useEvidenceMode } from "../hooks/useEvidenceMode";
 
 /* ── Types ── */
 
@@ -124,17 +125,18 @@ function medalEmoji(rank: number): string {
 export function Leaderboard() {
   usePageTitle("Model Leaderboard");
   const { request } = useApi();
+  const { mode } = useEvidenceMode();
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>("rate");
   const [sortDesc, setSortDesc] = useState(true);
 
   useEffect(() => {
-    request<RunsResponse>(`/v1/bench/runs?limit=1000${evidenceModeParam("&")}`)
+    request<RunsResponse>(`/v1/bench/runs?limit=1000${evidenceModeParam("&", mode)}`)
       .then((res) => setRuns(res.items ?? []))
       .catch(() => setRuns([]))
       .finally(() => setLoading(false));
-  }, [request]);
+  }, [request, mode]);
 
   const models = useMemo(() => {
     const map = new Map<

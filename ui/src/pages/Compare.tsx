@@ -2,6 +2,7 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useApi } from "../hooks/useApi";
 import { evidenceModeParam, normalizeCatalog, type CatalogResponse } from "../lib/catalogData.mts";
+import { useEvidenceMode } from "../hooks/useEvidenceMode";
 import {
   categoriesFromScenarios,
   scenarioIdsForCategory,
@@ -106,6 +107,7 @@ function formatDuration(s: number): string {
 
 function ModelMatrix() {
   const { request } = useApi();
+  const { mode } = useEvidenceMode();
   const [allModels, setAllModels] = useState<string[]>([]);
   const [activeModels, setActiveModels] = useState<string[]>([]);
   const [scenarios, setScenarios] = useState<ScenarioCategoryRecord[]>([]);
@@ -118,8 +120,8 @@ function ModelMatrix() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      request<CatalogResponse>(`/v1/bench/catalog${evidenceModeParam("?")}`),
-      request<{ items: ScenarioCategoryRecord[] }>(`/v1/bench/scenarios${evidenceModeParam("?")}`),
+      request<CatalogResponse>(`/v1/bench/catalog${evidenceModeParam("?", mode)}`),
+      request<{ items: ScenarioCategoryRecord[] }>(`/v1/bench/scenarios${evidenceModeParam("?", mode)}`),
     ])
       .then(([catalogRes, scenariosRes]) => {
         const catalog = normalizeCatalog(catalogRes);
@@ -130,7 +132,7 @@ function ModelMatrix() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [request]);
+  }, [request, mode]);
 
   // Fetch matrix when active models change
   useEffect(() => {
@@ -144,11 +146,11 @@ function ModelMatrix() {
     const params = new URLSearchParams();
     params.set("models", activeModels.join(","));
     if (selectedScenarioIDs.length > 0) params.set("scenarios", selectedScenarioIDs.join(","));
-    request<ModelMatrixResponse>(`/v1/bench/compare/models?${params}${evidenceModeParam("&")}`)
+    request<ModelMatrixResponse>(`/v1/bench/compare/models?${params}${evidenceModeParam("&", mode)}`)
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [activeModels, category, request, scenarios]);
+  }, [activeModels, category, request, scenarios, mode]);
 
   const toggleModel = useCallback((m: string) => {
     setActiveModels((prev) =>
@@ -296,6 +298,7 @@ function ModelMatrix() {
 
 function RunDiff() {
   const { request } = useApi();
+  const { mode } = useEvidenceMode();
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const [runA, setRunA] = useState("");
   const [runB, setRunB] = useState("");
@@ -305,21 +308,21 @@ function RunDiff() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    request<{ items: RunRecord[] }>(`/v1/bench/runs?limit=100${evidenceModeParam("&")}`)
+    request<{ items: RunRecord[] }>(`/v1/bench/runs?limit=100${evidenceModeParam("&", mode)}`)
       .then((res) => setRuns(res.items ?? []))
       .catch((e) => setError(e.message))
       .finally(() => setLoadingRuns(false));
-  }, [request]);
+  }, [request, mode]);
 
   const compare = useCallback(() => {
     if (!runA || !runB) return;
     setLoading(true);
     setError(null);
-    request<RunDiffResponse>(`/v1/bench/compare/runs?a=${runA}&b=${runB}${evidenceModeParam("&")}`)
+    request<RunDiffResponse>(`/v1/bench/compare/runs?a=${runA}&b=${runB}${evidenceModeParam("&", mode)}`)
       .then(setDiff)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [runA, runB, request]);
+  }, [runA, runB, request, mode]);
 
   const runLabel = (r: RunRecord) =>
     `${r.id.slice(0, 20)} -- ${r.scenario_id} -- ${r.model} -- ${r.passed ? "PASS" : "FAIL"}`;

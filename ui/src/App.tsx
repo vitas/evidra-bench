@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router";
+import { EvidenceModeProvider } from "./hooks/useEvidenceMode";
 import { Layout } from "./Layout";
 import { Dashboard } from "./pages/Dashboard";
 import { Runs } from "./pages/Runs";
@@ -15,6 +16,7 @@ import { Insights } from "./pages/Insights";
 export function App() {
   return (
     <BrowserRouter>
+      <EvidenceModeProvider>
       <Layout>
         <Routes>
           <Route path="/" element={<Leaderboard />} />
@@ -30,6 +32,7 @@ export function App() {
           <Route path="/benchmarks" element={<Benchmarks />} />
         </Routes>
       </Layout>
+      </EvidenceModeProvider>
     </BrowserRouter>
   );
 }
