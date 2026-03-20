@@ -11,31 +11,11 @@ import (
 	"time"
 
 	_ "modernc.org/sqlite"
+	bench "samebits.com/evidra/pkg/bench"
 )
 
-// RunRecord is a single benchmark run stored in the database.
-type RunRecord struct {
-	ID               string    `json:"id"`
-	ScenarioID       string    `json:"scenario_id"`
-	Model            string    `json:"model"`
-	Provider         string    `json:"provider"`
-	Adapter          string    `json:"adapter"`
-	EvidenceMode     string    `json:"evidence_mode"` // direct, proxy, or none
-	Passed           bool      `json:"passed"`
-	Duration         float64   `json:"duration_seconds"`
-	ExitCode         int       `json:"exit_code"`
-	Turns            int       `json:"turns"`
-	MemoryWindow     int       `json:"memory_window"`
-	PromptTokens     int       `json:"prompt_tokens"`
-	CompletionTokens int       `json:"completion_tokens"`
-	EstimatedCost    float64   `json:"estimated_cost_usd"`
-	ChecksPassed     int       `json:"checks_passed"`
-	ChecksTotal      int       `json:"checks_total"`
-	ChecksJSON       string    `json:"checks_json,omitempty"`
-	MetadataJSON     string    `json:"metadata_json,omitempty"`
-	ArtifactDir      string    `json:"artifact_dir"`
-	CreatedAt        time.Time `json:"created_at"`
-}
+// RunRecord is the shared benchmark run type from the parent evidra project.
+type RunRecord = bench.RunRecord
 
 // Store manages the results database and JSONL backup.
 type Store struct {
