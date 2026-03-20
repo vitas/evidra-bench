@@ -52,6 +52,7 @@ func (c *Config) ResolveEvidraBin() string {
 }
 
 // Default returns a Config with sensible offline-first defaults.
+// Reads EVIDRA_URL and EVIDRA_API_KEY from environment for evidra reporting.
 func Default() Config {
 	return Config{
 		EnvironmentProvider: "kind",
@@ -60,6 +61,8 @@ func Default() Config {
 		RunsDir:             "runs",
 		Timeout:             5 * time.Minute,
 		ClusterName:         "infra-bench",
+		EvidraURL:           os.Getenv("EVIDRA_URL"),
+		EvidraAPIKey:        os.Getenv("EVIDRA_API_KEY"),
 	}
 }
 

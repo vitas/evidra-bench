@@ -351,12 +351,23 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		checksPassed, checksTotal := countChecks(verifyResult)
 		checksJSON, _ := json.Marshal(verifyResult)
 		metadataJSON, _ := json.Marshal(agentResult.Metadata)
+		// Determine evidence mode for the record.
+		evidenceMode := "none"
+		if req.Config.SmartPrescribe {
+			evidenceMode = "smart"
+		} else if req.Config.ProxyMode {
+			evidenceMode = "proxy"
+		} else if req.Config.ResolveEvidraBin() != "" {
+			evidenceMode = "direct"
+		}
+
 		rec := store.RunRecord{
 			ID:               fmt.Sprintf("%s-%s-%s", startTime.Format("20060102-150405"), s.ID, req.Config.Adapter),
 			ScenarioID:       s.ID,
 			Model:            req.Config.Model,
 			Provider:         req.Config.Provider,
 			Adapter:          req.Config.Adapter,
+			EvidenceMode:     evidenceMode,
 			Passed:           verifyResult.Passed,
 			Duration:         endTime.Sub(startTime).Seconds(),
 			ExitCode:         agentResult.ExitCode,
@@ -375,6 +386,8 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		if err := h.deps.Store.Insert(rec); err != nil {
 			log.Printf("[harness] warning: store insert failed: %v", err)
 		}
+		// Report to evidra API if configured.
+		ReportToEvidra(req.Config.EvidraURL, req.Config.EvidraAPIKey, rec)
 	}
 
 	return result, nil

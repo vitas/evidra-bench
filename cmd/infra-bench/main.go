@@ -401,6 +401,8 @@ with optional Evidra reporting for behavioral analysis.`,
 	bf.StringVar(&benchCfg.ClusterName, "cluster-name", benchCfg.ClusterName, "kind cluster name")
 	bf.BoolVar(&benchCfg.DryRun, "dry-run", benchCfg.DryRun, "dry-run mode")
 	bf.IntVar(&benchCfg.MemoryWindow, "memory-window", -1, "memory window")
+	bf.StringVar(&benchCfg.EvidraURL, "evidra-url", benchCfg.EvidraURL, "Evidra API URL for reporting results")
+	bf.StringVar(&benchCfg.EvidraAPIKey, "evidra-api-key", benchCfg.EvidraAPIKey, "Evidra API key")
 
 	root.AddCommand(runCmd, scenarioCmd, labCmd, reportCmd, compareCmd, dbCmd, skillDeltaCmd, auditCmd, benchCmd)
 	return root
