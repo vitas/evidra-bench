@@ -383,6 +383,24 @@ func applyLabFlagOverrides(labCfg *tui.LabConfig, cfg config.Config, flags *pfla
 	if flags.Changed("runs-dir") || labCfg.RunsDir == "" {
 		labCfg.RunsDir = cfg.RunsDir
 	}
+	if flags.Changed("proxy-mode") {
+		labCfg.ProxyMode = cfg.ProxyMode
+	}
+	if flags.Changed("smart-prescribe") {
+		labCfg.SmartPrescribe = cfg.SmartPrescribe
+	}
+	if flags.Changed("evidra-url") {
+		labCfg.EvidraURL = cfg.EvidraURL
+	}
+	if flags.Changed("evidra-api-key") {
+		labCfg.EvidraAPIKey = cfg.EvidraAPIKey
+	}
+	if flags.Changed("memory-window") {
+		labCfg.MemoryWindow = cfg.MemoryWindow
+	}
+	if flags.Changed("reuse-cluster") {
+		labCfg.ReuseCluster = cfg.ReuseCluster
+	}
 }
 
 func executeRun(cmd *cobra.Command, cfg config.Config) error {

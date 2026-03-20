@@ -20,6 +20,12 @@ type LabConfig struct {
 	Timeout           string `yaml:"timeout"`
 	DryRun            bool   `yaml:"dry_run"`
 	EvidraEvidenceDir string `yaml:"evidra_evidence_dir,omitempty"`
+	ProxyMode         bool   `yaml:"proxy_mode,omitempty"`
+	SmartPrescribe    bool   `yaml:"smart_prescribe,omitempty"`
+	EvidraURL         string `yaml:"evidra_url,omitempty"`
+	EvidraAPIKey      string `yaml:"evidra_api_key,omitempty"`
+	MemoryWindow      int    `yaml:"memory_window,omitempty"`
+	ReuseCluster      bool   `yaml:"reuse_cluster,omitempty"`
 }
 
 // DefaultLabConfig returns sensible defaults.

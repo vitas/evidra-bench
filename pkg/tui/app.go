@@ -318,6 +318,12 @@ func (a *App) runScenario() tea.Cmd {
 			RunsDir:           a.runsDir,
 			ClusterName:       "infra-bench",
 			EvidraEvidenceDir: a.cfg.EvidraEvidenceDir,
+			ProxyMode:         a.cfg.ProxyMode,
+			SmartPrescribe:    a.cfg.SmartPrescribe,
+			EvidraURL:         a.cfg.EvidraURL,
+			EvidraAPIKey:      a.cfg.EvidraAPIKey,
+			MemoryWindow:      a.cfg.MemoryWindow,
+			ReuseCluster:      a.cfg.ReuseCluster,
 		}
 
 		if a.cfg.DryRun {
