@@ -1,6 +1,8 @@
 # evidra-infra-bench
 
-Standalone benchmark harness for testing infrastructure agents against realistic Kubernetes failure scenarios.
+CLI benchmark harness for testing infrastructure AI agents against realistic Kubernetes failure scenarios. Reports results to [evidra](https://github.com/vitas/evidra) for scoring, analytics, and dashboard.
+
+Dashboard: [evidra.cc/bench](https://evidra.cc/bench)
 
 ## What It Does
 
@@ -12,7 +14,7 @@ Standalone benchmark harness for testing infrastructure agents against realistic
 6. Verifies infrastructure outcome with declarative checks
 7. Verifies agent protocol compliance against Evidra evidence (opt-in)
 8. Writes a complete local artifact bundle
-9. Always writes local benchmark evidence and can optionally forward it to [Evidra](https://github.com/samebits/evidra)
+9. Reports results to [Evidra](https://github.com/vitas/evidra) (scoring, leaderboard, timeline)
 
 ## Prerequisites
 
@@ -194,7 +196,7 @@ infra-bench run --provider bifrost --model openai/gpt-4o --scenario ...
 infra-bench run --provider bifrost --model anthropic/claude-3-5-sonnet --scenario ...
 ```
 
-The agent calls `run_command`, `evidra_prescribe`, and `evidra_report` tools.
+The agent calls `run_command`, `evidra_prescribe_smart`, and `evidra_report` tools (v1.1.0 contract).
 infra-bench executes them locally and feeds results back. Rate-limited
 requests are retried automatically with adaptive backoff.
 
