@@ -386,8 +386,8 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		if err := h.deps.Store.Insert(rec); err != nil {
 			log.Printf("[harness] warning: store insert failed: %v", err)
 		}
-		// Report to evidra API if configured.
-		ReportToEvidra(req.Config.EvidraURL, req.Config.EvidraAPIKey, rec)
+		// Report to evidra API if configured (includes transcript + tool-calls).
+		ReportToEvidra(req.Config.EvidraURL, req.Config.EvidraAPIKey, rec, agentResult.Transcript, agentResult.ToolCalls)
 	}
 
 	return result, nil

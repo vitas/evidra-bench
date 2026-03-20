@@ -11,14 +11,26 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/store"
 )
 
-// ReportToEvidra posts a run record to the evidra API bench ingest endpoint.
-// Non-blocking: logs errors but does not fail the run.
-func ReportToEvidra(evidraURL, apiKey string, rec store.RunRecord) {
+// evidraIngestRequest extends RunRecord with optional artifacts for the evidra API.
+type evidraIngestRequest struct {
+	store.RunRecord
+	Transcript string `json:"transcript,omitempty"`
+	ToolCalls  any    `json:"tool_calls,omitempty"`
+}
+
+// ReportToEvidra posts a run record with artifacts to the evidra API bench ingest endpoint.
+func ReportToEvidra(evidraURL, apiKey string, rec store.RunRecord, transcript string, toolCalls any) {
 	if evidraURL == "" || apiKey == "" {
 		return
 	}
 
-	body, err := json.Marshal(rec)
+	payload := evidraIngestRequest{
+		RunRecord:  rec,
+		Transcript: transcript,
+		ToolCalls:  toolCalls,
+	}
+
+	body, err := json.Marshal(payload)
 	if err != nil {
 		log.Printf("[evidra-report] marshal: %v", err)
 		return
@@ -33,13 +45,13 @@ func ReportToEvidra(evidraURL, apiKey string, rec store.RunRecord) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("[evidra-report] POST %s: %v", url, err)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 400 {
 		var result map[string]any
@@ -76,7 +88,7 @@ func ReportBatchToEvidra(evidraURL, apiKey string, records []store.RunRecord) er
 	if err != nil {
 		return fmt.Errorf("POST %s: %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 400 {
 		var result map[string]any
