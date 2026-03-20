@@ -22,10 +22,10 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/harness"
 	"samebits.com/evidra-infra-bench/pkg/report"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
-	"samebits.com/evidra/pkg/signalaudit"
 	"samebits.com/evidra-infra-bench/pkg/skilldelta"
 	"samebits.com/evidra-infra-bench/pkg/store"
 	"samebits.com/evidra-infra-bench/pkg/tui"
+	"samebits.com/evidra/pkg/signalaudit"
 )
 
 var (
@@ -143,50 +143,6 @@ with optional Evidra reporting for behavioral analysis.`,
 	lf.StringVar(&cfg.AgentCommand, "agent-command", cfg.AgentCommand, "command to invoke the agent")
 	lf.StringVar(&cfg.Model, "model", cfg.Model, "model for agent (e.g. sonnet, opus, haiku)")
 	lf.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "start in dry-run mode")
-
-	reportCmd := &cobra.Command{
-		Use:   "report",
-		Short: "Generate HTML report from run artifacts",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			scenariosDir, err := filepath.Abs(cfg.ScenariosDir)
-			if err != nil {
-				return fmt.Errorf("resolve scenarios dir: %w", err)
-			}
-			outputPath := filepath.Join(cfg.RunsDir, "report.html")
-			if len(args) > 0 {
-				outputPath = args[0]
-			}
-			if err := report.GenerateHTML(scenariosDir, cfg.RunsDir, outputPath); err != nil {
-				return err
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Report written to %s\n", outputPath)
-			return nil
-		},
-	}
-	reportCmd.Flags().StringVar(&cfg.ScenariosDir, "scenarios-dir", cfg.ScenariosDir, "base directory for scenarios")
-	reportCmd.Flags().StringVar(&cfg.RunsDir, "runs-dir", cfg.RunsDir, "runs directory to scan")
-
-	var compareHTML string
-	compareCmd := &cobra.Command{
-		Use:   "compare <run-dir-A> <run-dir-B>",
-		Short: "Compare two run artifacts side by side",
-		Args:  cobra.ExactArgs(2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			result, err := report.CompareRuns(args[0], args[1])
-			if err != nil {
-				return err
-			}
-			fmt.Fprint(cmd.OutOrStdout(), report.FormatComparison(result))
-			if compareHTML != "" {
-				if err := report.GenerateCompareHTML(result, compareHTML); err != nil {
-					return err
-				}
-				fmt.Fprintf(cmd.OutOrStdout(), "\nHTML report: %s\n", compareHTML)
-			}
-			return nil
-		},
-	}
-	compareCmd.Flags().StringVar(&compareHTML, "html", "", "output HTML comparison report to file")
 
 	dbCmd := &cobra.Command{
 		Use:   "db",
@@ -404,7 +360,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	bf.StringVar(&benchCfg.EvidraURL, "evidra-url", benchCfg.EvidraURL, "Evidra API URL for reporting results")
 	bf.StringVar(&benchCfg.EvidraAPIKey, "evidra-api-key", benchCfg.EvidraAPIKey, "Evidra API key")
 
-	root.AddCommand(runCmd, scenarioCmd, labCmd, reportCmd, compareCmd, dbCmd, skillDeltaCmd, auditCmd, benchCmd)
+	root.AddCommand(runCmd, scenarioCmd, labCmd, dbCmd, skillDeltaCmd, auditCmd, benchCmd)
 	return root
 }
 
@@ -674,15 +630,11 @@ func executeSkillDeltaReport(cmd *cobra.Command, dir string) error {
 		return fmt.Errorf("skill-delta report: --dir is required")
 	}
 
-	benchmark, err := skilldelta.ReadBenchmarkJSON(filepath.Join(dir, "benchmark.json"))
+	_, err := skilldelta.ReadBenchmarkJSON(filepath.Join(dir, "benchmark.json"))
 	if err != nil {
 		return err
 	}
-	outputPath := filepath.Join(dir, "benchmark.html")
-	if err := report.WriteSkillDeltaHTML(outputPath, benchmark); err != nil {
-		return err
-	}
-	fmt.Fprintf(cmd.OutOrStdout(), "html: %s\n", outputPath)
+	fmt.Fprintln(cmd.OutOrStdout(), "HTML report generation has been removed; use the web UI instead.")
 	return nil
 }
 
@@ -952,13 +904,6 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 		}
 	}
 
-	// Step 3: Generate HTML report
-	reportPath := filepath.Join(outDir, "report.html")
-	if reportErr := report.GenerateHTML(scenariosDir, outDir, reportPath); reportErr != nil {
-		log.Printf("[bench] warning: HTML report failed: %v", reportErr)
-		reportPath = ""
-	}
-
 	// Print summary
 	fmt.Fprintf(cmd.OutOrStdout(), "\n")
 	fmt.Fprintf(cmd.OutOrStdout(), "════════════════════════════════════════\n")
@@ -973,9 +918,6 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 	fmt.Fprintf(cmd.OutOrStdout(), "\n")
 	fmt.Fprintf(cmd.OutOrStdout(), "  Artifacts:\n")
 	fmt.Fprintf(cmd.OutOrStdout(), "    Summary: %s\n", summaryPath)
-	if reportPath != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "    Report:  %s\n", reportPath)
-	}
 	if auditResult != nil {
 		fmt.Fprintf(cmd.OutOrStdout(), "    Audit:   %s\n", auditPath)
 		fmt.Fprintf(cmd.OutOrStdout(), "      audited=%d missing=%d forbidden=%d unstable=%d\n",

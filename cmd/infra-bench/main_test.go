@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -297,7 +298,7 @@ func TestSkillDeltaAggregateCommand_WritesBenchmarkArtifacts(t *testing.T) {
 	}
 }
 
-func TestSkillDeltaReportCommand_WritesBenchmarkHTML(t *testing.T) {
+func TestSkillDeltaReportCommand_PrintsRemovalNotice(t *testing.T) {
 	dir := t.TempDir()
 	benchmark := skilldelta.BuildBenchmark(skilldelta.BenchmarkMetadata{
 		Suite:       "skill-delta",
@@ -329,11 +330,13 @@ func TestSkillDeltaReportCommand_WritesBenchmarkHTML(t *testing.T) {
 	}
 
 	cmd := newRootCommand()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
 	cmd.SetArgs([]string{"skill-delta", "report", "--dir", dir})
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("skill-delta report failed: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "benchmark.html")); err != nil {
-		t.Fatalf("benchmark.html missing: %v", err)
+	if !strings.Contains(buf.String(), "removed") {
+		t.Fatalf("expected removal notice, got: %s", buf.String())
 	}
 }
