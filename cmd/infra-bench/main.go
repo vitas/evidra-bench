@@ -22,7 +22,7 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/harness"
 	"samebits.com/evidra-infra-bench/pkg/report"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
-	"samebits.com/evidra-infra-bench/pkg/signalaudit"
+	"samebits.com/evidra/pkg/signalaudit"
 	"samebits.com/evidra-infra-bench/pkg/skilldelta"
 	"samebits.com/evidra-infra-bench/pkg/store"
 	"samebits.com/evidra-infra-bench/pkg/tui"
