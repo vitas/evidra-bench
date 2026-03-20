@@ -1,27 +1,18 @@
-// Package report provides optional Evidra reporting for benchmark runs.
+// Package report provides offline Evidra evidence writing for benchmark runs.
+// Online reporting is handled by harness.ReportToEvidra (POST /v1/bench/runs).
 package report
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
-
-	evidraclient "samebits.com/evidra/pkg/client"
 )
 
 // Config configures the Evidra reporter.
 type Config struct {
 	EvidencePath string
-	EvidraURL    string
-	EvidraAPIKey string
-}
-
-// IsOnline returns true if online reporting is configured.
-func (c *Config) IsOnline() bool {
-	return c.EvidraURL != "" && c.EvidraAPIKey != ""
 }
 
 // EvidenceEntry represents a single evidence record in Evidra format.
@@ -38,7 +29,7 @@ type EvidenceEntry struct {
 	Metadata   map[string]string `json:"metadata,omitempty"`
 }
 
-// Reporter writes Evidra evidence to local files and optionally uploads.
+// Reporter writes Evidra evidence to local JSONL files.
 type Reporter struct {
 	cfg Config
 }
@@ -63,7 +54,7 @@ func (r *Reporter) WriteOffline(entries []EvidenceEntry) error {
 	if err != nil {
 		return fmt.Errorf("report.Reporter.WriteOffline: open: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	enc := json.NewEncoder(f)
 	for _, entry := range entries {
@@ -75,105 +66,7 @@ func (r *Reporter) WriteOffline(entries []EvidenceEntry) error {
 	return nil
 }
 
-// Report writes evidence locally and optionally uploads to the Evidra API.
-// Online upload failures are logged but do not cause Report to return an error.
+// Report writes evidence locally.
 func (r *Reporter) Report(entries []EvidenceEntry) error {
-	if err := r.WriteOffline(entries); err != nil {
-		return err
-	}
-
-	if r.cfg.IsOnline() {
-		// Online reporting is best-effort in v1.
-		// TODO: implement HTTP upload via samebits.com/evidra/pkg/client
-		// when the public API surface stabilizes.
-		_ = r.uploadBestEffort(entries)
-	}
-
-	return nil
-}
-
-func (r *Reporter) uploadBestEffort(entries []EvidenceEntry) error {
-	return r.uploadBenchmarkRun(entries)
-}
-
-func (r *Reporter) uploadBenchmarkRun(entries []EvidenceEntry) error {
-	req, err := buildBenchmarkRunRequest(entries)
-	if err != nil {
-		return err
-	}
-	client := evidraclient.New(evidraclient.Config{
-		URL:    r.cfg.EvidraURL,
-		APIKey: r.cfg.EvidraAPIKey,
-	})
-	if _, err := client.SubmitBenchmarkRun(context.Background(), req); err != nil {
-		return fmt.Errorf("report.Reporter.uploadBenchmarkRun: %w", err)
-	}
-	return nil
-}
-
-func buildBenchmarkRunRequest(entries []EvidenceEntry) (evidraclient.BenchmarkRunRequest, error) {
-	metadata := map[string]string{
-		"source": "infra-bench",
-	}
-	results := make([]evidraclient.BenchmarkResult, 0, len(entries))
-	allPassed := true
-
-	for _, entry := range entries {
-		if !entry.Passed {
-			allPassed = false
-		}
-		for key, value := range entry.Metadata {
-			metadata[key] = value
-		}
-		if entry.Actor != "" {
-			metadata["actor"] = entry.Actor
-		}
-		if entry.Adapter != "" {
-			metadata["adapter"] = entry.Adapter
-		}
-
-		details, err := json.Marshal(map[string]any{
-			"id":          entry.ID,
-			"actor":       entry.Actor,
-			"adapter":     entry.Adapter,
-			"exit_code":   entry.ExitCode,
-			"duration_ns": entry.Duration,
-			"timestamp":   entry.Timestamp,
-			"metadata":    entry.Metadata,
-		})
-		if err != nil {
-			return evidraclient.BenchmarkRunRequest{}, fmt.Errorf("report.buildBenchmarkRunRequest: marshal details: %w", err)
-		}
-		results = append(results, evidraclient.BenchmarkResult{
-			CaseID:         entry.ScenarioID,
-			ExpectedSignal: "pass",
-			ActualSignal:   benchmarkActualSignal(entry.Passed),
-			Passed:         entry.Passed,
-			Details:        details,
-		})
-	}
-
-	rawMetadata, err := json.Marshal(metadata)
-	if err != nil {
-		return evidraclient.BenchmarkRunRequest{}, fmt.Errorf("report.buildBenchmarkRunRequest: marshal metadata: %w", err)
-	}
-
-	band := "fail"
-	if allPassed {
-		band = "pass"
-	}
-
-	return evidraclient.BenchmarkRunRequest{
-		Suite:    "infra-bench",
-		Band:     band,
-		Metadata: rawMetadata,
-		Results:  results,
-	}, nil
-}
-
-func benchmarkActualSignal(passed bool) string {
-	if passed {
-		return "pass"
-	}
-	return "fail"
+	return r.WriteOffline(entries)
 }

@@ -489,8 +489,6 @@ func runScenarioOnce(ctx context.Context, cfg config.Config, s *scenario.Scenari
 
 	reporter := report.NewReporter(report.Config{
 		EvidencePath: filepath.Join(cfg.RunsDir, "evidra"),
-		EvidraURL:    cfg.EvidraURL,
-		EvidraAPIKey: cfg.EvidraAPIKey,
 	})
 
 	resultsStore, err := store.Open(cfg.RunsDir)
