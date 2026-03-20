@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"samebits.com/evidra/pkg/execcontract"
+	"samebits.com/evidra/pkg/proxy"
 )
 
 func TestBuildPrescribeCommandArgs_UsesActorMetadata(t *testing.T) {
@@ -71,7 +72,7 @@ func TestIsMutationCommand(t *testing.T) {
 		"terraform destroy",
 	}
 	for _, cmd := range mutations {
-		if !isMutationCommand(cmd) {
+		if !proxy.IsMutation(cmd) {
 			t.Errorf("expected %q to be a mutation", cmd)
 		}
 	}
@@ -87,7 +88,7 @@ func TestIsMutationCommand(t *testing.T) {
 		"kubectl",
 	}
 	for _, cmd := range readOnly {
-		if isMutationCommand(cmd) {
+		if proxy.IsMutation(cmd) {
 			t.Errorf("expected %q to be read-only", cmd)
 		}
 	}

@@ -23,6 +23,7 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 	"samebits.com/evidra-infra-bench/pkg/store"
 	"samebits.com/evidra-infra-bench/pkg/verifier"
+	"samebits.com/evidra/pkg/proxy"
 )
 
 // version and commit are set by the CLI at startup via SetVersion.
@@ -699,7 +700,7 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 
 	if req.Config.SmartPrescribe {
 		// Smart mode: simplified prescribe schema, no evidra binary needed.
-		evidence, evErr := agent.NewSimpleProxyEvidence(evidenceDir)
+		evidence, evErr := proxy.NewEvidenceWriter(evidenceDir)
 		if evErr != nil {
 			return nil, fmt.Errorf("harness: smart evidence: %w", evErr)
 		}
@@ -707,7 +708,7 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		loopExecutor = &agent.SmartToolExecutor{Base: executor, Evidence: evidence}
 	} else if req.Config.ProxyMode {
 		// Proxy mode: auto-record, agent unaware.
-		proxyEvidence, proxyErr := agent.NewSimpleProxyEvidence(evidenceDir)
+		proxyEvidence, proxyErr := proxy.NewEvidenceWriter(evidenceDir)
 		if proxyErr != nil {
 			return nil, fmt.Errorf("harness: proxy evidence: %w", proxyErr)
 		}

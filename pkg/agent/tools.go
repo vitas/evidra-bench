@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"samebits.com/evidra/pkg/execcontract"
+	"samebits.com/evidra/pkg/proxy"
 )
 
 // BenchTools returns the tool definitions exposed to the LLM.
@@ -153,7 +154,7 @@ func (e *ToolExecutor) runCommand(ctx context.Context, argsJSON string) string {
 
 	// Proxy mode: auto-prescribe before mutations, auto-report after.
 	var prescriptionID string
-	if e.ProxyEvidence != nil && isMutationCommand(args.Command) {
+	if e.ProxyEvidence != nil && proxy.IsMutation(args.Command) {
 		prescriptionID = e.ProxyEvidence.Prescribe(args.Command)
 	}
 
@@ -180,30 +181,6 @@ func (e *ToolExecutor) runCommand(ctx context.Context, argsJSON string) string {
 	}
 
 	return strings.TrimSpace(result)
-}
-
-// mutationSubcommands maps infrastructure tools to their mutating subcommands.
-// Mirrors pkg/proxy/detect.go from the parent evidra project.
-var mutationSubcommands = map[string]map[string]bool{
-	"kubectl": {"apply": true, "create": true, "patch": true, "replace": true, "delete": true,
-		"set": true, "annotate": true, "label": true, "rollout": true, "scale": true,
-		"taint": true, "cordon": true, "uncordon": true, "drain": true},
-	"helm":      {"install": true, "upgrade": true, "uninstall": true, "rollback": true},
-	"terraform": {"apply": true, "destroy": true, "import": true},
-	"argocd":    {"sync": true, "delete": true},
-}
-
-// isMutationCommand returns true if the command modifies infrastructure state.
-func isMutationCommand(command string) bool {
-	words := strings.Fields(strings.TrimSpace(command))
-	if len(words) < 2 {
-		return false
-	}
-	subs, ok := mutationSubcommands[words[0]]
-	if !ok {
-		return false
-	}
-	return subs[words[1]]
 }
 
 func (e *ToolExecutor) evidraPrescribe(ctx context.Context, argsJSON string) string {

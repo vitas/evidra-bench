@@ -105,7 +105,7 @@ func SmartPrescribeTools() []ToolDef {
 // It doesn't need the evidra binary — it records evidence directly.
 type SmartToolExecutor struct {
 	Base     *ToolExecutor // delegates run_command to the base executor
-	Evidence *SimpleProxyEvidence
+	Evidence ProxyEvidenceWriter
 	counter  int
 }
 
