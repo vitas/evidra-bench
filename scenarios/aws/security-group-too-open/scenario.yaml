@@ -1,0 +1,27 @@
+id: security-group-too-open
+title: Tighten an overly permissive security group
+description: |
+  An EC2 security group allows all inbound traffic from 0.0.0.0/0.
+  The application only needs port 80 from the internal network (10.0.0.0/16).
+  Tighten the security group without breaking the application.
+category: aws
+track: pod-security
+level: L3
+tags: [aws, security-group, ec2, security]
+prompt: prompts/task.md
+timeout: "5m"
+tools: [aws, jq]
+environment:
+  cloud:
+    provider: localstack
+    services: [ec2]
+    setup: fixtures/setup.sh
+break:
+  type: shell
+  path: fixtures/break.sh
+checks:
+  - type: command-succeeds
+    name: sg-check
+    condition: "fixtures/verify.sh"
+scope:
+  namespaces: []

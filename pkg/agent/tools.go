@@ -67,6 +67,7 @@ type ToolExecutor struct {
 	EvidencePath   string
 	EvidraBin      string
 	ProxyEvidence  ProxyEvidenceWriter // nil = proxy mode disabled
+	ExtraEnv       []string            // Additional env vars for commands (e.g., AWS_ENDPOINT_URL)
 }
 
 // EvidenceMode returns how this executor records evidence.
@@ -96,7 +97,7 @@ func (e *ToolExecutor) Execute(ctx context.Context, tc ToolCall) string {
 
 // allowedCommandPrefixes restricts which commands the LLM can execute.
 var allowedCommandPrefixes = []string{
-	"kubectl", "helm", "argocd", "kind", "terraform",
+	"kubectl", "helm", "argocd", "kind", "terraform", "aws",
 	"cat", "echo", "grep", "head", "tail", "wc", "ls", "find",
 	"jq", "yq",
 }
@@ -160,6 +161,7 @@ func (e *ToolExecutor) runCommand(ctx context.Context, argsJSON string) string {
 
 	cmd := exec.CommandContext(ctx, "bash", "-c", args.Command)
 	cmd.Env = append(os.Environ(), "KUBECONFIG="+e.KubeconfigPath)
+	cmd.Env = append(cmd.Env, e.ExtraEnv...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

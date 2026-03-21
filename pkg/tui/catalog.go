@@ -13,7 +13,7 @@ type CatalogItem struct {
 }
 
 // CategoryFilters defines the rotation of category filters.
-var CategoryFilters = []string{"", "kubernetes", "helm", "argocd"}
+var CategoryFilters = []string{"", "kubernetes", "helm", "argocd", "aws"}
 
 // FilterCatalog returns items matching the given text query and category filter.
 func FilterCatalog(items []CatalogItem, query, category string) []CatalogItem {

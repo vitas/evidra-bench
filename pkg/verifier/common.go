@@ -336,6 +336,12 @@ func BuildCheckers(checks []CheckDef) ([]Checker, error) {
 				return nil, err
 			}
 			checkers = append(checkers, c)
+		case "command-succeeds":
+			c := &CommandSucceedsCheck{Name: cd.Name, Command: cd.Condition}
+			if err := c.Validate(); err != nil {
+				return nil, err
+			}
+			checkers = append(checkers, c)
 		default:
 			return nil, fmt.Errorf("verifier.BuildCheckers: unknown check type: %s", cd.Type)
 		}

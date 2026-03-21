@@ -53,6 +53,7 @@ type Deps struct {
 type RunRequest struct {
 	Config   config.Config
 	Scenario *scenario.Scenario
+	ExtraEnv []string // Additional env vars for the agent executor (e.g., AWS_ENDPOINT_URL)
 }
 
 // RunResult holds the outcome of a harness run.
@@ -112,6 +113,44 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}
 	}()
 
+	// Step 1b: Start LocalStack if scenario requires cloud resources.
+	var localstackHandle *environment.LocalStackHandle
+	if s.Environment.Cloud.Provider == "localstack" {
+		lsHandle, lsErr := environment.StartLocalStack(ctx, req.Config.ClusterName, s.Environment.Cloud.Services)
+		if lsErr != nil {
+			return nil, fmt.Errorf("harness.Run: start localstack: %w", lsErr)
+		}
+		localstackHandle = lsHandle
+		defer func() {
+			if !req.Config.ReuseCluster {
+				if err := environment.StopLocalStack(ctx, localstackHandle); err != nil {
+					log.Printf("[harness] warning: stop localstack: %v", err)
+				}
+			}
+		}()
+
+		awsEnv := map[string]string{
+			"AWS_ENDPOINT_URL":      lsHandle.EndpointURL,
+			"AWS_ACCESS_KEY_ID":     "test",
+			"AWS_SECRET_ACCESS_KEY": "test",
+			"AWS_DEFAULT_REGION":    "us-east-1",
+		}
+
+		// Set AWS env vars on the process so break scripts and verifier checks inherit them.
+		for k, v := range awsEnv {
+			os.Setenv(k, v)
+			req.ExtraEnv = append(req.ExtraEnv, fmt.Sprintf("%s=%s", k, v))
+		}
+
+		// Run cloud setup script if specified.
+		if s.Environment.Cloud.Setup != "" {
+			setupCmd := exec.CommandContext(ctx, "bash", s.Environment.Cloud.Setup)
+			if out, setupErr := setupCmd.CombinedOutput(); setupErr != nil {
+				return nil, fmt.Errorf("harness.Run: cloud setup: %s: %w", string(out), setupErr)
+			}
+		}
+	}
+
 	// Step 2: Bootstrap.
 	if h.deps.Bootstrapper != nil {
 		plan := buildBootstrapPlan(s, req.Config.ScenariosDir)
@@ -124,7 +163,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	isMultiStage := len(s.Stages) > 0
 	if !isMultiStage {
 		if s.Break.Path != "" || s.Break.Type == "kubectl" || s.Break.Type == "shell" {
-			if err := h.applyBreak(ctx, handle.KubeconfigPath, s); err != nil {
+			if err := h.applyBreak(ctx, handle.KubeconfigPath, s, req.ExtraEnv...); err != nil {
 				return nil, fmt.Errorf("harness.Run: inject break: %w", err)
 			}
 		}
@@ -687,7 +726,7 @@ func (s chaosSummary) Log() string {
 	return b.String()
 }
 
-func (h *Harness) applyBreak(ctx context.Context, kubeconfigPath string, s *scenario.Scenario) error {
+func (h *Harness) applyBreak(ctx context.Context, kubeconfigPath string, s *scenario.Scenario, extraEnv ...string) error {
 	runner := h.deps.Runner
 	if runner == nil {
 		runner = &environment.ExecRunner{}
@@ -697,6 +736,9 @@ func (h *Harness) applyBreak(ctx context.Context, kubeconfigPath string, s *scen
 		return err
 	}
 	cmd := makeCmd(args)
+	if len(extraEnv) > 0 {
+		cmd.Env = append(os.Environ(), extraEnv...)
+	}
 	if _, err := runner.Run(ctx, cmd); err != nil {
 		if s.Break.AllowFailure {
 			log.Printf("[harness] break command failed as expected for scenario %s: %v", s.ID, err)
@@ -760,6 +802,7 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		KubeconfigPath: kubeconfigPath,
 		EvidencePath:   evidenceDir,
 		EvidraBin:      req.Config.ResolveEvidraBin(),
+		ExtraEnv:       req.ExtraEnv,
 	}
 
 	// Evidence mode determines which executor and tools the agent gets.

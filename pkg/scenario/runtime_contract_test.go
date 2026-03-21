@@ -436,6 +436,11 @@ func validateChecks(s *Scenario, known map[resourceRef]bool) error {
 				return fmt.Errorf("scenario %s: resource-exists check requires condition (kind) field", s.ID)
 			}
 			// resource-exists checks verify a resource still exists; we trust the kind/name/namespace are valid
+		case "command-succeeds":
+			if check.Condition == "" {
+				return fmt.Errorf("scenario %s: command-succeeds check requires condition (command) field", s.ID)
+			}
+			// command-succeeds runs an arbitrary script — no static resource validation
 		default:
 			return fmt.Errorf("scenario %s: unsupported check type %q", s.ID, check.Type)
 		}

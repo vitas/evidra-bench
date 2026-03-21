@@ -56,6 +56,21 @@ func Load(dir string) (*Scenario, error) {
 		resolveStepPaths(dir, s.Stages[i].AfterBreak)
 	}
 
+	// Resolve relative cloud setup/teardown paths.
+	if s.Environment.Cloud.Setup != "" && !filepath.IsAbs(s.Environment.Cloud.Setup) {
+		s.Environment.Cloud.Setup = filepath.Join(dir, s.Environment.Cloud.Setup)
+	}
+	if s.Environment.Cloud.Teardown != "" && !filepath.IsAbs(s.Environment.Cloud.Teardown) {
+		s.Environment.Cloud.Teardown = filepath.Join(dir, s.Environment.Cloud.Teardown)
+	}
+
+	// Resolve relative check condition paths for command-succeeds checks.
+	for i := range s.Checks {
+		if s.Checks[i].Type == "command-succeeds" && s.Checks[i].Condition != "" && !filepath.IsAbs(s.Checks[i].Condition) {
+			s.Checks[i].Condition = filepath.Join(dir, s.Checks[i].Condition)
+		}
+	}
+
 	return &s, nil
 }
 

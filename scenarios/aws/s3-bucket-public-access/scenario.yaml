@@ -1,0 +1,28 @@
+id: s3-bucket-public-access
+title: Lock down a publicly accessible S3 bucket
+description: |
+  An S3 bucket has a bucket policy granting public read access.
+  The application accesses the bucket via IAM credentials, so public
+  access is unnecessary and a security risk. Remove public access
+  while ensuring the IAM role can still read objects.
+category: aws
+track: pod-security
+level: L3
+tags: [aws, s3, iam, security]
+prompt: prompts/task.md
+timeout: "5m"
+tools: [aws, jq]
+environment:
+  cloud:
+    provider: localstack
+    services: [s3, iam]
+    setup: fixtures/setup.sh
+break:
+  type: shell
+  path: fixtures/break.sh
+checks:
+  - type: command-succeeds
+    name: s3-check
+    condition: "fixtures/verify.sh"
+scope:
+  namespaces: []

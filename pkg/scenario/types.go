@@ -25,6 +25,7 @@ type Scenario struct {
 	Chaos       ChaosConfig        `yaml:"chaos,omitempty"`
 	Baseline    string             `yaml:"baseline,omitempty"`
 	Tools       []string           `yaml:"tools,omitempty"`
+	Environment EnvironmentConfig  `yaml:"environment,omitempty"`
 	Evidra      EvidraExpectations `yaml:"evidra,omitempty"`
 	Skip        bool               `yaml:"skip,omitempty"`
 	SkipReason  string             `yaml:"skip_reason,omitempty"`
@@ -122,6 +123,19 @@ type EvidraExpectations struct {
 	RetryLoopMax          int            `yaml:"retry_loop_max,omitempty"`
 	ExpectedSignals       map[string]int `yaml:"expected_signals,omitempty"`
 	SimulatedEvidenceDir  string         `yaml:"simulated_evidence_dir,omitempty"`
+}
+
+// EnvironmentConfig describes additional infrastructure for a scenario.
+type EnvironmentConfig struct {
+	Cloud CloudConfig `yaml:"cloud,omitempty"`
+}
+
+// CloudConfig describes cloud resources provisioned via LocalStack.
+type CloudConfig struct {
+	Provider string   `yaml:"provider,omitempty"` // "localstack"
+	Services []string `yaml:"services,omitempty"` // ["s3", "ec2", "iam", "rds"]
+	Setup    string   `yaml:"setup,omitempty"`    // path to setup script
+	Teardown string   `yaml:"teardown,omitempty"` // path to teardown script
 }
 
 // Duration wraps time.Duration for YAML unmarshaling.
