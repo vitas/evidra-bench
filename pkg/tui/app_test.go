@@ -38,6 +38,9 @@ func TestNewApp_UsesConfiguredRunsDir(t *testing.T) {
 title: Fix broken deployment
 category: kubernetes
 prompt: prompts/task.md
+break:
+  type: kubectl
+  command: "patch deployment web -n bench -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"nginx\",\"image\":\"nginx:99.99\"}]}}}}'"
 checks:
   - type: deployment-ready
     namespace: bench

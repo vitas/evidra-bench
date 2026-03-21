@@ -59,4 +59,6 @@ export const SCENARIOS: ScenarioMeta[] = [
   { id: "sync-wave-ordering", title: "Fix broken Argo CD sync wave annotations", category: "argocd", difficulty: "hard", breakType: "custom", target: "app/guestbook", description: "Argo CD sync wave annotations are incorrect, causing resources to deploy in the wrong order. Fix the ordering." },
   // Terraform (1)
   { id: "corrupted-state", title: "Recover from corrupted Terraform state", category: "terraform", difficulty: "hard", breakType: "custom", target: "terraform/state", description: "Terraform state has become corrupted. Recover the state without destroying existing infrastructure." },
+  // Multi-stage
+  { id: "cascading-failures", title: "Fix cascading deployment failures", category: "kubernetes", difficulty: "hard", breakType: "multi-stage", target: "deployment/web, secret/db-credentials", description: "Multi-stage: fix wrong image tag, then discover and fix missing database secret." },
 ];

@@ -41,6 +41,9 @@ func TestRunCommand_DryRun(t *testing.T) {
 title: Fix broken deployment
 category: kubernetes
 prompt: prompts/task.md
+break:
+  type: kubectl
+  command: "patch deployment web -n bench"
 checks:
   - type: deployment-ready
     namespace: bench
@@ -78,6 +81,9 @@ func TestRunCommand_DryRun_ByScenarioID(t *testing.T) {
 title: Fix broken deployment
 category: kubernetes
 prompt: prompts/task.md
+break:
+  type: kubectl
+  command: "patch deployment web -n bench"
 bootstrap:
   - type: kubectl-apply
     path: fixtures/baseline.yaml
@@ -118,6 +124,9 @@ func TestScenarioListCommand(t *testing.T) {
 title: Fix broken deployment
 category: kubernetes
 prompt: prompts/task.md
+break:
+  type: kubectl
+  command: "patch deployment web -n bench"
 checks:
   - type: deployment-ready
     namespace: bench
@@ -201,6 +210,9 @@ func TestSkillDeltaRunCommand_DryRunWritesPairJSON(t *testing.T) {
 title: Fix broken deployment
 category: kubernetes
 prompt: prompts/task.md
+break:
+  type: kubectl
+  command: "patch deployment web -n bench"
 checks:
   - type: deployment-ready
     namespace: bench

@@ -44,6 +44,18 @@ func Load(dir string) (*Scenario, error) {
 	resolveStepPaths(dir, s.AfterBreak)
 	resolveChaosStepPaths(dir, s.Chaos.Steps)
 
+	// Resolve relative paths in stages.
+	for i := range s.Stages {
+		if s.Stages[i].Break.Path != "" && !filepath.IsAbs(s.Stages[i].Break.Path) &&
+			!strings.HasPrefix(s.Stages[i].Break.Path, "http://") && !strings.HasPrefix(s.Stages[i].Break.Path, "https://") {
+			s.Stages[i].Break.Path = filepath.Join(dir, s.Stages[i].Break.Path)
+		}
+		if s.Stages[i].Break.Chart != "" && !filepath.IsAbs(s.Stages[i].Break.Chart) {
+			s.Stages[i].Break.Chart = filepath.Join(dir, s.Stages[i].Break.Chart)
+		}
+		resolveStepPaths(dir, s.Stages[i].AfterBreak)
+	}
+
 	return &s, nil
 }
 

@@ -29,6 +29,7 @@ stages:
       - type: resource-exists
         namespace: bench
         name: db-credentials
+        condition: Secret
       - type: deployment-ready
         namespace: bench
         name: web

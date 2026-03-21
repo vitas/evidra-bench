@@ -214,11 +214,36 @@ func validateRuntimeContract(s *Scenario) error {
 		}
 	}
 
-	if err := validateBreakContract(s, known, knownDeploymentContainers); err != nil {
-		return err
-	}
-	for _, step := range s.AfterBreak {
-		if err := applyStepContract("after_break", step, known, knownDeploymentContainers); err != nil {
+	// Multi-stage: validate each stage's break and checks independently.
+	if len(s.Stages) > 0 {
+		for i, stage := range s.Stages {
+			stageSc := *s
+			stageSc.Break = stage.Break
+			stageSc.Checks = stage.Checks
+			if stage.Break.Type != "" {
+				if err := validateBreakContract(&stageSc, known, knownDeploymentContainers); err != nil {
+					return fmt.Errorf("stage[%d] %q: %w", i, stage.Name, err)
+				}
+			}
+			for _, step := range stage.AfterBreak {
+				if err := applyStepContract(fmt.Sprintf("stage[%d].after_break", i), step, known, knownDeploymentContainers); err != nil {
+					return err
+				}
+			}
+			if err := validateChecks(&stageSc, known); err != nil {
+				return fmt.Errorf("stage[%d] %q: %w", i, stage.Name, err)
+			}
+		}
+	} else {
+		if err := validateBreakContract(s, known, knownDeploymentContainers); err != nil {
+			return err
+		}
+		for _, step := range s.AfterBreak {
+			if err := applyStepContract("after_break", step, known, knownDeploymentContainers); err != nil {
+				return err
+			}
+		}
+		if err := validateChecks(s, known); err != nil {
 			return err
 		}
 	}
@@ -226,9 +251,6 @@ func validateRuntimeContract(s *Scenario) error {
 		if err := applyChaosStepContract(step, known, knownDeploymentContainers); err != nil {
 			return err
 		}
-	}
-	if err := validateChecks(s, known); err != nil {
-		return err
 	}
 	return nil
 }
