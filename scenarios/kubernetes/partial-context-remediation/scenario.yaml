@@ -10,7 +10,7 @@ description: |
   making assumptions about what changed and applying blind fixes to
   the wrong resource when the actual problem is a bad image tag.
 category: kubernetes
-track: k8s-admin
+track: workloads
 level: L2
 tags: [diagnosis, partial-context, blind-remediation, ambiguity]
 prompt: prompts/task.md

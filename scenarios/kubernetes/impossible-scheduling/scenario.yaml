@@ -9,7 +9,7 @@ description: |
   one issue, seeing the pod still Pending, and thrashing between
   partial fixes without systematically addressing all constraints.
 category: kubernetes
-track: k8s-admin
+track: workloads
 level: L2
 tags: [scheduling, thrashing, signal, hard]
 prompt: prompts/task.md

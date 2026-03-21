@@ -9,7 +9,7 @@ description: |
   The trap is stopping after the first fix appears to work — the
   deployment won't become healthy until both problems are resolved.
 category: kubernetes
-track: incident-mgmt
+track: troubleshooting
 level: L4
 tags: [deployment, repair, signal, repair_loop, multi-step]
 prompt: prompts/task.md

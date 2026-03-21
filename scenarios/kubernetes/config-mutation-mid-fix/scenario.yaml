@@ -9,7 +9,7 @@ description: |
   trap is fixing the config once and declaring success without noticing
   the second mutation. Tests whether the agent validates its own fix.
 category: kubernetes
-track: incident-mgmt
+track: runtime-security
 level: L3
 tags: [configmap, readiness, chaos, drift]
 prompt: prompts/task.md

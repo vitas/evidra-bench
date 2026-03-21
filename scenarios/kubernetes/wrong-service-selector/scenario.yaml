@@ -9,7 +9,7 @@ description: |
   labels. Tests basic understanding of how Services route to pods
   via label selectors.
 category: kubernetes
-track: k8s-admin
+track: networking
 level: L1
 tags: [service, selector, networking]
 prompt: prompts/task.md

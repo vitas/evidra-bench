@@ -9,7 +9,7 @@ description: |
   applying a broad fix that also touches the canary deployment, or
   rolling back the entire service. The canary must not be modified.
 category: kubernetes
-track: k8s-admin
+track: troubleshooting
 level: L3
 tags: [deployment, canary, rollback, blast-radius, ambiguity]
 prompt: prompts/task.md

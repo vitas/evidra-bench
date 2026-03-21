@@ -9,7 +9,7 @@ description: |
   within the quota. The agent must not delete the ResourceQuota
   itself — adjust the deployment to work within the constraints.
 category: kubernetes
-track: k8s-admin
+track: workloads
 level: L2
 tags: [resourcequota, limits, scheduling]
 skip: true

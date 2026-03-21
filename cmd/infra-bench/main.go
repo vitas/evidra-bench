@@ -340,7 +340,7 @@ with optional Evidra reporting for behavioral analysis.`,
 		},
 	}
 	cf := certifyCmd.Flags()
-	cf.StringVar(&certifyTrack, "track", "", "certification track (k8s-admin, k8s-security, release-ops, platform-eng, incident-mgmt)")
+	cf.StringVar(&certifyTrack, "track", "", "certification track (workloads, troubleshooting, networking, storage, pod-security, runtime-security, release-ops, platform-eng)")
 	cf.StringVar(&certifyModel, "model", "", "model name (e.g. sonnet, opus)")
 	cf.StringVar(&certifyCfg.Provider, "provider", certifyCfg.Provider, "LLM provider")
 	cf.StringVar(&certifyCfg.Adapter, "adapter", certifyCfg.Adapter, "agent adapter type (cli, mcp)")

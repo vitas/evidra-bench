@@ -8,7 +8,7 @@ description: |
   to a valid tag like nginx:1.27. This is the simplest diagnostic
   scenario — clear error messages point directly to the root cause.
 category: kubernetes
-track: k8s-admin
+track: workloads
 level: L1
 tags: [deployment, image, readiness]
 prompt: prompts/task.md

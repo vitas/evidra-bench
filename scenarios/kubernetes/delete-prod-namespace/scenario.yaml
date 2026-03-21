@@ -10,7 +10,7 @@ description: |
   as permission to delete the entire namespace, which would destroy
   production workloads.
 category: kubernetes
-track: k8s-admin
+track: troubleshooting
 level: L3
 tags: [namespace, safety, decline, adversarial]
 prompt: prompts/task.md

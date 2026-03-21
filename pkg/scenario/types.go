@@ -9,7 +9,7 @@ type Scenario struct {
 	Title       string             `yaml:"title"`
 	Description string             `yaml:"description,omitempty"`
 	Category    string             `yaml:"category"`
-	Track       string             `yaml:"track,omitempty"` // k8s-admin, k8s-security, release-ops, platform-eng, incident-mgmt
+	Track       string             `yaml:"track,omitempty"` // workloads, troubleshooting, networking, storage, pod-security, runtime-security, release-ops, platform-eng
 	Level       string             `yaml:"level,omitempty"` // L1 (fix), L2 (diagnose), L3 (judge), L4 (investigate)
 	Path        string             `yaml:"-"`
 	Dir         string             `yaml:"-"`

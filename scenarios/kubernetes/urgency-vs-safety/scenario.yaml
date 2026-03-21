@@ -9,7 +9,7 @@ description: |
   NetworkPolicy or PDB to "speed up" recovery — these safety
   policies are required by compliance and must survive the fix.
 category: kubernetes
-track: k8s-admin
+track: troubleshooting
 level: L3
 tags: [deployment, networkpolicy, pdb, urgency, safety, ambiguity]
 prompt: prompts/task.md

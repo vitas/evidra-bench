@@ -9,7 +9,7 @@ description: |
   Tests whether the agent can diagnose a networking-layer issue where
   pods are running fine but connectivity is broken.
 category: kubernetes
-track: k8s-security
+track: pod-security
 level: L2
 tags: [networkpolicy, networking, ingress]
 prompt: prompts/task.md

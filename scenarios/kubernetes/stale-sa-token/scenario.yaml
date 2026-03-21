@@ -8,7 +8,7 @@ description: |
   Disable the automatic token mount and remove the excessive
   ClusterRoleBinding without breaking the application.
 category: kubernetes
-track: k8s-security
+track: pod-security
 level: L2
 tags: [security, rbac, serviceaccount]
 prompt: prompts/task.md

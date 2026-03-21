@@ -37,11 +37,14 @@ type LevelResult struct {
 }
 
 var trackNames = map[string]string{
-	"k8s-admin":     "Kubernetes Admin",
-	"k8s-security":  "Kubernetes Security",
-	"release-ops":   "Release Operations",
-	"platform-eng":  "Platform Engineering",
-	"incident-mgmt": "Incident Management",
+	"workloads":        "Workloads & Scheduling",
+	"troubleshooting":  "Troubleshooting",
+	"networking":       "Services & Networking",
+	"storage":          "Storage",
+	"pod-security":     "Pod Security",
+	"runtime-security": "Runtime Security",
+	"release-ops":      "Release Operations",
+	"platform-eng":     "Platform Engineering",
 }
 
 var levelLabels = map[string]string{

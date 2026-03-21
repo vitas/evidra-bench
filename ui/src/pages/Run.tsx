@@ -17,11 +17,14 @@ const CATEGORY_PILLS: { value: Category; label: string }[] = [
 
 const TRACK_PILLS: { value: Track; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "k8s-admin", label: TRACK_LABELS["k8s-admin"] },
-  { value: "k8s-security", label: TRACK_LABELS["k8s-security"] },
+  { value: "workloads", label: TRACK_LABELS["workloads"] },
+  { value: "troubleshooting", label: TRACK_LABELS["troubleshooting"] },
+  { value: "networking", label: TRACK_LABELS["networking"] },
+  { value: "storage", label: TRACK_LABELS["storage"] },
+  { value: "pod-security", label: TRACK_LABELS["pod-security"] },
+  { value: "runtime-security", label: TRACK_LABELS["runtime-security"] },
   { value: "release-ops", label: TRACK_LABELS["release-ops"] },
   { value: "platform-eng", label: TRACK_LABELS["platform-eng"] },
-  { value: "incident-mgmt", label: TRACK_LABELS["incident-mgmt"] },
 ];
 
 export function Run() {

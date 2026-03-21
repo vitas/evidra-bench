@@ -8,7 +8,7 @@ description: |
   Fix the NetworkPolicy so frontend can reach backend, backend can reach
   database, but frontend cannot reach database directly.
 category: kubernetes
-track: k8s-security
+track: pod-security
 level: L2
 tags: [security, networkpolicy, networking]
 prompt: prompts/task.md

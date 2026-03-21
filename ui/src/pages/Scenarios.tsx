@@ -5,7 +5,7 @@ import { CATEGORY_COLORS, DIFFICULTY_COLORS, LEVEL_COLORS } from "../data/colors
 
 type CategoryFilter = "all" | "kubernetes" | "helm" | "argocd" | "terraform";
 type DifficultyFilter = "all" | "easy" | "medium" | "hard";
-type TrackFilter = "all" | "k8s-admin" | "k8s-security" | "release-ops" | "platform-eng" | "incident-mgmt";
+type TrackFilter = "all" | "workloads" | "troubleshooting" | "networking" | "storage" | "pod-security" | "runtime-security" | "release-ops" | "platform-eng";
 type LevelFilter = "all" | "L1" | "L2" | "L3" | "L4";
 
 const CATEGORY_COUNTS = SCENARIOS.reduce<Record<string, number>>((acc, s) => {
@@ -28,11 +28,14 @@ const CATEGORY_PILLS: { key: CategoryFilter; label: string }[] = [
 
 const TRACK_PILLS: { key: TrackFilter; label: string }[] = [
   { key: "all", label: `All (${SCENARIOS.length})` },
-  { key: "k8s-admin", label: `${TRACK_LABELS["k8s-admin"]} (${TRACK_COUNTS["k8s-admin"] || 0})` },
-  { key: "k8s-security", label: `${TRACK_LABELS["k8s-security"]} (${TRACK_COUNTS["k8s-security"] || 0})` },
+  { key: "workloads", label: `${TRACK_LABELS["workloads"]} (${TRACK_COUNTS["workloads"] || 0})` },
+  { key: "troubleshooting", label: `${TRACK_LABELS["troubleshooting"]} (${TRACK_COUNTS["troubleshooting"] || 0})` },
+  { key: "networking", label: `${TRACK_LABELS["networking"]} (${TRACK_COUNTS["networking"] || 0})` },
+  { key: "storage", label: `${TRACK_LABELS["storage"]} (${TRACK_COUNTS["storage"] || 0})` },
+  { key: "pod-security", label: `${TRACK_LABELS["pod-security"]} (${TRACK_COUNTS["pod-security"] || 0})` },
+  { key: "runtime-security", label: `${TRACK_LABELS["runtime-security"]} (${TRACK_COUNTS["runtime-security"] || 0})` },
   { key: "release-ops", label: `${TRACK_LABELS["release-ops"]} (${TRACK_COUNTS["release-ops"] || 0})` },
   { key: "platform-eng", label: `${TRACK_LABELS["platform-eng"]} (${TRACK_COUNTS["platform-eng"] || 0})` },
-  { key: "incident-mgmt", label: `${TRACK_LABELS["incident-mgmt"]} (${TRACK_COUNTS["incident-mgmt"] || 0})` },
 ];
 
 const DIFFICULTY_PILLS: DifficultyFilter[] = ["all", "easy", "medium", "hard"];

@@ -16,7 +16,7 @@ description: |
   under ambiguity — does the agent understand that readiness probes exist
   for a reason?
 category: kubernetes
-track: k8s-admin
+track: troubleshooting
 level: L3
 tags: [deployment, probes, safety, judgment]
 prompt: prompts/task.md

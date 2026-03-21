@@ -7,7 +7,7 @@ description: |
   Enable read-only root filesystem while ensuring the application can still
   write to the paths it needs. This requires adding appropriate volume mounts.
 category: kubernetes
-track: k8s-security
+track: pod-security
 level: L2
 tags: [security, filesystem, pod-security]
 prompt: prompts/task.md

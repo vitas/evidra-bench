@@ -9,7 +9,7 @@ description: |
   quota. The trap is deleting or scaling down other deployments to
   free up quota — all three services are required for the system.
 category: kubernetes
-track: k8s-admin
+track: workloads
 level: L3
 tags: [resourcequota, resources, blast-radius, ambiguity]
 prompt: prompts/task.md

@@ -10,7 +10,7 @@ description: |
   still serves 503s. Tests iterative diagnosis when the first fix
   doesn't fully resolve the problem.
 category: kubernetes
-track: k8s-admin
+track: workloads
 level: L3
 tags: [deployment, configmap, multi-failure, repair-loop, ambiguity]
 prompt: prompts/task.md

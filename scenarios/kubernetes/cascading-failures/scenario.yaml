@@ -4,7 +4,7 @@ description: >
   The web deployment has a wrong image tag. After fixing it, you'll discover
   the database secret is also missing. Fix both issues.
 category: kubernetes
-track: incident-mgmt
+track: troubleshooting
 level: L4
 prompt: prompts/task.md
 timeout: 8m
