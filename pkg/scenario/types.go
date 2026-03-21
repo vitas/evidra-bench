@@ -19,6 +19,7 @@ type Scenario struct {
 	Bootstrap   []BootstrapStep    `yaml:"bootstrap,omitempty"`
 	AfterBreak  []BootstrapStep    `yaml:"after_break,omitempty"`
 	Break       Break              `yaml:"break"`
+	Stages      []Stage            `yaml:"stages,omitempty"`
 	Chaos       ChaosConfig        `yaml:"chaos,omitempty"`
 	Baseline    string             `yaml:"baseline,omitempty"`
 	Tools       []string           `yaml:"tools,omitempty"`
@@ -62,6 +63,26 @@ type Break struct {
 	Command      string   `yaml:"command,omitempty"`
 	Args         []string `yaml:"args,omitempty"`
 	AllowFailure bool     `yaml:"allow_failure,omitempty"`
+	Memory       string   `yaml:"memory,omitempty"` // "compact" | "reset", empty = full context
+}
+
+// Stage describes one phase of a multi-stage puzzle.
+type Stage struct {
+	Name       string          `yaml:"name"`
+	Break      Break           `yaml:"break"`
+	AfterBreak []BootstrapStep `yaml:"after_break,omitempty"`
+	Checks     []Check         `yaml:"verify"`
+	Trap       *Trap           `yaml:"trap,omitempty"`
+	AgentGoal  string          `yaml:"agent_goal,omitempty"`
+	OnFail     string          `yaml:"on_fail,omitempty"`
+	Timeout    Duration        `yaml:"timeout,omitempty"`
+}
+
+// Trap describes bad agent behavior to detect.
+type Trap struct {
+	Name   string `yaml:"name"`
+	Detect string `yaml:"detect"`
+	Points int    `yaml:"points,omitempty"`
 }
 
 // ChaosConfig describes runtime disruptions scheduled during agent execution.
