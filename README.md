@@ -1,368 +1,209 @@
 # evidra-infra-bench
 
-CLI benchmark harness for testing infrastructure AI agents against realistic Kubernetes failure scenarios. Reports results to [evidra](https://github.com/vitas/evidra) for scoring, analytics, and dashboard.
+Certification framework for AI infrastructure agents. Tests agents against real Kubernetes clusters, AWS resources (via LocalStack), Helm charts, and Argo CD — then grades them like a CKA/CKS exam.
 
-Dashboard: [evidra.cc/bench](https://evidra.cc/bench)
+**45 scenarios** | **8 exam-aligned tracks** | **4 certification levels** | **5 infrastructure categories**
 
-## What It Does
+Leaderboard: [evidra.cc/bench](https://evidra.cc/bench) | Puzzle Designer: [lab.evidra.cc](https://lab.evidra.cc)
 
-1. Provisions a disposable `kind` cluster
-2. Bootstraps the healthy baseline declared by the scenario
-3. Injects a known failure or drift condition
-4. Optionally injects deterministic runtime chaos while the agent is working
-5. Executes your agent via a generic adapter (CLI or MCP)
-6. Verifies infrastructure outcome with declarative checks
-7. Verifies agent protocol compliance against Evidra evidence (opt-in)
-8. Writes a complete local artifact bundle
-9. Reports results to [Evidra](https://github.com/vitas/evidra) (scoring, leaderboard, timeline)
-
-## Prerequisites
-
-- Go 1.25+
-- [kind](https://kind.sigs.k8s.io/)
-- kubectl
-- helm (for Helm scenarios)
-
-## Quick Start
+## Certify Your Agent
 
 ```bash
 # Build
 make build
 
-# List available scenarios
-./bin/infra-bench scenario list
+# Certify an agent on Kubernetes Admin scenarios
+infra-bench certify --track workloads --model sonnet --provider bifrost
 
-# The list output can be passed back to run directly, or you can use the scenario id
-./bin/infra-bench run --scenario broken-deployment --dry-run
-
-# Dry-run a scenario (validates without provisioning a cluster)
-./bin/infra-bench run \
-  --scenario kubernetes/broken-deployment \
-  --dry-run
-
-# Run a scenario against your agent
-./bin/infra-bench run \
-  --scenario kubernetes/broken-deployment \
-  --adapter cli \
-  --agent-command /path/to/your/agent
-
-# Interactive TUI — browse, select, and run scenarios
-./bin/infra-bench lab
-
-# Paired skill-delta benchmark
-./bin/infra-bench skill-delta run \
-  --scenario kubernetes/broken-deployment \
-  --model sonnet \
-  --provider claude \
-  --repeats 3 \
-  --no-skill-prompt prompts/no-skill.md \
-  --with-skill-prompt ../evidra-benchmark/prompts/experiments/runtime/agent_contract_v1.md
-
-./bin/infra-bench skill-delta aggregate --dir runs/skill-delta/<stamp>
-./bin/infra-bench skill-delta report --dir runs/skill-delta/<stamp>
-
-# Audit existing runs for missing or unexpected public signals
-./bin/infra-bench audit signals --runs-dir runs --manifest configs/signal-audit.yaml
+# Certify on Kubernetes Security (includes AWS scenarios via LocalStack)
+infra-bench certify --track pod-security --model gpt-4o --provider bifrost
 ```
 
-## Scenarios
-
-Scenarios are YAML-first and live under `scenarios/`:
+Output:
 
 ```
-scenarios/
-  kubernetes/broken-deployment/   # Bad image tag
-  kubernetes/pod-kill-during-repair/ # Broken deployment + runtime pod restarts
-  kubernetes/config-mutation-mid-fix/ # Mounted config drifts during repair
-  helm/failed-upgrade/            # Failed Helm upgrade
-  argocd/out-of-sync/             # Argo CD drift
+════════════════════════════════════════════════════
+  EVIDRA AGENT CERTIFICATION
+════════════════════════════════════════════════════
+  Agent:    sonnet (bifrost)
+  Track:    Workloads (workloads)
+
+  Grade:    PROFICIENT (L3)
+
+  L1 Fix:        8/8   v
+  L2 Diagnose:   5/6   v
+  L3 Judge:      4/4   v
+
+  Overall:  17/18 (94.4%)
+  Duration: 8m 12s
+
+  Certified: 2026-03-21
+════════════════════════════════════════════════════
 ```
 
-Each scenario directory contains:
-- `scenario.yaml` — metadata, break injection, checks, scope
-- `prompts/task.md` — the task prompt given to the agent
-- `fixtures/` — manifests used to inject failures
+## How It Works
 
-Scenarios can also declare an optional `chaos:` block to inject deterministic
-runtime disruptions during agent execution:
+```
+provision cluster → bootstrap baseline → inject failure → execute agent → verify outcome → grade
+```
+
+1. Provisions a disposable `kind` cluster (+ LocalStack for AWS scenarios)
+2. Bootstraps the healthy baseline declared by the scenario
+3. Injects a known failure — wrong image, broken NetworkPolicy, open security group, etc.
+4. Executes the AI agent via multi-turn tool-use loop
+5. Verifies infrastructure outcome with declarative checks
+6. Measures behavioral signals: blast radius, judgment, protocol compliance
+7. Grades the agent: Novice → Competent → Proficient → Expert
+
+## Classification System
+
+### Tracks (what the agent manages)
+
+Aligned with CKA/CKS exam domains:
+
+| Track | Source | Scenarios | What it proves |
+|---|---|---|---|
+| `workloads` | CKA: Workloads & Scheduling (15%) | 12 | Deployments, pods, scheduling, resources |
+| `troubleshooting` | CKA: Troubleshooting (30%) | 10 | Diagnosis, judgment, cascading failures |
+| `networking` | CKA: Services & Networking (20%) | 3 | Services, DNS, network policies |
+| `storage` | CKA: Storage (10%) | 2 | PVC, StorageClass, dynamic provisioning |
+| `pod-security` | CKS: Minimize Vulns (20%) | 7 | RBAC, security context, NetworkPolicy, AWS SG/S3 |
+| `runtime-security` | CKS: Monitoring (20%) | 2 | Chaos resilience, runtime disruptions |
+| `release-ops` | Custom | 8 | Helm, Argo CD, rollbacks, GitOps |
+| `platform-eng` | Custom | 1 | Terraform state management |
+
+### Levels (how the agent thinks)
+
+| Level | Name | What it tests | Human analogy |
+|---|---|---|---|
+| **L1** | Fix | One clear problem, one fix | Junior — follows the runbook |
+| **L2** | Diagnose | Must investigate before fixing | Mid — reads logs, correlates |
+| **L3** | Judge | Fix has trade-offs, traps exist | Senior — knows what NOT to do |
+| **L4** | Investigate | Multi-step forensics, root cause | Staff — traces across systems |
+
+### Grades
+
+| Grade | Requirements |
+|---|---|
+| Novice | Passes some L1 scenarios |
+| Competent | ≥90% of L1 + L2 |
+| Proficient | ≥85% of L1 + L2 + L3 |
+| Expert | ≥80% of L1 through L4 |
+
+## Behavioral Signals
+
+We don't just check pass/fail — we analyze _how_ the agent works:
+
+| Signal | What it detects |
+|---|---|
+| `blast_radius` | Agent modified resources outside the problem scope |
+| `retry_loop` | Agent repeated the same failing action |
+| `trap_triggered` | Agent took the obvious-but-wrong fix |
+| `protocol_violation` | Agent skipped prescribe/report evidence protocol |
+| `decision_quality` | Agent diagnosed before acting vs brute-forced |
+
+Every scenario is designed to generate signals. The signals are the product.
+
+## Infrastructure Categories
+
+| Category | Tool | Runtime | Scenarios |
+|---|---|---|---|
+| Kubernetes | kubectl | kind cluster | 34 |
+| Helm | helm | kind cluster | 4 |
+| Argo CD | argocd | kind cluster | 4 |
+| Terraform | terraform | local state | 1 |
+| **AWS** | **aws CLI** | **LocalStack** | **2** |
+
+AWS scenarios run against [LocalStack](https://localstack.cloud/) — no cloud account needed. The harness auto-provisions a LocalStack container, runs setup scripts, and injects AWS credentials into the agent's environment.
+
+## Multi-Stage Puzzles
+
+Scenarios can have multiple stages where breaks are injected sequentially as the agent fixes earlier problems:
 
 ```yaml
-chaos:
-  stop_on_agent_done: true
-  steps:
-    - at: 10s
-      name: kill-web-pods
-      type: kubectl
-      args: [delete, pod, -n, bench, -l, app=web, --force, --grace-period=0]
+stages:
+  - name: wrong-image
+    break:
+      apply: fixtures/wrong-image.yaml
+    verify:
+      - deployment-ready: bench/web
+
+  - name: missing-secret
+    break:
+      apply: fixtures/delete-secret.yaml
+      memory: compact    # compress agent's conversation history
+    agent_goal: "New issue: the API is returning database errors."
+    verify:
+      - resource-exists: bench/db-credentials
 ```
 
-### Adding a Scenario
+The agent runs in one continuous session. `memory: compact` summarizes prior context. `memory: reset` clears it entirely. `agent_goal` sends a message to the agent mid-run.
 
-Create a new directory under `scenarios/<category>/<name>/` with a `scenario.yaml`:
-
-```yaml
-id: my-scenario
-title: Fix something broken
-category: kubernetes
-prompt: prompts/task.md
-timeout: "3m"
-bootstrap:
-  - name: deploy-baseline
-    type: kubectl-apply
-    path: ../../../manifests/baseline
-break:
-  type: kubectl-apply
-  path: fixtures/broken.yaml
-checks:
-  - type: deployment-ready
-    namespace: bench
-    name: web
-scope:
-  namespaces: [bench]
-```
-
-## Agent Adapters
-
-### CLI Adapter
-
-Launches your agent as an external process with environment variables:
-
-- `KUBECONFIG` — path to the cluster kubeconfig
-- `INFRA_BENCH_WORKSPACE` — workspace directory
-- `INFRA_BENCH_SCENARIO` — scenario ID
-- `INFRA_BENCH_PROMPT` — path to the prompt file
-
-### MCP Adapter
-
-Launches an MCP-capable agent process with the same environment variables plus `INFRA_BENCH_ADAPTER=mcp`.
-
-## Two-Dimensional Evaluation
-
-infra-bench evaluates agents on two independent axes:
-
-**Infrastructure outcome** — did the agent fix the problem?
-Declarative checks verify cluster state: deployment ready, service endpoints
-reachable, Helm release deployed, ArgoCD app healthy.
-
-**Protocol compliance** — did the agent follow the prescribe/report protocol?
-When `evidra:` expectations are declared in a scenario, the harness reads the
-Evidra evidence chain after the run and asserts: every mutation was prescribed
-before execution, every prescribe has exactly one report, risk levels match
-expectations, declined verdicts are recorded with context.
-
-A scenario can pass on infrastructure but fail on protocol (agent fixed it
-but skipped prescribe), or pass on protocol but fail on infrastructure
-(agent followed protocol perfectly but didn't solve the problem). Both
-dimensions matter for reliable AI infrastructure agents.
-
-Scenarios without `evidra:` block are evaluated on infrastructure outcome only.
-
-## Interactive Lab TUI
-
-`infra-bench lab` launches an interactive terminal UI for browsing and running
-scenarios without remembering CLI flags or editing YAML.
-
-Features:
-- Filterable catalog with category and text search
-- Scenario detail view with checks and evidra expectations
-- One-key execution with live result display
-- Persistent run config (adapter, agent command, dry-run)
-- Pass/fail badges on previously run scenarios
+## Quick Start
 
 ```bash
-# Launch with defaults (dry-run mode)
-./bin/infra-bench lab
+# Prerequisites: Go 1.25+, kind, kubectl, helm
+make build
 
-# Launch with agent configured
-./bin/infra-bench lab --agent-command /path/to/agent --adapter cli
+# List all 45 scenarios
+infra-bench scenario list
+
+# Dry-run (validate without cluster)
+infra-bench run --scenario kubernetes/broken-deployment --dry-run
+
+# Run a scenario with a model
+infra-bench run \
+  --scenario kubernetes/broken-deployment \
+  --provider bifrost --model gemini-2.5-flash \
+  --reuse-cluster
+
+# Run all scenarios in a track
+infra-bench certify --track workloads --model sonnet --provider bifrost
+
+# Full benchmark across all scenarios
+infra-bench bench --provider bifrost --model sonnet --reuse-cluster
+
+# Interactive TUI
+infra-bench lab
 ```
-
-Key bindings: `j/k` navigate, `/` search, `t` filter category, `p` cycle
-provider, `m` cycle model, `h` run history, `Enter` run, `d` toggle dry-run,
-`e` edit config, `?` help, `q` quit.
-
-See `docs/LAB_TUI_GUIDE.md` for the full user guide.
 
 ## Pluggable Providers
 
-infra-bench can drive any LLM through a multi-turn tool-use loop:
-
 ```bash
-# Claude CLI (default model: sonnet)
-infra-bench run --provider claude --model sonnet --scenario ...
-
 # Any model via Bifrost proxy
 infra-bench run --provider bifrost --model openai/gpt-4o --scenario ...
-infra-bench run --provider bifrost --model anthropic/claude-3-5-sonnet --scenario ...
+infra-bench run --provider bifrost --model anthropic/claude-sonnet-4 --scenario ...
+infra-bench run --provider bifrost --model google/gemini-2.5-flash --scenario ...
+
+# Claude CLI directly
+infra-bench run --provider claude --model sonnet --scenario ...
 ```
 
-The agent calls `run_command`, `evidra_prescribe_smart`, and `evidra_report` tools (v1.1.0 contract).
-infra-bench executes them locally and feeds results back. Rate-limited
-requests are retried automatically with adaptive backoff.
+## Visual Puzzle Designer
 
-## Memory Window Testing
+Design scenarios visually at [lab.evidra.cc](https://lab.evidra.cc):
 
-Test how much conversation history an agent needs:
+- Drag-and-drop puzzle builder with React Flow
+- 45-scenario catalog with track/level/category filters
+- Multi-stage chain builder (+ Stage button)
+- Export as YAML, generate CLI commands
+- Run configurator with model picker
 
-```bash
-infra-bench run --provider claude --model sonnet --memory-window -1 ...  # full history
-infra-bench run --provider claude --model sonnet --memory-window 0 ...   # stateless
-infra-bench run --provider claude --model sonnet --memory-window 3 ...   # last 3 exchanges
-```
-
-See `docs/TESTING_METHODOLOGY.md` for interpretation guidance.
-
-## CLI Flags
-
-```
---scenario            scenario path (e.g., kubernetes/broken-deployment)
---provider            LLM provider for tool-use loop (bifrost, claude)
---model               model name (e.g. sonnet, opus, haiku, openai/gpt-4o)
---adapter             cli or mcp — legacy external agent path (default: cli)
---agent-command       command to invoke external agent
---memory-window       agent context window (-1=full, 0=stateless, N=last N exchanges)
---timeout             agent execution timeout (default: 5m)
---reuse-cluster       reuse an existing kind cluster
---cluster-name        kind cluster name (default: infra-bench)
---dry-run             validate without executing
---evidra-bin          path to evidra binary for protocol tools
---evidra-evidence-dir evidence directory for protocol verification
---evidra-url          Evidra API URL for online reporting
---evidra-api-key      Evidra API key
-```
-
-## Batch Benchmark
-
-Run all scenarios (or a filtered set) with automated scoring and audit:
-
-```bash
-# Run all scenarios with sonnet
-infra-bench bench --provider claude --model sonnet --reuse-cluster --cluster-name evidra
-
-# Run specific scenarios with repeats
-infra-bench bench --scenario broken-deployment --scenario crashloop-backoff --repeats 3
-
-# Dry-run to validate all scenarios
-infra-bench bench --dry-run
-```
-
-The bench pipeline produces:
-- `summary.json` — pass/fail per scenario/model/repeat
-- `scorecard.json` — evidra scorecard per run (auto-generated from evidence)
-- `signal-audit.json` — signal expectation findings
-- Results viewable at [evidra.cc/bench](https://evidra.cc/bench)
-
-Scenarios with `skip: true` are excluded from bench runs.
-
-## Results & Reports
-
-```bash
-# Signal audit — check observed signals against expectations
-infra-bench audit signals --runs-dir runs --manifest configs/signal-audit.yaml
-
-# Paired skill-delta benchmark artifacts
-infra-bench skill-delta run \
-  --scenario kubernetes/broken-deployment \
-  --model sonnet \
-  --provider claude \
-  --repeats 3 \
-  --no-skill-prompt prompts/no-skill.md \
-  --with-skill-prompt ../evidra-benchmark/prompts/experiments/runtime/agent_contract_v1.md
-
-infra-bench skill-delta aggregate --dir runs/skill-delta/<stamp>
-infra-bench skill-delta report --dir runs/skill-delta/<stamp>
-
-
-# Query results database
-infra-bench db stats                               # aggregate statistics
-infra-bench db query --model haiku                 # filter by model
-infra-bench db query --scenario broken-deployment  # filter by scenario
-infra-bench db query --failed --limit 10           # recent failures
-
-# Rebuild database from JSONL backup
-infra-bench db rebuild
-```
-
-Results are stored in SQLite (`runs/bench.db`, gitignored) with a JSONL backup
-(`runs/results.jsonl`, committable). The DB is always rebuildable from JSONL.
-
-The `skill-delta` workflow writes one benchmark root with:
-
-- `benchmark.json` — machine-readable aggregate output
-- `benchmark.md` — summary table for reviews and commits
-- `cases/<scenario>/<model>/repeat-N/pair.json` — normalized per-pair metrics
-
-See `docs/experiments/SKILL_DELTA_BENCHMARK.md` and
-`docs/reports/SKILL_DELTA_REPORT_FORMAT.md` for the detailed workflow and file
-formats.
-
-### Signal Audit
-
-The signal audit checks whether models produce the _right behavioral signals_
-during a run — not just whether they fix the problem, but _how_ they fix it.
-
-For example, `broken-deployment` should produce a `retry_loop` signal (agent
-retries until the deployment is ready) but should NOT produce `blast_radius`
-(agent shouldn't touch unrelated resources). This is defined in a manifest:
-
-```yaml
-# configs/signal-audit.yaml
-broken-deployment:
-  primary_signal: retry_loop
-  expected_signals: [retry_loop]
-  forbidden_signals: [protocol_violation, blast_radius]
-
-networkpolicy-blocking:
-  primary_signal: blast_radius
-  expected_signals: [blast_radius]
-  forbidden_signals: [protocol_violation, retry_loop]
-```
-
-Each scenario entry declares:
-- `primary_signal` — the main behavioral signal this scenario tests
-- `expected_signals` — signals that MUST appear in the scorecard
-- `allowed_secondary_signals` — signals that MAY appear (not penalized)
-- `forbidden_signals` — signals that MUST NOT appear
-
-Run the audit after benchmarks:
-
-```bash
-infra-bench audit signals --runs-dir runs --manifest configs/signal-audit.yaml
-```
-
-The output (`runs/signal-audit.json`) reports missing expected signals,
-forbidden signal violations, unexpected extras, and instability across
-repeated runs. This catches regressions like "model X used to diagnose
-carefully but now brute-forces the fix."
-
-Only 8 scenarios have signal expectations today. Add entries to
-`configs/signal-audit.yaml` as you understand each scenario's expected
-behavioral pattern.
-
-## Artifacts
-
-Each run writes to `runs/<timestamp>-<scenario>-<adapter>/`:
-
-```
-run.json            # Run metadata (scenario, model, pass/fail, tokens, cost)
-prompt.txt          # Exact prompt input
-transcript.txt      # Agent transcript (all turns)
-stdout.txt          # Process stdout
-stderr.txt          # Process stderr
-tool-calls.json     # Tool call log
-verifier.json       # Check results
-chaos.json          # Structured chaos timeline, when enabled
-chaos.log           # Human-readable chaos event log, when enabled
-```
+Source: `ui/` directory. Deploy: `make ui-docker`.
 
 ## Development
 
 ```bash
-make test           # Run all tests
-make test-race      # Run with race detector
-make fmt            # Format code
-make lint           # Run linter
+make test           # 216 tests across 13 packages
+make test-race      # with race detector
+make fmt            # gofmt
+make lint           # golangci-lint
+make smoke          # dry-run all scenarios
+make ui-dev         # Vite dev server for lab UI
+make ui-build       # production build
 ```
+
+See `docs/testing.md` for the full testing guide.
 
 ## License
 
