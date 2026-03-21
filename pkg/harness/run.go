@@ -240,7 +240,22 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}
 		verifyResult = verifier.RunChecks(ctx, handle.KubeconfigPath, checkers)
 	}
-	_ = stageResults // TODO: wire into RunRecord metadata (Task 5)
+	// Record stage results in metadata for multi-stage runs.
+	if len(stageResults) > 0 {
+		stagesPassed := 0
+		for _, sr := range stageResults {
+			if sr.Passed {
+				stagesPassed++
+			}
+		}
+		if agentResult.Metadata == nil {
+			agentResult.Metadata = make(map[string]string)
+		}
+		agentResult.Metadata["stages_total"] = strconv.Itoa(len(stageResults))
+		agentResult.Metadata["stages_passed"] = strconv.Itoa(stagesPassed)
+		stagesJSON, _ := json.Marshal(stageResults)
+		agentResult.Metadata["stages"] = string(stagesJSON)
+	}
 
 	// Resolve evidence directory for both protocol checks and scorecard.
 	evidenceDir := req.Config.EvidraEvidenceDir
