@@ -328,6 +328,40 @@ with optional Evidra reporting for behavioral analysis.`,
 
 	skillDeltaCmd.AddCommand(skillDeltaRunCmd, skillDeltaAggregateCmd, skillDeltaReportCmd)
 
+	certifyTrack := ""
+	certifyModel := ""
+	certifyCfg := config.Default()
+
+	certifyCmd := &cobra.Command{
+		Use:   "certify",
+		Short: "Run all scenarios in a track and produce a certification grade",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return executeCertify(cmd, certifyCfg, certifyTrack, certifyModel)
+		},
+	}
+	cf := certifyCmd.Flags()
+	cf.StringVar(&certifyTrack, "track", "", "certification track (k8s-admin, k8s-security, release-ops, platform-eng, incident-mgmt)")
+	cf.StringVar(&certifyModel, "model", "", "model name (e.g. sonnet, opus)")
+	cf.StringVar(&certifyCfg.Provider, "provider", certifyCfg.Provider, "LLM provider")
+	cf.StringVar(&certifyCfg.Adapter, "adapter", certifyCfg.Adapter, "agent adapter type (cli, mcp)")
+	cf.StringVar(&certifyCfg.AgentCommand, "agent-command", certifyCfg.AgentCommand, "command to invoke the agent")
+	cf.StringVar(&certifyCfg.ScenariosDir, "scenarios-dir", certifyCfg.ScenariosDir, "scenarios directory")
+	cf.StringVar(&certifyCfg.RunsDir, "runs-dir", certifyCfg.RunsDir, "runs directory")
+	cf.DurationVar(&certifyCfg.Timeout, "timeout", certifyCfg.Timeout, "per-scenario timeout")
+	cf.BoolVar(&certifyCfg.ReuseCluster, "reuse-cluster", certifyCfg.ReuseCluster, "reuse kind cluster")
+	cf.StringVar(&certifyCfg.ClusterName, "cluster-name", certifyCfg.ClusterName, "kind cluster name")
+	cf.BoolVar(&certifyCfg.DryRun, "dry-run", certifyCfg.DryRun, "validate without running")
+	cf.BoolVar(&certifyCfg.ProxyMode, "proxy-mode", false, "auto-record evidence for mutations")
+	cf.BoolVar(&certifyCfg.SmartPrescribe, "smart-prescribe", false, "simplified prescribe (tool+operation+resource, v1.1.0)")
+	cf.IntVar(&certifyCfg.MemoryWindow, "memory-window", -1, "memory window")
+	cf.StringVar(&certifyCfg.EvidraURL, "evidra-url", certifyCfg.EvidraURL, "Evidra API URL for reporting results")
+	cf.StringVar(&certifyCfg.EvidraAPIKey, "evidra-api-key", certifyCfg.EvidraAPIKey, "Evidra API key")
+	cf.StringVar(&certifyCfg.EvidraBin, "evidra-bin", certifyCfg.EvidraBin, "evidra binary path")
+	cf.StringVar(&certifyCfg.SystemPromptFile, "system-prompt-file", certifyCfg.SystemPromptFile, "system prompt file")
+	cf.StringVar(&certifyCfg.ContractVersion, "contract-version", certifyCfg.ContractVersion, "contract version")
+	_ = certifyCmd.MarkFlagRequired("track")
+	_ = certifyCmd.MarkFlagRequired("model")
+
 	benchScenarios := []string{}
 	benchModels := []string{}
 	benchRepeats := 1
@@ -360,7 +394,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	bf.StringVar(&benchCfg.EvidraURL, "evidra-url", benchCfg.EvidraURL, "Evidra API URL for reporting results")
 	bf.StringVar(&benchCfg.EvidraAPIKey, "evidra-api-key", benchCfg.EvidraAPIKey, "Evidra API key")
 
-	root.AddCommand(runCmd, scenarioCmd, labCmd, dbCmd, skillDeltaCmd, auditCmd, benchCmd)
+	root.AddCommand(runCmd, scenarioCmd, labCmd, dbCmd, skillDeltaCmd, auditCmd, benchCmd, certifyCmd)
 	return root
 }
 
