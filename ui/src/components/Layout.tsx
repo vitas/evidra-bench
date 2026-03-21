@@ -57,7 +57,7 @@ function Header() {
             target="_blank"
             rel="noopener"
           >
-            View Results
+            Leaderboard
           </a>
           <a
             className="inline-flex items-center gap-1 text-[0.82rem] font-medium text-fg-muted tracking-wide hover:text-fg no-underline transition-colors"
