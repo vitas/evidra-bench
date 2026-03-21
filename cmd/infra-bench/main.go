@@ -94,6 +94,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	scenarioCmd.PersistentFlags().StringVar(&cfg.ScenariosDir, "scenarios-dir", cfg.ScenariosDir, "base directory for scenarios")
 
 	f := runCmd.Flags()
+	f.StringVar(&cfg.EnvironmentProvider, "environment", cfg.EnvironmentProvider, "environment provider (kind, k3d)")
 	f.StringVar(&cfg.Scenario, "scenario", cfg.Scenario, "scenario path relative to scenarios dir")
 	f.StringVar(&cfg.Adapter, "adapter", cfg.Adapter, "agent adapter type (cli, mcp)")
 	f.StringVar(&cfg.AgentCommand, "agent-command", cfg.AgentCommand, "command to invoke the agent")
@@ -292,6 +293,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	sdrf.StringVar(&skillDeltaNoSkillPrompt, "no-skill-prompt", "", "system prompt file for baseline runs")
 	sdrf.StringVar(&skillDeltaWithSkillPrompt, "with-skill-prompt", "", "system prompt file for skill-enabled runs")
 	sdrf.StringVar(&skillDeltaOutDir, "out-dir", "", "benchmark output directory (default: runs/skill-delta/<stamp>)")
+	sdrf.StringVar(&skillDeltaCfg.EnvironmentProvider, "environment", skillDeltaCfg.EnvironmentProvider, "environment provider (kind, k3d)")
 	sdrf.StringVar(&skillDeltaCfg.ScenariosDir, "scenarios-dir", skillDeltaCfg.ScenariosDir, "base directory for scenarios")
 	sdrf.StringVar(&skillDeltaCfg.RunsDir, "runs-dir", skillDeltaCfg.RunsDir, "base directory for benchmark runs")
 	sdrf.StringVar(&skillDeltaCfg.Adapter, "adapter", skillDeltaCfg.Adapter, "agent adapter type (cli, mcp)")
@@ -342,6 +344,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	cf := certifyCmd.Flags()
 	cf.StringVar(&certifyTrack, "track", "", "certification track (workloads, troubleshooting, networking, storage, pod-security, runtime-security, release-ops, platform-eng)")
 	cf.StringVar(&certifyModel, "model", "", "model name (e.g. sonnet, opus)")
+	cf.StringVar(&certifyCfg.EnvironmentProvider, "environment", certifyCfg.EnvironmentProvider, "environment provider (kind, k3d)")
 	cf.StringVar(&certifyCfg.Provider, "provider", certifyCfg.Provider, "LLM provider")
 	cf.StringVar(&certifyCfg.Adapter, "adapter", certifyCfg.Adapter, "agent adapter type (cli, mcp)")
 	cf.StringVar(&certifyCfg.AgentCommand, "agent-command", certifyCfg.AgentCommand, "command to invoke the agent")
@@ -378,6 +381,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	bf.StringSliceVar(&benchScenarios, "scenario", nil, "scenario filter (repeatable; default: all)")
 	bf.StringSliceVar(&benchModels, "model", nil, "model (repeatable; default: sonnet)")
 	bf.IntVar(&benchRepeats, "repeats", 1, "repeats per scenario/model")
+	bf.StringVar(&benchCfg.EnvironmentProvider, "environment", benchCfg.EnvironmentProvider, "environment provider (kind, k3d)")
 	bf.StringVar(&benchCfg.ScenariosDir, "scenarios-dir", benchCfg.ScenariosDir, "scenarios directory")
 	bf.StringVar(&benchCfg.RunsDir, "runs-dir", benchCfg.RunsDir, "runs directory")
 	bf.StringVar(&benchCfg.Provider, "provider", benchCfg.Provider, "LLM provider")
@@ -489,8 +493,17 @@ func runScenarioOnce(ctx context.Context, cfg config.Config, s *scenario.Scenari
 		return nil, fmt.Errorf("unknown adapter: %s", cfg.Adapter)
 	}
 
-	envProvider := environment.NewKindProvider()
-	envProvider.ReuseExisting = cfg.ReuseCluster
+	var envProvider environment.Provider
+	switch cfg.EnvironmentProvider {
+	case "k3d":
+		p := environment.NewK3dProvider()
+		p.ReuseExisting = cfg.ReuseCluster
+		envProvider = p
+	default:
+		p := environment.NewKindProvider()
+		p.ReuseExisting = cfg.ReuseCluster
+		envProvider = p
+	}
 	runner := &environment.ExecRunner{}
 	bootstrapper := environment.NewBootstrapper(runner)
 	writer := artifact.NewWriter(cfg.RunsDir)
