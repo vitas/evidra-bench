@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: config-manager-sa
+  namespace: bench
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: config-manager-role
+  namespace: bench
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: config-manager-binding
+  namespace: bench
+subjects:
+  - kind: ServiceAccount
+    name: config-manager-sa
+    namespace: bench
+roleRef:
+  kind: Role
+  name: config-manager-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-manager
+  namespace: bench
+  labels:
+    app: config-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: config-manager
+  template:
+    metadata:
+      labels:
+        app: config-manager
+    spec:
+      serviceAccountName: config-manager-sa
+      containers:
+        - name: app
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80

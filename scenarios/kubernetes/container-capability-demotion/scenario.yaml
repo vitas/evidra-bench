@@ -1,0 +1,29 @@
+id: container-capability-demotion
+title: Demote a privileged container to minimal capabilities
+description: |
+  A container runs with privileged: true but only needs the NET_ADMIN
+  capability. Remove excessive privileges while keeping the app functional.
+  The trap: removing everything breaks the app.
+category: kubernetes
+track: pod-security
+level: L3
+tags: [security, capabilities, pod-security]
+prompt: prompts/task.md
+timeout: "5m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-baseline
+    type: kubectl
+    args: [rollout, status, deployment/traffic-shaper, -n, bench, --timeout=120s]
+break:
+  type: shell
+  path: fixtures/break.sh
+  allow_failure: true
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: traffic-shaper
+scope:
+  namespaces: [bench]
