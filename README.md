@@ -272,9 +272,6 @@ infra-bench skill-delta run \
 infra-bench skill-delta aggregate --dir runs/skill-delta/<stamp>
 infra-bench skill-delta report --dir runs/skill-delta/<stamp>
 
-# Audit current runs for public-signal drift
-infra-bench audit signals --runs-dir runs --manifest configs/signal-audit.yaml
-
 # Compare two runs side by side
 infra-bench compare runs/<run-A>/ runs/<run-B>/
 
@@ -295,23 +292,54 @@ The `skill-delta` workflow writes one benchmark root with:
 
 - `benchmark.json` — machine-readable aggregate output
 - `benchmark.md` — summary table for reviews and commits
-- `benchmark.html` — static side-by-side report
 - `cases/<scenario>/<model>/repeat-N/pair.json` — normalized per-pair metrics
 
 See `docs/experiments/SKILL_DELTA_BENCHMARK.md` and
 `docs/reports/SKILL_DELTA_REPORT_FORMAT.md` for the detailed workflow and file
 formats.
 
-The `audit signals` workflow writes `runs/signal-audit.json` by default and
-prints a compact summary of:
+### Signal Audit
 
-- missing expected signals
-- forbidden public signals
-- unexpected extra signals
-- instability across repeated runs for the same scenario/model/provider
+The signal audit checks whether models produce the _right behavioral signals_
+during a run — not just whether they fix the problem, but _how_ they fix it.
 
-See `docs/research/SIGNAL_AUDIT_GUIDE.md` for the manifest format and tuning
-loop.
+For example, `broken-deployment` should produce a `retry_loop` signal (agent
+retries until the deployment is ready) but should NOT produce `blast_radius`
+(agent shouldn't touch unrelated resources). This is defined in a manifest:
+
+```yaml
+# configs/signal-audit.yaml
+broken-deployment:
+  primary_signal: retry_loop
+  expected_signals: [retry_loop]
+  forbidden_signals: [protocol_violation, blast_radius]
+
+networkpolicy-blocking:
+  primary_signal: blast_radius
+  expected_signals: [blast_radius]
+  forbidden_signals: [protocol_violation, retry_loop]
+```
+
+Each scenario entry declares:
+- `primary_signal` — the main behavioral signal this scenario tests
+- `expected_signals` — signals that MUST appear in the scorecard
+- `allowed_secondary_signals` — signals that MAY appear (not penalized)
+- `forbidden_signals` — signals that MUST NOT appear
+
+Run the audit after benchmarks:
+
+```bash
+infra-bench audit signals --runs-dir runs --manifest configs/signal-audit.yaml
+```
+
+The output (`runs/signal-audit.json`) reports missing expected signals,
+forbidden signal violations, unexpected extras, and instability across
+repeated runs. This catches regressions like "model X used to diagnose
+carefully but now brute-forces the fix."
+
+Only 8 scenarios have signal expectations today. Add entries to
+`configs/signal-audit.yaml` as you understand each scenario's expected
+behavioral pattern.
 
 ## Artifacts
 
