@@ -75,10 +75,10 @@ export function Run() {
 
   const command = useMemo(() => {
     if (selectedIds.size === 0) return null;
-    const scenarioList = [...selectedIds].join(",");
+    const scenarioFlags = [...selectedIds].map((id) => `  --scenario ${id} \\`);
     const lines = [
       "infra-bench bench \\",
-      `  --scenarios ${scenarioList} \\`,
+      ...scenarioFlags,
       `  --model ${selectedModel} \\`,
       "  --provider bifrost \\",
       mode === "smart" ? "  --smart-prescribe \\" : "  --proxy-mode \\",

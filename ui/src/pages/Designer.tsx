@@ -24,6 +24,8 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
+import { useSearchParams } from "react-router";
+import { SCENARIOS } from "../data/catalog";
 import { Palette } from "../components/designer/Palette";
 import { ConfigPanel } from "../components/designer/ConfigPanel";
 import { ExportButton } from "../components/designer/ExportButton";
@@ -166,6 +168,7 @@ export function Designer() {
 
 function DesignerInner() {
   const { fitView } = useReactFlow();
+  const [searchParams, setSearchParams] = useSearchParams();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const nodeIdCounterRef = useRef(10);
 
@@ -175,6 +178,50 @@ function DesignerInner() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(draft?.edges ?? EXAMPLE_EDGES);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<PuzzleMetadata>(draft?.metadata ?? DEFAULT_METADATA);
+
+  // Load scenario from ?scenario= query param (when navigating from catalog).
+  useEffect(() => {
+    const scenarioId = searchParams.get("scenario");
+    if (!scenarioId) return;
+
+    const scenario = SCENARIOS.find((s) => s.id === scenarioId);
+    if (!scenario) return;
+
+    // Build a simple template from the catalog entry.
+    const breakData: BreakData = {
+      kind: "break",
+      method: scenario.breakType === "wrong-image" ? "kubectl-apply" : "kubectl-apply",
+      action: (scenario.breakType === "custom" || scenario.breakType === "multi-stage" || scenario.breakType === "shell")
+        ? "custom" : scenario.breakType as BreakData["action"],
+      target: scenario.target,
+      customManifest: "",
+    };
+
+    const newNodes: Node[] = [
+      { id: "stack-1", type: "stack", position: { x: 50, y: 120 }, data: { kind: "stack", stackType: "web-app", namespace: "bench" } as StackData },
+      { id: "break-1", type: "break", position: { x: 320, y: 120 }, data: breakData },
+      { id: "verify-1", type: "verify", position: { x: 590, y: 120 }, data: { kind: "verify", checkType: "deployment-ready", namespace: "bench", resourceName: scenario.target.split("/")[1] || "web" } as VerifyData },
+    ];
+    const newEdges: Edge[] = [
+      { id: "e-stack-break", source: "stack-1", target: "break-1", animated: true, style: EDGE_STYLE },
+      { id: "e-break-verify", source: "break-1", target: "verify-1", animated: true, style: EDGE_STYLE },
+    ];
+
+    setNodes(newNodes);
+    setEdges(newEdges);
+    setMetadata({
+      name: scenario.id,
+      title: scenario.title,
+      description: scenario.description,
+      difficulty: scenario.difficulty,
+      timeLimit: "5m",
+      category: scenario.category,
+    });
+    setSelectedNodeId(null);
+
+    // Clear the query param so refresh doesn't reload.
+    setSearchParams({}, { replace: true });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [minimapOpen, setMinimapOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);

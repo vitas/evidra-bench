@@ -19,7 +19,8 @@ const CHECK_TYPE_FOR_CATEGORY: Record<string, string> = {
   kubernetes: "deployment-ready",
   helm: "helm-release",
   argocd: "argocd-app-healthy",
-  terraform: "deployment-ready",
+  terraform: "command-succeeds",
+  aws: "command-succeeds",
 };
 
 function scenarioToTemplate(s: ScenarioMeta): Template {
@@ -30,7 +31,7 @@ function scenarioToTemplate(s: ScenarioMeta): Template {
   return {
     nodes: [
       { id: "stack-1", type: "stack", position: { x: 50, y: 120 }, data: { kind: "stack", stackType: "web-app", namespace: "bench" } },
-      { id: "break-1", type: "break", position: { x: 320, y: 120 }, data: { kind: "break", method: "kubectl-apply", action: s.breakType, target: s.target, customManifest: "" } },
+      { id: "break-1", type: "break", position: { x: 320, y: 120 }, data: { kind: "break", method: (s.category === "terraform" || s.category === "aws") ? "script" : "kubectl-apply", action: s.breakType === "custom" || s.breakType === "multi-stage" || s.breakType === "shell" ? "custom" : s.breakType, target: s.target, customManifest: "" } },
       { id: "verify-1", type: "verify", position: { x: 590, y: 120 }, data: { kind: "verify", checkType, namespace: "bench", resourceName } },
     ],
     edges: [

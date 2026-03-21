@@ -13,17 +13,18 @@ Coverage map for infra-bench scenarios, grouped by tool and failure category.
 
 | Tool       | Implemented | With Evidra | Planned | Total |
 |------------|:-----------:|:-----------:|:-------:|:-----:|
-| kubectl    | 28          | 18          | 0       | 28    |
+| kubectl    | 37          | 18          | 0       | 37    |
 | Helm       | 4           | 1           | 0       | 4     |
 | Argo CD    | 4           | 0           | 0       | 4     |
 | Terraform  | 1           | 1           | 0       | 1     |
-| **Total**  | **37**      | **20**      | **0**   | **37**|
+| AWS        | 2           | 0           | 0       | 2     |
+| **Total**  | **48**      | **20**      | **0**   | **48**|
 
 ---
 
 ## kubectl Scenarios
 
-Source: kagent benchmark (24 scenarios), design doc, brainstorming research. 28 kubectl scenarios implemented (including cross-cutting X01-X07 housed under kubernetes/).
+Source: kagent benchmark (24 scenarios), design doc, brainstorming research. 37 kubectl scenarios implemented (including CKS security, chaos, multi-stage, and cross-cutting X01-X07 housed under kubernetes/).
 
 | ID   | Scenario                             | Category       | Difficulty | Status      | Signals                                 | Evidra |
 |------|--------------------------------------|----------------|:----------:|-------------|-----------------------------------------|:------:|
@@ -159,6 +160,8 @@ unexpected extras, and repeat instability.
 
 ## Scenario Directory Layout
 
+> **Note:** This tree is representative, not exhaustive. Run `infra-bench scenario list` for the full current list of all 48 scenarios.
+
 ```
 scenarios/
 ├── argocd/
@@ -219,7 +222,7 @@ The evidra home repo (`../evidra-benchmark`) focuses on two areas:
 
 | System | What it tests | Format |
 |--------|---------------|--------|
-| `scenarios/` (37 scenarios) | Agent remediation + protocol compliance | scenario.yaml + evidra expectations |
+| `scenarios/` (48 scenarios) | Agent remediation + protocol compliance | scenario.yaml + evidra expectations |
 | `--provider` runs | Real agent tool-use loop via Bifrost/Claude | run artifacts + evidence chains |
 
 Together they cover: classification accuracy (home repo) + signal engine correctness (home repo) + agent remediation capability + protocol-aware remediation (this repo).
