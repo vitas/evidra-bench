@@ -265,8 +265,7 @@ export function Results() {
 
       {/* Footer */}
       <div className="mt-12 text-center text-[0.72rem] text-fg-muted/60">
-        Data from exam-demo tenant · Exam runs report here automatically via{" "}
-        <code className="text-accent">--evidra-url</code>
+        Results update automatically after each certification run
       </div>
     </div>
   );
