@@ -255,6 +255,62 @@ export function Designer() {
     [setNodes],
   );
 
+  const handleAddStage = useCallback(() => {
+    // Find the rightmost verify node to connect from.
+    const verifyNodes = nodes.filter((n) => n.type === "verify");
+    const breakNodes = nodes.filter((n) => n.type === "break");
+
+    // Position: to the right of the rightmost node.
+    const allX = nodes.map((n) => n.position.x);
+    const maxX = allX.length > 0 ? Math.max(...allX) : 0;
+    const y = 120;
+
+    const breakId = `break-${(nodeIdCounterRef.current += 1)}`;
+    const verifyId = `verify-${(nodeIdCounterRef.current += 1)}`;
+
+    const newBreak: Node = {
+      id: breakId,
+      type: "break",
+      position: { x: maxX + 270, y },
+      data: makeDefaultData("break"),
+    };
+    const newVerify: Node = {
+      id: verifyId,
+      type: "verify",
+      position: { x: maxX + 540, y },
+      data: makeDefaultData("verify"),
+    };
+
+    const newEdges: Edge[] = [
+      {
+        id: `e-${breakId}-${verifyId}`,
+        source: breakId,
+        target: verifyId,
+        animated: true,
+        style: EDGE_STYLE,
+      },
+    ];
+
+    // Connect from the last verify node (if any), otherwise last break node.
+    const lastVerify = verifyNodes.sort((a, b) => b.position.x - a.position.x)[0];
+    const lastBreak = breakNodes.sort((a, b) => b.position.x - a.position.x)[0];
+    const connectFrom = lastVerify ?? lastBreak;
+    if (connectFrom) {
+      newEdges.unshift({
+        id: `e-${connectFrom.id}-${breakId}`,
+        source: connectFrom.id,
+        target: breakId,
+        animated: true,
+        style: EDGE_STYLE,
+      });
+    }
+
+    setNodes((nds) => [...nds, newBreak, newVerify]);
+    setEdges((eds) => [...eds, ...newEdges]);
+    setSelectedNodeId(breakId);
+    if (panelCollapsed) setPanelCollapsed(false);
+  }, [nodes, setNodes, setEdges, panelCollapsed]);
+
   const handleClear = useCallback(() => {
     if (nodes.length > 0 && !window.confirm("Clear the canvas? This will remove all blocks.")) {
       return;
@@ -317,6 +373,13 @@ export function Designer() {
               title="Browse scenarios and load as template"
             >
               Scenarios
+            </button>
+            <button
+              onClick={handleAddStage}
+              className="text-[0.72rem] font-medium text-accent hover:text-fg transition-colors"
+              title="Add a new Break → Verify stage to the chain"
+            >
+              + Stage
             </button>
             <button
               onClick={handleClear}
