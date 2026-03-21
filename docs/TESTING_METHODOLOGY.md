@@ -170,12 +170,7 @@ infra-bench run --provider claude --model sonnet \
   --memory-window 3
 ```
 
-Compare results in the HTML report:
-
-```bash
-infra-bench report
-open runs/report.html
-```
+Compare results on the Evidra dashboard at [evidra.cc/bench](https://evidra.cc/bench).
 
 ## Model Comparison
 
@@ -198,12 +193,11 @@ infra-bench run --provider bifrost --model anthropic/claude-3-5-sonnet --scenari
 infra-bench run --provider bifrost --model openai/gpt-4o --scenario ...
 infra-bench run --provider claude --model haiku --scenario ...
 
-# Generate comparison report
-infra-bench report
 ```
 
-The HTML report shows results grouped by scenario with model, provider,
-duration, turns, and token usage — making it easy to compare.
+View results on the Evidra dashboard at [evidra.cc/bench](https://evidra.cc/bench),
+which shows results grouped by scenario with model, provider, duration, turns,
+and token usage — making it easy to compare.
 
 ## Provider Architecture
 
@@ -256,41 +250,19 @@ infra-bench → spawn agent process → agent manages tools internally
 
 Adapters: `cli` (any command), `mcp` (MCP-capable command).
 
-## HTML Report
-
-Generate a human-readable report from all run artifacts:
-
-```bash
-infra-bench report                           # → runs/report.html
-infra-bench report my-report.html            # custom path
-infra-bench report --runs-dir ./other-runs   # different runs dir
-```
-
-The report includes:
-- Summary statistics (total runs, pass rate)
-- Scenario matrix (all scenarios, run counts, pass rates)
-- Per-scenario run details (model, provider, duration, checks, turns, memory, tokens, chaos mode, signals, score)
-- Color-coded pass/fail badges and check marks with hover tooltips (check name + failure message)
-
 ## Run Comparison
 
 Compare two runs side by side:
 
 ```bash
-# Text output
 infra-bench compare runs/<run-A>/ runs/<run-B>/
-
-# HTML side-by-side report
-infra-bench compare runs/<run-A>/ runs/<run-B>/ --html compare.html
 ```
 
-The text output shows: verdict change (improved/regressed/same), duration delta,
+The output shows: verdict change (improved/regressed/same), duration delta,
 check-level diffs (which checks changed between runs), model/provider/turns/tokens/cost.
 
-The HTML report shows the same data as a visual side-by-side comparison with two
-cards (one per run) and a check comparison table with color-coded delta badges.
-Check icons in both the main report and comparison have hover tooltips showing
-the check name and failure message.
+View detailed results and visual comparisons on the Evidra dashboard at
+[evidra.cc/bench](https://evidra.cc/bench).
 
 ### Comparing models on the same scenario
 
@@ -305,7 +277,7 @@ infra-bench run --provider bifrost --model qwen-plus --scenario kubernetes/broke
   --evidra-bin ../evidra-benchmark/bin/evidra
 
 # Compare
-infra-bench compare runs/gpt4o/<run-dir>/ runs/qwen/<run-dir>/ --html model-compare.html
+infra-bench compare runs/gpt4o/<run-dir>/ runs/qwen/<run-dir>/
 ```
 
 ## Cost Tracking
@@ -316,7 +288,7 @@ Google (gemini-2.5-pro/flash), and Alibaba Qwen (qwen-plus/max/turbo,
 qwen3.5-plus, qwen3-max, qwen3-coder-plus). Cost appears in:
 
 - Run metadata (`estimated_cost` field in run.json)
-- HTML report (per-run cost column)
+- Evidra dashboard at [evidra.cc/bench](https://evidra.cc/bench)
 - `db query` output
 - `compare` output
 
@@ -367,7 +339,7 @@ The `compare` command shows regressions between specific runs.
 `infra-bench bench` runs all scenarios with automated post-processing:
 
 ```
-run scenarios → write artifacts → generate scorecard → signal audit → HTML report
+run scenarios → write artifacts → generate scorecard → signal audit → report to Evidra
 ```
 
 ```bash
@@ -378,7 +350,6 @@ Output:
 ```
 runs/bench/<timestamp>/
   summary.json          — pass/fail/error per scenario/model/repeat
-  report.html           — visual benchmark report
   signal-audit.json     — signal expectation findings
   <scenario_model_r1>/
     run.json            — run metadata with full version tracking
@@ -425,4 +396,4 @@ on the evidence after the agent finishes. The output is saved as
 This enables:
 - Signal audit reads signal counts directly from scorecard
 - TUI history view shows detected signals and score band
-- HTML report includes scorecard data per run
+- Evidra dashboard at [evidra.cc/bench](https://evidra.cc/bench) includes scorecard data per run

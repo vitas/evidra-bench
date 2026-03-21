@@ -126,7 +126,7 @@ Run Configuration
 Press `1` to toggle between `cli` and `mcp` adapter.
 Press `2` to toggle dry-run.
 
-Configuration persists across sessions in `runs/.lab-config.yaml`.
+Configuration persists across sessions in `.infra-bench-lab.yaml`.
 
 ## Configuration
 
@@ -141,11 +141,11 @@ Configuration persists across sessions in `runs/.lab-config.yaml`.
 ```
 
 CLI flags override saved configuration. Without flags, the TUI loads
-the last-used config from `runs/.lab-config.yaml`.
+the last-used config from `.infra-bench-lab.yaml`.
 
 ### Persistent Config
 
-The TUI saves your last-used settings to `runs/.lab-config.yaml`:
+The TUI saves your last-used settings to `.infra-bench-lab.yaml`:
 
 ```yaml
 adapter: cli

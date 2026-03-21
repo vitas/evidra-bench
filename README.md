@@ -18,7 +18,7 @@ Dashboard: [evidra.cc/bench](https://evidra.cc/bench)
 
 ## Prerequisites
 
-- Go 1.24+
+- Go 1.25+
 - [kind](https://kind.sigs.k8s.io/)
 - kubectl
 - helm (for Helm scenarios)
@@ -188,7 +188,7 @@ See `docs/LAB_TUI_GUIDE.md` for the full user guide.
 infra-bench can drive any LLM through a multi-turn tool-use loop:
 
 ```bash
-# Claude CLI (default model: haiku)
+# Claude CLI (default model: sonnet)
 infra-bench run --provider claude --model sonnet --scenario ...
 
 # Any model via Bifrost proxy
@@ -272,8 +272,6 @@ infra-bench skill-delta run \
 infra-bench skill-delta aggregate --dir runs/skill-delta/<stamp>
 infra-bench skill-delta report --dir runs/skill-delta/<stamp>
 
-# Compare two runs side by side
-infra-bench compare runs/<run-A>/ runs/<run-B>/
 
 # Query results database
 infra-bench db stats                               # aggregate statistics

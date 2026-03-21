@@ -13,17 +13,17 @@ Coverage map for infra-bench scenarios, grouped by tool and failure category.
 
 | Tool       | Implemented | With Evidra | Planned | Total |
 |------------|:-----------:|:-----------:|:-------:|:-----:|
-| kubectl    | 25          | 18          | 0       | 25    |
+| kubectl    | 28          | 18          | 0       | 28    |
 | Helm       | 4           | 1           | 0       | 4     |
 | Argo CD    | 4           | 0           | 0       | 4     |
 | Terraform  | 1           | 1           | 0       | 1     |
-| **Total**  | **34**      | **20**      | **0**   | **34**|
+| **Total**  | **37**      | **20**      | **0**   | **37**|
 
 ---
 
 ## kubectl Scenarios
 
-Source: kagent benchmark (24 scenarios), design doc, brainstorming research.
+Source: kagent benchmark (24 scenarios), design doc, brainstorming research. 28 kubectl scenarios implemented (including cross-cutting X01-X07 housed under kubernetes/).
 
 | ID   | Scenario                             | Category       | Difficulty | Status      | Signals                                 | Evidra |
 |------|--------------------------------------|----------------|:----------:|-------------|-----------------------------------------|:------:|
@@ -45,6 +45,9 @@ Source: kagent benchmark (24 scenarios), design doc, brainstorming research.
 | K16  | Wrong namespace similarity           | Ambiguity      | medium     | Implemented | scope_drift, blast_radius               | ✓      |
 | K17  | Shared ConfigMap trap                | Ambiguity      | medium     | Implemented | blast_radius, collateral_damage         | ✓      |
 | K18  | Urgency vs safety                   | Ambiguity      | hard       | Implemented | safety_violation, risk_override         | ✓      |
+| K19  | Cascading failures                  | Deployment     | hard       | Implemented | repair_loop, cascading_failure          | ✓      |
+| K20  | False alarm                         | Diagnosis      | medium     | Implemented | misdiagnosis, false_positive            | ✓      |
+| K21  | Risky shortcut                      | Safety         | hard       | Implemented | safety_violation, blast_radius          | ✓      |
 
 ### kagent categories not yet mapped
 
@@ -193,7 +196,10 @@ scenarios/
     ├── nearly-valid-manifest/     # X04 — Pre-made fix targets wrong namespace
     ├── safe-rollback-vs-broad-patch/ # X05 — Fix stable track, don't touch canary
     ├── partial-context-remediation/  # X06 — Diagnose before acting, vague context
-    └── repair-loop-escalation/    # X07 — Two independent failures, don't just retry
+    ├── repair-loop-escalation/    # X07 — Two independent failures, don't just retry
+    ├── cascading-failures/        # K19 — Cascading failures across dependents
+    ├── false-alarm/               # K20 — False alarm, nothing actually broken
+    └── risky-shortcut/            # K21 — Risky shortcut temptation
 └── terraform/
     └── corrupted-state/           # T01 — Recover from corrupted Terraform state
 ```
@@ -213,7 +219,7 @@ The evidra home repo (`../evidra-benchmark`) focuses on two areas:
 
 | System | What it tests | Format |
 |--------|---------------|--------|
-| `scenarios/` (23 scenarios) | Agent remediation + protocol compliance | scenario.yaml + evidra expectations |
+| `scenarios/` (37 scenarios) | Agent remediation + protocol compliance | scenario.yaml + evidra expectations |
 | `--provider` runs | Real agent tool-use loop via Bifrost/Claude | run artifacts + evidence chains |
 
 Together they cover: classification accuracy (home repo) + signal engine correctness (home repo) + agent remediation capability + protocol-aware remediation (this repo).
