@@ -2,7 +2,7 @@
 
 Certification framework for AI infrastructure agents. Tests agents against real Kubernetes clusters, AWS resources (via LocalStack), Helm charts, and Argo CD — then grades them like a CKA/CKS exam.
 
-**45 scenarios** | **8 exam-aligned tracks** | **4 certification levels** | **5 infrastructure categories**
+**48 scenarios** | **8 exam-aligned tracks** | **4 certification levels** | **5 infrastructure categories**
 
 Leaderboard: [evidra.cc/bench](https://evidra.cc/bench) | Puzzle Designer: [lab.evidra.cc](https://lab.evidra.cc)
 
@@ -67,7 +67,7 @@ Aligned with CKA/CKS exam domains:
 | `troubleshooting` | CKA: Troubleshooting (30%) | 10 | Diagnosis, judgment, cascading failures |
 | `networking` | CKA: Services & Networking (20%) | 3 | Services, DNS, network policies |
 | `storage` | CKA: Storage (10%) | 2 | PVC, StorageClass, dynamic provisioning |
-| `pod-security` | CKS: Minimize Vulns (20%) | 7 | RBAC, security context, NetworkPolicy, AWS SG/S3 |
+| `pod-security` | CKS: Minimize Vulns (20%) | 10 | RBAC, capabilities, PSA, NetworkPolicy, AWS SG/S3 |
 | `runtime-security` | CKS: Monitoring (20%) | 2 | Chaos resilience, runtime disruptions |
 | `release-ops` | Custom | 8 | Helm, Argo CD, rollbacks, GitOps |
 | `platform-eng` | Custom | 1 | Terraform state management |
@@ -108,7 +108,7 @@ Every scenario is designed to generate signals. The signals are the product.
 
 | Category | Tool | Runtime | Scenarios |
 |---|---|---|---|
-| Kubernetes | kubectl | kind cluster | 34 |
+| Kubernetes | kubectl | kind cluster | 37 |
 | Helm | helm | kind cluster | 4 |
 | Argo CD | argocd | kind cluster | 4 |
 | Terraform | terraform | local state | 1 |

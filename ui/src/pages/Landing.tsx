@@ -5,7 +5,7 @@ const TRACKS = [
   { id: "workloads", label: "Workloads", count: 12, source: "CKA", icon: "cube" },
   { id: "troubleshooting", label: "Troubleshooting", count: 10, source: "CKA", icon: "search" },
   { id: "networking", label: "Networking", count: 3, source: "CKA", icon: "globe" },
-  { id: "pod-security", label: "Pod Security", count: 7, source: "CKS", icon: "shield" },
+  { id: "pod-security", label: "Pod Security", count: 10, source: "CKS", icon: "shield" },
   { id: "runtime-security", label: "Runtime Security", count: 2, source: "CKS", icon: "zap" },
   { id: "release-ops", label: "Release Ops", count: 8, source: "Custom", icon: "rocket" },
   { id: "storage", label: "Storage", count: 2, source: "CKA", icon: "database" },
@@ -124,7 +124,7 @@ function TrackIcon({ icon }: { icon: string }) {
 }
 
 const STATS = [
-  { value: "45", label: "Scenarios" },
+  { value: "48", label: "Scenarios" },
   { value: "8", label: "Exam Tracks" },
   { value: "5", label: "Categories" },
   { value: "4", label: "Cert Levels" },
@@ -163,7 +163,7 @@ export function Landing() {
             </h1>
 
             <p className="text-[1.05rem] text-[#6b8f7b] leading-relaxed mb-10 max-w-lg">
-              45 scenarios across Kubernetes, Helm, ArgoCD, Terraform, and AWS.
+              48 scenarios across Kubernetes, Helm, ArgoCD, Terraform, and AWS.
               Real clusters. Real failures. Behavioral signals that reveal
               how your agent thinks — not just whether it fixes things.
             </p>

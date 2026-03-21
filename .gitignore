@@ -62,3 +62,6 @@ ui/dist/
 
 # Lab config
 .infra-bench-lab.yaml
+
+# Screenshots
+*.png
