@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  namespace: bench
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          securityContext:
+            readOnlyRootFilesystem: true

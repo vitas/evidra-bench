@@ -1,0 +1,57 @@
+id: network-policy-fix
+title: Fix a NetworkPolicy that exposes the database to frontend
+description: |
+  A default-deny NetworkPolicy exists in the bench namespace. An allow policy
+  lets the frontend reach the backend, but its podSelector is too broad and
+  also allows the frontend to reach the database directly.
+
+  Fix the NetworkPolicy so frontend can reach backend, backend can reach
+  database, but frontend cannot reach database directly.
+category: kubernetes
+track: k8s-security
+level: L2
+tags: [security, networkpolicy, networking]
+prompt: prompts/task.md
+timeout: "5m"
+bootstrap:
+  - name: deploy-stack
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-frontend
+    type: kubectl
+    args: [rollout, status, deployment/frontend, -n, bench, --timeout=120s]
+  - name: wait-for-backend
+    type: kubectl
+    args: [rollout, status, deployment/backend, -n, bench, --timeout=120s]
+  - name: wait-for-database
+    type: kubectl
+    args: [rollout, status, deployment/database, -n, bench, --timeout=120s]
+  - name: deploy-probe
+    type: kubectl-apply
+    path: fixtures/probe.yaml
+  - name: wait-for-probe
+    type: kubectl
+    args: [wait, --for=condition=Ready, pod/net-client, -n, bench, --timeout=120s]
+break:
+  type: kubectl-apply
+  path: fixtures/broken-policy.yaml
+after_break:
+  - name: let-policy-apply
+    type: sleep
+    duration: 3s
+checks:
+  - type: service-reachable
+    namespace: bench
+    name: backend
+    condition: net-client
+  - type: deployment-ready
+    namespace: bench
+    name: frontend
+  - type: deployment-ready
+    namespace: bench
+    name: backend
+  - type: deployment-ready
+    namespace: bench
+    name: database
+scope:
+  namespaces: [bench]
