@@ -8,6 +8,16 @@
 #   - kind or k3d installed
 set -euo pipefail
 
+# ── Load .env if present ──
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+if [ -f "$PROJECT_DIR/.env" ]; then
+  set -a
+  source "$PROJECT_DIR/.env"
+  set +a
+  echo "Loaded .env from $PROJECT_DIR/.env"
+fi
+
 # ── Configuration ──
 EXAMS=("cka" "cks")
 MODELS=(
