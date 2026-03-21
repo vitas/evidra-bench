@@ -120,16 +120,19 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}
 	}
 
-	// Step 3: Inject break.
-	if s.Break.Path != "" || s.Break.Type == "kubectl" || s.Break.Type == "shell" {
-		if err := h.applyBreak(ctx, handle.KubeconfigPath, s); err != nil {
-			return nil, fmt.Errorf("harness.Run: inject break: %w", err)
+	// Step 3: Inject break (skipped for multi-stage — stages handle their own breaks).
+	isMultiStage := len(s.Stages) > 0
+	if !isMultiStage {
+		if s.Break.Path != "" || s.Break.Type == "kubectl" || s.Break.Type == "shell" {
+			if err := h.applyBreak(ctx, handle.KubeconfigPath, s); err != nil {
+				return nil, fmt.Errorf("harness.Run: inject break: %w", err)
+			}
 		}
-	}
-	if h.deps.Bootstrapper != nil && len(s.AfterBreak) > 0 {
-		plan := buildStepPlan(s.AfterBreak)
-		if err := h.deps.Bootstrapper.Execute(ctx, plan, handle.KubeconfigPath); err != nil {
-			return nil, fmt.Errorf("harness.Run: after_break: %w", err)
+		if h.deps.Bootstrapper != nil && len(s.AfterBreak) > 0 {
+			plan := buildStepPlan(s.AfterBreak)
+			if err := h.deps.Bootstrapper.Execute(ctx, plan, handle.KubeconfigPath); err != nil {
+				return nil, fmt.Errorf("harness.Run: after_break: %w", err)
+			}
 		}
 	}
 
@@ -212,20 +215,32 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	waitForRollouts(ctx, handle.KubeconfigPath, s)
 
 	// Step 5: Verify outcome.
-	var checkDefs []verifier.CheckDef
-	for _, c := range s.Checks {
-		checkDefs = append(checkDefs, verifier.CheckDef{
-			Type:      c.Type,
-			Namespace: c.Namespace,
-			Name:      c.Name,
-			Condition: c.Condition,
-		})
+	var verifyResult *verifier.VerifyResult
+	var stageResults []StageResult
+
+	if isMultiStage {
+		// Multi-stage: run stage loop (break -> poll -> next) sequentially.
+		// TODO: concurrent stage execution — inject breaks while agent runs.
+		if err := h.runMultiStage(ctx, s, handle.KubeconfigPath, &stageResults); err != nil {
+			return nil, fmt.Errorf("harness.Run: multi-stage: %w", err)
+		}
+		// Aggregate stage results into a single VerifyResult for artifacts/reporting.
+		verifyResult = &verifier.VerifyResult{Passed: true}
+		for _, sr := range stageResults {
+			if !sr.Passed {
+				verifyResult.Passed = false
+			}
+		}
+	} else {
+		// Single-stage: existing flow.
+		checkDefs := checksToCheckDefs(s.Checks)
+		checkers, err := verifier.BuildCheckers(checkDefs)
+		if err != nil {
+			return nil, fmt.Errorf("harness.Run: build checkers: %w", err)
+		}
+		verifyResult = verifier.RunChecks(ctx, handle.KubeconfigPath, checkers)
 	}
-	checkers, err := verifier.BuildCheckers(checkDefs)
-	if err != nil {
-		return nil, fmt.Errorf("harness.Run: build checkers: %w", err)
-	}
-	verifyResult := verifier.RunChecks(ctx, handle.KubeconfigPath, checkers)
+	_ = stageResults // TODO: wire into RunRecord metadata (Task 5)
 
 	// Resolve evidence directory for both protocol checks and scorecard.
 	evidenceDir := req.Config.EvidraEvidenceDir
