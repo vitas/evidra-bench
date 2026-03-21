@@ -268,21 +268,31 @@ export function generateScenario(
   lines.push("prompt: prompts/task.md");
   lines.push(`timeout: ${toYamlString(metadata.timeLimit)}`);
 
-  // Bootstrap
-  lines.push("bootstrap:");
-  lines.push("  - name: deploy-baseline");
-  lines.push("    type: kubectl-apply");
-  lines.push("    path: ../../../manifests/baseline");
-  lines.push("  - name: wait-for-baseline");
-  lines.push("    type: kubectl");
-  lines.push("    args:");
-  lines.push("      - rollout");
-  lines.push("      - status");
-  const deployName = firstVerifyData?.resourceName || "web";
-  lines.push(`      - deployment/${deployName}`);
-  lines.push("      - -n");
-  lines.push(`      - ${ns}`);
-  lines.push("      - --timeout=120s");
+  // Bootstrap (only for Kubernetes-based scenarios)
+  const isK8sCategory = metadata.category === "kubernetes" || metadata.category === "helm" || metadata.category === "argocd";
+  if (isK8sCategory) {
+    lines.push("bootstrap:");
+    lines.push("  - name: deploy-baseline");
+    lines.push("    type: kubectl-apply");
+    lines.push("    path: ../../../manifests/baseline");
+    lines.push("  - name: wait-for-baseline");
+    lines.push("    type: kubectl");
+    lines.push("    args:");
+    lines.push("      - rollout");
+    lines.push("      - status");
+    const deployName = firstVerifyData?.resourceName || "web";
+    lines.push(`      - deployment/${deployName}`);
+    lines.push("      - -n");
+    lines.push(`      - ${ns}`);
+    lines.push("      - --timeout=120s");
+  } else if (metadata.category === "aws") {
+    // AWS scenarios use LocalStack environment block instead of bootstrap
+    lines.push("environment:");
+    lines.push("  cloud:");
+    lines.push("    provider: localstack");
+    lines.push("    services: [ec2, s3, iam]");
+    lines.push("    setup: fixtures/setup.sh");
+  }
 
   if (isMultiStage) {
     // Multi-stage: generate stages array
@@ -309,9 +319,14 @@ export function generateScenario(
         for (const vn of sg.verifyNodes) {
           const vd = vn.data as VerifyData;
           lines.push(`      - type: ${vd.checkType}`);
-          lines.push(`        namespace: ${vd.namespace || ns}`);
-          if (vd.resourceName) {
-            lines.push(`        name: ${vd.resourceName}`);
+          if (vd.checkType === "command-succeeds") {
+            lines.push(`        name: ${vd.resourceName || "verify"}`);
+            lines.push(`        condition: fixtures/verify.sh`);
+          } else {
+            lines.push(`        namespace: ${vd.namespace || ns}`);
+            if (vd.resourceName) {
+              lines.push(`        name: ${vd.resourceName}`);
+            }
           }
         }
       }
@@ -347,9 +362,14 @@ export function generateScenario(
       for (const vn of verifyNodes) {
         const vd = vn.data as VerifyData;
         lines.push(`  - type: ${vd.checkType}`);
-        lines.push(`    namespace: ${vd.namespace || ns}`);
-        if (vd.resourceName) {
-          lines.push(`    name: ${vd.resourceName}`);
+        if (vd.checkType === "command-succeeds") {
+          lines.push(`    name: ${vd.resourceName || "verify"}`);
+          lines.push(`    condition: fixtures/verify.sh`);
+        } else {
+          lines.push(`    namespace: ${vd.namespace || ns}`);
+          if (vd.resourceName) {
+            lines.push(`    name: ${vd.resourceName}`);
+          }
         }
       }
     }

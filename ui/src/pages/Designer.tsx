@@ -187,20 +187,41 @@ function DesignerInner() {
     const scenario = SCENARIOS.find((s) => s.id === scenarioId);
     if (!scenario) return;
 
-    // Build a simple template from the catalog entry.
+    // Category-aware defaults.
+    const checkTypeMap: Record<string, string> = {
+      kubernetes: "deployment-ready",
+      helm: "helm-release",
+      argocd: "argocd-app-healthy",
+      terraform: "command-succeeds",
+      aws: "command-succeeds",
+    };
+    const stackTypeMap: Record<string, string> = {
+      kubernetes: "web-app",
+      helm: "helm-app",
+      argocd: "argocd-app",
+      terraform: "custom",
+      aws: "custom",
+    };
+    const breakMethod = (scenario.category === "terraform" || scenario.category === "aws")
+      ? "script" : "kubectl-apply";
+
     const breakData: BreakData = {
       kind: "break",
-      method: scenario.breakType === "wrong-image" ? "kubectl-apply" : "kubectl-apply",
+      method: breakMethod as BreakData["method"],
       action: (scenario.breakType === "custom" || scenario.breakType === "multi-stage" || scenario.breakType === "shell")
         ? "custom" : scenario.breakType as BreakData["action"],
       target: scenario.target,
       customManifest: "",
     };
 
+    const resourceName = scenario.target.split("/")[1] || "web";
+    const checkType = checkTypeMap[scenario.category] || "deployment-ready";
+    const ns = "bench";
+
     const newNodes: Node[] = [
-      { id: "stack-1", type: "stack", position: { x: 50, y: 120 }, data: { kind: "stack", stackType: "web-app", namespace: "bench" } as StackData },
+      { id: "stack-1", type: "stack", position: { x: 50, y: 120 }, data: { kind: "stack", stackType: stackTypeMap[scenario.category] || "web-app", namespace: ns } as StackData },
       { id: "break-1", type: "break", position: { x: 320, y: 120 }, data: breakData },
-      { id: "verify-1", type: "verify", position: { x: 590, y: 120 }, data: { kind: "verify", checkType: "deployment-ready", namespace: "bench", resourceName: scenario.target.split("/")[1] || "web" } as VerifyData },
+      { id: "verify-1", type: "verify", position: { x: 590, y: 120 }, data: { kind: "verify", checkType, namespace: ns, resourceName } as VerifyData },
     ];
     const newEdges: Edge[] = [
       { id: "e-stack-break", source: "stack-1", target: "break-1", animated: true, style: EDGE_STYLE },

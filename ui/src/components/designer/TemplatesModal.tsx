@@ -23,15 +23,34 @@ const CHECK_TYPE_FOR_CATEGORY: Record<string, string> = {
   aws: "command-succeeds",
 };
 
+const STACK_TYPE_FOR_CATEGORY: Record<string, string> = {
+  kubernetes: "web-app",
+  helm: "helm-app",
+  argocd: "argocd-app",
+  terraform: "custom",
+  aws: "custom",
+};
+
+const BREAK_METHOD_FOR_CATEGORY: Record<string, string> = {
+  kubernetes: "kubectl-apply",
+  helm: "kubectl-apply",
+  argocd: "kubectl-apply",
+  terraform: "script",
+  aws: "script",
+};
+
 function scenarioToTemplate(s: ScenarioMeta): Template {
   const resourceName = s.target.split("/")[1] || "web";
   const checkType = CHECK_TYPE_FOR_CATEGORY[s.category] || "deployment-ready";
+  const stackType = STACK_TYPE_FOR_CATEGORY[s.category] || "web-app";
+  const breakMethod = BREAK_METHOD_FOR_CATEGORY[s.category] || "kubectl-apply";
+  const breakAction = (s.breakType === "custom" || s.breakType === "multi-stage" || s.breakType === "shell") ? "custom" : s.breakType;
   const timeLimit = s.difficulty === "easy" ? "5m" : s.difficulty === "medium" ? "8m" : "10m";
 
   return {
     nodes: [
-      { id: "stack-1", type: "stack", position: { x: 50, y: 120 }, data: { kind: "stack", stackType: "web-app", namespace: "bench" } },
-      { id: "break-1", type: "break", position: { x: 320, y: 120 }, data: { kind: "break", method: (s.category === "terraform" || s.category === "aws") ? "script" : "kubectl-apply", action: s.breakType === "custom" || s.breakType === "multi-stage" || s.breakType === "shell" ? "custom" : s.breakType, target: s.target, customManifest: "" } },
+      { id: "stack-1", type: "stack", position: { x: 50, y: 120 }, data: { kind: "stack", stackType, namespace: "bench" } },
+      { id: "break-1", type: "break", position: { x: 320, y: 120 }, data: { kind: "break", method: breakMethod, action: breakAction, target: s.target, customManifest: "" } },
       { id: "verify-1", type: "verify", position: { x: 590, y: 120 }, data: { kind: "verify", checkType, namespace: "bench", resourceName } },
     ],
     edges: [
