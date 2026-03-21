@@ -1,21 +1,13 @@
 import { useState, useCallback } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import { generateScenario, type PuzzleMetadata } from "./yaml-generator";
+import { MODELS } from "../../data/models";
 
 interface RunButtonProps {
   metadata: PuzzleMetadata;
   nodes: Node[];
   edges: Edge[];
 }
-
-const MODELS = [
-  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", cost: "$0.001/run" },
-  { id: "gpt-4.1", label: "GPT-4.1", cost: "$0.08/run" },
-  { id: "gpt-4o", label: "GPT-4o", cost: "$0.03/run" },
-  { id: "claude-sonnet-4-20250514", label: "Claude Sonnet 4", cost: "$0.24/run" },
-  { id: "gpt-5.2", label: "GPT-5.2", cost: "$0.10/run" },
-  { id: "qwen-plus", label: "Qwen Plus", cost: "$0.02/run" },
-];
 
 export function RunButton({ metadata, nodes, edges }: RunButtonProps) {
   const [open, setOpen] = useState(false);

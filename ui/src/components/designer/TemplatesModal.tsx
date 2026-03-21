@@ -2,6 +2,8 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import type { PuzzleMetadata } from "./yaml-generator";
 import { SCENARIOS as ALL_SCENARIOS, type ScenarioMeta } from "../../data/catalog";
+import { MODELS } from "../../data/models";
+import { CATEGORY_COLORS, DIFFICULTY_COLORS } from "../../data/colors";
 
 interface Template {
   nodes: Node[];
@@ -17,18 +19,6 @@ type ModalMode = "run" | "new";
 
 const EDGE_STYLE = { stroke: "var(--color-accent)", strokeWidth: 2, opacity: 0.7 };
 
-const DIFFICULTY_COLORS: Record<string, string> = {
-  easy: "bg-emerald-500/15 text-emerald-400",
-  medium: "bg-amber-500/15 text-amber-400",
-  hard: "bg-red-500/15 text-red-400",
-};
-
-const CATEGORY_COLORS: Record<string, string> = {
-  kubernetes: "bg-blue-500/15 text-blue-400",
-  helm: "bg-purple-500/15 text-purple-400",
-  argocd: "bg-orange-500/15 text-orange-400",
-  terraform: "bg-cyan-500/15 text-cyan-400",
-};
 
 const CATEGORY_LABELS: Record<CategoryFilter, string> = {
   all: "All",
@@ -45,14 +35,6 @@ const CHECK_TYPE_FOR_CATEGORY: Record<string, string> = {
   terraform: "deployment-ready",
 };
 
-const MODELS = [
-  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", costPerRun: 0.001 },
-  { id: "gpt-4.1", label: "GPT-4.1", costPerRun: 0.08 },
-  { id: "gpt-4o", label: "GPT-4o", costPerRun: 0.03 },
-  { id: "claude-sonnet-4-20250514", label: "Claude Sonnet 4", costPerRun: 0.24 },
-  { id: "gpt-5.2", label: "GPT-5.2", costPerRun: 0.10 },
-  { id: "qwen-plus", label: "Qwen Plus", costPerRun: 0.02 },
-];
 
 function scenarioToTemplate(s: ScenarioEntry): Template {
   const resourceName = s.target.split("/")[1] || "web";
@@ -87,14 +69,6 @@ function scenarioPath(s: ScenarioEntry): string {
 function formatCost(amount: number): string {
   if (amount < 0.01) return `<$0.01`;
   return `$${amount.toFixed(2)}`;
-}
-
-function todayRunName(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `run-${y}-${m}-${day}`;
 }
 
 function generateBenchCommand(
@@ -138,7 +112,6 @@ export function TemplatesModal({ open, onClose, onSelect, initialMode = "run" }:
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
   const [evidenceMode, setEvidenceMode] = useState<"proxy" | "smart">("proxy");
-  const [runName, setRunName] = useState(todayRunName);
   const [generatedCommand, setGeneratedCommand] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -486,19 +459,6 @@ export function TemplatesModal({ open, onClose, onSelect, initialMode = "run" }:
 
             {selectedIds.size > 0 && (
               <div className="px-5 pb-4 space-y-3">
-                {/* Run name */}
-                <div>
-                  <label className="text-[0.68rem] font-semibold uppercase tracking-wider text-fg-muted mb-1 block">
-                    Run Name
-                  </label>
-                  <input
-                    type="text"
-                    value={runName}
-                    onChange={(e) => { setRunName(e.target.value); setGeneratedCommand(null); }}
-                    className="w-full bg-bg border border-border rounded-md px-3 py-1.5 text-[0.78rem] text-fg placeholder:text-fg-muted/50 focus:outline-none focus:border-accent transition-colors font-mono"
-                  />
-                </div>
-
                 {/* Model + Evidence mode row */}
                 <div className="flex gap-3">
                   {/* Model dropdown */}

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { SCENARIOS, type ScenarioMeta } from "../data/catalog";
+import { CATEGORY_COLORS, DIFFICULTY_COLORS } from "../data/colors";
 
 type CategoryFilter = "all" | "kubernetes" | "helm" | "argocd" | "terraform";
 type DifficultyFilter = "all" | "easy" | "medium" | "hard";
@@ -20,12 +21,7 @@ const CATEGORY_PILLS: { key: CategoryFilter; label: string }[] = [
 
 const DIFFICULTY_PILLS: DifficultyFilter[] = ["all", "easy", "medium", "hard"];
 
-const CATEGORY_BADGE: Record<string, string> = {
-  kubernetes: "bg-blue-500/15 text-blue-400 border-blue-500/20",
-  helm: "bg-purple-500/15 text-purple-400 border-purple-500/20",
-  argocd: "bg-orange-500/15 text-orange-400 border-orange-500/20",
-  terraform: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
-};
+const CATEGORY_BADGE = CATEGORY_COLORS;
 
 const CATEGORY_LABEL: Record<string, string> = {
   kubernetes: "kubectl",
@@ -34,11 +30,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   terraform: "Terraform",
 };
 
-const DIFFICULTY_BADGE: Record<string, string> = {
-  easy: "bg-emerald-500/15 text-emerald-400",
-  medium: "bg-amber-500/15 text-amber-400",
-  hard: "bg-red-500/15 text-red-400",
-};
+const DIFFICULTY_BADGE = DIFFICULTY_COLORS;
 
 function ScenarioCard({ scenario }: { scenario: ScenarioMeta }) {
   const navigate = useNavigate();
