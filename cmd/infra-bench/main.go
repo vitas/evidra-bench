@@ -1002,10 +1002,15 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 // cleanBenchNamespace deletes and recreates the bench namespace between scenario runs
 // to prevent stale state from previous runs causing bootstrap failures.
 func cleanBenchNamespace(ctx context.Context, clusterName string, s *scenario.Scenario) {
-	kubeconfigPath := os.Getenv("KUBECONFIG")
-	if kubeconfigPath == "" {
-		home, _ := os.UserHomeDir()
-		kubeconfigPath = filepath.Join(home, ".kube", "config")
+	// Use the provider's kubeconfig temp file (same path convention as providers).
+	kubeconfigPath := filepath.Join(os.TempDir(), fmt.Sprintf("infra-bench-%s-kubeconfig", clusterName))
+	if _, err := os.Stat(kubeconfigPath); err != nil {
+		// Fallback to KUBECONFIG env or default.
+		kubeconfigPath = os.Getenv("KUBECONFIG")
+		if kubeconfigPath == "" {
+			home, _ := os.UserHomeDir()
+			kubeconfigPath = filepath.Join(home, ".kube", "config")
+		}
 	}
 
 	// Collect namespaces from the scenario scope, default to "bench".
@@ -1014,10 +1019,8 @@ func cleanBenchNamespace(ctx context.Context, clusterName string, s *scenario.Sc
 		namespaces = []string{"bench"}
 	}
 
+	// No context arg needed — the kubeconfig from providers has the correct context.
 	contextArg := ""
-	if clusterName != "" {
-		contextArg = "--context=kind-" + clusterName
-	}
 
 	for _, ns := range namespaces {
 		args := []string{"--kubeconfig", kubeconfigPath}

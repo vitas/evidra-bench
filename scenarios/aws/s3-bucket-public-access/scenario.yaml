@@ -8,6 +8,8 @@ description: |
 category: aws
 track: pod-security
 level: L3
+skip: true
+skip_reason: requires LocalStack and Docker
 tags: [aws, s3, iam, security]
 prompt: prompts/task.md
 timeout: "5m"

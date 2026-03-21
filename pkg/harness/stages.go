@@ -84,13 +84,16 @@ func (h *Harness) runMultiStage(
 		}
 
 		stageCtx := ctx
+		var stageCancel context.CancelFunc
 		if stage.Timeout.Set {
-			var cancel context.CancelFunc
-			stageCtx, cancel = context.WithTimeout(ctx, stage.Timeout.Duration)
-			defer cancel()
+			stageCtx, stageCancel = context.WithTimeout(ctx, stage.Timeout.Duration)
 		}
 
 		result := verifier.PollChecks(stageCtx, kubeconfigPath, checkers, 5*time.Second)
+
+		if stageCancel != nil {
+			stageCancel()
+		}
 
 		sr := StageResult{
 			Name:         stage.Name,

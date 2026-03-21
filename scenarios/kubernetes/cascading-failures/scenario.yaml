@@ -23,7 +23,7 @@ stages:
   - name: missing-secret
     break:
       type: kubectl
-      command: delete secret db-credentials -n bench
+      args: ["delete", "secret", "db-credentials", "-n", "bench"]
       allow_failure: true
       memory: compact
     agent_goal: "The deployment is running but the API is returning database connection errors. The database secret appears to be missing."

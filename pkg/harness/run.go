@@ -136,15 +136,17 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			"AWS_DEFAULT_REGION":    "us-east-1",
 		}
 
-		// Set AWS env vars on the process so break scripts and verifier checks inherit them.
+		// Build AWS env vars for subprocess injection (not process-global).
+		var awsEnvSlice []string
 		for k, v := range awsEnv {
-			os.Setenv(k, v)
-			req.ExtraEnv = append(req.ExtraEnv, fmt.Sprintf("%s=%s", k, v))
+			awsEnvSlice = append(awsEnvSlice, fmt.Sprintf("%s=%s", k, v))
 		}
+		req.ExtraEnv = append(req.ExtraEnv, awsEnvSlice...)
 
 		// Run cloud setup script if specified.
 		if s.Environment.Cloud.Setup != "" {
 			setupCmd := exec.CommandContext(ctx, "bash", s.Environment.Cloud.Setup)
+			setupCmd.Env = append(os.Environ(), awsEnvSlice...)
 			if out, setupErr := setupCmd.CombinedOutput(); setupErr != nil {
 				return nil, fmt.Errorf("harness.Run: cloud setup: %s: %w", string(out), setupErr)
 			}
