@@ -154,14 +154,9 @@ function loadDraft(): DraftState | null {
   return null;
 }
 
-let nodeIdCounter = 10;
-function nextId(type: string): string {
-  nodeIdCounter += 1;
-  return `${type}-${nodeIdCounter}`;
-}
-
 export function Designer() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const nodeIdCounterRef = useRef(10);
 
   const draft = useMemo(() => loadDraft(), []);
 
@@ -172,7 +167,6 @@ export function Designer() {
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [minimapOpen, setMinimapOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [templatesMode, setTemplatesMode] = useState<"run" | "new">("run");
   const [draftSaved, setDraftSaved] = useState(false);
   const tour = useTourState();
 
@@ -226,7 +220,7 @@ export function Designer() {
       };
 
       const newNode: Node = {
-        id: nextId(type),
+        id: `${type}-${(nodeIdCounterRef.current += 1)}`,
         type,
         position,
         data: makeDefaultData(type),
@@ -318,18 +312,11 @@ export function Designer() {
             </button>
             <span className="text-border">|</span>
             <button
-              onClick={() => { setTemplatesOpen(true); setTemplatesMode("run"); }}
+              onClick={() => setTemplatesOpen(true)}
               className="text-[0.72rem] font-medium text-fg-muted hover:text-fg transition-colors"
-              title="Browse scenarios and configure benchmark runs"
+              title="Browse scenarios and load as template"
             >
               Scenarios
-            </button>
-            <button
-              onClick={() => { setTemplatesOpen(true); setTemplatesMode("new"); }}
-              className="text-[0.72rem] font-medium text-fg-muted hover:text-fg transition-colors"
-              title="Create a new puzzle"
-            >
-              New Puzzle
             </button>
             <button
               onClick={handleClear}
@@ -418,7 +405,6 @@ export function Designer() {
         open={templatesOpen}
         onClose={() => setTemplatesOpen(false)}
         onSelect={handleTemplateSelect}
-        initialMode={templatesMode}
       />
     </div>
   );

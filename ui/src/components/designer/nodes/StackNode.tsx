@@ -1,6 +1,7 @@
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 
 export interface StackData {
+  // Required by @xyflow/react's Node type constraint for generic data records
   [key: string]: unknown;
   kind: "stack";
   stackType: "web-app" | "web-app-with-config" | "helm-app" | "custom";

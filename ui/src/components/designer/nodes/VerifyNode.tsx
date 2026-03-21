@@ -1,9 +1,10 @@
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 
 export interface VerifyData {
+  // Required by @xyflow/react's Node type constraint for generic data records
   [key: string]: unknown;
   kind: "verify";
-  checkType: "deployment-ready" | "service-endpoints" | "resource-exists" | "helm-release";
+  checkType: "deployment-ready" | "service-endpoints" | "resource-exists" | "helm-release" | "argocd-app-healthy" | "evidra-protocol";
   namespace: string;
   resourceName: string;
 }
@@ -15,6 +16,8 @@ const CHECK_LABELS: Record<string, string> = {
   "service-endpoints": "Service Endpoints",
   "resource-exists": "Resource Exists",
   "helm-release": "Helm Release",
+  "argocd-app-healthy": "ArgoCD App Healthy",
+  "evidra-protocol": "Evidra Protocol",
 };
 
 export function VerifyNode({ data, selected }: NodeProps<VerifyNode>) {

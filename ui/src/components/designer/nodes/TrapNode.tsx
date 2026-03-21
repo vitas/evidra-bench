@@ -1,6 +1,7 @@
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 
 export interface TrapData {
+  // Required by @xyflow/react's Node type constraint for generic data records
   [key: string]: unknown;
   kind: "trap";
   trapName: string;

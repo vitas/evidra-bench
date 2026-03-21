@@ -219,6 +219,8 @@ function VerifyConfig({
             { value: "service-endpoints", label: "Service Endpoints" },
             { value: "resource-exists", label: "Resource Exists" },
             { value: "helm-release", label: "Helm Release" },
+            { value: "argocd-app-healthy", label: "ArgoCD App Healthy" },
+            { value: "evidra-protocol", label: "Evidra Protocol" },
           ]}
         />
       </Field>

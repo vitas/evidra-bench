@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { SCENARIOS, type ScenarioMeta } from "../data/catalog";
+import { SCENARIOS, CATEGORY_LABELS, type ScenarioMeta } from "../data/catalog";
 import { CATEGORY_COLORS, DIFFICULTY_COLORS } from "../data/colors";
 
 type CategoryFilter = "all" | "kubernetes" | "helm" | "argocd" | "terraform";
@@ -13,24 +13,14 @@ const CATEGORY_COUNTS = SCENARIOS.reduce<Record<string, number>>((acc, s) => {
 
 const CATEGORY_PILLS: { key: CategoryFilter; label: string }[] = [
   { key: "all", label: `All (${SCENARIOS.length})` },
-  { key: "kubernetes", label: `kubectl (${CATEGORY_COUNTS["kubernetes"] || 0})` },
-  { key: "helm", label: `Helm (${CATEGORY_COUNTS["helm"] || 0})` },
-  { key: "argocd", label: `Argo CD (${CATEGORY_COUNTS["argocd"] || 0})` },
-  { key: "terraform", label: `Terraform (${CATEGORY_COUNTS["terraform"] || 0})` },
+  { key: "kubernetes", label: `${CATEGORY_LABELS["kubernetes"]} (${CATEGORY_COUNTS["kubernetes"] || 0})` },
+  { key: "helm", label: `${CATEGORY_LABELS["helm"]} (${CATEGORY_COUNTS["helm"] || 0})` },
+  { key: "argocd", label: `${CATEGORY_LABELS["argocd"]} (${CATEGORY_COUNTS["argocd"] || 0})` },
+  { key: "terraform", label: `${CATEGORY_LABELS["terraform"]} (${CATEGORY_COUNTS["terraform"] || 0})` },
 ];
 
 const DIFFICULTY_PILLS: DifficultyFilter[] = ["all", "easy", "medium", "hard"];
 
-const CATEGORY_BADGE = CATEGORY_COLORS;
-
-const CATEGORY_LABEL: Record<string, string> = {
-  kubernetes: "kubectl",
-  helm: "Helm",
-  argocd: "Argo CD",
-  terraform: "Terraform",
-};
-
-const DIFFICULTY_BADGE = DIFFICULTY_COLORS;
 
 function ScenarioCard({ scenario }: { scenario: ScenarioMeta }) {
   const navigate = useNavigate();
@@ -43,12 +33,12 @@ function ScenarioCard({ scenario }: { scenario: ScenarioMeta }) {
       {/* Badges row */}
       <div className="flex items-center gap-2">
         <span
-          className={`text-[0.65rem] font-semibold px-2 py-0.5 rounded-full border ${CATEGORY_BADGE[scenario.category]}`}
+          className={`text-[0.65rem] font-semibold px-2 py-0.5 rounded-full border ${CATEGORY_COLORS[scenario.category]}`}
         >
-          {CATEGORY_LABEL[scenario.category]}
+          {CATEGORY_LABELS[scenario.category]}
         </span>
         <span
-          className={`text-[0.65rem] font-semibold uppercase px-2 py-0.5 rounded-full ${DIFFICULTY_BADGE[scenario.difficulty]}`}
+          className={`text-[0.65rem] font-semibold uppercase px-2 py-0.5 rounded-full ${DIFFICULTY_COLORS[scenario.difficulty]}`}
         >
           {scenario.difficulty}
         </span>
@@ -155,7 +145,7 @@ export function Scenarios() {
                   ? "bg-fg/10 text-fg"
                   : "text-fg-muted hover:text-fg"
                 : active
-                  ? DIFFICULTY_BADGE[d]
+                  ? DIFFICULTY_COLORS[d]
                   : "text-fg-muted hover:text-fg";
             return (
               <button

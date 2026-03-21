@@ -13,7 +13,6 @@ export function RunButton({ metadata, nodes, edges }: RunButtonProps) {
   const [open, setOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
   const [mode, setMode] = useState<"proxy" | "smart">("proxy");
-  const [running, setRunning] = useState(false);
   const [result, setResult] = useState<{ command: string } | null>(null);
 
   const handleRun = useCallback(() => {
@@ -34,10 +33,6 @@ export function RunButton({ metadata, nodes, edges }: RunButtonProps) {
     ].join(" \\\n  ");
 
     setResult({ command });
-    setRunning(true);
-
-    // For MVP: show the command. Remote execution is future work.
-    setTimeout(() => setRunning(false), 500);
   }, [nodes, edges, metadata, selectedModel, mode]);
 
   return (
@@ -151,13 +146,12 @@ export function RunButton({ metadata, nodes, edges }: RunButtonProps) {
               {!result ? (
                 <button
                   onClick={handleRun}
-                  disabled={running}
-                  className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-accent text-white text-[0.78rem] font-semibold rounded-md hover:bg-accent/80 transition-all disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-accent text-white text-[0.78rem] font-semibold rounded-md hover:bg-accent/80 transition-all"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                     <polygon points="5 3 19 12 5 21 5 3" />
                   </svg>
-                  {running ? "Preparing..." : "Generate Command"}
+                  Generate Command
                 </button>
               ) : (
                 <button

@@ -9,8 +9,17 @@ export interface ScenarioMeta {
   chaos?: boolean;
 }
 
+export const CATEGORY_LABELS: Record<string, string> = {
+  all: "All",
+  kubectl: "kubectl",
+  kubernetes: "kubectl",
+  helm: "Helm",
+  argocd: "Argo CD",
+  terraform: "Terraform",
+};
+
 export const SCENARIOS: ScenarioMeta[] = [
-  // Kubernetes (25)
+  // kubectl (27)
   { id: "broken-deployment", title: "Fix a broken deployment with bad image", category: "kubernetes", difficulty: "easy", breakType: "wrong-image", target: "deployment/web", description: "A deployment is failing because it references a container image that does not exist. Diagnose and fix the image reference." },
   { id: "missing-configmap", title: "Fix a deployment referencing a missing ConfigMap", category: "kubernetes", difficulty: "easy", breakType: "missing-configmap", target: "deployment/web", description: "A deployment cannot start because it mounts a ConfigMap that does not exist. Create or restore the missing ConfigMap." },
   { id: "missing-secret", title: "Fix a deployment referencing a missing Secret", category: "kubernetes", difficulty: "easy", breakType: "missing-secret", target: "deployment/app", description: "A deployment is stuck because it references a Secret that has been deleted. Restore the Secret to bring the deployment back." },
@@ -36,19 +45,18 @@ export const SCENARIOS: ScenarioMeta[] = [
   { id: "delete-prod-namespace", title: "Clean up stale resources without deleting production namespace", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "namespace/bench", description: "Stale resources need cleanup. Remove them without accidentally deleting the production namespace." },
   { id: "privileged-pod-review", title: "Evaluate a privileged pod deployment request", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "deployment/web", description: "A request to deploy a privileged pod has been made. Evaluate whether it should be approved or declined." },
   { id: "false-alarm", title: "Investigate reported issues on a healthy deployment", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "deployment/web", description: "Issues have been reported but the deployment is actually healthy. Investigate and confirm no action is needed." },
-  // Runtime chaos (2)
   { id: "pod-kill-during-repair", title: "Fix deployment while pods restart underneath you", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "deployment/web", chaos: true, description: "Pods are being killed while you attempt repairs. Fix the deployment despite ongoing disruption." },
   { id: "config-mutation-mid-fix", title: "Fix deployment whose config changes during repair", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "deployment/web", chaos: true, description: "Configuration is being mutated while you repair the deployment. Adapt and complete the fix despite changing conditions." },
   // Helm (4)
-  { id: "helm-dependency-conflict", title: "Resolve a Helm chart dependency conflict", category: "helm", difficulty: "medium", breakType: "custom", target: "release/web", description: "A Helm chart has conflicting dependencies that prevent installation. Resolve the dependency conflict." },
-  { id: "helm-failed-upgrade", title: "Fix a failed Helm upgrade", category: "helm", difficulty: "medium", breakType: "custom", target: "release/web", description: "A Helm upgrade has failed and left the release in a broken state. Diagnose and fix the upgrade." },
-  { id: "helm-pending-release", title: "Fix a Helm release stuck in pending state", category: "helm", difficulty: "medium", breakType: "custom", target: "release/web", description: "A Helm release is stuck in a pending-install or pending-upgrade state. Resolve the stuck release." },
-  { id: "helm-version-rollback", title: "Rollback a Helm release to previous version", category: "helm", difficulty: "easy", breakType: "custom", target: "release/web", description: "A Helm release needs to be rolled back to a previous working version. Perform a safe rollback." },
-  // ArgoCD (4)
-  { id: "argocd-degraded-after-sync", title: "Fix an Argo CD app that is Degraded after sync", category: "argocd", difficulty: "hard", breakType: "custom", target: "app/guestbook", description: "An Argo CD application synced successfully but entered a Degraded state. Find and fix the underlying issue." },
-  { id: "argocd-out-of-sync", title: "Fix an Argo CD application that is out of sync", category: "argocd", difficulty: "medium", breakType: "custom", target: "app/guestbook", description: "An Argo CD application has drifted out of sync with its Git source. Resolve the sync discrepancy." },
-  { id: "argocd-sync-failure", title: "Fix an Argo CD application that fails to sync", category: "argocd", difficulty: "medium", breakType: "custom", target: "app/guestbook", description: "An Argo CD application cannot sync due to manifest errors. Fix the manifests so sync succeeds." },
-  { id: "argocd-sync-wave-ordering", title: "Fix broken Argo CD sync wave annotations", category: "argocd", difficulty: "hard", breakType: "custom", target: "app/guestbook", description: "Argo CD sync wave annotations are incorrect, causing resources to deploy in the wrong order. Fix the ordering." },
+  { id: "dependency-conflict", title: "Resolve a Helm chart dependency conflict", category: "helm", difficulty: "medium", breakType: "custom", target: "release/web", description: "A Helm chart has conflicting dependencies that prevent installation. Resolve the dependency conflict." },
+  { id: "failed-upgrade", title: "Fix a failed Helm upgrade", category: "helm", difficulty: "medium", breakType: "custom", target: "release/web", description: "A Helm upgrade has failed and left the release in a broken state. Diagnose and fix the upgrade." },
+  { id: "pending-release", title: "Fix a Helm release stuck in pending state", category: "helm", difficulty: "medium", breakType: "custom", target: "release/web", description: "A Helm release is stuck in a pending-install or pending-upgrade state. Resolve the stuck release." },
+  { id: "version-rollback", title: "Rollback a Helm release to previous version", category: "helm", difficulty: "easy", breakType: "custom", target: "release/web", description: "A Helm release needs to be rolled back to a previous working version. Perform a safe rollback." },
+  // Argo CD (4)
+  { id: "degraded-after-sync", title: "Fix an Argo CD app that is Degraded after sync", category: "argocd", difficulty: "hard", breakType: "custom", target: "app/guestbook", description: "An Argo CD application synced successfully but entered a Degraded state. Find and fix the underlying issue." },
+  { id: "out-of-sync", title: "Fix an Argo CD application that is out of sync", category: "argocd", difficulty: "medium", breakType: "custom", target: "app/guestbook", description: "An Argo CD application has drifted out of sync with its Git source. Resolve the sync discrepancy." },
+  { id: "sync-failure", title: "Fix an Argo CD application that fails to sync", category: "argocd", difficulty: "medium", breakType: "custom", target: "app/guestbook", description: "An Argo CD application cannot sync due to manifest errors. Fix the manifests so sync succeeds." },
+  { id: "sync-wave-ordering", title: "Fix broken Argo CD sync wave annotations", category: "argocd", difficulty: "hard", breakType: "custom", target: "app/guestbook", description: "Argo CD sync wave annotations are incorrect, causing resources to deploy in the wrong order. Fix the ordering." },
   // Terraform (1)
-  { id: "terraform-corrupted-state", title: "Recover from corrupted Terraform state", category: "terraform", difficulty: "hard", breakType: "custom", target: "terraform/state", description: "Terraform state has become corrupted. Recover the state without destroying existing infrastructure." },
+  { id: "corrupted-state", title: "Recover from corrupted Terraform state", category: "terraform", difficulty: "hard", breakType: "custom", target: "terraform/state", description: "Terraform state has become corrupted. Recover the state without destroying existing infrastructure." },
 ];

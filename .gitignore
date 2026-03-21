@@ -56,5 +56,9 @@ runs/
 *.db-journal
 *.db-wal
 
+# UI
+ui/node_modules/
+ui/dist/
+
 # Lab config
 .infra-bench-lab.yaml

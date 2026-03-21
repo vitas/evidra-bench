@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { SCENARIOS, type ScenarioMeta } from "../data/catalog";
+import { SCENARIOS, CATEGORY_LABELS, type ScenarioMeta } from "../data/catalog";
 import { MODELS } from "../data/models";
 import { CATEGORY_COLORS, DIFFICULTY_COLORS } from "../data/colors";
 import { useEvidenceMode } from "../hooks/useEvidenceMode";
@@ -8,19 +8,11 @@ type Category = "all" | ScenarioMeta["category"];
 
 const CATEGORY_PILLS: { value: Category; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "kubernetes", label: "kubectl" },
-  { value: "helm", label: "Helm" },
-  { value: "argocd", label: "Argo CD" },
-  { value: "terraform", label: "Terraform" },
+  { value: "kubernetes", label: CATEGORY_LABELS["kubernetes"] },
+  { value: "helm", label: CATEGORY_LABELS["helm"] },
+  { value: "argocd", label: CATEGORY_LABELS["argocd"] },
+  { value: "terraform", label: CATEGORY_LABELS["terraform"] },
 ];
-
-
-const CATEGORY_LABELS: Record<ScenarioMeta["category"], string> = {
-  kubernetes: "kubectl",
-  helm: "Helm",
-  argocd: "Argo CD",
-  terraform: "Terraform",
-};
 
 export function Run() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

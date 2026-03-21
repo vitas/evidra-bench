@@ -1,6 +1,7 @@
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 
 export interface BreakData {
+  // Required by @xyflow/react's Node type constraint for generic data records
   [key: string]: unknown;
   kind: "break";
   method: "kubectl-apply" | "kubectl-patch" | "script";
