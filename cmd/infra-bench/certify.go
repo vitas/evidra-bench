@@ -48,6 +48,13 @@ var trackNames = map[string]string{
 	"platform-eng":     "Platform Engineering",
 }
 
+// examTracks maps exam shortcuts to their component tracks.
+var examTracks = map[string][]string{
+	"cka": {"workloads", "troubleshooting", "networking", "storage"},
+	"cks": {"pod-security", "runtime-security"},
+	"all": {"workloads", "troubleshooting", "networking", "storage", "pod-security", "runtime-security", "release-ops", "platform-eng"},
+}
+
 var levelLabels = map[string]string{
 	"L1": "Fix",
 	"L2": "Diagnose",
@@ -59,6 +66,11 @@ var levelLabels = map[string]string{
 var orderedLevels = []string{"L1", "L2", "L3", "L4"}
 
 func executeCertify(cmd *cobra.Command, cfg config.Config, track, model string) error {
+	// Expand exam shortcuts: cka, cks, all → run multiple tracks sequentially.
+	if tracks, ok := examTracks[track]; ok {
+		return executeCertifyExam(cmd, cfg, track, tracks, model)
+	}
+
 	// Support racing multiple models: --model sonnet,gpt-4o
 	models := strings.Split(model, ",")
 	for i := range models {
@@ -68,6 +80,65 @@ func executeCertify(cmd *cobra.Command, cfg config.Config, track, model string) 
 		return executeCertifyRace(cmd, cfg, track, models)
 	}
 	return executeCertifySingle(cmd, cfg, track, model)
+}
+
+// executeCertifyExam runs certification across multiple tracks (CKA, CKS, or all).
+func executeCertifyExam(cmd *cobra.Command, cfg config.Config, examName string, tracks []string, model string) error {
+	w := cmd.OutOrStdout()
+	examLabel := strings.ToUpper(examName)
+
+	fmt.Fprintf(w, "\n")
+	fmt.Fprintf(w, "════════════════════════════════════════════════════\n")
+	fmt.Fprintf(w, "  %s CERTIFICATION EXAM\n", examLabel)
+	fmt.Fprintf(w, "  Agent: %s | Tracks: %d\n", model, len(tracks))
+	fmt.Fprintf(w, "════════════════════════════════════════════════════\n\n")
+
+	var results []CertResult
+	var totalPassed, totalCount int
+	startTime := time.Now()
+
+	for _, track := range tracks {
+		fmt.Fprintf(w, "── Track: %s ──\n", trackNames[track])
+		cert, err := runCertifySingle(cmd.Context(), cfg, track, model)
+		if err != nil {
+			fmt.Fprintf(w, "  ERROR: %v\n\n", err)
+			continue
+		}
+		results = append(results, *cert)
+		totalPassed += cert.Passed
+		totalCount += cert.Total
+
+		check := "✗"
+		if cert.Passed == cert.Total {
+			check = "✓"
+		}
+		fmt.Fprintf(w, "  %s  %d/%d  %s\n\n", strings.ToUpper(cert.Grade), cert.Passed, cert.Total, check)
+	}
+
+	totalDuration := time.Since(startTime)
+	overallRate := float64(totalPassed) / float64(max(totalCount, 1)) * 100
+
+	fmt.Fprintf(w, "════════════════════════════════════════════════════\n")
+	fmt.Fprintf(w, "  %s EXAM RESULTS\n", examLabel)
+	fmt.Fprintf(w, "════════════════════════════════════════════════════\n")
+	fmt.Fprintf(w, "  Agent:    %s (%s)\n", model, cfg.Provider)
+	fmt.Fprintf(w, "\n")
+
+	for _, cert := range results {
+		trackLabel := trackNames[cert.Track]
+		check := "✗"
+		if cert.Passed == cert.Total {
+			check = "✓"
+		}
+		fmt.Fprintf(w, "  %-25s %-12s %d/%-3d %s\n", trackLabel, strings.ToUpper(cert.Grade), cert.Passed, cert.Total, check)
+	}
+
+	fmt.Fprintf(w, "\n")
+	fmt.Fprintf(w, "  Overall:  %d/%d (%.1f%%)\n", totalPassed, totalCount, overallRate)
+	fmt.Fprintf(w, "  Duration: %s\n", formatDuration(totalDuration))
+	fmt.Fprintf(w, "════════════════════════════════════════════════════\n")
+
+	return nil
 }
 
 // executeCertifyRace runs certification for multiple models in parallel and prints a race result.
