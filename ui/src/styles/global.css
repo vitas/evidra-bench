@@ -1,1 +1,110 @@
 @import "tailwindcss";
+
+/* ── Theme tokens ── */
+@theme {
+  --color-bg: #ebf3ef;
+  --color-bg-alt: #e2ede7;
+  --color-bg-elevated: #ffffff;
+  --color-fg: #064e3b;
+  --color-fg-body: #1a3a2a;
+  --color-fg-muted: #6b8f7b;
+  --color-accent: #059669;
+  --color-accent-bright: #10b981;
+  --color-accent-tint: #d1fae5;
+  --color-accent-subtle: #ecfdf5;
+  --color-border: #c6e8d6;
+  --color-border-subtle: #e0f2e9;
+  --color-code-bg: #f0fdf4;
+  --color-code-header: #d1fae5;
+  --font-sans: "Plus Jakarta Sans", -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+/* ── Shadow tokens (outside @theme to avoid comma parsing issues) ── */
+:root, [data-theme="light"] {
+  --shadow-card: 0 1px 3px rgba(5,80,60,0.06), 0 1px 2px rgba(5,80,60,0.04);
+  --shadow-card-lg: 0 4px 16px rgba(5,80,60,0.08);
+}
+
+/* ── Dark theme overrides ── */
+[data-theme="dark"] {
+  --color-bg: #0c0f0e;
+  --color-bg-alt: #111916;
+  --color-bg-elevated: #161e1a;
+  --color-fg: #d1fae5;
+  --color-fg-body: #a7cdb8;
+  --color-fg-muted: #6b8f7b;
+  --color-accent: #34d399;
+  --color-accent-bright: #6ee7b7;
+  --color-accent-tint: #064e3b;
+  --color-accent-subtle: #0d2818;
+  --color-border: #1e3a2c;
+  --color-border-subtle: #172b22;
+  --color-code-bg: #111916;
+  --color-code-header: #1a2e24;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-card-lg: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+/* ── Dark mode button override (matching original HTML) ── */
+[data-theme="dark"] .btn-primary {
+  background: #065f46;
+  color: #d1fae5;
+}
+[data-theme="dark"] .btn-primary:hover {
+  background: #047857;
+  color: #ecfdf5;
+}
+
+/* ── Base styles (layered so Tailwind utilities win) ── */
+@layer base {
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--color-bg);
+    color: var(--color-fg-body);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: var(--color-accent); text-decoration: none; transition: color 0.15s; }
+  a:hover { color: var(--color-accent-bright); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@keyframes tour-in {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.animate-tour-in {
+  animation: tour-in 0.25s ease-out;
+}
+
+/* ── React Flow dark-mode overrides ── */
+.react-flow__background {
+  background-color: var(--color-bg) !important;
+}
+.react-flow__minimap {
+  background-color: var(--color-bg-elevated) !important;
+}
+.react-flow__controls button {
+  background-color: var(--color-bg-elevated) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-fg) !important;
+  fill: var(--color-fg) !important;
+}
+.react-flow__controls button:hover {
+  background-color: var(--color-bg-alt) !important;
+}
+.react-flow__controls button svg {
+  fill: var(--color-fg) !important;
+}
+.react-flow__panel {
+  background: transparent !important;
+}
