@@ -1,7 +1,7 @@
 export interface ScenarioMeta {
   id: string;
   title: string;
-  category: "kubernetes" | "helm" | "argocd" | "terraform";
+  category: "kubernetes" | "helm" | "argocd" | "terraform" | "aws";
   difficulty: "easy" | "medium" | "hard";
   track: "workloads" | "troubleshooting" | "networking" | "storage" | "pod-security" | "runtime-security" | "release-ops" | "platform-eng";
   level: "L1" | "L2" | "L3" | "L4";
@@ -18,6 +18,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   helm: "Helm",
   argocd: "Argo CD",
   terraform: "Terraform",
+  aws: "AWS",
 };
 
 export const TRACK_LABELS: Record<string, string> = {
@@ -89,4 +90,7 @@ export const SCENARIOS: ScenarioMeta[] = [
   { id: "corrupted-state", title: "Recover from corrupted Terraform state", category: "terraform", difficulty: "hard", track: "platform-eng", level: "L2", breakType: "custom", target: "terraform/state", description: "Terraform state has become corrupted. Recover the state without destroying existing infrastructure." },
   // Multi-stage
   { id: "cascading-failures", title: "Fix cascading deployment failures", category: "kubernetes", difficulty: "hard", track: "troubleshooting", level: "L4", breakType: "multi-stage", target: "deployment/web, secret/db-credentials", description: "Multi-stage: fix wrong image tag, then discover and fix missing database secret." },
+  // AWS (2)
+  { id: "security-group-too-open", title: "Tighten an overly permissive EC2 security group", category: "aws", difficulty: "hard", track: "pod-security", level: "L3", breakType: "custom", target: "ec2/security-group", description: "A security group allows all inbound from 0.0.0.0/0. Restrict to port 80 from internal network only." },
+  { id: "s3-bucket-public-access", title: "Lock down a publicly accessible S3 bucket", category: "aws", difficulty: "hard", track: "pod-security", level: "L3", breakType: "custom", target: "s3/app-data-bucket", description: "An S3 bucket has public read access via bucket policy. Remove public access while preserving IAM role access." },
 ];

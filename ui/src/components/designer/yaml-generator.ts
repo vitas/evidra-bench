@@ -12,7 +12,7 @@ export interface PuzzleMetadata {
   description: string;
   difficulty: "easy" | "medium" | "hard";
   timeLimit: string;
-  category: "kubernetes" | "helm" | "argocd" | "terraform";
+  category: "kubernetes" | "helm" | "argocd" | "terraform" | "aws";
 }
 
 export interface GeneratedScenario {

@@ -3,6 +3,7 @@ export const CATEGORY_COLORS: Record<string, string> = {
   helm: "bg-purple-500/15 text-purple-400",
   argocd: "bg-orange-500/15 text-orange-400",
   terraform: "bg-emerald-500/15 text-emerald-400",
+  aws: "bg-yellow-500/15 text-yellow-400",
 };
 
 export const DIFFICULTY_COLORS: Record<string, string> = {

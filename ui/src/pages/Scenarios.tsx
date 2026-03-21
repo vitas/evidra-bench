@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { SCENARIOS, CATEGORY_LABELS, TRACK_LABELS, LEVEL_LABELS, type ScenarioMeta } from "../data/catalog";
 import { CATEGORY_COLORS, DIFFICULTY_COLORS, LEVEL_COLORS } from "../data/colors";
 
-type CategoryFilter = "all" | "kubernetes" | "helm" | "argocd" | "terraform";
+type CategoryFilter = "all" | "kubernetes" | "helm" | "argocd" | "terraform" | "aws";
 type DifficultyFilter = "all" | "easy" | "medium" | "hard";
 type TrackFilter = "all" | "workloads" | "troubleshooting" | "networking" | "storage" | "pod-security" | "runtime-security" | "release-ops" | "platform-eng";
 type LevelFilter = "all" | "L1" | "L2" | "L3" | "L4";
@@ -24,6 +24,7 @@ const CATEGORY_PILLS: { key: CategoryFilter; label: string }[] = [
   { key: "helm", label: `${CATEGORY_LABELS["helm"]} (${CATEGORY_COUNTS["helm"] || 0})` },
   { key: "argocd", label: `${CATEGORY_LABELS["argocd"]} (${CATEGORY_COUNTS["argocd"] || 0})` },
   { key: "terraform", label: `${CATEGORY_LABELS["terraform"]} (${CATEGORY_COUNTS["terraform"] || 0})` },
+  { key: "aws", label: `${CATEGORY_LABELS["aws"]} (${CATEGORY_COUNTS["aws"] || 0})` },
 ];
 
 const TRACK_PILLS: { key: TrackFilter; label: string }[] = [
