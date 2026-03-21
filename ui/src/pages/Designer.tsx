@@ -14,11 +14,13 @@ import {
   addEdge,
   useNodesState,
   useEdgesState,
+  useReactFlow,
   type Connection,
   type Node,
   type Edge,
   type NodeTypes,
   BackgroundVariant,
+  ReactFlowProvider,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -155,6 +157,15 @@ function loadDraft(): DraftState | null {
 }
 
 export function Designer() {
+  return (
+    <ReactFlowProvider>
+      <DesignerInner />
+    </ReactFlowProvider>
+  );
+}
+
+function DesignerInner() {
+  const { fitView } = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const nodeIdCounterRef = useRef(10);
 
@@ -309,7 +320,9 @@ export function Designer() {
     setEdges((eds) => [...eds, ...newEdges]);
     setSelectedNodeId(breakId);
     if (panelCollapsed) setPanelCollapsed(false);
-  }, [nodes, setNodes, setEdges, panelCollapsed]);
+    // Fit view after React renders the new nodes.
+    setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 50);
+  }, [nodes, setNodes, setEdges, panelCollapsed, fitView]);
 
   const handleClear = useCallback(() => {
     if (nodes.length > 0 && !window.confirm("Clear the canvas? This will remove all blocks.")) {
