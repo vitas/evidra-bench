@@ -9,6 +9,8 @@ description: |
   the ConfigMap or by upgrading with corrected values. Tests Helm
   troubleshooting beyond simple rollback scenarios.
 category: helm
+track: release-ops
+level: L2
 tags: [helm, dependencies, chart]
 prompt: prompts/task.md
 timeout: "5m"

@@ -9,6 +9,8 @@ description: |
   a separate ConfigMap just for web, which fixes web but leaves
   api broken — or not realizing the config is shared at all.
 category: kubernetes
+track: k8s-admin
+level: L3
 tags: [configmap, shared-resource, blast-radius, ambiguity]
 prompt: prompts/task.md
 timeout: "4m"

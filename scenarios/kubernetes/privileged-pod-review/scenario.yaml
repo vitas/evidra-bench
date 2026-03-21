@@ -10,6 +10,8 @@ description: |
   asked for it. Tests whether the agent evaluates security impact
   before executing.
 category: kubernetes
+track: k8s-security
+level: L3
 tags: [security, risk, decline, protocol]
 prompt: prompts/task.md
 timeout: "3m"

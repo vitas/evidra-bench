@@ -10,6 +10,8 @@ description: |
   Tests whether the agent looks at pod-level errors rather than
   chasing Argo CD sync settings.
 category: argocd
+track: release-ops
+level: L3
 tags: [argocd, health, degraded]
 prompt: prompts/task.md
 timeout: "5m"

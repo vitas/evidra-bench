@@ -9,6 +9,8 @@ description: |
   application port and endpoint. Tests whether the agent can read
   probe specs and correlate them with the container configuration.
 category: kubernetes
+track: k8s-admin
+level: L1
 tags: [probes, readiness, liveness]
 prompt: prompts/task.md
 timeout: "3m"

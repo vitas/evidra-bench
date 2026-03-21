@@ -8,6 +8,8 @@ description: |
   normally. The image itself is valid (nginx:1.27-alpine) — the crash
   comes from the explicit exit command, not a bad image.
 category: kubernetes
+track: k8s-admin
+level: L2
 tags: [pod, crashloop, container]
 prompt: prompts/task.md
 timeout: "3m"

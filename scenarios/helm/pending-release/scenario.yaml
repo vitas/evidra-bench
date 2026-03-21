@@ -9,6 +9,8 @@ description: |
   rollback or deleting the pending release secret). Tests knowledge
   of Helm's release state machine and hook lifecycle.
 category: helm
+track: release-ops
+level: L2
 tags: [helm, hooks, pending]
 prompt: prompts/task.md
 timeout: "5m"

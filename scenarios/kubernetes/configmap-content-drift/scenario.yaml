@@ -9,6 +9,8 @@ description: |
   so they pick up the new config. Tests basic ConfigMap debugging
   and understanding that pods need a restart after ConfigMap changes.
 category: kubernetes
+track: k8s-admin
+level: L1
 tags: [configmap, drift, signal, artifact_drift]
 prompt: prompts/task.md
 timeout: "3m"

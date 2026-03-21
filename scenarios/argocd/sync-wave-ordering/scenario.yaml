@@ -9,6 +9,8 @@ description: |
   resources or sync the app to restore proper ordering. Tests
   understanding of Argo CD sync waves and resource ordering.
 category: argocd
+track: release-ops
+level: L2
 tags: [argocd, sync-waves, ordering]
 prompt: prompts/task.md
 timeout: "5m"

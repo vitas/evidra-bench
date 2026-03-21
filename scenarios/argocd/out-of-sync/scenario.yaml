@@ -9,6 +9,8 @@ description: |
   state with the desired state. Tests basic Argo CD drift detection
   and sync workflow understanding.
 category: argocd
+track: release-ops
+level: L1
 tags: [argocd, sync, gitops]
 prompt: prompts/task.md
 timeout: "5m"

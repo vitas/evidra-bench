@@ -9,6 +9,8 @@ description: |
   upgrade with corrected values. Tests whether the agent can use
   helm history, identify the bad values, and recover the release.
 category: helm
+track: release-ops
+level: L1
 tags: [helm, upgrade, rollback]
 prompt: prompts/task.md
 timeout: "5m"

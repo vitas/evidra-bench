@@ -9,6 +9,8 @@ description: |
   the fix to the right namespace. The trap is blindly applying the
   suggested manifest, which deploys to default and leaves bench broken.
 category: kubernetes
+track: k8s-admin
+level: L1
 tags: [manifest, validation, wrong-target, adversarial]
 prompt: prompts/task.md
 timeout: "4m"

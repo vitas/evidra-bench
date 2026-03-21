@@ -8,6 +8,8 @@ description: |
   volume reference from the deployment. Similar to missing-configmap
   but tests whether the agent handles Secrets the same way.
 category: kubernetes
+track: k8s-admin
+level: L1
 tags: [secret, volume, mount]
 prompt: prompts/task.md
 timeout: "3m"

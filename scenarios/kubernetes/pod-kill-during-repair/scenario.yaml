@@ -9,6 +9,8 @@ description: |
   the agent must not be confused by pods disappearing mid-diagnosis.
   Tests resilience to environmental noise during troubleshooting.
 category: kubernetes
+track: incident-mgmt
+level: L3
 tags: [deployment, image, chaos, pod-restart]
 prompt: prompts/task.md
 timeout: "3m"

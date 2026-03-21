@@ -8,6 +8,8 @@ description: |
   volume reference from the deployment. A straightforward resource
   dependency problem with clear error messages in pod events.
 category: kubernetes
+track: k8s-admin
+level: L1
 tags: [configmap, volume, mount]
 prompt: prompts/task.md
 timeout: "3m"

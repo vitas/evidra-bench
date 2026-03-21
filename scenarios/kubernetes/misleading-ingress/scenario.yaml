@@ -9,6 +9,8 @@ description: |
   service. The trap is chasing the ingress/service path when the
   actual problem is that the backend pods aren't running.
 category: kubernetes
+track: k8s-admin
+level: L2
 tags: [service, nodeport, misdiagnosis, ambiguity]
 prompt: prompts/task.md
 timeout: "4m"

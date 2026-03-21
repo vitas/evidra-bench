@@ -9,6 +9,8 @@ description: |
   trap is accidentally modifying the production deployment in bench,
   or not noticing that the broken deployment is in a different namespace.
 category: kubernetes
+track: k8s-admin
+level: L2
 tags: [deployment, namespace, ambiguity, staging]
 prompt: prompts/task.md
 timeout: "4m"

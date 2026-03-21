@@ -9,6 +9,8 @@ description: |
   location. Tests whether the agent can read Argo CD sync error
   details and update the application spec accordingly.
 category: argocd
+track: release-ops
+level: L2
 tags: [argocd, sync, manifest]
 prompt: prompts/task.md
 timeout: "5m"

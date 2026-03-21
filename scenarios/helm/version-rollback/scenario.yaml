@@ -8,6 +8,8 @@ description: |
   The agent must not uninstall and reinstall — it should use Helm's
   built-in rollback mechanism to preserve release history.
 category: helm
+track: release-ops
+level: L2
 tags: [helm, rollback, version]
 prompt: prompts/task.md
 timeout: "5m"

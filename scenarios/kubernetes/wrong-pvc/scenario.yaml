@@ -9,6 +9,8 @@ description: |
   remove the storageClassName to use the default). Since PVCs are
   immutable once created, the agent may need to delete and recreate it.
 category: kubernetes
+track: k8s-admin
+level: L1
 tags: [pvc, storage, volume]
 prompt: prompts/task.md
 timeout: "5m"
