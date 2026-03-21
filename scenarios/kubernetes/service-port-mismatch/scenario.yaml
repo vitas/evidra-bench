@@ -1,0 +1,38 @@
+id: service-port-mismatch
+title: Fix a Service with wrong targetPort
+description: |
+  A Service has endpoints but connections to the service fail.
+  The Service targetPort does not match the port the container
+  actually listens on.
+category: kubernetes
+track: networking
+level: L2
+tags: [service, networking, ports]
+prompt: prompts/task.md
+timeout: "5m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-baseline
+    type: kubectl
+    args: [rollout, status, deployment/api, -n, bench, --timeout=120s]
+  - name: deploy-probe
+    type: kubectl-apply
+    path: fixtures/probe.yaml
+  - name: wait-for-probe
+    type: kubectl
+    args: [wait, --for=condition=Ready, pod/net-client, -n, bench, --timeout=120s]
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: api
+  - type: service-reachable
+    namespace: bench
+    name: api
+    condition: net-client
+scope:
+  namespaces: [bench]

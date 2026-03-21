@@ -1,0 +1,25 @@
+id: dynamic-pvc-binding
+title: Fix a PVC stuck in Pending due to access mode mismatch
+description: |
+  A PersistentVolumeClaim is stuck in Pending state. The requested access
+  mode does not match what the StorageClass supports. Fix the PVC so it
+  can be bound and the deployment can start.
+category: kubernetes
+track: storage
+level: L2
+tags: [storage, pvc, storageclass]
+prompt: prompts/task.md
+timeout: "5m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: app
+scope:
+  namespaces: [bench]
