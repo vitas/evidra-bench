@@ -6,7 +6,7 @@ interface LayoutProps {
 }
 
 const NAV_LINKS = [
-  { to: "/", label: "Scenarios" },
+  { to: "/scenarios", label: "Scenarios" },
   { to: "/designer", label: "Designer" },
   { to: "/run", label: "Run" },
 ];
