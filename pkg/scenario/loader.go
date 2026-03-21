@@ -142,9 +142,39 @@ func validate(s *Scenario) error {
 	if s.Prompt == "" {
 		return fmt.Errorf("scenario %s: missing prompt", s.ID)
 	}
-	if len(s.Checks) == 0 {
+
+	// Stages vs single-stage mutual exclusion.
+	hasStages := len(s.Stages) > 0
+	hasBreak := s.Break.Type != ""
+	hasChecks := len(s.Checks) > 0
+
+	if hasStages && (hasBreak || hasChecks) {
+		return fmt.Errorf("scenario %s: cannot have both 'stages' and top-level 'break'/'checks'", s.ID)
+	}
+
+	if hasStages {
+		for i, st := range s.Stages {
+			if st.Name == "" {
+				return fmt.Errorf("scenario %s: stage[%d] missing name", s.ID, i)
+			}
+			if len(st.Checks) == 0 {
+				return fmt.Errorf("scenario %s: stage %q has no verify checks", s.ID, st.Name)
+			}
+			if st.Break.Memory != "" && st.Break.Memory != "compact" && st.Break.Memory != "reset" {
+				return fmt.Errorf("scenario %s: stage %q has invalid break.memory %q (must be compact or reset)", s.ID, st.Name, st.Break.Memory)
+			}
+			if st.OnFail != "" && st.OnFail != "stop" && st.OnFail != "continue" {
+				return fmt.Errorf("scenario %s: stage %q has invalid on_fail %q", s.ID, st.Name, st.OnFail)
+			}
+		}
+	} else if !hasBreak {
+		return fmt.Errorf("scenario %s: must have either 'break' or 'stages'", s.ID)
+	}
+
+	if !hasStages && !hasChecks {
 		return fmt.Errorf("scenario %s: at least one check is required", s.ID)
 	}
+
 	if err := validateChaos(s); err != nil {
 		return err
 	}

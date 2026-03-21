@@ -164,6 +164,9 @@ prompt: prompts/task.md
 bootstrap:
   - type: kubectl-apply
     path: https://example.com/install.yaml
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
 checks:
   - type: argocd-app-healthy
     name: web
@@ -328,5 +331,107 @@ func TestResolve_ByID(t *testing.T) {
 	}
 	if s.ID != "broken-deployment" {
 		t.Fatalf("unexpected id: %s", s.ID)
+	}
+}
+
+func TestValidate_StagesAndBreakMutuallyExclusive(t *testing.T) {
+	t.Parallel()
+	s := &Scenario{
+		ID: "test", Title: "test", Category: "kubernetes", Prompt: "task.md",
+		Break:  Break{Type: "kubectl-apply", Path: "f.yaml"},
+		Checks: []Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+		Stages: []Stage{{Name: "s1", Break: Break{Type: "kubectl-apply"}, Checks: []Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}}}},
+	}
+	if err := validate(s); err == nil {
+		t.Fatal("expected error for break + stages")
+	}
+}
+
+func TestValidate_StagesValid(t *testing.T) {
+	t.Parallel()
+	s := &Scenario{
+		ID: "test", Title: "test", Category: "kubernetes", Prompt: "task.md",
+		Stages: []Stage{
+			{Name: "s1", Break: Break{Type: "kubectl-apply", Path: "f.yaml"}, Checks: []Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}}},
+			{Name: "s2", Break: Break{Type: "kubectl-apply", Path: "f2.yaml", Memory: "compact"}, Checks: []Check{{Type: "resource-exists", Namespace: "bench", Name: "x"}}},
+		},
+	}
+	if err := validate(s); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidate_StageMissingName(t *testing.T) {
+	t.Parallel()
+	s := &Scenario{
+		ID: "test", Title: "test", Category: "kubernetes", Prompt: "task.md",
+		Stages: []Stage{
+			{Break: Break{Type: "kubectl-apply"}, Checks: []Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}}},
+		},
+	}
+	if err := validate(s); err == nil {
+		t.Fatal("expected error for missing stage name")
+	}
+}
+
+func TestValidate_StageMissingChecks(t *testing.T) {
+	t.Parallel()
+	s := &Scenario{
+		ID: "test", Title: "test", Category: "kubernetes", Prompt: "task.md",
+		Stages: []Stage{
+			{Name: "s1", Break: Break{Type: "kubectl-apply"}},
+		},
+	}
+	if err := validate(s); err == nil {
+		t.Fatal("expected error for stage missing checks")
+	}
+}
+
+func TestValidate_InvalidBreakMemory(t *testing.T) {
+	t.Parallel()
+	s := &Scenario{
+		ID: "test", Title: "test", Category: "kubernetes", Prompt: "task.md",
+		Stages: []Stage{
+			{Name: "s1", Break: Break{Type: "kubectl-apply", Memory: "invalid"}, Checks: []Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}}},
+		},
+	}
+	if err := validate(s); err == nil {
+		t.Fatal("expected error for invalid memory value")
+	}
+}
+
+func TestValidate_InvalidOnFail(t *testing.T) {
+	t.Parallel()
+	s := &Scenario{
+		ID: "test", Title: "test", Category: "kubernetes", Prompt: "task.md",
+		Stages: []Stage{
+			{Name: "s1", Break: Break{Type: "kubectl-apply"}, Checks: []Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}}, OnFail: "abort"},
+		},
+	}
+	if err := validate(s); err == nil {
+		t.Fatal("expected error for invalid on_fail value")
+	}
+}
+
+func TestValidate_StagesWithTopLevelChecksOnly(t *testing.T) {
+	t.Parallel()
+	s := &Scenario{
+		ID: "test", Title: "test", Category: "kubernetes", Prompt: "task.md",
+		Checks: []Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+		Stages: []Stage{{Name: "s1", Break: Break{Type: "kubectl-apply"}, Checks: []Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}}}},
+	}
+	if err := validate(s); err == nil {
+		t.Fatal("expected error for stages + top-level checks")
+	}
+}
+
+func TestValidate_MissingBreakAndStages(t *testing.T) {
+	t.Parallel()
+	s := &Scenario{
+		ID: "test", Title: "test", Category: "kubernetes", Prompt: "task.md",
+		Checks: []Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+	}
+	if err := validate(s); err == nil {
+		t.Fatal("expected error for missing break and stages")
 	}
 }
