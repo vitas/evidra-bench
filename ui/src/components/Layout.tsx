@@ -31,7 +31,7 @@ function Header() {
             to="/"
             className="font-extrabold text-[1.05rem] text-fg tracking-tight no-underline hover:text-fg"
           >
-            evidra<span className="text-accent">.</span>bench
+            evidra<span className="text-accent">.</span>lab
           </Link>
           <nav className="flex gap-5 items-center">
             {NAV_LINKS.map((link) => (
