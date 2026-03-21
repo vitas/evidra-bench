@@ -13,13 +13,13 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/results" element={<Results />} />
           <Route path="/*" element={
             <Layout>
               <Routes>
                 <Route path="/scenarios" element={<Scenarios />} />
                 <Route path="/designer" element={<Designer />} />
                 <Route path="/run" element={<Run />} />
+                <Route path="/results" element={<Results />} />
               </Routes>
             </Layout>
           } />
