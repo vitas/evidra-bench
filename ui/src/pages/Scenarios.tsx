@@ -69,10 +69,61 @@ function ScenarioCard({ scenario }: { scenario: ScenarioMeta }) {
   );
 }
 
+type ViewMode = "grid" | "list";
+
+function ScenarioRow({ scenario }: { scenario: ScenarioMeta }) {
+  const navigate = useNavigate();
+
+  return (
+    <button
+      onClick={() => navigate(`/designer?scenario=${scenario.id}`)}
+      className="w-full bg-bg-elevated border border-border rounded-lg px-4 py-3 text-left hover:border-accent/50 transition-all group flex items-center gap-4"
+    >
+      {/* Badges */}
+      <div className="flex items-center gap-1.5 shrink-0 w-[180px]">
+        <span
+          className={`text-[0.62rem] font-semibold px-2 py-0.5 rounded-full border ${CATEGORY_COLORS[scenario.category]}`}
+        >
+          {CATEGORY_LABELS[scenario.category]}
+        </span>
+        <span
+          className={`text-[0.62rem] font-semibold uppercase px-2 py-0.5 rounded-full ${DIFFICULTY_COLORS[scenario.difficulty]}`}
+        >
+          {scenario.difficulty}
+        </span>
+        {scenario.chaos && (
+          <span className="text-[0.62rem] font-semibold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/20">
+            chaos
+          </span>
+        )}
+      </div>
+
+      {/* Title */}
+      <h3 className="text-[0.82rem] font-semibold text-fg group-hover:text-accent transition-colors shrink-0 w-[260px] truncate">
+        {scenario.title}
+      </h3>
+
+      {/* Description */}
+      <p className="text-[0.75rem] text-fg-muted truncate flex-1 hidden md:block">
+        {scenario.description}
+      </p>
+
+      {/* Target */}
+      <span className="text-[0.68rem] font-mono text-fg-muted/60 shrink-0 hidden lg:block">
+        {scenario.target}
+      </span>
+    </button>
+  );
+}
+
 export function Scenarios() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [difficulty, setDifficulty] = useState<DifficultyFilter>("all");
+  const [view, setView] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem("evidra-lab-view-mode");
+    return saved === "list" ? "list" : "grid";
+  });
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -160,14 +211,39 @@ export function Scenarios() {
         </div>
       </div>
 
-      {/* Results count */}
-      <div className="mb-4">
+      {/* Results count + view toggle */}
+      <div className="flex items-center justify-between mb-4">
         <span className="text-[0.75rem] text-fg-muted">
           {filtered.length} scenario{filtered.length !== 1 ? "s" : ""}
           {category !== "all" || difficulty !== "all" || search
             ? " matching filters"
             : ""}
         </span>
+        <div className="flex items-center gap-0.5 bg-bg-elevated border border-border rounded-lg p-0.5">
+          <button
+            onClick={() => { setView("grid"); localStorage.setItem("evidra-lab-view-mode", "grid"); }}
+            className={`p-1.5 rounded-md transition-colors ${view === "grid" ? "bg-accent/15 text-accent" : "text-fg-muted hover:text-fg"}`}
+            title="Grid view"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+          </button>
+          <button
+            onClick={() => { setView("list"); localStorage.setItem("evidra-lab-view-mode", "list"); }}
+            className={`p-1.5 rounded-md transition-colors ${view === "list" ? "bg-accent/15 text-accent" : "text-fg-muted hover:text-fg"}`}
+            title="List view"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Grid */}
@@ -193,11 +269,19 @@ export function Scenarios() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((s) => (
-            <ScenarioCard key={s.id} scenario={s} />
-          ))}
-        </div>
+        view === "grid" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map((s) => (
+              <ScenarioCard key={s.id} scenario={s} />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {filtered.map((s) => (
+              <ScenarioRow key={s.id} scenario={s} />
+            ))}
+          </div>
+        )
       )}
     </div>
   );
