@@ -250,16 +250,13 @@ The bench pipeline produces:
 - `summary.json` — pass/fail per scenario/model/repeat
 - `scorecard.json` — evidra scorecard per run (auto-generated from evidence)
 - `signal-audit.json` — signal expectation findings
-- `report.html` — visual benchmark report
+- Results viewable at [evidra.cc/bench](https://evidra.cc/bench)
 
 Scenarios with `skip: true` are excluded from bench runs.
 
 ## Results & Reports
 
 ```bash
-# HTML report from all runs
-infra-bench report
-
 # Signal audit — check observed signals against expectations
 infra-bench audit signals --runs-dir runs --manifest configs/signal-audit.yaml
 
