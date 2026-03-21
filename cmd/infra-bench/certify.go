@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -58,6 +59,211 @@ var levelLabels = map[string]string{
 var orderedLevels = []string{"L1", "L2", "L3", "L4"}
 
 func executeCertify(cmd *cobra.Command, cfg config.Config, track, model string) error {
+	// Support racing multiple models: --model sonnet,gpt-4o
+	models := strings.Split(model, ",")
+	for i := range models {
+		models[i] = strings.TrimSpace(models[i])
+	}
+	if len(models) > 1 {
+		return executeCertifyRace(cmd, cfg, track, models)
+	}
+	return executeCertifySingle(cmd, cfg, track, model)
+}
+
+// executeCertifyRace runs certification for multiple models in parallel and prints a race result.
+func executeCertifyRace(cmd *cobra.Command, cfg config.Config, track string, models []string) error {
+	w := cmd.OutOrStdout()
+	trackLabel := trackNames[track]
+	if trackLabel == "" {
+		trackLabel = track
+	}
+
+	fmt.Fprintf(w, "\n")
+	fmt.Fprintf(w, "🏁 CERTIFICATION RACE: %s\n", trackLabel)
+	fmt.Fprintf(w, "   Contenders: %s\n", strings.Join(models, " vs "))
+	fmt.Fprintf(w, "════════════════════════════════════════════════════\n\n")
+
+	type raceResult struct {
+		model string
+		cert  *CertResult
+		err   error
+	}
+
+	results := make(chan raceResult, len(models))
+
+	for _, m := range models {
+		go func(model string) {
+			// Each model gets its own config with unique cluster to avoid conflicts.
+			raceCfg := cfg
+			raceCfg.ClusterName = fmt.Sprintf("%s-%s", cfg.ClusterName, strings.ReplaceAll(model, "/", "-"))
+
+			cert, err := runCertifySingle(cmd.Context(), raceCfg, track, model)
+			results <- raceResult{model: model, cert: cert, err: err}
+		}(m)
+	}
+
+	// Collect results
+	var certs []raceResult
+	for range models {
+		certs = append(certs, <-results)
+	}
+
+	// Sort by: grade (expert > proficient > competent > novice), then pass rate, then duration.
+	gradeOrder := map[string]int{"expert": 4, "proficient": 3, "competent": 2, "novice": 1}
+	sort.Slice(certs, func(i, j int) bool {
+		if certs[i].cert == nil {
+			return false
+		}
+		if certs[j].cert == nil {
+			return true
+		}
+		gi := gradeOrder[certs[i].cert.Grade]
+		gj := gradeOrder[certs[j].cert.Grade]
+		if gi != gj {
+			return gi > gj
+		}
+		ri := float64(certs[i].cert.Passed) / float64(max(certs[i].cert.Total, 1))
+		rj := float64(certs[j].cert.Passed) / float64(max(certs[j].cert.Total, 1))
+		if ri != rj {
+			return ri > rj
+		}
+		return certs[i].cert.Duration < certs[j].cert.Duration
+	})
+
+	// Print race results
+	fmt.Fprintf(w, "\n")
+	fmt.Fprintf(w, "🏁 RACE RESULTS: %s\n", trackLabel)
+	fmt.Fprintf(w, "════════════════════════════════════════════════════\n")
+
+	for i, r := range certs {
+		medal := "  "
+		if i == 0 {
+			medal = "🥇"
+		} else if i == 1 {
+			medal = "🥈"
+		} else if i == 2 {
+			medal = "🥉"
+		}
+
+		if r.err != nil && r.cert == nil {
+			fmt.Fprintf(w, "  %s %-25s ERROR: %v\n", medal, r.model, r.err)
+			continue
+		}
+		c := r.cert
+		rate := float64(c.Passed) / float64(max(c.Total, 1)) * 100
+		fmt.Fprintf(w, "  %s %-25s %s (%s)  %d/%d (%.0f%%)  %s\n",
+			medal, c.Model, strings.ToUpper(c.Grade), c.LevelMax,
+			c.Passed, c.Total, rate, formatDuration(c.Duration))
+	}
+	fmt.Fprintf(w, "════════════════════════════════════════════════════\n")
+
+	return nil
+}
+
+// runCertifySingle runs certification for one model and returns the result (no printing).
+func runCertifySingle(ctx context.Context, cfg config.Config, track, model string) (*CertResult, error) {
+	scenariosDir, err := filepath.Abs(cfg.ScenariosDir)
+	if err != nil {
+		return nil, fmt.Errorf("resolve scenarios dir: %w", err)
+	}
+	cfg.ScenariosDir = scenariosDir
+
+	allScenarios, err := scenario.LoadAll(scenariosDir)
+	if err != nil {
+		return nil, fmt.Errorf("load scenarios: %w", err)
+	}
+
+	var selected []*scenario.Scenario
+	for _, s := range allScenarios {
+		if s.Track == track && !s.Skip {
+			selected = append(selected, s)
+		}
+	}
+	if len(selected) == 0 {
+		return nil, fmt.Errorf("no scenarios for track %q", track)
+	}
+
+	levelOrder := map[string]int{"L1": 0, "L2": 1, "L3": 2, "L4": 3}
+	sort.Slice(selected, func(i, j int) bool {
+		li := levelOrder[selected[i].Level]
+		lj := levelOrder[selected[j].Level]
+		if li != lj {
+			return li < lj
+		}
+		return selected[i].ID < selected[j].ID
+	})
+
+	stamp := time.Now().UTC().Format("20060102-150405")
+	outDir := filepath.Join(cfg.RunsDir, "certify", fmt.Sprintf("%s_%s_%s", track, model, stamp))
+	os.MkdirAll(outDir, 0o755)
+
+	startTime := time.Now()
+	byLevel := map[string]*LevelResult{}
+	totalCount, passedCount := 0, 0
+
+	for _, s := range selected {
+		totalCount++
+		level := s.Level
+		if level == "" {
+			level = "L1"
+		}
+		if byLevel[level] == nil {
+			byLevel[level] = &LevelResult{}
+		}
+		byLevel[level].Total++
+
+		runDir := filepath.Join(outDir, fmt.Sprintf("%s_%s_r1", s.ID, model))
+		evidenceDir := filepath.Join(runDir, "evidence")
+
+		runCfg := cfg
+		runCfg.Scenario = s.Path
+		runCfg.Model = model
+		runCfg.RunsDir = runDir
+		runCfg.EvidraEvidenceDir = evidenceDir
+
+		if cfg.ReuseCluster {
+			cleanBenchNamespace(ctx, cfg.ClusterName, s)
+		}
+
+		runResult, runErr := runScenarioOnce(ctx, runCfg, s)
+
+		passed := false
+		if runErr == nil {
+			passed = runResult.Passed
+		}
+		if passed {
+			passedCount++
+			byLevel[level].Passed++
+		}
+	}
+
+	levelResults := map[string]LevelResult{}
+	for level, lr := range byLevel {
+		lr.Rate = float64(lr.Passed) / float64(max(lr.Total, 1))
+		levelResults[level] = *lr
+	}
+	grade, levelMax := calculateGrade(levelResults)
+
+	cert := &CertResult{
+		Track:       track,
+		Model:       model,
+		Provider:    cfg.Provider,
+		Grade:       grade,
+		LevelMax:    levelMax,
+		Total:       totalCount,
+		Passed:      passedCount,
+		ByLevel:     levelResults,
+		Duration:    time.Since(startTime),
+		CertifiedAt: time.Now().UTC(),
+	}
+
+	certJSON, _ := json.MarshalIndent(cert, "", "  ")
+	os.WriteFile(filepath.Join(outDir, "certification.json"), certJSON, 0644)
+
+	return cert, nil
+}
+
+func executeCertifySingle(cmd *cobra.Command, cfg config.Config, track, model string) error {
 	scenariosDir, err := filepath.Abs(cfg.ScenariosDir)
 	if err != nil {
 		return fmt.Errorf("resolve scenarios dir: %w", err)
