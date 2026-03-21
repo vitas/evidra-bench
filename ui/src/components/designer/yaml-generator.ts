@@ -271,6 +271,15 @@ export function generateScenario(
       lines.push("    break:");
       lines.push(`      type: ${sg.breakData.method}`);
       lines.push(`      path: fixtures/${stageName}.yaml`);
+      if (sg.breakData.memory) {
+        lines.push(`      memory: ${sg.breakData.memory}`);
+      }
+      if (sg.breakData.agentGoal) {
+        lines.push(`    agent_goal: ${toYamlString(sg.breakData.agentGoal)}`);
+      }
+      if (sg.breakData.onFail) {
+        lines.push(`    on_fail: ${sg.breakData.onFail}`);
+      }
       if (sg.verifyNodes.length > 0) {
         lines.push("    verify:");
         for (const vn of sg.verifyNodes) {

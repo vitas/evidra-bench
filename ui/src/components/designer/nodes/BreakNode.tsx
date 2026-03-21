@@ -8,6 +8,10 @@ export interface BreakData {
   action: "wrong-image" | "missing-configmap" | "missing-secret" | "wrong-selector" | "wrong-probes" | "custom";
   target: string;
   customManifest: string;
+  // Multi-stage fields
+  agentGoal?: string;
+  memory?: "" | "compact" | "reset";
+  onFail?: "" | "stop";
 }
 
 type BreakNode = Node<BreakData, "break">;
@@ -45,6 +49,16 @@ export function BreakNode({ data, selected }: NodeProps<BreakNode>) {
         {data.target && (
           <div className="text-[0.68rem] text-fg-muted mt-0.5 font-mono">
             {data.target}
+          </div>
+        )}
+        {data.memory && (
+          <div className="text-[0.62rem] text-fg-muted/70 mt-1 italic">
+            memory: {data.memory}
+          </div>
+        )}
+        {data.agentGoal && (
+          <div className="text-[0.62rem] text-fg-muted/70 mt-0.5 italic truncate max-w-[160px]">
+            goal: {data.agentGoal}
           </div>
         )}
       </div>

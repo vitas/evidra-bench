@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import type { Node } from "@xyflow/react";
 import type { StackData } from "./nodes/StackNode";
 import type { BreakData } from "./nodes/BreakNode";
@@ -8,6 +8,7 @@ import type { PuzzleMetadata, NodeData } from "./yaml-generator";
 
 interface ConfigPanelProps {
   selectedNode: Node | null;
+  nodes: Node[];
   metadata: PuzzleMetadata;
   onMetadataChange: (meta: PuzzleMetadata) => void;
   onNodeDataChange: (nodeId: string, data: Partial<NodeData>) => void;
@@ -128,14 +129,22 @@ function StackConfig({
   );
 }
 
+function HelpText({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[0.65rem] text-fg-muted/60 mt-0.5">{children}</p>
+  );
+}
+
 function BreakConfig({
   data,
   nodeId,
   onNodeDataChange,
+  isMultiStage,
 }: {
   data: BreakData;
   nodeId: string;
   onNodeDataChange: (id: string, d: Partial<NodeData>) => void;
+  isMultiStage: boolean;
 }) {
   return (
     <>
@@ -191,6 +200,65 @@ function BreakConfig({
             rows={12}
           />
         </Field>
+      )}
+      {isMultiStage && (
+        <>
+          <div className="mt-4 mb-3 pt-3 border-t border-border-subtle">
+            <span className="text-[0.72rem] font-semibold text-fg-muted uppercase tracking-wider">
+              Multi-Stage
+            </span>
+          </div>
+          <Field label="Agent Goal">
+            <TextArea
+              value={data.agentGoal ?? ""}
+              onChange={(v) =>
+                onNodeDataChange(nodeId, {
+                  agentGoal: v,
+                } as Partial<BreakData>)
+              }
+              placeholder="Describe what the agent should focus on when this stage starts..."
+              rows={3}
+            />
+            <HelpText>
+              Optional. If set, this message is sent to the agent when this break is injected.
+            </HelpText>
+          </Field>
+          <Field label="Memory">
+            <Select
+              value={data.memory ?? ""}
+              onChange={(v) =>
+                onNodeDataChange(nodeId, {
+                  memory: v,
+                } as Partial<BreakData>)
+              }
+              options={[
+                { value: "", label: "Full context" },
+                { value: "compact", label: "Compact — summarize prior context" },
+                { value: "reset", label: "Reset — fresh start, no history" },
+              ]}
+            />
+            <HelpText>
+              Controls the agent's conversation memory before this stage.
+            </HelpText>
+          </Field>
+          <Field label="On Fail">
+            <Select
+              value={data.onFail ?? ""}
+              onChange={(v) =>
+                onNodeDataChange(nodeId, {
+                  onFail: v,
+                } as Partial<BreakData>)
+              }
+              options={[
+                { value: "", label: "Stop" },
+                { value: "stop", label: "Stop" },
+              ]}
+            />
+            <HelpText>
+              What happens if this stage's checks don't pass.
+            </HelpText>
+          </Field>
+        </>
       )}
     </>
   );
@@ -405,12 +473,18 @@ function Field({
 
 export function ConfigPanel({
   selectedNode,
+  nodes,
   metadata,
   onMetadataChange,
   onNodeDataChange,
   collapsed,
   onToggle,
 }: ConfigPanelProps) {
+  const isMultiStage = useMemo(
+    () => nodes.filter((n) => (n.data as NodeData).kind === "break").length > 1,
+    [nodes],
+  );
+
   const renderConfig = useCallback(() => {
     if (!selectedNode) {
       return (
@@ -439,6 +513,7 @@ export function ConfigPanel({
             data={data}
             nodeId={nodeId}
             onNodeDataChange={onNodeDataChange}
+            isMultiStage={isMultiStage}
           />
         );
       case "verify":
@@ -460,7 +535,7 @@ export function ConfigPanel({
       default:
         return null;
     }
-  }, [selectedNode, metadata, onMetadataChange, onNodeDataChange]);
+  }, [selectedNode, metadata, onMetadataChange, onNodeDataChange, isMultiStage]);
 
   return (
     <div

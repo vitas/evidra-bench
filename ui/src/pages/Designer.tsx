@@ -393,6 +393,7 @@ export function Designer() {
       <div data-tour="config-panel">
         <ConfigPanel
           selectedNode={selectedNode}
+          nodes={nodes}
           metadata={metadata}
           onMetadataChange={setMetadata}
           onNodeDataChange={onNodeDataChange}
