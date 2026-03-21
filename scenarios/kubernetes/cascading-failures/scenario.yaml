@@ -1,0 +1,35 @@
+id: cascading-failures
+title: Fix cascading deployment failures
+description: >
+  The web deployment has a wrong image tag. After fixing it, you'll discover
+  the database secret is also missing. Fix both issues.
+category: kubernetes
+prompt: prompts/task.md
+timeout: 8m
+
+stages:
+  - name: wrong-image
+    break:
+      type: kubectl-apply
+      path: fixtures/wrong-image.yaml
+    verify:
+      - type: deployment-ready
+        namespace: bench
+        name: web
+    timeout: 4m
+
+  - name: missing-secret
+    break:
+      type: kubectl
+      command: delete secret db-credentials -n bench
+      allow_failure: true
+      memory: compact
+    agent_goal: "The deployment is running but the API is returning database connection errors. The database secret appears to be missing."
+    verify:
+      - type: resource-exists
+        namespace: bench
+        name: db-credentials
+      - type: deployment-ready
+        namespace: bench
+        name: web
+    timeout: 4m
