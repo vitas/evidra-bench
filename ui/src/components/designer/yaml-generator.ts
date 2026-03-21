@@ -225,6 +225,30 @@ export function generateScenario(
 
   const isMultiStage = breakNodes.length > 1;
 
+  // Validate linear chain for multi-stage.
+  if (isMultiStage) {
+    const stageGroups = buildStageGroups(breakNodes, verifyNodes, trapNodes, edges);
+    // Each break must connect to at least one verify.
+    for (const sg of stageGroups) {
+      if (sg.verifyNodes.length === 0) {
+        warnings.push(`Break "${sg.breakData.action}" has no connected Verify block. Multi-stage requires each Break to connect to a Verify.`);
+      }
+    }
+    // Check for shared verify nodes (same verify connected to multiple breaks = branching).
+    const verifyUsage = new Map<string, number>();
+    for (const sg of stageGroups) {
+      for (const vn of sg.verifyNodes) {
+        verifyUsage.set(vn.id, (verifyUsage.get(vn.id) ?? 0) + 1);
+      }
+    }
+    for (const [, count] of verifyUsage) {
+      if (count > 1) {
+        warnings.push("Multiple Break blocks connect to the same Verify block. Multi-stage requires a linear chain: Break₁ → Verify₁ → Break₂ → Verify₂. Use '+ Stage' to build correctly.");
+        break;
+      }
+    }
+  }
+
   const stackData = stackNodes[0]?.data as StackData | undefined;
   const firstVerifyData = verifyNodes[0]?.data as VerifyData | undefined;
   const ns = stackData?.namespace || firstVerifyData?.namespace || "bench";
