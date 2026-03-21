@@ -10,3 +10,10 @@ export const DIFFICULTY_COLORS: Record<string, string> = {
   medium: "bg-amber-500/15 text-amber-400",
   hard: "bg-red-500/15 text-red-400",
 };
+
+export const LEVEL_COLORS: Record<string, string> = {
+  L1: "bg-blue-500/15 text-blue-400",
+  L2: "bg-green-500/15 text-green-400",
+  L3: "bg-amber-500/15 text-amber-400",
+  L4: "bg-red-500/15 text-red-400",
+};

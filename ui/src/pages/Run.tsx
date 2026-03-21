@@ -1,10 +1,11 @@
 import { useState, useMemo, useCallback } from "react";
-import { SCENARIOS, CATEGORY_LABELS, type ScenarioMeta } from "../data/catalog";
+import { SCENARIOS, CATEGORY_LABELS, TRACK_LABELS, type ScenarioMeta } from "../data/catalog";
 import { MODELS } from "../data/models";
-import { CATEGORY_COLORS, DIFFICULTY_COLORS } from "../data/colors";
+import { CATEGORY_COLORS, DIFFICULTY_COLORS, LEVEL_COLORS } from "../data/colors";
 import { useEvidenceMode } from "../hooks/useEvidenceMode";
 
 type Category = "all" | ScenarioMeta["category"];
+type Track = "all" | ScenarioMeta["track"];
 
 const CATEGORY_PILLS: { value: Category; label: string }[] = [
   { value: "all", label: "All" },
@@ -14,10 +15,20 @@ const CATEGORY_PILLS: { value: Category; label: string }[] = [
   { value: "terraform", label: CATEGORY_LABELS["terraform"] },
 ];
 
+const TRACK_PILLS: { value: Track; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "k8s-admin", label: TRACK_LABELS["k8s-admin"] },
+  { value: "k8s-security", label: TRACK_LABELS["k8s-security"] },
+  { value: "release-ops", label: TRACK_LABELS["release-ops"] },
+  { value: "platform-eng", label: TRACK_LABELS["platform-eng"] },
+  { value: "incident-mgmt", label: TRACK_LABELS["incident-mgmt"] },
+];
+
 export function Run() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<Category>("all");
+  const [track, setTrack] = useState<Track>("all");
   const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
   const { mode, setMode } = useEvidenceMode();
   const [copied, setCopied] = useState(false);
@@ -26,6 +37,9 @@ export function Run() {
     let list = SCENARIOS;
     if (category !== "all") {
       list = list.filter((s) => s.category === category);
+    }
+    if (track !== "all") {
+      list = list.filter((s) => s.track === track);
     }
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -37,7 +51,7 @@ export function Run() {
       );
     }
     return list;
-  }, [category, search]);
+  }, [category, track, search]);
 
   const toggleScenario = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -154,6 +168,23 @@ export function Run() {
                 </button>
               </div>
             </div>
+
+            {/* Track pills */}
+            <div className="flex gap-1.5 flex-wrap">
+              {TRACK_PILLS.map((pill) => (
+                <button
+                  key={pill.value}
+                  onClick={() => setTrack(pill.value)}
+                  className={`px-2.5 py-0.5 rounded-full text-[0.72rem] font-medium border transition-all ${
+                    track === pill.value
+                      ? "border-accent bg-accent/10 text-accent"
+                      : "border-border-subtle text-fg-muted hover:border-accent/40 hover:text-fg"
+                  }`}
+                >
+                  {pill.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Scenario list */}
@@ -196,6 +227,14 @@ export function Run() {
                       className={`px-1.5 py-0.5 rounded text-[0.65rem] font-medium border ${DIFFICULTY_COLORS[s.difficulty]}`}
                     >
                       {s.difficulty}
+                    </span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[0.65rem] font-medium ${LEVEL_COLORS[s.level]}`}
+                    >
+                      {s.level}
+                    </span>
+                    <span className="text-[0.6rem] text-fg-muted/60">
+                      {TRACK_LABELS[s.track]}
                     </span>
                     {s.chaos && (
                       <span className="px-1.5 py-0.5 rounded text-[0.65rem] font-medium border bg-pink-500/15 text-pink-400 border-pink-500/30">

@@ -1,13 +1,20 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { SCENARIOS, CATEGORY_LABELS, type ScenarioMeta } from "../data/catalog";
-import { CATEGORY_COLORS, DIFFICULTY_COLORS } from "../data/colors";
+import { SCENARIOS, CATEGORY_LABELS, TRACK_LABELS, LEVEL_LABELS, type ScenarioMeta } from "../data/catalog";
+import { CATEGORY_COLORS, DIFFICULTY_COLORS, LEVEL_COLORS } from "../data/colors";
 
 type CategoryFilter = "all" | "kubernetes" | "helm" | "argocd" | "terraform";
 type DifficultyFilter = "all" | "easy" | "medium" | "hard";
+type TrackFilter = "all" | "k8s-admin" | "k8s-security" | "release-ops" | "platform-eng" | "incident-mgmt";
+type LevelFilter = "all" | "L1" | "L2" | "L3" | "L4";
 
 const CATEGORY_COUNTS = SCENARIOS.reduce<Record<string, number>>((acc, s) => {
   acc[s.category] = (acc[s.category] || 0) + 1;
+  return acc;
+}, {});
+
+const TRACK_COUNTS = SCENARIOS.reduce<Record<string, number>>((acc, s) => {
+  acc[s.track] = (acc[s.track] || 0) + 1;
   return acc;
 }, {});
 
@@ -19,7 +26,24 @@ const CATEGORY_PILLS: { key: CategoryFilter; label: string }[] = [
   { key: "terraform", label: `${CATEGORY_LABELS["terraform"]} (${CATEGORY_COUNTS["terraform"] || 0})` },
 ];
 
+const TRACK_PILLS: { key: TrackFilter; label: string }[] = [
+  { key: "all", label: `All (${SCENARIOS.length})` },
+  { key: "k8s-admin", label: `${TRACK_LABELS["k8s-admin"]} (${TRACK_COUNTS["k8s-admin"] || 0})` },
+  { key: "k8s-security", label: `${TRACK_LABELS["k8s-security"]} (${TRACK_COUNTS["k8s-security"] || 0})` },
+  { key: "release-ops", label: `${TRACK_LABELS["release-ops"]} (${TRACK_COUNTS["release-ops"] || 0})` },
+  { key: "platform-eng", label: `${TRACK_LABELS["platform-eng"]} (${TRACK_COUNTS["platform-eng"] || 0})` },
+  { key: "incident-mgmt", label: `${TRACK_LABELS["incident-mgmt"]} (${TRACK_COUNTS["incident-mgmt"] || 0})` },
+];
+
 const DIFFICULTY_PILLS: DifficultyFilter[] = ["all", "easy", "medium", "hard"];
+
+const LEVEL_PILLS: { key: LevelFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "L1", label: LEVEL_LABELS["L1"] },
+  { key: "L2", label: LEVEL_LABELS["L2"] },
+  { key: "L3", label: LEVEL_LABELS["L3"] },
+  { key: "L4", label: LEVEL_LABELS["L4"] },
+];
 
 
 function ScenarioCard({ scenario }: { scenario: ScenarioMeta }) {
@@ -31,7 +55,7 @@ function ScenarioCard({ scenario }: { scenario: ScenarioMeta }) {
       className="bg-bg-elevated border border-border rounded-xl p-5 text-left hover:border-accent/50 transition-all group flex flex-col gap-3"
     >
       {/* Badges row */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <span
           className={`text-[0.65rem] font-semibold px-2 py-0.5 rounded-full border ${CATEGORY_COLORS[scenario.category]}`}
         >
@@ -41,6 +65,14 @@ function ScenarioCard({ scenario }: { scenario: ScenarioMeta }) {
           className={`text-[0.65rem] font-semibold uppercase px-2 py-0.5 rounded-full ${DIFFICULTY_COLORS[scenario.difficulty]}`}
         >
           {scenario.difficulty}
+        </span>
+        <span
+          className={`text-[0.65rem] font-semibold px-2 py-0.5 rounded-full ${LEVEL_COLORS[scenario.level]}`}
+        >
+          {LEVEL_LABELS[scenario.level]}
+        </span>
+        <span className="text-[0.62rem] text-fg-muted/60">
+          {TRACK_LABELS[scenario.track]}
         </span>
         {scenario.chaos && (
           <span className="text-[0.65rem] font-semibold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/20">
@@ -80,7 +112,7 @@ function ScenarioRow({ scenario }: { scenario: ScenarioMeta }) {
       className="w-full bg-bg-elevated border border-border rounded-lg px-4 py-3 text-left hover:border-accent/50 transition-all group flex items-center gap-4"
     >
       {/* Badges */}
-      <div className="flex items-center gap-1.5 shrink-0 w-[180px]">
+      <div className="flex items-center gap-1.5 shrink-0 w-[260px]">
         <span
           className={`text-[0.62rem] font-semibold px-2 py-0.5 rounded-full border ${CATEGORY_COLORS[scenario.category]}`}
         >
@@ -90,6 +122,14 @@ function ScenarioRow({ scenario }: { scenario: ScenarioMeta }) {
           className={`text-[0.62rem] font-semibold uppercase px-2 py-0.5 rounded-full ${DIFFICULTY_COLORS[scenario.difficulty]}`}
         >
           {scenario.difficulty}
+        </span>
+        <span
+          className={`text-[0.62rem] font-semibold px-1.5 py-0.5 rounded-full ${LEVEL_COLORS[scenario.level]}`}
+        >
+          {scenario.level}
+        </span>
+        <span className="text-[0.58rem] text-fg-muted/60 truncate">
+          {TRACK_LABELS[scenario.track]}
         </span>
         {scenario.chaos && (
           <span className="text-[0.62rem] font-semibold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/20">
@@ -120,6 +160,8 @@ export function Scenarios() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [difficulty, setDifficulty] = useState<DifficultyFilter>("all");
+  const [track, setTrack] = useState<TrackFilter>("all");
+  const [level, setLevel] = useState<LevelFilter>("all");
   const [view, setView] = useState<ViewMode>(() => {
     const saved = localStorage.getItem("evidra-lab-view-mode");
     return saved === "list" ? "list" : "grid";
@@ -130,6 +172,8 @@ export function Scenarios() {
     return SCENARIOS.filter((s) => {
       if (category !== "all" && s.category !== category) return false;
       if (difficulty !== "all" && s.difficulty !== difficulty) return false;
+      if (track !== "all" && s.track !== track) return false;
+      if (level !== "all" && s.level !== level) return false;
       if (
         q &&
         !s.title.toLowerCase().includes(q) &&
@@ -138,7 +182,7 @@ export function Scenarios() {
         return false;
       return true;
     });
-  }, [search, category, difficulty]);
+  }, [search, category, difficulty, track, level]);
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">
@@ -161,53 +205,106 @@ export function Scenarios() {
         />
       </div>
 
-      {/* Filter row */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
-        {/* Category pills */}
-        <div className="flex flex-wrap gap-1.5">
-          {CATEGORY_PILLS.map((c) => {
-            const active = category === c.key;
-            return (
-              <button
-                key={c.key}
-                onClick={() => setCategory(c.key)}
-                className={`text-[0.75rem] font-medium px-3 py-1.5 rounded-lg transition-colors ${
-                  active
-                    ? "bg-accent/15 text-accent"
-                    : "text-fg-muted hover:text-fg hover:bg-bg-elevated"
-                }`}
-              >
-                {c.label}
-              </button>
-            );
-          })}
+      {/* Filter rows */}
+      <div className="flex flex-col gap-3 mb-6">
+        {/* Category + Difficulty row */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          {/* Category pills */}
+          <div className="flex flex-wrap gap-1.5">
+            {CATEGORY_PILLS.map((c) => {
+              const active = category === c.key;
+              return (
+                <button
+                  key={c.key}
+                  onClick={() => setCategory(c.key)}
+                  className={`text-[0.75rem] font-medium px-3 py-1.5 rounded-lg transition-colors ${
+                    active
+                      ? "bg-accent/15 text-accent"
+                      : "text-fg-muted hover:text-fg hover:bg-bg-elevated"
+                  }`}
+                >
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Separator */}
+          <div className="hidden sm:block w-px h-5 bg-border" />
+
+          {/* Difficulty pills */}
+          <div className="flex gap-1.5">
+            {DIFFICULTY_PILLS.map((d) => {
+              const active = difficulty === d;
+              const colors =
+                d === "all"
+                  ? active
+                    ? "bg-fg/10 text-fg"
+                    : "text-fg-muted hover:text-fg"
+                  : active
+                    ? DIFFICULTY_COLORS[d]
+                    : "text-fg-muted hover:text-fg";
+              return (
+                <button
+                  key={d}
+                  onClick={() => setDifficulty(d)}
+                  className={`text-[0.72rem] font-medium px-2.5 py-1 rounded-full transition-colors capitalize ${colors}`}
+                >
+                  {d === "all" ? "All" : d}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Separator */}
-        <div className="hidden sm:block w-px h-5 bg-border" />
+        {/* Track + Level row */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          {/* Track pills */}
+          <div className="flex flex-wrap gap-1.5">
+            {TRACK_PILLS.map((t) => {
+              const active = track === t.key;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => setTrack(t.key)}
+                  className={`text-[0.75rem] font-medium px-3 py-1.5 rounded-lg transition-colors ${
+                    active
+                      ? "bg-accent/15 text-accent"
+                      : "text-fg-muted hover:text-fg hover:bg-bg-elevated"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
 
-        {/* Difficulty pills */}
-        <div className="flex gap-1.5">
-          {DIFFICULTY_PILLS.map((d) => {
-            const active = difficulty === d;
-            const colors =
-              d === "all"
-                ? active
-                  ? "bg-fg/10 text-fg"
-                  : "text-fg-muted hover:text-fg"
-                : active
-                  ? DIFFICULTY_COLORS[d]
-                  : "text-fg-muted hover:text-fg";
-            return (
-              <button
-                key={d}
-                onClick={() => setDifficulty(d)}
-                className={`text-[0.72rem] font-medium px-2.5 py-1 rounded-full transition-colors capitalize ${colors}`}
-              >
-                {d === "all" ? "All" : d}
-              </button>
-            );
-          })}
+          {/* Separator */}
+          <div className="hidden sm:block w-px h-5 bg-border" />
+
+          {/* Level pills */}
+          <div className="flex gap-1.5">
+            {LEVEL_PILLS.map((l) => {
+              const active = level === l.key;
+              const colors =
+                l.key === "all"
+                  ? active
+                    ? "bg-fg/10 text-fg"
+                    : "text-fg-muted hover:text-fg"
+                  : active
+                    ? LEVEL_COLORS[l.key]
+                    : "text-fg-muted hover:text-fg";
+              return (
+                <button
+                  key={l.key}
+                  onClick={() => setLevel(l.key)}
+                  className={`text-[0.72rem] font-medium px-2.5 py-1 rounded-full transition-colors ${colors}`}
+                >
+                  {l.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -215,7 +312,7 @@ export function Scenarios() {
       <div className="flex items-center justify-between mb-4">
         <span className="text-[0.75rem] text-fg-muted">
           {filtered.length} scenario{filtered.length !== 1 ? "s" : ""}
-          {category !== "all" || difficulty !== "all" || search
+          {category !== "all" || difficulty !== "all" || track !== "all" || level !== "all" || search
             ? " matching filters"
             : ""}
         </span>
