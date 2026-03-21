@@ -150,10 +150,16 @@ export function Landing() {
         <div className="relative grid lg:grid-cols-2 gap-16 items-center">
           {/* Left: messaging */}
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#1e3a2c] bg-[#0c0f0e] text-[0.7rem] text-[#6b8f7b] mb-8">
+            <Link
+              to="/results"
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#34d399]/40 bg-[#059669]/10 text-[0.75rem] text-[#34d399] font-medium mb-8 hover:bg-[#059669]/20 hover:border-[#34d399]/60 transition-all group"
+            >
               <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" />
-              CKA/CKS exam-aligned certification for AI agents
-            </div>
+              8 models certified — view live results
+              <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </Link>
 
             <h1 className="text-[3.2rem] leading-[1.08] font-extrabold tracking-tight mb-6">
               Get your AI agent{" "}
