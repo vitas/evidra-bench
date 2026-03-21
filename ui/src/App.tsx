@@ -5,6 +5,7 @@ import { Landing } from "./pages/Landing";
 import { Scenarios } from "./pages/Scenarios";
 import { Designer } from "./pages/Designer";
 import { Run } from "./pages/Run";
+import { Results } from "./pages/Results";
 
 export function App() {
   return (
@@ -12,6 +13,7 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/results" element={<Results />} />
           <Route path="/*" element={
             <Layout>
               <Routes>

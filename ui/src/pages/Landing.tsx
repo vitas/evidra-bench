@@ -332,7 +332,13 @@ export function Landing() {
               to="/scenarios"
               className="inline-flex items-center gap-2 px-5 py-2.5 border border-[#1e3a2c] text-[#a7cdb8] text-[0.82rem] font-medium rounded-lg hover:border-[#34d399]/50 transition-colors"
             >
-              View All 45 Scenarios
+              View All 48 Scenarios
+            </Link>
+            <Link
+              to="/results"
+              className="inline-flex items-center gap-2 px-5 py-2.5 border border-[#1e3a2c] text-[#a7cdb8] text-[0.82rem] font-medium rounded-lg hover:border-[#34d399]/50 transition-colors"
+            >
+              Exam Results
             </Link>
           </div>
         </div>

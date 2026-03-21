@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { to: "/scenarios", label: "Scenarios" },
   { to: "/designer", label: "Designer" },
   { to: "/run", label: "Run" },
+  { to: "/results", label: "Results" },
 ];
 
 export function Layout({ children }: LayoutProps) {
