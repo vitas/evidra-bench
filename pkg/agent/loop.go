@@ -40,6 +40,14 @@ type LoopConfig struct {
 	MaxTokens    int
 	SystemPrompt string
 	TaskPrompt   string
+
+	// InjectChan receives user messages to inject mid-run (e.g., stage agent_goal).
+	// Non-blocking: drained after each tool execution round. Nil = disabled.
+	InjectChan <-chan Message
+	// MemoryResetChan receives memory window changes mid-run (e.g., break.memory).
+	// Values: 0 = reset (system+task only), N = compact to last N exchanges.
+	// Non-blocking: checked after each tool execution round. Nil = disabled.
+	MemoryResetChan <-chan int
 }
 
 // LoopResult is the outcome of the agent loop.
@@ -145,6 +153,38 @@ func RunLoop(ctx context.Context, cfg LoopConfig) (*LoopResult, error) {
 				Content:    result,
 				ToolCallID: tc.ID,
 			})
+		}
+
+		// Drain injected messages from stage loop (non-blocking).
+		if cfg.InjectChan != nil {
+			for {
+				select {
+				case msg, ok := <-cfg.InjectChan:
+					if !ok {
+						cfg.InjectChan = nil
+						goto doneInject
+					}
+					allMessages = append(allMessages, msg)
+					log.Printf("[agent-loop] injected message: %s", truncate(msg.Content, 80))
+				default:
+					goto doneInject
+				}
+			}
+		doneInject:
+		}
+
+		// Check for memory window changes from stage loop (non-blocking).
+		if cfg.MemoryResetChan != nil {
+			select {
+			case window, ok := <-cfg.MemoryResetChan:
+				if ok {
+					cfg.MemoryWindow = window
+					log.Printf("[agent-loop] memory window changed to %d", window)
+				} else {
+					cfg.MemoryResetChan = nil
+				}
+			default:
+			}
 		}
 	}
 

@@ -176,11 +176,54 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}()
 	}
 
+	// Step 4: Execute agent (+ concurrent stages for multi-stage).
 	var agentResult *adapter.RunResult
 	var providerEvDir string
+	var stageResults []StageResult
+
+	// Create channels for multi-stage agent communication.
+	var injectChan chan agent.Message
+	var memoryResetChan chan int
+	if isMultiStage {
+		injectChan = make(chan agent.Message, 4)
+		memoryResetChan = make(chan int, 1)
+	}
+
 	if req.Config.Provider != "" {
 		providerEvDir = providerEvidenceDir(req.Config.EvidraEvidenceDir, req.Config.RunsDir, s.ID, startTime)
-		agentResult, err = h.runWithProvider(ctx, req, s, handle.KubeconfigPath, promptContent, timeout, providerEvDir)
+
+		if isMultiStage {
+			// Multi-stage: run agent and stages concurrently.
+			agentCtx, agentCancel := context.WithCancel(ctx)
+			agentDone := make(chan struct{})
+			var agentErr error
+
+			go func() {
+				defer close(agentDone)
+				agentResult, agentErr = h.runWithProvider(agentCtx, req, s, handle.KubeconfigPath, promptContent, timeout, providerEvDir, injectChan, memoryResetChan)
+			}()
+
+			// Stage loop runs concurrently — injects breaks, sends goals, polls checks.
+			stageErr := h.runMultiStage(ctx, s, handle.KubeconfigPath, injectChan, memoryResetChan, &stageResults)
+			// After stages complete, cancel agent context so it finishes.
+			agentCancel()
+			<-agentDone
+			close(injectChan)
+			close(memoryResetChan)
+
+			if stageErr != nil {
+				return nil, fmt.Errorf("harness.Run: multi-stage: %w", stageErr)
+			}
+			if agentErr != nil && agentResult == nil {
+				return nil, fmt.Errorf("harness.Run: execute agent: %w", agentErr)
+			}
+			// Agent context cancellation is expected — not an error.
+			if agentResult == nil {
+				agentResult = &adapter.RunResult{ExitCode: 1}
+			}
+		} else {
+			agentResult, err = h.runWithProvider(ctx, req, s, handle.KubeconfigPath, promptContent, timeout, providerEvDir, nil, nil)
+		}
 	} else {
 		agentResult, err = h.deps.Adapter.Run(ctx, adapter.RunInput{
 			ScenarioID:     s.ID,
@@ -216,14 +259,8 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 
 	// Step 5: Verify outcome.
 	var verifyResult *verifier.VerifyResult
-	var stageResults []StageResult
 
 	if isMultiStage {
-		// Multi-stage: run stage loop (break -> poll -> next) sequentially.
-		// TODO: concurrent stage execution — inject breaks while agent runs.
-		if err := h.runMultiStage(ctx, s, handle.KubeconfigPath, &stageResults); err != nil {
-			return nil, fmt.Errorf("harness.Run: multi-stage: %w", err)
-		}
 		// Aggregate stage results into a single VerifyResult for artifacts/reporting.
 		verifyResult = &verifier.VerifyResult{Passed: true}
 		for _, sr := range stageResults {
@@ -698,7 +735,7 @@ func buildStepPlan(steps []scenario.BootstrapStep) *environment.BootstrapPlan {
 	return plan
 }
 
-func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenario.Scenario, kubeconfigPath, promptContent string, timeout time.Duration, evidenceDir string) (*adapter.RunResult, error) {
+func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenario.Scenario, kubeconfigPath, promptContent string, timeout time.Duration, evidenceDir string, injectChan <-chan agent.Message, memoryResetChan <-chan int) (*adapter.RunResult, error) {
 	provider, err := agent.ResolveProvider(req.Config.Provider)
 	if err != nil {
 		return nil, err
@@ -747,13 +784,15 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 	}
 
 	loopResult, err := agent.RunLoop(agentCtx, agent.LoopConfig{
-		Provider:     provider,
-		Executor:     loopExecutor,
-		Model:        req.Config.Model,
-		MaxTurns:     25,
-		MemoryWindow: req.Config.MemoryWindow,
-		SystemPrompt: systemPrompt,
-		TaskPrompt:   promptContent,
+		Provider:        provider,
+		Executor:        loopExecutor,
+		Model:           req.Config.Model,
+		MaxTurns:        25,
+		MemoryWindow:    req.Config.MemoryWindow,
+		SystemPrompt:    systemPrompt,
+		TaskPrompt:      promptContent,
+		InjectChan:      injectChan,
+		MemoryResetChan: memoryResetChan,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("harness: agent loop: %w", err)

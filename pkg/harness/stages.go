@@ -6,45 +6,43 @@ import (
 	"log"
 	"time"
 
+	"samebits.com/evidra-infra-bench/pkg/agent"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 	"samebits.com/evidra-infra-bench/pkg/verifier"
 )
 
 // StageResult records the outcome of one stage.
 type StageResult struct {
-	Name         string
-	Passed       bool
-	ChecksPassed int
-	ChecksTotal  int
-	Duration     time.Duration
+	Name         string        `json:"name"`
+	Passed       bool          `json:"passed"`
+	ChecksPassed int           `json:"checks_passed"`
+	ChecksTotal  int           `json:"checks_total"`
+	Duration     time.Duration `json:"duration"`
 }
 
-// runMultiStage executes a multi-stage scenario by looping over stages:
-// inject break -> optionally send agent_goal -> poll checks -> next stage.
+// runMultiStage executes a multi-stage scenario concurrently with the agent loop.
+// It injects breaks, sends agent_goal messages and memory changes via channels,
+// then polls checks until they pass or the stage times out.
 func (h *Harness) runMultiStage(
 	ctx context.Context,
 	s *scenario.Scenario,
 	kubeconfigPath string,
+	injectChan chan<- agent.Message,
+	memoryResetChan chan<- int,
 	stageResults *[]StageResult,
 ) error {
 	for i, stage := range s.Stages {
 		stageStart := time.Now()
 		log.Printf("[stage %d/%d] %s — injecting break", i+1, len(s.Stages), stage.Name)
 
-		// 1. Handle memory (logged but not enforced until agent supports it).
-		if stage.Break.Memory != "" {
-			log.Printf("[stage %d/%d] memory: %s (noted for agent)", i+1, len(s.Stages), stage.Break.Memory)
-			// TODO: implement compact/reset on agent conversation
-		}
-
-		// 2. Inject break — create a temporary scenario with the stage's break.
+		// 1. Inject break — create a temporary scenario with the stage's break.
 		stageBreakScenario := *s
 		stageBreakScenario.Break = stage.Break
 		if err := h.applyBreak(ctx, kubeconfigPath, &stageBreakScenario); err != nil {
 			return fmt.Errorf("stage %q break: %w", stage.Name, err)
 		}
 
-		// 3. Run after_break steps.
+		// 2. Run after_break steps.
 		if h.deps.Bootstrapper != nil && len(stage.AfterBreak) > 0 {
 			log.Printf("[stage %d/%d] running %d after_break steps", i+1, len(s.Stages), len(stage.AfterBreak))
 			plan := buildStepPlan(stage.AfterBreak)
@@ -53,13 +51,32 @@ func (h *Harness) runMultiStage(
 			}
 		}
 
-		// 4. Send agent_goal if present.
-		if stage.AgentGoal != "" {
-			log.Printf("[stage %d/%d] agent_goal: %s", i+1, len(s.Stages), stage.AgentGoal)
-			// TODO: send message to agent conversation via provider
+		// 3. Send memory change to agent (before agent_goal so context is ready).
+		if stage.Break.Memory != "" && memoryResetChan != nil {
+			window := 3 // compact: keep last 3 exchanges
+			if stage.Break.Memory == "reset" {
+				window = 0
+			}
+			select {
+			case memoryResetChan <- window:
+				log.Printf("[stage %d/%d] memory: %s (window=%d)", i+1, len(s.Stages), stage.Break.Memory, window)
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 		}
 
-		// 5. Build checkers and poll.
+		// 4. Send agent_goal as injected user message.
+		if stage.AgentGoal != "" && injectChan != nil {
+			msg := agent.Message{Role: "user", Content: stage.AgentGoal}
+			select {
+			case injectChan <- msg:
+				log.Printf("[stage %d/%d] sent agent_goal: %s", i+1, len(s.Stages), truncate(stage.AgentGoal, 80))
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+
+		// 5. Build checkers and poll until pass or stage timeout.
 		checkDefs := checksToCheckDefs(stage.Checks)
 		checkers, err := verifier.BuildCheckers(checkDefs)
 		if err != nil {
@@ -133,4 +150,11 @@ func verdictStr(passed bool) string {
 		return "PASS"
 	}
 	return "FAIL"
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
 }
