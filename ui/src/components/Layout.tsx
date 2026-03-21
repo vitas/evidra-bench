@@ -61,7 +61,7 @@ function Header() {
           </a>
           <a
             className="inline-flex items-center gap-1 text-[0.82rem] font-medium text-fg-muted tracking-wide hover:text-fg no-underline transition-colors"
-            href="https://github.com/samebits/evidra-infra-bench"
+            href="https://github.com/vitas/evidra"
             target="_blank"
             rel="noopener"
           >

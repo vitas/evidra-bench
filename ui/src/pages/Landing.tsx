@@ -324,7 +324,7 @@ export function Landing() {
           </code>
           <div className="flex justify-center gap-4">
             <a
-              href="https://github.com/vitas/evidra-infra-bench"
+              href="https://github.com/vitas/evidra"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#d1fae5] text-[#064e3b] text-[0.82rem] font-semibold rounded-lg hover:bg-white transition-colors"
@@ -358,7 +358,7 @@ export function Landing() {
             <a href="https://evidra.cc/bench" target="_blank" rel="noopener noreferrer" className="hover:text-[#34d399] transition-colors">
               Leaderboard
             </a>
-            <a href="https://github.com/vitas/evidra-infra-bench" target="_blank" rel="noopener noreferrer" className="hover:text-[#34d399] transition-colors">
+            <a href="https://github.com/vitas/evidra" target="_blank" rel="noopener noreferrer" className="hover:text-[#34d399] transition-colors">
               GitHub
             </a>
           </div>
