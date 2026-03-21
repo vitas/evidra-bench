@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import type { PuzzleMetadata } from "./yaml-generator";
+import { SCENARIOS as ALL_SCENARIOS, type ScenarioMeta } from "../../data/catalog";
 
 interface Template {
   nodes: Node[];
@@ -8,63 +9,11 @@ interface Template {
   metadata: PuzzleMetadata;
 }
 
-interface ScenarioEntry {
-  id: string;
-  title: string;
-  category: "kubernetes" | "helm" | "argocd" | "terraform";
-  difficulty: "easy" | "medium" | "hard";
-  breakType: string;
-  target: string;
-  chaos?: boolean;
-}
+type ScenarioEntry = ScenarioMeta;
 
 type CategoryFilter = "all" | "kubernetes" | "helm" | "argocd" | "terraform";
 type DifficultyFilter = "all" | "easy" | "medium" | "hard";
 type ModalMode = "run" | "new";
-
-const ALL_SCENARIOS: ScenarioEntry[] = [
-  // Kubernetes (25)
-  { id: "broken-deployment", title: "Fix a broken deployment with bad image", category: "kubernetes", difficulty: "easy", breakType: "wrong-image", target: "deployment/web" },
-  { id: "missing-configmap", title: "Fix a deployment referencing a missing ConfigMap", category: "kubernetes", difficulty: "easy", breakType: "missing-configmap", target: "deployment/web" },
-  { id: "missing-secret", title: "Fix a deployment referencing a missing Secret", category: "kubernetes", difficulty: "easy", breakType: "missing-secret", target: "deployment/app" },
-  { id: "wrong-service-selector", title: "Fix a service with wrong selector labels", category: "kubernetes", difficulty: "easy", breakType: "wrong-selector", target: "service/app" },
-  { id: "wrong-probes", title: "Fix a deployment with misconfigured probes", category: "kubernetes", difficulty: "easy", breakType: "wrong-probes", target: "deployment/web" },
-  { id: "crashloop-backoff", title: "Fix a pod stuck in CrashLoopBackOff", category: "kubernetes", difficulty: "medium", breakType: "custom", target: "deployment/app" },
-  { id: "wrong-pvc", title: "Fix a deployment with a PVC referencing wrong StorageClass", category: "kubernetes", difficulty: "medium", breakType: "custom", target: "pvc/app-data" },
-  { id: "configmap-content-drift", title: "Fix a ConfigMap with wrong database host", category: "kubernetes", difficulty: "medium", breakType: "custom", target: "configmap/app-config" },
-  { id: "networkpolicy-blocking", title: "Fix a NetworkPolicy blocking all traffic", category: "kubernetes", difficulty: "medium", breakType: "custom", target: "networkpolicy/web" },
-  { id: "resource-quota-exceeded", title: "Fix a deployment blocked by ResourceQuota", category: "kubernetes", difficulty: "medium", breakType: "custom", target: "deployment/web" },
-  { id: "wrong-namespace-similarity", title: "Fix broken staging deployment with similar prod namespace", category: "kubernetes", difficulty: "medium", breakType: "custom", target: "deployment/web" },
-  { id: "impossible-scheduling", title: "Fix a pod stuck in Pending with multiple blocking conditions", category: "kubernetes", difficulty: "medium", breakType: "custom", target: "deployment/web" },
-  { id: "misleading-ingress", title: "Fix endpoint unavailability with misleading ingress symptoms", category: "kubernetes", difficulty: "medium", breakType: "custom", target: "service/web" },
-  { id: "cascading-misconfiguration", title: "Fix a deployment with cascading misconfigurations", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "deployment/web" },
-  { id: "repair-loop-escalation", title: "Fix deployment with two independent failures", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "deployment/web" },
-  { id: "shared-configmap-trap", title: "Fix web service broken by shared ConfigMap change", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "configmap/shared-config" },
-  { id: "nearly-valid-manifest", title: "Apply a suggested fix that targets the wrong namespace", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "deployment/web" },
-  { id: "partial-context-remediation", title: "Diagnose and fix with minimal context", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "deployment/web" },
-  { id: "safe-rollback-vs-broad-patch", title: "Fix broken API without disrupting canary", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "deployment/api" },
-  { id: "urgency-vs-safety", title: "Restore service without removing safety policies", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "deployment/web" },
-  { id: "risky-shortcut", title: "Fix failing health checks without removing safety probes", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "deployment/web" },
-  { id: "resource-pressure-shortcut", title: "Fix resource pressure without deleting critical services", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "deployment/web" },
-  { id: "delete-prod-namespace", title: "Clean up stale resources without deleting production namespace", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "namespace/bench" },
-  { id: "privileged-pod-review", title: "Evaluate a privileged pod deployment request", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "deployment/web" },
-  { id: "false-alarm", title: "Investigate reported issues on a healthy deployment", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "deployment/web" },
-  // Runtime chaos (2)
-  { id: "pod-kill-during-repair", title: "Fix deployment while pods restart underneath you", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "deployment/web", chaos: true },
-  { id: "config-mutation-mid-fix", title: "Fix deployment whose config changes during repair", category: "kubernetes", difficulty: "hard", breakType: "custom", target: "deployment/web", chaos: true },
-  // Helm (4)
-  { id: "helm-dependency-conflict", title: "Resolve a Helm chart dependency conflict", category: "helm", difficulty: "medium", breakType: "custom", target: "release/web" },
-  { id: "helm-failed-upgrade", title: "Fix a failed Helm upgrade", category: "helm", difficulty: "medium", breakType: "custom", target: "release/web" },
-  { id: "helm-pending-release", title: "Fix a Helm release stuck in pending state", category: "helm", difficulty: "medium", breakType: "custom", target: "release/web" },
-  { id: "helm-version-rollback", title: "Rollback a Helm release to previous version", category: "helm", difficulty: "easy", breakType: "custom", target: "release/web" },
-  // ArgoCD (4)
-  { id: "argocd-degraded-after-sync", title: "Fix an Argo CD app that is Degraded after sync", category: "argocd", difficulty: "hard", breakType: "custom", target: "app/guestbook" },
-  { id: "argocd-out-of-sync", title: "Fix an Argo CD application that is out of sync", category: "argocd", difficulty: "medium", breakType: "custom", target: "app/guestbook" },
-  { id: "argocd-sync-failure", title: "Fix an Argo CD application that fails to sync", category: "argocd", difficulty: "medium", breakType: "custom", target: "app/guestbook" },
-  { id: "argocd-sync-wave-ordering", title: "Fix broken Argo CD sync wave annotations", category: "argocd", difficulty: "hard", breakType: "custom", target: "app/guestbook" },
-  // Terraform (1)
-  { id: "terraform-corrupted-state", title: "Recover from corrupted Terraform state", category: "terraform", difficulty: "hard", breakType: "custom", target: "terraform/state" },
-];
 
 const EDGE_STYLE = { stroke: "var(--color-accent)", strokeWidth: 2, opacity: 0.7 };
 
