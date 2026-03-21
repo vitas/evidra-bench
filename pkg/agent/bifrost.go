@@ -23,15 +23,64 @@ type BifrostProvider struct {
 	lastRequest time.Time
 }
 
+// modelRoutes maps model name prefixes to their provider's OpenAI-compatible base URL
+// and the env var holding the API key. The provider auto-routes based on model name.
+var modelRoutes = []struct {
+	prefix  string
+	urlEnv  string
+	keyEnv  string
+	baseURL string // fallback if env not set
+}{
+	{"gpt-", "OPENAI_API_URL", "OPENAI_API_KEY", "https://api.openai.com/v1"},
+	{"o1-", "OPENAI_API_URL", "OPENAI_API_KEY", "https://api.openai.com/v1"},
+	{"o3-", "OPENAI_API_URL", "OPENAI_API_KEY", "https://api.openai.com/v1"},
+	{"claude-", "ANTHROPIC_API_URL", "ANTHROPIC_API_KEY", "https://api.anthropic.com/v1"},
+	{"gemini-", "GEMINI_API_URL", "GEMINI_API_KEY", "https://generativelanguage.googleapis.com/v1beta/openai"},
+	{"deepseek-", "DEEPSEEK_API_URL", "DEEPSEEK_API_KEY", "https://api.deepseek.com/v1"},
+	{"qwen", "DASHSCOPE_API_URL", "DASHSCOPE_API_KEY", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"},
+}
+
+// resolveModelRoute returns the base URL and auth bearer for a given model name.
+// Priority: explicit EVIDRA_BIFROST_BASE_URL env > auto-route by model prefix.
+func resolveModelRoute(model string) (baseURL, authBearer string) {
+	// Explicit override wins (backwards compatible).
+	if url := os.Getenv("EVIDRA_BIFROST_BASE_URL"); url != "" {
+		bearer := os.Getenv("EVIDRA_BIFROST_AUTH_BEARER")
+		return strings.TrimRight(url, "/"), bearer
+	}
+	if url := os.Getenv("INFRA_BENCH_BIFROST_URL"); url != "" {
+		bearer := os.Getenv("EVIDRA_BIFROST_AUTH_BEARER")
+		return strings.TrimRight(url, "/"), bearer
+	}
+
+	// Auto-route by model name prefix.
+	lower := strings.ToLower(model)
+	for _, r := range modelRoutes {
+		if strings.HasPrefix(lower, r.prefix) {
+			url := os.Getenv(r.urlEnv)
+			if url == "" {
+				url = r.baseURL
+			}
+			key := os.Getenv(r.keyEnv)
+			return strings.TrimRight(url, "/"), key
+		}
+	}
+
+	// Fallback to localhost proxy.
+	return "http://localhost:8080/openai", ""
+}
+
 // NewBifrostProvider creates a BifrostProvider from environment variables.
 // Set INFRA_BENCH_BIFROST_RPM to throttle requests (e.g. "10" for 10 req/min).
 func NewBifrostProvider() *BifrostProvider {
+	// Base URL is resolved per-request now (in Chat), but we still need a default
+	// for backwards compatibility and logging.
 	baseURL := os.Getenv("INFRA_BENCH_BIFROST_URL")
 	if baseURL == "" {
 		baseURL = os.Getenv("EVIDRA_BIFROST_BASE_URL")
 	}
 	if baseURL == "" {
-		baseURL = "http://localhost:8080/openai"
+		baseURL = "auto-route"
 	}
 
 	var minInterval time.Duration
@@ -53,7 +102,13 @@ func NewBifrostProvider() *BifrostProvider {
 func (p *BifrostProvider) Name() string { return "bifrost" }
 
 // Chat sends a chat completion request to the Bifrost proxy with adaptive retry.
+// The target API is auto-resolved from the model name (e.g., gpt-4o → OpenAI,
+// gemini-2.5-flash → Google). Override with EVIDRA_BIFROST_BASE_URL env var.
 func (p *BifrostProvider) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	// Resolve the target API for this model.
+	baseURL, authBearer := resolveModelRoute(req.Model)
+	log.Printf("[bifrost] model=%s → %s", req.Model, baseURL)
+
 	// Anti-throttle: wait if needed to respect RPM limit.
 	if p.minInterval > 0 && !p.lastRequest.IsZero() {
 		elapsed := time.Since(p.lastRequest)
@@ -78,7 +133,7 @@ func (p *BifrostProvider) Chat(ctx context.Context, req ChatRequest) (*ChatRespo
 			log.Printf("[bifrost] retry attempt %d/%d after: %v", attempt, p.Retry.MaxRetries, lastErr)
 		}
 
-		resp, respBytes, err := p.doRequest(ctx, body)
+		resp, respBytes, err := p.doRequestWithRoute(ctx, body, baseURL, authBearer)
 		if err != nil {
 			lastErr = err
 			if attempt < p.Retry.MaxRetries {
@@ -115,13 +170,16 @@ func (p *BifrostProvider) Chat(ctx context.Context, req ChatRequest) (*ChatRespo
 	return nil, fmt.Errorf("bifrost: exhausted %d retries: %w", p.Retry.MaxRetries, lastErr)
 }
 
-func (p *BifrostProvider) doRequest(ctx context.Context, body []byte) (*http.Response, []byte, error) {
-	url := p.BaseURL + "/chat/completions"
+func (p *BifrostProvider) doRequestWithRoute(ctx context.Context, body []byte, baseURL, authBearer string) (*http.Response, []byte, error) {
+	url := baseURL + "/chat/completions"
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, nil, fmt.Errorf("create request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	if authBearer != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+authBearer)
+	}
 	applyBifrostEnvHeaders(httpReq.Header)
 
 	resp, err := p.HTTPClient.Do(httpReq)
