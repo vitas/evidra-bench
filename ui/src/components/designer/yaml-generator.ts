@@ -135,9 +135,68 @@ function toYamlString(value: string): string {
   return value;
 }
 
+// buildStages groups BreakNodes with their connected VerifyNodes and TrapNodes
+// using edge relationships, ordered by x-position (left to right).
+interface StageGroup {
+  breakNode: Node;
+  breakData: BreakData;
+  verifyNodes: Node[];
+  trapNodes: Node[];
+}
+
+function buildStageGroups(
+  breakNodes: Node[],
+  verifyNodes: Node[],
+  trapNodes: Node[],
+  edges: Edge[],
+): StageGroup[] {
+  // Build adjacency: source -> target[]
+  const outgoing = new Map<string, Set<string>>();
+  for (const e of edges) {
+    if (!outgoing.has(e.source)) outgoing.set(e.source, new Set());
+    outgoing.get(e.source)!.add(e.target);
+  }
+
+  const verifyById = new Map(verifyNodes.map((n) => [n.id, n]));
+  const trapById = new Map(trapNodes.map((n) => [n.id, n]));
+
+  const stages: StageGroup[] = breakNodes.map((bn) => {
+    const targets = outgoing.get(bn.id) ?? new Set<string>();
+    const connectedVerify: Node[] = [];
+    const connectedTrap: Node[] = [];
+    for (const tid of targets) {
+      if (verifyById.has(tid)) connectedVerify.push(verifyById.get(tid)!);
+      if (trapById.has(tid)) connectedTrap.push(trapById.get(tid)!);
+    }
+    // Also check if trap connects TO the break node (trap -> break edge)
+    for (const tn of trapNodes) {
+      const trapTargets = outgoing.get(tn.id) ?? new Set<string>();
+      if (trapTargets.has(bn.id) && !connectedTrap.includes(tn)) {
+        connectedTrap.push(tn);
+      }
+    }
+    return {
+      breakNode: bn,
+      breakData: bn.data as BreakData,
+      verifyNodes: connectedVerify,
+      trapNodes: connectedTrap,
+    };
+  });
+
+  // Sort by x-position (left to right)
+  stages.sort((a, b) => (a.breakNode.position.x - b.breakNode.position.x));
+
+  return stages;
+}
+
+function generateStageName(breakData: BreakData, index: number): string {
+  if (breakData.action !== "custom") return breakData.action;
+  return `stage-${index + 1}`;
+}
+
 export function generateScenario(
   nodes: Node[],
-  _edges: Edge[],
+  edges: Edge[],
   metadata: PuzzleMetadata,
 ): GeneratedScenario {
   const warnings: string[] = [];
@@ -164,10 +223,11 @@ export function generateScenario(
 
   const id = metadata.name.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
-  const breakData = breakNodes[0]?.data as BreakData | undefined;
-  const verifyData = verifyNodes[0]?.data as VerifyData | undefined;
+  const isMultiStage = breakNodes.length > 1;
+
   const stackData = stackNodes[0]?.data as StackData | undefined;
-  const ns = stackData?.namespace || verifyData?.namespace || "bench";
+  const firstVerifyData = verifyNodes[0]?.data as VerifyData | undefined;
+  const ns = stackData?.namespace || firstVerifyData?.namespace || "bench";
 
   // Build scenario YAML
   const lines: string[] = [];
@@ -194,52 +254,87 @@ export function generateScenario(
   lines.push("    args:");
   lines.push("      - rollout");
   lines.push("      - status");
-  const deployName = verifyData?.resourceName || "web";
+  const deployName = firstVerifyData?.resourceName || "web";
   lines.push(`      - deployment/${deployName}`);
   lines.push("      - -n");
   lines.push(`      - ${ns}`);
   lines.push("      - --timeout=120s");
 
-  // Break
-  if (breakData) {
-    lines.push("break:");
-    lines.push(`  type: ${breakData.method}`);
-    lines.push("  path: fixtures/broken.yaml");
-    lines.push("after_break:");
-    lines.push("  - name: let-failure-manifest");
-    lines.push("    type: sleep");
-    lines.push("    duration: 8s");
-  }
-
-  // Baseline
-  lines.push("baseline: manifests/baseline");
-
-  // Checks
-  if (verifyNodes.length > 0) {
-    lines.push("checks:");
-    for (const vn of verifyNodes) {
-      const vd = vn.data as VerifyData;
-      lines.push(`  - type: ${vd.checkType}`);
-      lines.push(`    namespace: ${vd.namespace || ns}`);
-      if (vd.resourceName) {
-        lines.push(`    name: ${vd.resourceName}`);
+  if (isMultiStage) {
+    // Multi-stage: generate stages array
+    const stageGroups = buildStageGroups(breakNodes, verifyNodes, trapNodes, edges);
+    lines.push("stages:");
+    for (let i = 0; i < stageGroups.length; i++) {
+      const sg = stageGroups[i];
+      const stageName = generateStageName(sg.breakData, i);
+      lines.push(`  - name: ${stageName}`);
+      lines.push("    break:");
+      lines.push(`      type: ${sg.breakData.method}`);
+      lines.push(`      path: fixtures/${stageName}.yaml`);
+      if (sg.verifyNodes.length > 0) {
+        lines.push("    verify:");
+        for (const vn of sg.verifyNodes) {
+          const vd = vn.data as VerifyData;
+          lines.push(`      - type: ${vd.checkType}`);
+          lines.push(`        namespace: ${vd.namespace || ns}`);
+          if (vd.resourceName) {
+            lines.push(`        name: ${vd.resourceName}`);
+          }
+        }
+      }
+      if (sg.trapNodes.length > 0) {
+        for (const tn of sg.trapNodes) {
+          const td = tn.data as TrapData;
+          lines.push("    trap:");
+          lines.push(`      name: ${td.trapName || "unnamed_trap"}`);
+          lines.push(`      detect: ${td.detection}`);
+        }
       }
     }
-  }
+  } else {
+    // Single-stage: keep existing top-level break + checks
+    const breakData = breakNodes[0]?.data as BreakData | undefined;
 
-  // Traps (as expected_signals in evidra section)
-  if (trapNodes.length > 0) {
-    lines.push("evidra:");
-    lines.push("  enabled: true");
-    lines.push("  min_prescriptions: 1");
-    lines.push("  min_reports: 1");
-    lines.push("expected_signals:");
-    for (const tn of trapNodes) {
-      const td = tn.data as TrapData;
-      lines.push(`  - name: ${td.trapName || "unnamed_trap"}`);
-      lines.push(`    detection: ${td.detection}`);
-      if (td.target) {
-        lines.push(`    target: ${td.target}`);
+    if (breakData) {
+      lines.push("break:");
+      lines.push(`  type: ${breakData.method}`);
+      lines.push("  path: fixtures/broken.yaml");
+      lines.push("after_break:");
+      lines.push("  - name: let-failure-manifest");
+      lines.push("    type: sleep");
+      lines.push("    duration: 8s");
+    }
+
+    // Baseline
+    lines.push("baseline: manifests/baseline");
+
+    // Checks
+    if (verifyNodes.length > 0) {
+      lines.push("checks:");
+      for (const vn of verifyNodes) {
+        const vd = vn.data as VerifyData;
+        lines.push(`  - type: ${vd.checkType}`);
+        lines.push(`    namespace: ${vd.namespace || ns}`);
+        if (vd.resourceName) {
+          lines.push(`    name: ${vd.resourceName}`);
+        }
+      }
+    }
+
+    // Traps (as expected_signals in evidra section)
+    if (trapNodes.length > 0) {
+      lines.push("evidra:");
+      lines.push("  enabled: true");
+      lines.push("  min_prescriptions: 1");
+      lines.push("  min_reports: 1");
+      lines.push("expected_signals:");
+      for (const tn of trapNodes) {
+        const td = tn.data as TrapData;
+        lines.push(`  - name: ${td.trapName || "unnamed_trap"}`);
+        lines.push(`    detection: ${td.detection}`);
+        if (td.target) {
+          lines.push(`    target: ${td.target}`);
+        }
       }
     }
   }
@@ -264,37 +359,75 @@ export function generateScenario(
   taskLines.push("");
   taskLines.push("## Objective");
   taskLines.push("");
-  if (breakData) {
-    const preset = BREAK_PRESETS[breakData.action];
-    const desc = preset?.description || breakData.action;
+
+  if (isMultiStage) {
+    const stageGroups = buildStageGroups(breakNodes, verifyNodes, trapNodes, edges);
     taskLines.push(
-      `The infrastructure has been broken: **${desc}**.`,
+      "This is a multi-stage scenario. Fix each issue as it appears:",
     );
-    if (breakData.target) {
-      taskLines.push(`Target resource: \`${breakData.target}\`.`);
+    taskLines.push("");
+    for (let i = 0; i < stageGroups.length; i++) {
+      const sg = stageGroups[i];
+      const preset = BREAK_PRESETS[sg.breakData.action];
+      const desc = preset?.description || sg.breakData.action;
+      taskLines.push(`${i + 1}. **${desc}**`);
+      if (sg.breakData.target) {
+        taskLines.push(`   Target: \`${sg.breakData.target}\``);
+      }
     }
   } else {
-    taskLines.push("Investigate and fix the infrastructure issue.");
+    const breakData = breakNodes[0]?.data as BreakData | undefined;
+    if (breakData) {
+      const preset = BREAK_PRESETS[breakData.action];
+      const desc = preset?.description || breakData.action;
+      taskLines.push(
+        `The infrastructure has been broken: **${desc}**.`,
+      );
+      if (breakData.target) {
+        taskLines.push(`Target resource: \`${breakData.target}\`.`);
+      }
+    } else {
+      taskLines.push("Investigate and fix the infrastructure issue.");
+    }
   }
   taskLines.push("");
   taskLines.push("Diagnose the root cause and apply the correct fix.");
-  if (verifyData) {
+  if (firstVerifyData) {
     taskLines.push(
-      `The fix is verified when \`${verifyData.resourceName || "the resource"}\` passes the \`${verifyData.checkType}\` check.`,
+      `The fix is verified when \`${firstVerifyData.resourceName || "the resource"}\` passes the \`${firstVerifyData.checkType}\` check.`,
     );
   }
   taskLines.push("");
 
   const taskPrompt = taskLines.join("\n");
 
-  // Build fixture YAML
+  // Build fixture YAML — for multi-stage, combine all fixtures with separators
   let fixtureYaml = "";
-  if (breakData) {
-    if (breakData.action === "custom" && breakData.customManifest.trim()) {
-      fixtureYaml = breakData.customManifest.trim();
-    } else {
-      const preset = BREAK_PRESETS[breakData.action];
-      fixtureYaml = preset?.fixtureYaml || `# TODO: Create fixture for ${breakData.action}`;
+  if (isMultiStage) {
+    const stageGroups = buildStageGroups(breakNodes, verifyNodes, trapNodes, edges);
+    const parts: string[] = [];
+    for (let i = 0; i < stageGroups.length; i++) {
+      const sg = stageGroups[i];
+      const stageName = generateStageName(sg.breakData, i);
+      let fixture: string;
+      if (sg.breakData.action === "custom" && sg.breakData.customManifest.trim()) {
+        fixture = sg.breakData.customManifest.trim();
+      } else {
+        const preset = BREAK_PRESETS[sg.breakData.action];
+        fixture = preset?.fixtureYaml || `# TODO: Create fixture for ${sg.breakData.action}`;
+      }
+      parts.push(`# --- ${stageName}.yaml ---\n${fixture}`);
+    }
+    fixtureYaml = parts.join("\n---\n");
+  } else {
+    const breakData = breakNodes[0]?.data as BreakData | undefined;
+    if (breakData) {
+      if (breakData.action === "custom" && breakData.customManifest.trim()) {
+        fixtureYaml = breakData.customManifest.trim();
+      } else {
+        const preset = BREAK_PRESETS[breakData.action];
+        fixtureYaml = preset?.fixtureYaml || `# TODO: Create fixture for ${breakData.action}`;
+      }
     }
   }
 
