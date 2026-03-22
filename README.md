@@ -1,10 +1,26 @@
 # evidra-infra-bench
 
-Certification framework for AI infrastructure agents. Tests agents against real Kubernetes clusters, AWS resources (via LocalStack), Helm charts, and Argo CD — then grades them like a CKA/CKS exam.
+Development and testing framework for AI infrastructure agent skills. Run your agent, MCP tool, or skill prompt against real Kubernetes clusters, AWS resources, Helm charts, and Argo CD — measure what actually helps and what's just token waste.
 
-**48 scenarios** | **8 exam-aligned tracks** | **4 certification levels** | **5 infrastructure categories**
+**51 scenarios** | **8 CKA/CKS-aligned tracks** | **4 certification levels** | **5 infrastructure categories**
 
-Leaderboard: [evidra.cc/bench](https://evidra.cc/bench) | Puzzle Designer: [lab.evidra.cc](https://lab.evidra.cc)
+Puzzle Designer: [lab.evidra.cc](https://lab.evidra.cc) | Results: [lab.evidra.cc/results](https://lab.evidra.cc/results)
+
+## Why
+
+AI models already know Kubernetes. They don't need 253 MCP tools and 25 skill
+prompts to run `kubectl get pods`. But how do you know if your skill, plugin,
+or MCP server actually helps — or just burns tokens?
+
+infra-bench answers that question. Run the same 51 scenarios with and without
+your skill. Measure pass rate, token usage, cost, and behavioral signals.
+Ship what works, cut what doesn't.
+
+**Use cases:**
+- **Skill developers:** "Does my k8s-troubleshoot skill improve L3 pass rate?"
+- **MCP server builders:** "Is my smart output worth the implementation effort?"
+- **Agent vendors:** "How does my agent compare to GPT-4o on CKS security?"
+- **Platform teams:** "Can this agent handle production incidents before we deploy it?"
 
 ## Certify Your Agent
 
