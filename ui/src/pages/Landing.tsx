@@ -169,9 +169,9 @@ export function Landing() {
             </h1>
 
             <p className="text-[1.05rem] text-[#6b8f7b] leading-relaxed mb-10 max-w-lg">
-              51 CKA/CKS scenarios across Kubernetes, Helm, ArgoCD, Terraform,
-              and AWS. Prove your skill works — measure pass rate, token usage,
-              and cost on real clusters. Ship what helps, cut what doesn't.
+              A 5-line skill cuts L1 turns by 75% but breaks L2 diagnosis.
+              51 CKA/CKS scenarios on real clusters tell you which skills
+              help and which hurt — before your users find out.
             </p>
 
             <div className="flex items-center gap-4 mb-12">
@@ -285,24 +285,24 @@ export function Landing() {
 
       {/* How it works */}
       <section className="relative max-w-6xl mx-auto px-6 py-20">
-        <h2 className="text-center text-[1.6rem] font-bold mb-12">How Certification Works</h2>
+        <h2 className="text-center text-[1.6rem] font-bold mb-12">How It Works</h2>
 
         <div className="grid md:grid-cols-3 gap-8">
           {[
             {
               step: "01",
-              title: "Choose a track",
-              desc: "Pick from CKA/CKS-aligned tracks: Workloads, Pod Security, Networking, Release Ops, and more.",
+              title: "Run without your skill",
+              desc: "Baseline: same model, same scenarios, no skill prompt. Measure turns, tokens, pass rate.",
             },
             {
               step: "02",
-              title: "Run certification",
-              desc: "Your agent faces real failures in sandbox clusters. Broken deployments, open security groups, cascading misconfigurations.",
+              title: "Run with your skill",
+              desc: "Add your skill prompt, MCP tool, or plugin. Same scenarios. Compare everything.",
             },
             {
               step: "03",
-              title: "Get certified",
-              desc: "Receive a grade: Novice → Competent → Proficient → Expert. Based on pass rate, behavioral signals, and trap avoidance.",
+              title: "See what changed",
+              desc: "Did turns drop? Did pass rate hold? Did L3 judgment scenarios break? Ship what works, cut what doesn't.",
             },
           ].map((item) => (
             <div key={item.step} className="relative">

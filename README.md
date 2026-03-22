@@ -8,17 +8,28 @@ Puzzle Designer: [lab.evidra.cc](https://lab.evidra.cc) | Results: [lab.evidra.c
 
 ## Why
 
-AI models already know Kubernetes. They don't need 253 MCP tools and 25 skill
-prompts to run `kubectl get pods`. But how do you know if your skill, plugin,
-or MCP server actually helps — or just burns tokens?
+A 5-line troubleshooting skill cuts L1 scenario turns from 17 to 4 — **75% faster.**
+The same skill on L2 makes the agent skip diagnosis and **fail.**
 
-infra-bench answers that question. Run the same 51 scenarios with and without
-your skill. Measure pass rate, token usage, cost, and behavioral signals.
-Ship what works, cut what doesn't.
+Skills aren't universally good or bad. You need to test them on real scenarios
+to know which help and which hurt. That's what infra-bench does.
+
+```
+# Without skill: 17 turns, PASS
+infra-bench run --scenario kubernetes/broken-deployment --model gemini-2.5-flash
+
+# With skill: 4 turns, PASS — 4x faster
+infra-bench run --scenario kubernetes/broken-deployment --model gemini-2.5-flash \
+  --system-prompt-file my-skill.md
+
+# Same skill on harder scenario: 4 turns, FAIL — skipped diagnosis
+infra-bench run --scenario kubernetes/crashloop-backoff --model gemini-2.5-flash \
+  --system-prompt-file my-skill.md
+```
 
 **Use cases:**
-- **Skill developers:** "Does my k8s-troubleshoot skill improve L3 pass rate?"
-- **MCP server builders:** "Is my smart output worth the implementation effort?"
+- **Skill developers:** "Does my skill help on L3, or only on L1?"
+- **MCP server builders:** "Does smart output reduce tokens without hurting pass rate?"
 - **Agent vendors:** "How does my agent compare to GPT-4o on CKS security?"
 - **Platform teams:** "Can this agent handle production incidents before we deploy it?"
 
