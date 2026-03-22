@@ -97,7 +97,7 @@ export function Results() {
   type TimeFilter = "24h" | "7d" | "30d" | "all";
   const [tab, setTab] = useState<Tab>("leaderboard");
   const [examFilter, setExamFilter] = useState<ExamFilter>("all");
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>("24h");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [runs, setRuns] = useState<RunResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -127,9 +127,10 @@ export function Results() {
 
     return runs.filter((r) => {
       // Time filter
-      if (timeFilter !== "all" && r.created_at) {
+      if (timeFilter !== "all") {
+        if (!r.created_at) return true; // include runs with no timestamp
         const ts = new Date(r.created_at).getTime();
-        if (ts < cutoff) return false;
+        if (isNaN(ts) || ts < cutoff) return false;
       }
       // Exam filter
       if (examFilter !== "all") {
