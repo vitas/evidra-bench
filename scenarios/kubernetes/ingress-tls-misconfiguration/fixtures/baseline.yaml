@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: bench
+  labels:
+    app: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: bench
+spec:
+  selector:
+    app: web
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: web-tls
+  namespace: bench
+type: kubernetes.io/tls
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUI2RENDQVZBQ0FRQXdGVEVUTUJFR0ExVUVBd3dLZDJWaUxteHZZMkZzTUI0WERUSTFNREV3TVRBd01EQXcKTUZvWERUSTJNREV3TVRBd01EQXdNRm93RlRFVE1CRUdBMVVFQXd3S2QyVmlMbXh2WTJGc01JR2ZNQTBHQ1NxRwpTSWIzRFFFQkFRVUFBNEdOQURDQmlRS0JnUUN4N1RlbXBabWdJN3pEeUhEV2pVN1V1K0xUcjRSdDN3TnNJVkloCnN6dmlEb0YwSkhYbEFLb3lRbzZJZEZaQmRMOGlZV0c0ZmRJWEVMTkFxV3JaREVSQ0UzYzBFVWdFZXhFZndsVHAKSWY1dE5rWnhDaE1YRUp2aEhLU0F4RjR1ZjNpNEJGWG8rbTVJZ2JRTVVnanpGT0lnSUhmeHIyTVRkMEdOOCtCcwpKUUlEQVFBQm96OHRQVEF5TUJBR0ExVWRFUVFKTUFlQ0JYZGxZaTRxTUIwR0ExVWREZ1FXQkJRQUFBQUFBQUFBCkFBQUFBQUFBQUFBQUFEQU5CZ2txaGtpRzl3MEJBUXNGQUFPQMDRRUFQT0tmVjBEUXFIT29xUjdseGJScHlXaEkKRXBOYlFaV0doS0RaeG5NczFJM0JOWDRhVm1MR0dvUEVNRHBKVXlNaFl1bGpxQjltamtuRmxwUUFaL21rblBYbAo5RXdqaFpCTHNiR3MwMjVRSlFkZnRQRUI5RFBLRGtGQi83M0NjTWtQOHhLYmNJb2d5QWxYZE5BNXZIM1AxdHJRCjJqc0FJa3BRR3VXbitBPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlDWEFJQkFBSkJBTEh0TjZhbG1hQWp2TVBJY05hTlR0Uzc0dE92aEczZkEyd2hVaUd6TytJT2dYUWtkZVVBCnFqSkNqb2gwVmtGMHZ5SmhZYmg5MGhjUXMwQ3BhdGtNUkVJVGR6UVJTQVI3RVIvQ1ZPa2gvbTAyUm5FS0V4Y1EKbStFY3BJREVYaTUvZUxnRVZlajZia2lCdEF4U0NQTVU0aUFnZC9Hdll4TjNRWTN6NEd3bEFnTUJBQUVDUVFDbgp4K3l6N2xkaW80VTUyWDhjNm1McVBDY1BnSGhTM1V6Rit5WXlEbzBlZ1FTUEFBajV3NGV6ZGwwcm0ybUdaNHdMCk8xNnZBd3FQR1V2QmR4VVYxSVBoQWlFQTRYUC9HYW1ZY0N1M25TN0xiL0tPZEFSN3QxZ2h5WVF6eHh0R1J6dE0KenVFQ0lRRGNjbmRQblN6VEIrQ2lnRlF5ejZFdXM4VG0reEI1NUhKR21FaGFJdHRzUlFJaEFMZk1ISWdNWlBYawpIMXZocFdGWEVESDg4SHQvRlV6UDNJd0lvL0p1UDUxaEFpQm9DaFl2T3VaemQ3R01GVi9mNkVqL1gxNHVIaDFnCklTNWxZNjBhVTRMaUVRSWdIb1BHY0FMa3hMaXdNa2drdUpPZTRmUEFNMDJ5TjZsQVg2bFczMm1JMnRjPQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-ingress
+  namespace: bench
+spec:
+  tls:
+    - hosts:
+        - web.local
+      secretName: web-tls
+  rules:
+    - host: web.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 80
