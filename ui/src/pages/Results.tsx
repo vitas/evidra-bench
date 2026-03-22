@@ -94,8 +94,10 @@ export function Results() {
   }
 
   type ExamFilter = "all" | "cka" | "cks" | "custom";
+  type TimeFilter = "24h" | "7d" | "30d" | "all";
   const [tab, setTab] = useState<Tab>("leaderboard");
   const [examFilter, setExamFilter] = useState<ExamFilter>("all");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("24h");
   const [runs, setRuns] = useState<RunResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,6 +105,13 @@ export function Results() {
   const CKA_TRACKS = new Set(["workloads", "troubleshooting", "networking", "storage"]);
   const CKS_TRACKS = new Set(["pod-security", "runtime-security"]);
   const CUSTOM_TRACKS = new Set(["release-ops", "platform-eng"]);
+
+  const TIME_OFFSETS: Record<TimeFilter, number> = {
+    "24h": 24 * 60 * 60 * 1000,
+    "7d": 7 * 24 * 60 * 60 * 1000,
+    "30d": 30 * 24 * 60 * 60 * 1000,
+    "all": 0,
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -113,13 +122,24 @@ export function Results() {
   }, []);
 
   const filteredRuns = useMemo(() => {
-    if (examFilter === "all") return runs;
-    const trackSet = examFilter === "cka" ? CKA_TRACKS : examFilter === "cks" ? CKS_TRACKS : CUSTOM_TRACKS;
+    const now = Date.now();
+    const cutoff = timeFilter === "all" ? 0 : now - TIME_OFFSETS[timeFilter];
+
     return runs.filter((r) => {
-      const meta = SCENARIO_META.get(r.scenario_id);
-      return meta && trackSet.has(meta.track);
+      // Time filter
+      if (timeFilter !== "all" && r.created_at) {
+        const ts = new Date(r.created_at).getTime();
+        if (ts < cutoff) return false;
+      }
+      // Exam filter
+      if (examFilter !== "all") {
+        const trackSet = examFilter === "cka" ? CKA_TRACKS : examFilter === "cks" ? CKS_TRACKS : CUSTOM_TRACKS;
+        const meta = SCENARIO_META.get(r.scenario_id);
+        if (!meta || !trackSet.has(meta.track)) return false;
+      }
+      return true;
     });
-  }, [runs, examFilter]);
+  }, [runs, examFilter, timeFilter]);
 
   const leaderboard = useMemo((): ModelEntry[] => {
     const byModel = new Map<string, RunResult[]>();
@@ -206,7 +226,7 @@ export function Results() {
         </div>
       </div>
 
-      {/* Exam filter */}
+      {/* Filters row */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         {([
           { key: "all" as ExamFilter, label: "All Exams", icon: "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" },
@@ -227,6 +247,24 @@ export function Results() {
               <path d={exam.icon} />
             </svg>
             {exam.label}
+          </button>
+        ))}
+
+        {/* Separator */}
+        <div className="w-px h-5 bg-border hidden sm:block" />
+
+        {/* Time filter */}
+        {(["24h", "7d", "30d", "all"] as TimeFilter[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTimeFilter(t)}
+            className={`px-2.5 py-1.5 text-[0.72rem] font-medium rounded-lg transition-colors ${
+              timeFilter === t
+                ? "bg-accent/15 text-accent"
+                : "text-fg-muted hover:text-fg"
+            }`}
+          >
+            {t === "all" ? "All time" : t}
           </button>
         ))}
       </div>
