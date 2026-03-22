@@ -124,7 +124,7 @@ function TrackIcon({ icon }: { icon: string }) {
 }
 
 const STATS = [
-  { value: "48", label: "Scenarios" },
+  { value: "51", label: "Scenarios" },
   { value: "8", label: "Exam Tracks" },
   { value: "5", label: "Categories" },
   { value: "4", label: "Cert Levels" },
@@ -162,16 +162,16 @@ export function Landing() {
             </Link>
 
             <h1 className="text-[3.2rem] leading-[1.08] font-extrabold tracking-tight mb-6">
-              Get your AI agent{" "}
+              Test your agent skills{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#34d399] to-[#059669]">
-                certified
+                before shipping
               </span>
             </h1>
 
             <p className="text-[1.05rem] text-[#6b8f7b] leading-relaxed mb-10 max-w-lg">
-              48 scenarios across Kubernetes, Helm, ArgoCD, Terraform, and AWS.
-              Real clusters. Real failures. Behavioral signals that reveal
-              how your agent thinks — not just whether it fixes things.
+              51 CKA/CKS scenarios across Kubernetes, Helm, ArgoCD, Terraform,
+              and AWS. Prove your skill works — measure pass rate, token usage,
+              and cost on real clusters. Ship what helps, cut what doesn't.
             </p>
 
             <div className="flex items-center gap-4 mb-12">
@@ -353,7 +353,7 @@ export function Landing() {
       {/* Footer */}
       <footer className="max-w-6xl mx-auto px-6 py-8 border-t border-[#1e3a2c]">
         <div className="flex items-center justify-between text-[0.72rem] text-[#4a6b5a]">
-          <span>evidra.lab — AI agent certification</span>
+          <span>evidra.lab — test framework for AI infrastructure agent skills</span>
           <div className="flex items-center gap-4">
             <a href="https://evidra.cc/bench" target="_blank" rel="noopener noreferrer" className="hover:text-[#34d399] transition-colors">
               Leaderboard
