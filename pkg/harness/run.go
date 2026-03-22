@@ -136,6 +136,29 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			"AWS_DEFAULT_REGION":    "us-east-1",
 		}
 
+		// Create a wrapper script for `aws` that injects --endpoint-url.
+		// This works with all AWS CLI versions (env var requires 2.13+).
+		awsBinDir, _ := os.MkdirTemp("", "evidra-aws-bin-*")
+		awsWrapper := filepath.Join(awsBinDir, "aws")
+		os.WriteFile(awsWrapper, []byte(fmt.Sprintf(
+			"#!/bin/sh\nexec /usr/local/bin/aws --endpoint-url %s \"$@\"\n", lsHandle.EndpointURL,
+		)), 0755)
+		defer os.RemoveAll(awsBinDir)
+
+		// Prepend wrapper dir to PATH so `aws` resolves to our wrapper.
+		awsEnv["PATH"] = awsBinDir + ":" + os.Getenv("PATH")
+
+		// Set AWS env vars on the process so verifier checks can inherit them.
+		// This is safe: these are test credentials for a local LocalStack container.
+		for k, v := range awsEnv {
+			os.Setenv(k, v)
+		}
+		defer func() {
+			for k := range awsEnv {
+				os.Unsetenv(k)
+			}
+		}()
+
 		// Build AWS env vars for subprocess injection (not process-global).
 		var awsEnvSlice []string
 		for k, v := range awsEnv {

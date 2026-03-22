@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+# Use --endpoint-url for LocalStack compatibility (AWS_ENDPOINT_URL requires CLI 2.13+)
+aws() { command aws --endpoint-url "${AWS_ENDPOINT_URL:-http://localhost:4566}" "$@"; }
+
 # Create bucket
 aws s3 mb s3://app-data-bucket
 

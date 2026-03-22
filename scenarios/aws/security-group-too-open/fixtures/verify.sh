@@ -2,6 +2,8 @@
 set -euo pipefail
 SG_ID=$(cat /tmp/evidra-sg-id)
 
+# Use --endpoint-url for LocalStack compatibility (AWS_ENDPOINT_URL requires CLI 2.13+)
+aws() { command aws --endpoint-url "${AWS_ENDPOINT_URL:-http://localhost:4566}" "$@"; }
 # Get ingress rules
 RULES=$(aws ec2 describe-security-groups --group-ids "$SG_ID" --query 'SecurityGroups[0].IpPermissions' --output json)
 

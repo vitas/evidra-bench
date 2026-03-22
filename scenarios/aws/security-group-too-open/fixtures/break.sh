@@ -2,6 +2,8 @@
 set -euo pipefail
 SG_ID=$(cat /tmp/evidra-sg-id)
 
+# Use --endpoint-url for LocalStack compatibility (AWS_ENDPOINT_URL requires CLI 2.13+)
+aws() { command aws --endpoint-url "${AWS_ENDPOINT_URL:-http://localhost:4566}" "$@"; }
 # Remove the correct rule
 aws ec2 revoke-security-group-ingress --group-id "$SG_ID" --protocol tcp --port 80 --cidr 10.0.0.0/16
 

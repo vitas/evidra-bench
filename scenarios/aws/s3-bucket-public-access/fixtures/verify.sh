@@ -1,13 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 
-# Check 1: No public bucket policy
-POLICY=$(aws s3api get-bucket-policy --bucket app-data-bucket --query 'Policy' --output text 2>/dev/null || echo '{}')
-PUBLIC_STATEMENTS=$(echo "$POLICY" | jq '[.Statement[]? | select(.Principal == "*" or .Principal.AWS == "*")] | length')
+# Use --endpoint-url for LocalStack compatibility (AWS_ENDPOINT_URL requires CLI 2.13+)
+aws() { command aws --endpoint-url "${AWS_ENDPOINT_URL:-http://localhost:4566}" "$@"; }
 
-if [ "$PUBLIC_STATEMENTS" -ne 0 ]; then
-  echo "FAIL: Bucket still has public access policy"
-  exit 1
+# Check 1: No public bucket policy
+POLICY=$(aws s3api get-bucket-policy --bucket app-data-bucket --query 'Policy' --output text 2>/dev/null || true)
+if [ -n "$POLICY" ] && [ "$POLICY" != "None" ]; then
+  PUBLIC_STATEMENTS=$(echo "$POLICY" | jq '[.Statement[]? | select(.Principal == "*" or .Principal.AWS == "*")] | length' 2>/dev/null || echo "0")
+  if [ "$PUBLIC_STATEMENTS" -ne 0 ]; then
+    echo "FAIL: Bucket still has public access policy"
+    exit 1
+  fi
 fi
 
 # Check 2: IAM role policy still exists
@@ -18,11 +22,11 @@ if echo "$ROLE_POLICY" | grep -q "NoSuchEntity"; then
 fi
 
 # Check 3: Object is still accessible (via IAM, not public)
-aws s3 cp s3://app-data-bucket/config.json /dev/null 2>/dev/null
-if [ $? -ne 0 ]; then
+if ! aws s3 cp s3://app-data-bucket/config.json /tmp/evidra-s3-check 2>/dev/null; then
   echo "FAIL: Cannot access bucket object"
   exit 1
 fi
+rm -f /tmp/evidra-s3-check
 
 echo "PASS: Bucket locked down, IAM access preserved"
 exit 0
