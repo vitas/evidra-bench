@@ -69,3 +69,6 @@ ui/dist/
 # Environment
 .env
 .env.local
+
+# Plan docs (internal)
+docs/plans/
