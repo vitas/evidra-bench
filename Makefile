@@ -4,7 +4,7 @@ COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(BUILD_DATE)"
 
-.PHONY: build db-import test test-race fmt lint tidy clean smoke ui-install ui-dev ui-build ui-docker
+.PHONY: build db-import test test-race fmt lint tidy clean smoke catalog ui-install ui-dev ui-build ui-docker
 
 build:
 	go build $(LDFLAGS) -o bin/$(BINARY) ./cmd/infra-bench
@@ -39,7 +39,10 @@ ui-install:
 ui-dev:
 	cd ui && npm run dev
 
-ui-build:
+catalog:
+	go run scripts/generate-catalog.go
+
+ui-build: catalog
 	cd ui && npm ci && npm run build
 
 ui-docker:

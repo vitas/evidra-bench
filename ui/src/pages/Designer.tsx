@@ -208,8 +208,7 @@ function DesignerInner() {
     const breakData: BreakData = {
       kind: "break",
       method: breakMethod as BreakData["method"],
-      action: (scenario.breakType === "custom" || scenario.breakType === "multi-stage" || scenario.breakType === "shell")
-        ? "custom" : scenario.breakType as BreakData["action"],
+      action: "custom",
       target: scenario.target,
       customManifest: "",
     };
@@ -236,7 +235,7 @@ function DesignerInner() {
       description: scenario.description,
       difficulty: scenario.difficulty,
       timeLimit: "5m",
-      category: scenario.category,
+      category: scenario.category as PuzzleMetadata["category"],
     });
     setSelectedNodeId(null);
 

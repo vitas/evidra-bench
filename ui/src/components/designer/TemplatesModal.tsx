@@ -44,7 +44,7 @@ function scenarioToTemplate(s: ScenarioMeta): Template {
   const checkType = CHECK_TYPE_FOR_CATEGORY[s.category] || "deployment-ready";
   const stackType = STACK_TYPE_FOR_CATEGORY[s.category] || "web-app";
   const breakMethod = BREAK_METHOD_FOR_CATEGORY[s.category] || "kubectl-apply";
-  const breakAction = (s.breakType === "custom" || s.breakType === "multi-stage" || s.breakType === "shell") ? "custom" : s.breakType;
+  const breakAction = "custom";
   const timeLimit = s.difficulty === "easy" ? "5m" : s.difficulty === "medium" ? "8m" : "10m";
 
   return {
@@ -63,7 +63,7 @@ function scenarioToTemplate(s: ScenarioMeta): Template {
       description: "",
       difficulty: s.difficulty,
       timeLimit,
-      category: s.category,
+      category: s.category as PuzzleMetadata["category"],
     },
   };
 }
