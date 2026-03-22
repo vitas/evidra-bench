@@ -65,3 +65,7 @@ ui/dist/
 
 # Screenshots
 *.png
+
+# Environment
+.env
+.env.local

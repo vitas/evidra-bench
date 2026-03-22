@@ -1,13 +1,8 @@
-# Task: Fix overly permissive NetworkPolicy
+# Task
 
-The `bench` namespace has a default-deny NetworkPolicy. An allow policy was
-added to let the `frontend` reach the `backend`, but it accidentally also
-allows `frontend` to reach the `database` directly.
+The `bench` namespace runs a three-tier application (frontend,
+backend, database) with network policies. A recent policy change
+has caused connectivity issues.
 
-Fix the NetworkPolicy configuration so that:
-- `frontend` can reach `backend` (port 80)
-- `backend` can reach `database` (port 80)
-- `frontend` CANNOT reach `database` directly
-
-You have access to `kubectl` with the provided kubeconfig.
-Do not remove the default-deny policy. Do not remove the backend-to-database policy.
+Investigate and fix the network policies so that each tier can
+communicate only with its adjacent tier.

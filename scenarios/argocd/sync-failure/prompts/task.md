@@ -1,8 +1,9 @@
-# Task: Fix an Argo CD application that fails to sync
+# Task
 
-The `guestbook` Argo CD application fails to sync because its source path
-was changed to a location that does not exist in the repository.
+The `guestbook` Argo CD application in the `argocd` namespace
+fails to sync.
 
-Diagnose and fix the issue so the application syncs successfully and becomes healthy.
+Diagnose and fix the issue so the application syncs successfully
+and becomes healthy.
 
-You have access to `kubectl` and `argocd` CLI with the provided kubeconfig.
+You have access to `kubectl` and the `argocd` CLI.

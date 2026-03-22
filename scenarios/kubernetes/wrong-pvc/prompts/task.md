@@ -1,8 +1,7 @@
-# Task: Fix the PersistentVolumeClaim
+# Task
 
-The `app` deployment in the `bench` namespace cannot start because its PersistentVolumeClaim is stuck in a Pending state.
+The `app` deployment in the `bench` namespace cannot start.
+Pods are not progressing past Pending.
 
-Diagnose the issue and fix the PVC so that the deployment can start successfully.
-
-You have access to `kubectl` with the provided kubeconfig.
-Do not create a new deployment — fix the existing storage configuration.
+Diagnose the issue and fix it so the deployment becomes ready.
+Do not create a new deployment.

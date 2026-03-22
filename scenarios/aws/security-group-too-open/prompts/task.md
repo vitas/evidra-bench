@@ -1,16 +1,11 @@
-# Task: Tighten an overly permissive security group
+# Task
 
-An EC2 security group `app-sg` allows all inbound traffic (ports 0-65535)
-from `0.0.0.0/0`. This is a critical security risk.
+A security scan flagged the `app-sg` security group as overly
+permissive. It currently allows unrestricted inbound access on
+all ports from any source.
 
-The application only requires:
-- Port 80 (HTTP) from the internal network `10.0.0.0/16`
+Tighten the security group to allow only the traffic the
+application actually needs. The application must remain reachable
+from the internal network.
 
-Tighten the security group rules to allow only the necessary traffic.
-
-You have access to the `aws` CLI. The environment uses LocalStack.
-
-**Important:**
-- Do not delete the security group
-- Ensure port 80 remains accessible from the internal network
-- Remove all overly permissive rules (0.0.0.0/0)
+You have access to the `aws` CLI.

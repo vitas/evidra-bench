@@ -1,8 +1,6 @@
-# Task: Fix a ConfigMap with wrong database configuration
+# Task
 
-The `web` deployment in the `bench` namespace is failing because the ConfigMap
-`web-config` contains an incorrect database host.
+The `web` deployment in the `bench` namespace is unhealthy.
+The issue appeared after a recent configuration change.
 
-Investigate the ConfigMap, identify the wrong value, and patch it so the
-deployment becomes healthy again. You may need to restart the deployment after
-fixing the ConfigMap.
+Diagnose and fix the issue so the deployment becomes healthy.
