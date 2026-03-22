@@ -26,15 +26,15 @@ function Header() {
 
   return (
     <header className="sticky top-0 z-50 bg-[color-mix(in_srgb,var(--color-bg)_85%,transparent)] backdrop-blur-xl border-b border-border-subtle">
-      <div className="px-6 flex justify-between items-center py-3">
-        <div className="flex items-center gap-8">
+      <div className="px-4 sm:px-6 flex justify-between items-center py-3 gap-4">
+        <div className="flex items-center gap-4 sm:gap-8 min-w-0">
           <Link
             to="/"
             className="font-extrabold text-[1.05rem] text-fg tracking-tight no-underline hover:text-fg"
           >
             evidra<span className="text-accent">.</span>lab
           </Link>
-          <nav className="flex gap-5 items-center">
+          <nav className="flex gap-3 sm:gap-5 items-center overflow-x-auto">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.to}

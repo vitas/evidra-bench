@@ -181,7 +181,7 @@ export function Results() {
   const [expandedModel, setExpandedModel] = useState<string | null>(null);
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-fg">Certification Results</h1>
@@ -215,25 +215,25 @@ export function Results() {
               {/* Model row */}
               <button
                 onClick={() => setExpandedModel(expandedModel === entry.model ? null : entry.model)}
-                className="w-full flex items-center gap-4 px-4 py-3 hover:bg-bg-elevated/50 transition-colors text-left"
+                className="w-full flex items-center gap-2 sm:gap-4 px-3 sm:px-4 py-3 hover:bg-bg-elevated/50 transition-colors text-left"
               >
-                <span className="text-fg-muted w-8 shrink-0">
+                <span className="text-fg-muted w-6 sm:w-8 shrink-0 text-[0.78rem]">
                   {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
                 </span>
-                <span className="font-semibold text-fg text-[0.85rem] w-40 shrink-0">{entry.model}</span>
-                <span className={`text-[0.68rem] font-bold px-2 py-0.5 rounded-full shrink-0 ${entry.overallGradeColor}`}>
+                <span className="font-semibold text-fg text-[0.78rem] sm:text-[0.85rem] min-w-0 truncate flex-1 sm:flex-none sm:w-40">{entry.model}</span>
+                <span className={`text-[0.65rem] sm:text-[0.68rem] font-bold px-1.5 sm:px-2 py-0.5 rounded-full shrink-0 ${entry.overallGradeColor}`}>
                   {entry.overallGrade}
                 </span>
-                <span className="text-[0.78rem] text-right flex-1">
+                <span className="text-[0.72rem] sm:text-[0.78rem] text-right shrink-0">
                   <span className={entry.pass_rate >= 0.8 ? "text-emerald-400" : entry.pass_rate >= 0.6 ? "text-amber-400" : "text-red-400"}>
                     {(entry.pass_rate * 100).toFixed(1)}%
                   </span>
-                  <span className="text-fg-muted/60 ml-1">({entry.passed}/{entry.runs})</span>
+                  <span className="text-fg-muted/60 ml-1 hidden sm:inline">({entry.passed}/{entry.runs})</span>
                 </span>
-                <span className="text-[0.75rem] text-fg-muted w-20 text-right shrink-0">{entry.avg_duration.toFixed(1)}s</span>
-                <span className="text-[0.75rem] text-fg-muted w-20 text-right shrink-0">${entry.avg_cost.toFixed(3)}</span>
+                <span className="text-[0.75rem] text-fg-muted w-20 text-right shrink-0 hidden md:block">{entry.avg_duration.toFixed(1)}s</span>
+                <span className="text-[0.75rem] text-fg-muted w-20 text-right shrink-0 hidden md:block">${entry.avg_cost.toFixed(3)}</span>
                 <svg
-                  className={`w-3.5 h-3.5 text-fg-muted transition-transform shrink-0 ${expandedModel === entry.model ? "rotate-180" : ""}`}
+                  className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-fg-muted transition-transform shrink-0 ${expandedModel === entry.model ? "rotate-180" : ""}`}
                   viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
                 >
                   <path d="M6 9l6 6 6-6" />
@@ -246,7 +246,7 @@ export function Results() {
                   <div className="text-[0.7rem] font-semibold text-fg-muted uppercase tracking-wider mb-2">
                     Grade by Track
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
                     {entry.tracks.map((t) => (
                       <div key={t.track} className="border border-border-subtle rounded-lg p-3">
                         <div className="text-[0.72rem] font-medium text-fg mb-1">
