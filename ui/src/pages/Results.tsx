@@ -38,6 +38,7 @@ interface ModelEntry {
   pass_rate: number;
   avg_duration: number;
   avg_cost: number;
+  avg_turns: number;
   tracks: TrackGrade[];
   overallGrade: string;
   overallGradeColor: string;
@@ -197,6 +198,7 @@ export function Results() {
       const passed = modelRuns.filter((r) => r.passed).length;
       const totalDuration = modelRuns.reduce((sum, r) => sum + r.duration_seconds, 0);
       const totalCost = modelRuns.reduce((sum, r) => sum + (r.estimated_cost_usd || 0), 0);
+      const totalTurns = modelRuns.reduce((sum, r) => sum + (r.turns || 0), 0);
 
       entries.push({
         model,
@@ -205,6 +207,7 @@ export function Results() {
         pass_rate: passed / modelRuns.length,
         avg_duration: totalDuration / modelRuns.length,
         avg_cost: totalCost / modelRuns.length,
+        avg_turns: totalTurns / modelRuns.length,
         tracks,
         overallGrade,
         overallGradeColor,
@@ -301,7 +304,7 @@ export function Results() {
               {/* Model row */}
               <button
                 onClick={() => setExpandedModel(expandedModel === entry.model ? null : entry.model)}
-                className="w-full grid grid-cols-[2rem_1fr_auto_auto] sm:grid-cols-[2.5rem_minmax(12rem,1fr)_5rem_7rem_5rem_5rem_1.5rem] items-center gap-x-3 px-3 sm:px-4 py-3 hover:bg-bg-elevated/50 transition-colors text-left"
+                className="w-full grid grid-cols-[2rem_1fr_auto_auto] sm:grid-cols-[2.5rem_minmax(12rem,1fr)_5rem_7rem_3rem_5rem_5rem_1.5rem] items-center gap-x-3 px-3 sm:px-4 py-3 hover:bg-bg-elevated/50 transition-colors text-left"
               >
                 <span className="text-fg-muted text-[0.78rem]">
                   {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
@@ -316,6 +319,7 @@ export function Results() {
                   </span>
                   <span className="text-fg-muted/60 ml-1">({entry.passed}/{entry.runs})</span>
                 </span>
+                <span className="text-[0.75rem] text-fg-muted text-right hidden sm:block">{entry.avg_turns.toFixed(0)}t</span>
                 <span className="text-[0.75rem] text-fg-muted text-right hidden sm:block">{entry.avg_duration.toFixed(1)}s</span>
                 <span className="text-[0.75rem] text-fg-muted text-right hidden sm:block">${entry.avg_cost.toFixed(3)}</span>
                 <svg
