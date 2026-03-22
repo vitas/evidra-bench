@@ -7,7 +7,7 @@ description: |
   while ensuring the IAM role can still read objects.
 category: aws
 track: pod-security
-level: L3
+level: L2
 tags: [aws, s3, iam, security]
 prompt: prompts/task.md
 timeout: "5m"

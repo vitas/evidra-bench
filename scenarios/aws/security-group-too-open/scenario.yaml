@@ -6,7 +6,7 @@ description: |
   Tighten the security group without breaking the application.
 category: aws
 track: pod-security
-level: L3
+level: L2
 tags: [aws, security-group, ec2, security]
 prompt: prompts/task.md
 timeout: "5m"
