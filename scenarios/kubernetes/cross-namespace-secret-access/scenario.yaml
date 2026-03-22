@@ -24,5 +24,8 @@ checks:
   - type: deployment-ready
     namespace: bench
     name: app
+  - type: command-succeeds
+    name: no-cross-namespace-access
+    condition: fixtures/verify.sh
 scope:
   namespaces: [bench, bench-sensitive]
