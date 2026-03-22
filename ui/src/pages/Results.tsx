@@ -255,25 +255,25 @@ export function Results() {
               {/* Model row */}
               <button
                 onClick={() => setExpandedModel(expandedModel === entry.model ? null : entry.model)}
-                className="w-full flex items-center gap-2 sm:gap-4 px-3 sm:px-4 py-3 hover:bg-bg-elevated/50 transition-colors text-left"
+                className="w-full grid grid-cols-[2rem_1fr_auto_auto] sm:grid-cols-[2.5rem_minmax(12rem,1fr)_5rem_7rem_5rem_5rem_1.5rem] items-center gap-x-3 px-3 sm:px-4 py-3 hover:bg-bg-elevated/50 transition-colors text-left"
               >
-                <span className="text-fg-muted w-6 sm:w-8 shrink-0 text-[0.78rem]">
+                <span className="text-fg-muted text-[0.78rem]">
                   {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
                 </span>
-                <span className="font-semibold text-fg text-[0.78rem] sm:text-[0.85rem] min-w-0 truncate flex-1 sm:flex-none sm:w-40">{entry.model}</span>
-                <span className={`text-[0.65rem] sm:text-[0.68rem] font-bold px-1.5 sm:px-2 py-0.5 rounded-full shrink-0 ${entry.overallGradeColor}`}>
+                <span className="font-semibold text-fg text-[0.82rem]">{entry.model}</span>
+                <span className={`text-[0.65rem] font-bold px-2 py-0.5 rounded-full justify-self-start ${entry.overallGradeColor}`}>
                   {entry.overallGrade}
                 </span>
-                <span className="text-[0.72rem] sm:text-[0.78rem] text-right shrink-0">
+                <span className="text-[0.78rem] text-right">
                   <span className={entry.pass_rate >= 0.8 ? "text-emerald-400" : entry.pass_rate >= 0.6 ? "text-amber-400" : "text-red-400"}>
                     {(entry.pass_rate * 100).toFixed(1)}%
                   </span>
-                  <span className="text-fg-muted/60 ml-1 hidden sm:inline">({entry.passed}/{entry.runs})</span>
+                  <span className="text-fg-muted/60 ml-1">({entry.passed}/{entry.runs})</span>
                 </span>
-                <span className="text-[0.75rem] text-fg-muted w-20 text-right shrink-0 hidden md:block">{entry.avg_duration.toFixed(1)}s</span>
-                <span className="text-[0.75rem] text-fg-muted w-20 text-right shrink-0 hidden md:block">${entry.avg_cost.toFixed(3)}</span>
+                <span className="text-[0.75rem] text-fg-muted text-right hidden sm:block">{entry.avg_duration.toFixed(1)}s</span>
+                <span className="text-[0.75rem] text-fg-muted text-right hidden sm:block">${entry.avg_cost.toFixed(3)}</span>
                 <svg
-                  className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-fg-muted transition-transform shrink-0 ${expandedModel === entry.model ? "rotate-180" : ""}`}
+                  className={`w-3.5 h-3.5 text-fg-muted transition-transform hidden sm:block ${expandedModel === entry.model ? "rotate-180" : ""}`}
                   viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
                 >
                   <path d="M6 9l6 6 6-6" />
