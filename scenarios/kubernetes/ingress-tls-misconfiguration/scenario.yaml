@@ -6,7 +6,7 @@ description: |
   diagnose the missing TLS configuration and fix it.
 category: kubernetes
 track: networking
-level: L2
+level: L3
 tags: [networking, ingress, tls, security]
 prompt: prompts/task.md
 timeout: "5m"
