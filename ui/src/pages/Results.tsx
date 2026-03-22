@@ -93,10 +93,16 @@ export function Results() {
     );
   }
 
+  type ExamFilter = "all" | "cka" | "cks" | "custom";
   const [tab, setTab] = useState<Tab>("leaderboard");
+  const [examFilter, setExamFilter] = useState<ExamFilter>("all");
   const [runs, setRuns] = useState<RunResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const CKA_TRACKS = new Set(["workloads", "troubleshooting", "networking", "storage"]);
+  const CKS_TRACKS = new Set(["pod-security", "runtime-security"]);
+  const CUSTOM_TRACKS = new Set(["release-ops", "platform-eng"]);
 
   useEffect(() => {
     setLoading(true);
@@ -106,9 +112,18 @@ export function Results() {
       .finally(() => setLoading(false));
   }, []);
 
+  const filteredRuns = useMemo(() => {
+    if (examFilter === "all") return runs;
+    const trackSet = examFilter === "cka" ? CKA_TRACKS : examFilter === "cks" ? CKS_TRACKS : CUSTOM_TRACKS;
+    return runs.filter((r) => {
+      const meta = SCENARIO_META.get(r.scenario_id);
+      return meta && trackSet.has(meta.track);
+    });
+  }, [runs, examFilter]);
+
   const leaderboard = useMemo((): ModelEntry[] => {
     const byModel = new Map<string, RunResult[]>();
-    for (const r of runs) {
+    for (const r of filteredRuns) {
       const list = byModel.get(r.model) || [];
       list.push(r);
       byModel.set(r.model, list);
@@ -173,22 +188,47 @@ export function Results() {
   }, [runs]);
 
   const recentRuns = useMemo(() => {
-    return [...runs].sort((a, b) =>
+    return [...filteredRuns].sort((a, b) =>
       (b.created_at || "").localeCompare(a.created_at || "")
     ).slice(0, 50);
-  }, [runs]);
+  }, [filteredRuns]);
 
   const [expandedModel, setExpandedModel] = useState<string | null>(null);
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-fg">Certification Results</h1>
           <p className="text-[0.85rem] text-fg-muted mt-1">
-            {runs.length} runs across {leaderboard.length} models
+            {filteredRuns.length} runs across {leaderboard.length} models
           </p>
         </div>
+      </div>
+
+      {/* Exam filter */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {([
+          { key: "all" as ExamFilter, label: "All Exams", icon: "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" },
+          { key: "cka" as ExamFilter, label: "CKA", icon: "M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" },
+          { key: "cks" as ExamFilter, label: "CKS", icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" },
+          { key: "custom" as ExamFilter, label: "Custom", icon: "M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09zM12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z" },
+        ]).map((exam) => (
+          <button
+            key={exam.key}
+            onClick={() => setExamFilter(exam.key)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[0.75rem] font-medium rounded-lg transition-colors ${
+              examFilter === exam.key
+                ? "bg-accent/15 text-accent border border-accent/30"
+                : "text-fg-muted hover:text-fg border border-transparent hover:border-border"
+            }`}
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+              <path d={exam.icon} />
+            </svg>
+            {exam.label}
+          </button>
+        ))}
       </div>
 
       <div className="flex gap-1 mb-6 bg-bg-elevated border border-border rounded-lg p-1 w-fit">
