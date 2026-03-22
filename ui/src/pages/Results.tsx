@@ -116,7 +116,14 @@ export function Results() {
   useEffect(() => {
     setLoading(true);
     fetchAPI<{ items: RunResult[] }>("/v1/bench/runs?limit=2000")
-      .then((data) => { setRuns(data.items || []); setError(null); })
+      .then((data) => {
+        // Exclude dry-run/test records (0s duration or test IDs)
+        const real = (data.items || []).filter((r) =>
+          r.duration_seconds > 0 && !r.id.startsWith("cert-test-")
+        );
+        setRuns(real);
+        setError(null);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
