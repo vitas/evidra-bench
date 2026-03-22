@@ -13,4 +13,6 @@ Fix the security context so that:
 The deployment must remain running and healthy after your changes.
 
 You have access to `kubectl` with the provided kubeconfig.
-Do NOT remove the deployment — fix the security context.
+Do NOT remove the deployment — fix the security context only.
+Do NOT change runAsUser, runAsGroup, or any other pod-level settings.
+Only modify the container's securityContext capabilities and privileged flag.

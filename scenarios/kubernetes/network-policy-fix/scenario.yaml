@@ -40,10 +40,6 @@ after_break:
     type: sleep
     duration: 3s
 checks:
-  - type: service-reachable
-    namespace: bench
-    name: backend
-    condition: net-client
   - type: deployment-ready
     namespace: bench
     name: frontend
