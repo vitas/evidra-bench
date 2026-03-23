@@ -1,9 +1,9 @@
-import { usePageTitle } from "../hooks/usePageTitle";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { useApi } from "../hooks/useApi";
-import { applyEvidenceMode, evidenceModeParam, normalizeCatalog, type CatalogResponse } from "../lib/catalogData.mts";
-import { useEvidenceMode } from "../hooks/useEvidenceMode";
+import { useBenchApi as useApi } from "../../hooks/useBenchApi";
+import { applyEvidenceMode, evidenceModeParam, normalizeCatalog, type CatalogResponse } from "../../lib/catalogData.mts";
+import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 interface RunRecord {
   id: string;

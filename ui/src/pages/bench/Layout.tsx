@@ -1,8 +1,8 @@
 import { type ReactNode } from "react";
 import { NavLink } from "react-router";
-import { useTheme } from "./hooks/useTheme";
-import { useAppInfo } from "./hooks/useAppInfo";
-import { useEvidenceMode, type EvidenceMode } from "./hooks/useEvidenceMode";
+import { useTheme } from "../../hooks/useTheme";
+import { useAppInfo } from "../../hooks/useAppInfo";
+import { useEvidenceMode, type EvidenceMode } from "../../hooks/useEvidenceMode";
 
 const navItems = [
   { to: "/", label: "Leaderboard" },

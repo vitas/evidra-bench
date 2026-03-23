@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { useApi } from "../hooks/useApi";
-import { usePageTitle } from "../hooks/usePageTitle";
-import { evidenceModeParam } from "../lib/catalogData.mts";
-import { useEvidenceMode } from "../hooks/useEvidenceMode";
+import { useBenchApi as useApi } from "../../hooks/useBenchApi";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { evidenceModeParam } from "../../lib/catalogData.mts";
+import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 interface Regression {
   scenario_id: string;

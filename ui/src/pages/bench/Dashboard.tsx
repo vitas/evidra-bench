@@ -1,9 +1,9 @@
-import { usePageTitle } from "../hooks/usePageTitle";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
-import { useApi } from "../hooks/useApi";
-import { buildRunsPath, evidenceModeParam } from "../lib/catalogData.mts";
-import { useEvidenceMode } from "../hooks/useEvidenceMode";
+import { useBenchApi as useApi } from "../../hooks/useBenchApi";
+import { buildRunsPath, evidenceModeParam } from "../../lib/catalogData.mts";
+import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 /* ── Types ── */
 

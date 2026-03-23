@@ -1,13 +1,13 @@
-import { usePageTitle } from "../hooks/usePageTitle";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useApi } from "../hooks/useApi";
-import { evidenceModeParam, normalizeCatalog, type CatalogResponse } from "../lib/catalogData.mts";
-import { useEvidenceMode } from "../hooks/useEvidenceMode";
+import { useBenchApi as useApi } from "../../hooks/useBenchApi";
+import { evidenceModeParam, normalizeCatalog, type CatalogResponse } from "../../lib/catalogData.mts";
+import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 import {
   categoriesFromScenarios,
   scenarioIdsForCategory,
   type ScenarioCategoryRecord,
-} from "../lib/compareData.mts";
+} from "../../lib/compareData.mts";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */

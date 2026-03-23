@@ -1,17 +1,17 @@
-import { usePageTitle } from "../hooks/usePageTitle";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
-import { useApi } from "../hooks/useApi";
-import { useAppInfo } from "../hooks/useAppInfo";
-import { evidenceModeParam } from "../lib/catalogData.mts";
-import { useEvidenceMode } from "../hooks/useEvidenceMode";
+import { useBenchApi as useApi } from "../../hooks/useBenchApi";
+import { useAppInfo } from "../../hooks/useAppInfo";
+import { evidenceModeParam } from "../../lib/catalogData.mts";
+import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 import {
   DEFAULT_RUN_SELECTION,
   RUN_PROVIDERS,
   SCENARIO_CATEGORIES,
   getModelsForProvider,
   normalizeRunSelection,
-} from "../lib/runOptions.mts";
+} from "../../lib/runOptions.mts";
 
 interface Scenario {
   id: string;

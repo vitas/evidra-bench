@@ -1,9 +1,9 @@
-import { usePageTitle } from "../hooks/usePageTitle";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router";
-import { useApi } from "../hooks/useApi";
-import { evidenceModeParam } from "../lib/catalogData.mts";
-import { useEvidenceMode } from "../hooks/useEvidenceMode";
+import { useBenchApi as useApi } from "../../hooks/useBenchApi";
+import { evidenceModeParam } from "../../lib/catalogData.mts";
+import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 interface RunRecord {
   id: string;
