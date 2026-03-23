@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router";
+import { BrowserRouter, Routes, Route } from "react-router";
 import { EvidenceModeProvider } from "./hooks/useEvidenceMode";
 import { Layout } from "./components/Layout";
 import { Landing } from "./pages/Landing";
@@ -13,7 +13,8 @@ import { Leaderboard } from "./pages/bench/Leaderboard";
 import { Dashboard } from "./pages/bench/Dashboard";
 import { Runs } from "./pages/bench/Runs";
 import { RunDetail } from "./pages/bench/RunDetail";
-// BenchScenarios/ScenarioDetail redirect to /scenarios (uses bundled catalog)
+import { Scenarios as BenchScenarios } from "./pages/bench/Scenarios";
+import { ScenarioDetail } from "./pages/bench/ScenarioDetail";
 import { Compare } from "./pages/bench/Compare";
 import { SkillImpact } from "./pages/bench/SkillImpact";
 import { Benchmarks } from "./pages/bench/Benchmarks";
@@ -30,8 +31,8 @@ export function App() {
           <Route path="/bench/dashboard" element={<BenchLayout><Dashboard /></BenchLayout>} />
           <Route path="/bench/runs" element={<BenchLayout><Runs /></BenchLayout>} />
           <Route path="/bench/runs/:id" element={<BenchLayout><RunDetail /></BenchLayout>} />
-          <Route path="/bench/scenarios" element={<Navigate to="/scenarios" replace />} />
-          <Route path="/bench/scenarios/:id" element={<Navigate to="/scenarios" replace />} />
+          <Route path="/bench/scenarios" element={<BenchLayout><BenchScenarios /></BenchLayout>} />
+          <Route path="/bench/scenarios/:id" element={<BenchLayout><ScenarioDetail /></BenchLayout>} />
           <Route path="/bench/compare" element={<BenchLayout><Compare /></BenchLayout>} />
           <Route path="/bench/skill-impact" element={<BenchLayout><SkillImpact /></BenchLayout>} />
           <Route path="/bench/benchmarks" element={<BenchLayout><Benchmarks /></BenchLayout>} />
