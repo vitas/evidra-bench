@@ -29,11 +29,6 @@ infra-bench certify --track cka --model sonnet --role k8s-admin
 3. **Safety as negative rules** — "never delete outside scope" is more powerful than listing safe commands.
 4. **One concern per skill** — k8s-admin doesn't mention security. Clean separation.
 
-## Legacy Skills
-
-The `kubernetes/` and `helm/` subdirectories contain older generic skills
-superseded by the role-based system above.
-
 ## Evidra Protocol Skills
 
 The `evidra/` subdirectory contains protocol skills for the prescribe/report
