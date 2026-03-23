@@ -3,12 +3,12 @@ import { Link } from "react-router";
 
 const TRACKS = [
   { id: "workloads", label: "Workloads", count: 12, source: "CKA", icon: "cube" },
-  { id: "troubleshooting", label: "Troubleshooting", count: 10, source: "CKA", icon: "search" },
-  { id: "networking", label: "Networking", count: 3, source: "CKA", icon: "globe" },
-  { id: "pod-security", label: "Pod Security", count: 10, source: "CKS", icon: "shield" },
+  { id: "troubleshooting", label: "Troubleshooting", count: 12, source: "CKA", icon: "search" },
+  { id: "networking", label: "Networking", count: 6, source: "CKA", icon: "globe" },
+  { id: "pod-security", label: "Pod Security", count: 13, source: "CKS", icon: "shield" },
   { id: "runtime-security", label: "Runtime Security", count: 2, source: "CKS", icon: "zap" },
   { id: "release-ops", label: "Release Ops", count: 8, source: "Custom", icon: "rocket" },
-  { id: "storage", label: "Storage", count: 2, source: "CKA", icon: "database" },
+  { id: "storage", label: "Storage", count: 4, source: "CKA", icon: "database" },
   { id: "platform-eng", label: "Platform Eng", count: 1, source: "Custom", icon: "cloud" },
 ];
 
@@ -124,7 +124,7 @@ function TrackIcon({ icon }: { icon: string }) {
 }
 
 const STATS = [
-  { value: "51", label: "Scenarios" },
+  { value: "58", label: "Scenarios" },
   { value: "8", label: "Exam Tracks" },
   { value: "5", label: "Categories" },
   { value: "4", label: "Cert Levels" },
@@ -170,7 +170,7 @@ export function Landing() {
 
             <p className="text-[1.05rem] text-[#6b8f7b] leading-relaxed mb-10 max-w-lg">
               A 5-line skill cuts L1 turns by 75% but breaks L2 diagnosis.
-              51 CKA/CKS scenarios on real clusters tell you which skills
+              58 CKA/CKS scenarios on real clusters tell you which skills
               help and which hurt — before your users find out.
             </p>
 
@@ -338,7 +338,7 @@ export function Landing() {
               to="/scenarios"
               className="inline-flex items-center gap-2 px-5 py-2.5 border border-[#1e3a2c] text-[#a7cdb8] text-[0.82rem] font-medium rounded-lg hover:border-[#34d399]/50 transition-colors"
             >
-              View All 48 Scenarios
+              View All 58 Scenarios
             </Link>
             <Link
               to="/results"

@@ -2,7 +2,7 @@
 
 Development and testing framework for AI infrastructure agent skills. Run your agent, MCP tool, or skill prompt against real Kubernetes clusters, AWS resources, Helm charts, and Argo CD — measure what actually helps and what's just token waste.
 
-**51 scenarios** | **8 CKA/CKS-aligned tracks** | **4 certification levels** | **5 infrastructure categories**
+**58 scenarios** | **8 CKA/CKS-aligned tracks** | **4 certification levels** | **5 infrastructure categories**
 
 Puzzle Designer: [lab.evidra.cc](https://lab.evidra.cc) | Results: [lab.evidra.cc/results](https://lab.evidra.cc/results)
 
@@ -91,10 +91,10 @@ Aligned with CKA/CKS exam domains:
 | Track | Source | Scenarios | What it proves |
 |---|---|---|---|
 | `workloads` | CKA: Workloads & Scheduling (15%) | 12 | Deployments, pods, scheduling, resources |
-| `troubleshooting` | CKA: Troubleshooting (30%) | 10 | Diagnosis, judgment, cascading failures |
-| `networking` | CKA: Services & Networking (20%) | 3 | Services, DNS, network policies |
-| `storage` | CKA: Storage (10%) | 2 | PVC, StorageClass, dynamic provisioning |
-| `pod-security` | CKS: Minimize Vulns (20%) | 10 | RBAC, capabilities, PSA, NetworkPolicy, AWS SG/S3 |
+| `troubleshooting` | CKA: Troubleshooting (30%) | 12 | Diagnosis, judgment, cascading failures |
+| `networking` | CKA: Services & Networking (20%) | 6 | Services, DNS, ingress, network policies |
+| `storage` | CKA: Storage (10%) | 4 | PVC, StorageClass, volume expansion |
+| `pod-security` | CKS: Minimize Vulns (20%) | 13 | RBAC, capabilities, PSA, CSR, AWS SG/S3 |
 | `runtime-security` | CKS: Monitoring (20%) | 2 | Chaos resilience, runtime disruptions |
 | `release-ops` | Custom | 8 | Helm, Argo CD, rollbacks, GitOps |
 | `platform-eng` | Custom | 1 | Terraform state management |
@@ -135,7 +135,7 @@ Every scenario is designed to generate signals. The signals are the product.
 
 | Category | Tool | Runtime | Scenarios |
 |---|---|---|---|
-| Kubernetes | kubectl | kind cluster | 37 |
+| Kubernetes | kubectl | kind cluster | 49 |
 | Helm | helm | kind cluster | 4 |
 | Argo CD | argocd | kind cluster | 4 |
 | Terraform | terraform | local state | 1 |
