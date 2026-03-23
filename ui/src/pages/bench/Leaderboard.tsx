@@ -271,7 +271,7 @@ export function Leaderboard() {
           label="Overall Pass Rate"
           value={`${totalRuns > 0 ? ((totalPassed / totalRuns) * 100).toFixed(1) : 0}%`}
         />
-        <MiniCard label="Total Cost" value={`$${totalCost.toFixed(2)}`} />
+        <MiniCard label="Est. Cost*" value={`$${totalCost.toFixed(2)}`} />
       </div>
 
       {/* Leaderboard table */}
@@ -435,6 +435,13 @@ export function Leaderboard() {
           accent="warning"
         />
       </div>
+
+      {/* Cost disclaimer */}
+      <p className="text-[0.7rem] text-fg-muted mt-4">
+        * Cost estimates are approximate — based on listed API prices and reported token counts.
+        Actual billing may differ due to prompt caching, proxy overhead, and incomplete token reporting.
+        Do not use for budgeting.
+      </p>
     </div>
   );
 }
