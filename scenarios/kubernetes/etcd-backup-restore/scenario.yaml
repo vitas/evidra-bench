@@ -7,7 +7,8 @@ description: |
 category: kubernetes
 track: platform-eng
 level: L3
-tags: [etcd, backup, restore, disaster-recovery, cka]
+skip: true
+skip_reason: requires environment features not yet implemented
 prompt: prompts/task.md
 timeout: "15m"
 environment:

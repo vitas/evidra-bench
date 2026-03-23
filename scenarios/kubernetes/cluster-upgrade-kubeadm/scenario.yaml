@@ -8,7 +8,8 @@ description: |
 category: kubernetes
 track: platform-eng
 level: L2
-tags: [kubeadm, upgrade, cluster-maintenance, drain, cordon, cka]
+skip: true
+skip_reason: requires environment features not yet implemented
 prompt: prompts/task.md
 timeout: "20m"
 environment:

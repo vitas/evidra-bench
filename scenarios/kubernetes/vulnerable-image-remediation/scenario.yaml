@@ -8,7 +8,8 @@ description: |
 category: kubernetes
 track: pod-security
 level: L2
-tags: [security, supply-chain, cve, trivy, image-scanning]
+skip: true
+skip_reason: requires environment features not yet implemented
 prompt: prompts/task.md
 timeout: "8m"
 environment:

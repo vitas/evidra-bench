@@ -12,9 +12,6 @@ tags: [drain, pdb, pod-disruption-budget, maintenance, cordon, cka]
 prompt: prompts/task.md
 timeout: "10m"
 bootstrap:
-  - name: create-bench-namespace
-    type: kubectl
-    args: [create, namespace, bench]
   - name: deploy-web-2replicas
     type: kubectl-apply
     path: fixtures/baseline-web.yaml

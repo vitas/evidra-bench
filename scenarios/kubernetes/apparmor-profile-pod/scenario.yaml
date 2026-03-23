@@ -8,7 +8,8 @@ description: |
 category: kubernetes
 track: runtime-security
 level: L2
-tags: [security, apparmor, system-hardening, annotations]
+skip: true
+skip_reason: requires environment features not yet implemented
 prompt: prompts/task.md
 timeout: "8m"
 environment:

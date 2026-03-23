@@ -8,7 +8,8 @@ description: |
 category: kubernetes
 track: runtime-security
 level: L3
-tags: [security, falco, runtime-detection, rules, monitoring]
+skip: true
+skip_reason: requires environment features not yet implemented
 prompt: prompts/task.md
 timeout: "10m"
 environment:

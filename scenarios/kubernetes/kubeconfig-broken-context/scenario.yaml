@@ -11,9 +11,6 @@ tags: [kubeconfig, certificates, tls, authentication, cka]
 prompt: prompts/task.md
 timeout: "8m"
 bootstrap:
-  - name: create-bench-namespace
-    type: kubectl
-    args: [create, namespace, bench]
   - name: deploy-web
     type: kubectl-apply
     path: fixtures/baseline-web.yaml
