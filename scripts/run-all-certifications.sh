@@ -43,6 +43,7 @@ provider_url_for_model() {
     claude-*)           echo "https://api.anthropic.com/v1" ;;
     gemini-*)           echo "https://generativelanguage.googleapis.com/v1beta/openai" ;;
     deepseek-*)         echo "https://api.deepseek.com/v1" ;;
+    llama-*|mixtral-*)  echo "https://api.groq.com/openai/v1" ;;
     qwen*)              echo "https://dashscope-intl.aliyuncs.com/compatible-mode/v1" ;;
     *)                  echo "${EVIDRA_BIFROST_BASE_URL:-http://localhost:8080/openai}" ;;
   esac
@@ -54,6 +55,7 @@ provider_key_for_model() {
     claude-*)           echo "${ANTHROPIC_API_KEY:-}" ;;
     gemini-*)           echo "${GEMINI_API_KEY:-}" ;;
     deepseek-*)         echo "${DEEPSEEK_API_KEY:-}" ;;
+    llama-*|mixtral-*)  echo "${GROQ_API_KEY:-}" ;;
     qwen*)              echo "${DASHSCOPE_API_KEY:-}" ;;
     *)                  echo "${EVIDRA_BIFROST_AUTH_BEARER:-}" ;;
   esac

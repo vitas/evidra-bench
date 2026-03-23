@@ -21,15 +21,14 @@ if ! kubectl get role pod-reader -n bench &>/dev/null; then
 fi
 echo "✓ Role pod-reader exists in bench namespace"
 
-# Check that Role has correct verbs
-ROLE_VERBS=$(kubectl get role pod-reader -n bench -o jsonpath='{.rules[0].verbs}' | tr ',' '\n' | sort)
-EXPECTED_VERBS="get
-list
-watch"
-if ! diff <(echo "$EXPECTED_VERBS") <(echo "$ROLE_VERBS" | tr ' ' '\n' | grep -E '^(get|list|watch)$' | sort) &>/dev/null; then
-  echo "ERROR: Role does not have correct verbs"
-  exit 1
-fi
+# Check that Role has correct verbs (get, list, watch on pods)
+ROLE_VERBS=$(kubectl get role pod-reader -n bench -o jsonpath='{range .rules[0].verbs[*]}{@}{"\n"}{end}' | sort)
+for VERB in get list watch; do
+  if ! echo "$ROLE_VERBS" | grep -qx "$VERB"; then
+    echo "ERROR: Role missing verb '$VERB'. Has: $(echo $ROLE_VERBS | tr '\n' ' ')"
+    exit 1
+  fi
+done
 echo "✓ Role has correct verbs (get, list, watch)"
 
 # Check that RoleBinding exists in bench namespace

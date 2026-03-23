@@ -200,7 +200,31 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}
 	}
 
-	// Step 2: Bootstrap.
+	// Step 2: Clean bench namespace before bootstrap (prevent leftover resources from prior runs).
+	// Delete all resources inside the namespace, not the namespace itself (avoids terminating race).
+	if req.Config.ReuseCluster && handle.KubeconfigPath != "" {
+		for _, res := range []string{"all", "pvc", "configmap", "secret", "ingress", "networkpolicy"} {
+			cleanCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
+				"delete", res, "--all", "-n", "bench", "--ignore-not-found", "--timeout=15s")
+			if out, err := cleanCmd.CombinedOutput(); err != nil {
+				log.Printf("[harness] bench cleanup %s (non-fatal): %s %v", res, string(out), err)
+			}
+		}
+		// Also clean cluster-scoped resources that scenarios may create
+		for _, res := range []string{"pv", "storageclass", "validatingwebhookconfiguration", "mutatingwebhookconfiguration"} {
+			cleanCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
+				"delete", res, "--all", "--ignore-not-found", "--timeout=10s")
+			cleanCmd.CombinedOutput()
+		}
+		// Clean scenario-created namespaces (webhook-system, etc.)
+		for _, ns := range []string{"webhook-system"} {
+			cleanCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
+				"delete", "namespace", ns, "--ignore-not-found", "--timeout=15s")
+			cleanCmd.CombinedOutput()
+		}
+	}
+
+	// Step 2b: Bootstrap.
 	if h.deps.Bootstrapper != nil {
 		plan := buildBootstrapPlan(s, req.Config.ScenariosDir)
 		if err := h.deps.Bootstrapper.Execute(ctx, plan, handle.KubeconfigPath); err != nil {
