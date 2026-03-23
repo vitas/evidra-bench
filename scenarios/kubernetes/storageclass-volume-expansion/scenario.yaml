@@ -11,6 +11,9 @@ tags: [storage, volume-expansion, storageclass, pvc, cka]
 prompt: prompts/task.md
 timeout: "10m"
 bootstrap:
+  - name: cleanup-storageclass
+    type: kubectl
+    args: [delete, storageclass, bench-storage, --ignore-not-found=true]
   - name: create-storageclass
     type: kubectl-apply
     path: fixtures/storageclass.yaml

@@ -8,6 +8,8 @@ description: |
 category: kubernetes
 track: workloads
 level: L3
+skip: true
+skip_reason: requires multi-node kind cluster (node drain needs worker nodes)
 tags: [drain, pdb, pod-disruption-budget, maintenance, cordon, cka]
 prompt: prompts/task.md
 timeout: "10m"
@@ -21,6 +23,9 @@ bootstrap:
   - name: wait-for-web
     type: kubectl
     args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+  - name: cleanup-maintenance-marker
+    type: kubectl
+    args: [delete, configmap, maintenance-needed, -n, bench, --ignore-not-found=true]
   - name: create-maintenance-marker
     type: kubectl
     args: [create, configmap, maintenance-needed, --from-literal=message="Node needs kernel maintenance and must be drained", -n, bench]

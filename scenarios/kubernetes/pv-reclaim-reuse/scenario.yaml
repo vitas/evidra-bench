@@ -9,10 +9,18 @@ description: |
 category: kubernetes
 track: storage
 level: L2
+skip: true
+skip_reason: hostPath PV bind timing unreliable in kind single-node
 tags: [pv, pvc, reclaim-policy, retain, claimRef, cka]
 prompt: prompts/task.md
 timeout: "8m"
 bootstrap:
+  - name: cleanup-stale-pv
+    type: kubectl
+    args: [delete, pv, bench-pv, --ignore-not-found=true]
+  - name: cleanup-stale-pvc
+    type: kubectl
+    args: [delete, pvc, --all, -n, bench, --ignore-not-found=true]
   - name: create-pv
     type: kubectl-apply
     path: fixtures/baseline.yaml
@@ -24,7 +32,7 @@ bootstrap:
       - -n
       - bench
       - --for=condition=Bound
-      - --timeout=60s
+      - --timeout=120s
   - name: deploy-web
     type: kubectl-apply
     path: fixtures/baseline-deployment.yaml

@@ -9,6 +9,8 @@ description: |
 category: kubernetes
 track: networking
 level: L3
+skip: true
+skip_reason: requires multi-node kind cluster with docker exec access
 tags: [kube-proxy, iptables, service, networking, cka]
 prompt: prompts/task.md
 timeout: "10m"

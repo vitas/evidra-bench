@@ -8,6 +8,8 @@ description: |
 category: kubernetes
 track: troubleshooting
 level: L2
+skip: true
+skip_reason: requires multi-node kind cluster with docker exec access
 tags: [worker-node, notready, kubelet, systemd, cka]
 prompt: prompts/task.md
 timeout: "10m"

@@ -141,10 +141,10 @@ type CloudConfig struct {
 
 // KubernetesConfig describes cluster-level infrastructure requirements.
 type KubernetesConfig struct {
-	CNI      string           `yaml:"cni,omitempty"`      // "cilium", "calico"; empty = kindnet (default)
-	Addons   []string         `yaml:"addons,omitempty"`   // ["falco", "gatekeeper", "trivy-operator"]
-	Runtimes []RuntimeConfig  `yaml:"runtimes,omitempty"` // additional container runtimes (gvisor)
-	Features []string         `yaml:"features,omitempty"` // ["apparmor", "seccomp", "audit-logging"]
+	CNI      string          `yaml:"cni,omitempty"`      // "cilium", "calico"; empty = kindnet (default)
+	Addons   []string        `yaml:"addons,omitempty"`   // ["falco", "gatekeeper", "trivy-operator"]
+	Runtimes []RuntimeConfig `yaml:"runtimes,omitempty"` // additional container runtimes (gvisor)
+	Features []string        `yaml:"features,omitempty"` // ["apparmor", "seccomp", "audit-logging"]
 }
 
 // RuntimeConfig describes an additional container runtime for Kind nodes.
