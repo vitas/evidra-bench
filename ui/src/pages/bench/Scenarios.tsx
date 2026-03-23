@@ -86,11 +86,12 @@ export function Scenarios() {
 
   useEffect(() => {
     Promise.all([
-      request<ScenariosResponse>(`/v1/bench/scenarios${evidenceModeParam("?", mode)}`),
+      request<{ scenarios?: Scenario[]; items?: Scenario[] }>(`/v1/bench/scenarios${evidenceModeParam("?", mode)}`),
       request<Stats>(`/v1/bench/stats${evidenceModeParam("?", mode)}`),
     ])
-      .then(([scenarios, st]) => {
-        setData(scenarios);
+      .then(([raw, st]) => {
+        const items = raw.items ?? raw.scenarios ?? [];
+        setData({ items, total: items.length });
         const map = new Map<string, ScenarioStat>();
         for (const s of st.by_scenario ?? []) {
           map.set(s.scenario_id, s);

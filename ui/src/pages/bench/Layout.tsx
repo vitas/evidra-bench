@@ -8,6 +8,8 @@ const navItems = [
   { to: "/bench", label: "Leaderboard" },
   { to: "/bench/dashboard", label: "Dashboard" },
   { to: "/bench/skill-impact", label: "Skill Impact" },
+  { to: "/bench/regressions", label: "Regressions" },
+  { to: "/bench/insights", label: "Insights" },
   { to: "/bench/runs", label: "Runs" },
   { to: "/bench/scenarios", label: "Scenarios" },
   { to: "/bench/compare", label: "Compare" },

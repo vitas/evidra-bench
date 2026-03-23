@@ -18,6 +18,8 @@ import { ScenarioDetail } from "./pages/bench/ScenarioDetail";
 import { Compare } from "./pages/bench/Compare";
 import { SkillImpact } from "./pages/bench/SkillImpact";
 import { Benchmarks } from "./pages/bench/Benchmarks";
+import { Regressions } from "./pages/bench/Regressions";
+import { Insights } from "./pages/bench/Insights";
 
 export function App() {
   return (
@@ -35,6 +37,8 @@ export function App() {
           <Route path="/bench/scenarios/:id" element={<BenchLayout><ScenarioDetail /></BenchLayout>} />
           <Route path="/bench/compare" element={<BenchLayout><Compare /></BenchLayout>} />
           <Route path="/bench/skill-impact" element={<BenchLayout><SkillImpact /></BenchLayout>} />
+          <Route path="/bench/regressions" element={<BenchLayout><Regressions /></BenchLayout>} />
+          <Route path="/bench/insights" element={<BenchLayout><Insights /></BenchLayout>} />
           <Route path="/bench/benchmarks" element={<BenchLayout><Benchmarks /></BenchLayout>} />
 
           {/* Lab routes (scenario catalog, designer, run configurator) */}
