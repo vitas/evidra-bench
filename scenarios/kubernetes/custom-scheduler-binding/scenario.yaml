@@ -1,0 +1,33 @@
+id: custom-scheduler-binding
+title: Deploy and bind pod to custom scheduler
+description: |
+  A batch pod needs to use a custom scheduler. The default scheduler keeps placing it
+  on the wrong node. The agent must deploy a custom scheduler and update the pod to use it.
+category: kubernetes
+track: workloads
+level: L3
+tags: [scheduler, custom-scheduler, scheduling-profile, cka]
+prompt: prompts/task.md
+timeout: "12m"
+bootstrap:
+  - name: label-node
+    type: kubectl
+    args: [label, nodes, --all, gpu=true, --overwrite=true]
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-baseline
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+  - name: deploy-batch-pod
+    type: kubectl-apply
+    path: fixtures/batch-deployment.yaml
+break:
+  type: kubectl-apply
+  path: fixtures/break-marker.yaml
+checks:
+  - type: command-succeeds
+    name: check-scheduler-binding
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench, kube-system]

@@ -1,0 +1,44 @@
+id: controlplane-static-pod-crash
+title: Fix kube-apiserver static pod manifest with broken etcd-servers flag
+description: |
+  Someone edited the kube-apiserver static pod manifest on the control-plane node
+  with a typo in the --etcd-servers flag. The API server won't start, so kubectl
+  is completely unavailable. The agent must use docker exec or crictl to inspect
+  the node, find the broken manifest, fix the typo, and wait for kubelet to restart
+  the static pod.
+category: kubernetes
+track: troubleshooting
+level: L2
+tags: [control-plane, static-pod, api-server, kubelet, cka]
+prompt: prompts/task.md
+timeout: "10m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline/deployment.yaml
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: shell
+  command: |
+    docker exec {{cluster}}-control-plane sed -i \
+      's/--etcd-servers=http:\/\/127.0.0.1:2379/--etcd-servers=http:\/\/127.0.0.1:2399/g' \
+      /etc/kubernetes/manifests/kube-apiserver.yaml
+    # Give kubelet time to detect and attempt restart
+    sleep 5
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+  - type: command-succeeds
+    name: verify-apiserver-and-etcd-config
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench]

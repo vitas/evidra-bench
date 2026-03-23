@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: routing-status
+  namespace: bench
+data:
+  status: "incomplete_routing"
+  message: "API and admin services are unreachable via Ingress paths. Only / → frontend is configured."

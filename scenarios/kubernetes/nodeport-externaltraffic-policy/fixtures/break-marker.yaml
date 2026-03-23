@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traffic-policy-status
+  namespace: bench
+data:
+  status: "source_ip_lost"
+  message: "NodePort service is masquerading source IPs due to Cluster traffic policy. Switch to Local."

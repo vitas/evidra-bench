@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: critical-data
+  namespace: bench
+data:
+  database-url: "postgresql://prod-db:5432/critical"
+  api-key: "sk-prod-critical-key-12345"
+  encryption-passphrase: "restore-this-data"

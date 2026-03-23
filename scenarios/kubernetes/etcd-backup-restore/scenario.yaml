@@ -1,0 +1,54 @@
+id: etcd-backup-restore
+title: Restore deleted namespace from etcd snapshot
+description: |
+  The production namespace was accidentally deleted. An etcd snapshot exists at
+  /opt/etcd-backup/snapshot.db on the control-plane node. The agent must use
+  etcdctl snapshot restore to bring back the lost namespace and its resources.
+category: kubernetes
+track: platform-eng
+level: L3
+tags: [etcd, backup, restore, disaster-recovery, cka]
+prompt: prompts/task.md
+timeout: "15m"
+environment:
+  kubernetes:
+    features: [etcd-snapshot]
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline/deployment.yaml
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+  - name: create-critical-data
+    type: kubectl-apply
+    path: fixtures/critical-configmap.yaml
+break:
+  type: shell
+  command: |
+    # Take an etcd snapshot before breaking things
+    CONTROL_PLANE=$(docker ps --filter "label=io.x-k8s.kind.role=control-plane" --format "{{.Names}}" | head -1)
+    docker exec "$CONTROL_PLANE" mkdir -p /opt/etcd-backup
+    docker exec "$CONTROL_PLANE" etcdctl --endpoints=127.0.0.1:2379 \
+      --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+      --cert=/etc/kubernetes/pki/etcd/server.crt \
+      --key=/etc/kubernetes/pki/etcd/server.key \
+      snapshot save /opt/etcd-backup/snapshot.db
+    # Now delete the critical configmap
+    sleep 2
+    kubectl delete configmap critical-data -n bench
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+  - type: command-succeeds
+    name: verify-critical-data-restored
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench]

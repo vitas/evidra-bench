@@ -1,0 +1,31 @@
+id: ingress-multi-path-routing
+title: Configure Ingress for multi-path routing
+description: |
+  Three services (frontend, api, admin) need path-based routing through a single Ingress.
+  The current Ingress routes everything to frontend. The agent must fix path rules for
+  /api and /admin to route to the correct backends.
+category: kubernetes
+track: networking
+level: L2
+tags: [ingress, routing, path-based, nginx-ingress, cka]
+prompt: prompts/task.md
+timeout: "10m"
+bootstrap:
+  - name: deploy-services
+    type: kubectl-apply
+    path: fixtures/services.yaml
+  - name: deploy-ingress
+    type: kubectl-apply
+    path: fixtures/ingress.yaml
+  - name: wait-for-pods
+    type: kubectl
+    args: [rollout, status, deployment/frontend, -n, bench, --timeout=120s]
+break:
+  type: kubectl-apply
+  path: fixtures/break-marker.yaml
+checks:
+  - type: command-succeeds
+    name: check-ingress-routing
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench]

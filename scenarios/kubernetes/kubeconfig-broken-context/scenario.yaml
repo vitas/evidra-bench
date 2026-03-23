@@ -1,0 +1,37 @@
+id: kubeconfig-broken-context
+title: Kubeconfig Broken Server URL
+description: |
+  The kubeconfig context has a broken server URL pointing to port 9443 instead
+  of the correct port 6443. All kubectl commands fail with connection refused
+  errors. Agent must identify and fix the broken field in the kubeconfig.
+category: kubernetes
+track: troubleshooting
+level: L2
+tags: [kubeconfig, certificates, tls, authentication, cka]
+prompt: prompts/task.md
+timeout: "8m"
+bootstrap:
+  - name: create-bench-namespace
+    type: kubectl
+    args: [create, namespace, bench]
+  - name: deploy-web
+    type: kubectl-apply
+    path: fixtures/baseline-web.yaml
+  - name: wait-for-web
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+break:
+  type: shell
+  command: |
+    # Modify the KUBECONFIG to use port 9443 instead of 6443
+    KUBECONFIG_PATH="${KUBECONFIG:-$HOME/.kube/config}"
+    sed -i 's/:6443/:9443/g' "$KUBECONFIG_PATH"
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+  - type: command-succeeds
+    name: verify-kubeconfig-fixed
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench]

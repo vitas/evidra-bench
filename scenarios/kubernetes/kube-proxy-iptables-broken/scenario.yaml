@@ -1,0 +1,48 @@
+id: kube-proxy-iptables-broken
+title: Kube-Proxy ClusterCIDR Misconfiguration
+description: |
+  Services are unreachable by ClusterIP. Pods can communicate directly by IP
+  but cannot reach services by name or ClusterIP. The root cause is that
+  kube-proxy's ConfigMap has a wrong clusterCIDR setting (10.245.0.0/16 instead
+  of 10.244.0.0/16). Agent must find and fix the kube-proxy configuration and
+  restart the kube-proxy pods.
+category: kubernetes
+track: networking
+level: L3
+tags: [kube-proxy, iptables, service, networking, cka]
+prompt: prompts/task.md
+timeout: "10m"
+bootstrap:
+  - name: create-bench-namespace
+    type: kubectl
+    args: [create, namespace, bench]
+  - name: deploy-web
+    type: kubectl-apply
+    path: fixtures/baseline-web.yaml
+  - name: deploy-web-service
+    type: kubectl-apply
+    path: fixtures/web-service.yaml
+  - name: deploy-curl-pod
+    type: kubectl-apply
+    path: fixtures/curl-pod.yaml
+  - name: wait-for-web
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+  - name: wait-for-curl
+    type: kubectl
+    args: [wait, --for=condition=Ready, pod/curl-pod, -n, bench, --timeout=120s]
+break:
+  type: shell
+  command: |
+    # Get the correct clusterCIDR value
+    CORRECT_CIDR=$(kubectl get configmap/kube-proxy -n kube-system -o jsonpath='{.data.kubeconfig\.conf}' | grep -oP 'clusterCIDR["\']?\s*[:=]\s*["\']?\K[^,"'\'']+' || echo "10.244.0.0/16")
+    # Break it: change the CIDR
+    kubectl patch configmap/kube-proxy -n kube-system --type=json -p='[{"op":"replace","path":"/data/config.conf","value":"clusterCIDR: 10.245.0.0/16"}]' || true
+    # Restart kube-proxy pods
+    kubectl delete pods -n kube-system -l k8s-app=kube-proxy --ignore-not-found || true
+checks:
+  - type: command-succeeds
+    name: verify-service-access
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench, kube-system]

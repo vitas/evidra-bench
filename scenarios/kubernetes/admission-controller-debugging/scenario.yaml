@@ -1,0 +1,43 @@
+id: admission-controller-debugging
+title: Admission Controller Webhook Service Down
+description: |
+  A ValidatingAdmissionWebhook is configured but its backend service is down,
+  causing all new pod creation to fail with timeout errors. The webhook has
+  failurePolicy: Fail, which means any unreachable webhook blocks pod creation.
+  Agent must identify the webhook configuration, understand the failure policy,
+  decide whether to fix the webhook service or change the policy, and restore
+  pod scheduling.
+category: kubernetes
+track: troubleshooting
+level: L3
+tags: [admission-controller, webhook, validating, debugging, cka]
+prompt: prompts/task.md
+timeout: "10m"
+bootstrap:
+  - name: create-bench-namespace
+    type: kubectl
+    args: [create, namespace, bench]
+  - name: deploy-web
+    type: kubectl-apply
+    path: fixtures/baseline-web.yaml
+  - name: deploy-webhook-service
+    type: kubectl-apply
+    path: fixtures/webhook-service.yaml
+  - name: deploy-webhook-config
+    type: kubectl-apply
+    path: fixtures/webhook-config.yaml
+  - name: wait-for-web
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+break:
+  type: kubectl
+  args: [scale, deployment/webhook-backend, --replicas=0, -n, webhook-system]
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+  - type: command-succeeds
+    name: verify-pod-creation
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench, webhook-system]
