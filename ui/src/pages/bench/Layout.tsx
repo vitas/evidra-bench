@@ -35,11 +35,9 @@ export function Layout({ children }: { children: ReactNode }) {
           backdropFilter: "blur(12px)",
         }}
       >
-        <div className="flex items-center gap-2 font-extrabold text-fg tracking-tight whitespace-nowrap">
-          <a
-            href="https://evidra.cc"
-            target="_blank"
-            rel="noopener noreferrer"
+        <div className="flex items-center gap-3 font-extrabold text-fg tracking-tight whitespace-nowrap">
+          <NavLink
+            to="/"
             className="inline-flex items-center gap-2 hover:text-accent transition-colors"
             style={{ textDecoration: "none", color: "inherit" }}
           >
@@ -47,8 +45,16 @@ export function Layout({ children }: { children: ReactNode }) {
               className="inline-block w-2 h-2 bg-accent rounded-sm"
               style={{ transform: "rotate(45deg)" }}
             />
-            Evidra Bench
-          </a>
+            Evidra
+          </NavLink>
+          <span className="text-border-subtle">/</span>
+          <NavLink
+            to="/bench"
+            className="hover:text-accent transition-colors"
+            style={{ textDecoration: "none", color: "inherit" }}
+          >
+            Bench
+          </NavLink>
         </div>
 
         {readonly && (
