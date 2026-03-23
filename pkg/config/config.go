@@ -29,8 +29,9 @@ type Config struct {
 	MemoryWindow        int
 	SystemPromptFile    string
 	ContractVersion     string
-	ProxyMode           bool // auto-record evidence for mutations without agent involvement
-	SmartPrescribe      bool // simplified prescribe (tool+operation, no artifact)
+	Role                string // role-based skill (k8s-admin, security-ops, release-manager, platform-eng)
+	ProxyMode           bool   // auto-record evidence for mutations without agent involvement
+	SmartPrescribe      bool   // simplified prescribe (tool+operation, no artifact)
 }
 
 // ResolveSystemPromptFile returns the system prompt file path from flag, env, or empty.

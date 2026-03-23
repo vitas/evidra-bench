@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -22,7 +23,7 @@ func BenchTools() []ToolDef {
 	return []ToolDef{
 		{
 			Name:        "run_command",
-			Description: "Execute a shell command against the cluster. Use for kubectl, helm, and other CLI tools. The KUBECONFIG environment variable is already set.",
+			Description: "Execute a shell command against the cluster. Use for kubectl, helm, terraform, and other CLI tools. The KUBECONFIG environment variable is already set.",
 			Parameters: map[string]any{
 				"type":     "object",
 				"required": []string{"command"},
@@ -30,6 +31,24 @@ func BenchTools() []ToolDef {
 					"command": map[string]any{
 						"type":        "string",
 						"description": "Shell command to execute (e.g., 'kubectl get pods -n bench')",
+					},
+				},
+			},
+		},
+		{
+			Name:        "write_file",
+			Description: "Write content to a file. Use for creating or updating configuration files (e.g., Terraform .tf files, YAML manifests). Creates parent directories if needed.",
+			Parameters: map[string]any{
+				"type":     "object",
+				"required": []string{"path", "content"},
+				"properties": map[string]any{
+					"path": map[string]any{
+						"type":        "string",
+						"description": "File path to write to",
+					},
+					"content": map[string]any{
+						"type":        "string",
+						"description": "Content to write to the file",
 					},
 				},
 			},
@@ -86,6 +105,8 @@ func (e *ToolExecutor) Execute(ctx context.Context, tc ToolCall) string {
 	switch tc.Name {
 	case "run_command":
 		return e.runCommand(ctx, tc.Arguments)
+	case "write_file":
+		return e.writeFile(ctx, tc.Arguments)
 	case "evidra_prescribe", "evidra_prescribe_full":
 		return e.evidraPrescribe(ctx, tc.Arguments)
 	case "evidra_report":
@@ -99,7 +120,7 @@ func (e *ToolExecutor) Execute(ctx context.Context, tc ToolCall) string {
 var allowedCommandPrefixes = []string{
 	"kubectl", "helm", "argocd", "kind", "terraform", "aws",
 	"cat", "echo", "grep", "head", "tail", "wc", "ls", "find", "openssl",
-	"jq", "yq",
+	"jq", "yq", "sed", "tee", "cp", "mkdir", "rm", "mv",
 }
 
 // blockedSubcommands blocks interactive or dangerous subcommands.
@@ -120,23 +141,66 @@ var blockedSubcommands = []string{
 
 // validateCommand checks that a command starts with an allowed prefix
 // and does not match any blocked interactive subcommand.
+// Compound commands (using &&, ||, ;, |) are split and each segment is validated.
 func validateCommand(command string) error {
 	trimmed := strings.TrimSpace(command)
 
+	// Split compound commands into segments.
+	segments := splitCompoundCommand(trimmed)
+	for _, seg := range segments {
+		if err := validateSegment(seg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// compoundAllowed are commands allowed only as part of compound commands (not standalone).
+var compoundAllowed = []string{"cd"}
+
+// splitCompoundCommand splits a shell command on &&, ||, and ; operators.
+// Does NOT split on | (pipe) because it appears inside sed/grep patterns.
+func splitCompoundCommand(cmd string) []string {
+	// Replace operators with a unique separator, then split.
+	// Order matters: check && and || before single characters.
+	normalized := cmd
+	for _, op := range []string{"&&", "||", ";"} {
+		normalized = strings.ReplaceAll(normalized, op, "\x00")
+	}
+	parts := strings.Split(normalized, "\x00")
+	segments := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			segments = append(segments, p)
+		}
+	}
+	return segments
+}
+
+func validateSegment(seg string) error {
 	// Check blocklist first.
 	for _, blocked := range blockedSubcommands {
-		if trimmed == strings.TrimSpace(blocked) || strings.HasPrefix(trimmed, blocked) {
-			return fmt.Errorf("command %q is blocked (interactive/dangerous)", truncate(trimmed, 60))
+		if seg == strings.TrimSpace(blocked) || strings.HasPrefix(seg, blocked) {
+			return fmt.Errorf("command %q is blocked (interactive/dangerous)", truncate(seg, 60))
 		}
 	}
 
-	// Check allowlist.
+	// Check main allowlist.
 	for _, prefix := range allowedCommandPrefixes {
-		if trimmed == prefix || strings.HasPrefix(trimmed, prefix+" ") {
+		if seg == prefix || strings.HasPrefix(seg, prefix+" ") {
 			return nil
 		}
 	}
-	return fmt.Errorf("command %q not in allowlist (allowed: %v)", truncate(trimmed, 50), allowedCommandPrefixes)
+
+	// Check compound-only allowlist (cd, etc.).
+	for _, prefix := range compoundAllowed {
+		if seg == prefix || strings.HasPrefix(seg, prefix+" ") {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("command %q not in allowlist (allowed: %v)", truncate(seg, 50), allowedCommandPrefixes)
 }
 
 func (e *ToolExecutor) runCommand(ctx context.Context, argsJSON string) string {
@@ -183,6 +247,30 @@ func (e *ToolExecutor) runCommand(ctx context.Context, argsJSON string) string {
 	}
 
 	return strings.TrimSpace(result)
+}
+
+func (e *ToolExecutor) writeFile(_ context.Context, argsJSON string) string {
+	var args struct {
+		Path    string `json:"path"`
+		Content string `json:"content"`
+	}
+	if err := json.Unmarshal([]byte(argsJSON), &args); err != nil {
+		return fmt.Sprintf("error parsing arguments: %v", err)
+	}
+	if args.Path == "" {
+		return "error: path is required"
+	}
+
+	// Create parent directories if needed.
+	dir := filepath.Dir(args.Path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Sprintf("error creating directory %s: %v", dir, err)
+	}
+
+	if err := os.WriteFile(args.Path, []byte(args.Content), 0o644); err != nil {
+		return fmt.Sprintf("error writing file: %v", err)
+	}
+	return fmt.Sprintf("wrote %d bytes to %s", len(args.Content), args.Path)
 }
 
 func (e *ToolExecutor) evidraPrescribe(ctx context.Context, argsJSON string) string {

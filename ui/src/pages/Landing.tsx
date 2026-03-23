@@ -9,7 +9,7 @@ const TRACKS = [
   { id: "runtime-security", label: "Runtime Security", count: 2, source: "CKS", icon: "zap" },
   { id: "release-ops", label: "Release Ops", count: 8, source: "Custom", icon: "rocket" },
   { id: "storage", label: "Storage", count: 4, source: "CKA", icon: "database" },
-  { id: "platform-eng", label: "Platform Eng", count: 1, source: "Custom", icon: "cloud" },
+  { id: "platform-eng", label: "Platform Eng", count: 5, source: "Custom", icon: "cloud" },
 ];
 
 const TERMINAL_LINES = [
@@ -124,7 +124,7 @@ function TrackIcon({ icon }: { icon: string }) {
 }
 
 const STATS = [
-  { value: "58", label: "Scenarios" },
+  { value: "62", label: "Scenarios" },
   { value: "8", label: "Exam Tracks" },
   { value: "5", label: "Categories" },
   { value: "4", label: "Cert Levels" },

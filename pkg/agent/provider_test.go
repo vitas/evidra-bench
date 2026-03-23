@@ -53,14 +53,14 @@ func TestChatResponse_Done(t *testing.T) {
 func TestBenchTools_Count(t *testing.T) {
 	t.Parallel()
 	tools := BenchTools()
-	if len(tools) != 3 {
-		t.Fatalf("expected 3 tools, got %d", len(tools))
+	if len(tools) != 4 {
+		t.Fatalf("expected 4 tools, got %d", len(tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range tools {
 		names[tool.Name] = true
 	}
-	for _, expected := range []string{"run_command", "evidra_prescribe_full", "evidra_report"} {
+	for _, expected := range []string{"run_command", "write_file", "evidra_prescribe_full", "evidra_report"} {
 		if !names[expected] {
 			t.Fatalf("missing tool: %s", expected)
 		}

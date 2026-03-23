@@ -2,7 +2,7 @@ id: kubeconfig-broken-context
 title: Kubeconfig Broken Server URL
 description: |
   The kubeconfig context has a broken server URL pointing to port 9443 instead
-  of the correct port 6443. All kubectl commands fail with connection refused
+  of the correct port. All kubectl commands fail with connection refused
   errors. Agent must identify and fix the broken field in the kubeconfig.
 category: kubernetes
 track: troubleshooting

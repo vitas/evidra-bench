@@ -128,6 +128,15 @@ func TestValidateCommand_BlockedInteractive(t *testing.T) {
 		"helm install myrelease ./chart",
 		"helm upgrade myrelease ./chart",
 		"terraform apply -auto-approve",
+		// Compound commands with cd.
+		"cd /tmp && terraform plan",
+		"cd /tmp && terraform apply -auto-approve",
+		"cd dir && kubectl get pods",
+		// File editing tools.
+		"sed -i '' 's/old/new/' file.tf",
+		"cp file.tf file.tf.bak",
+		"tee file.tf",
+		"mkdir -p modules/app",
 	}
 
 	for _, cmd := range allowed {

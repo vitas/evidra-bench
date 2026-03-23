@@ -944,8 +944,9 @@ func buildRunMetadata(cfg config.Config, loopResult *agent.LoopResult, evidenceD
 	return meta
 }
 
-// buildSystemPrompt loads the system prompt from file or returns the default.
+// buildSystemPrompt loads the system prompt from file, role skill, or returns the default.
 func buildSystemPrompt(cfg config.Config, s *scenario.Scenario) (string, error) {
+	// 1. Explicit system prompt file takes precedence over everything.
 	promptFile := cfg.ResolveSystemPromptFile()
 	if promptFile != "" {
 		data, err := os.ReadFile(promptFile)
@@ -953,12 +954,24 @@ func buildSystemPrompt(cfg config.Config, s *scenario.Scenario) (string, error) 
 			return "", fmt.Errorf("harness: read system prompt file: %w", err)
 		}
 		prompt := string(data)
-		// Append namespace context
 		prompt += fmt.Sprintf("\n\nTarget namespace: %s\n", strings.Join(s.Scope.Namespaces, ", "))
 		return prompt, nil
 	}
 
-	// Smart prescribe mode: auto-load the smart prescribe skill if no prompt file given.
+	// 2. Role-based skill: load from skills/<role>.md
+	if cfg.Role != "" {
+		skillPath := filepath.Join(cfg.ScenariosDir, "..", "skills", cfg.Role+".md")
+		data, err := os.ReadFile(skillPath)
+		if err != nil {
+			return "", fmt.Errorf("harness: role skill %q not found at %s: %w", cfg.Role, skillPath, err)
+		}
+		prompt := string(data)
+		prompt += fmt.Sprintf("\n\nTarget namespace: %s\n", strings.Join(s.Scope.Namespaces, ", "))
+		log.Printf("[harness] loaded role skill: %s (%d bytes)", cfg.Role, len(data))
+		return prompt, nil
+	}
+
+	// 3. Smart prescribe mode: auto-load the smart prescribe skill if no prompt file given.
 	if cfg.SmartPrescribe {
 		// Load smart prescribe skill. Source of truth: evidra/prompts/skill/SKILL_SMART.md
 		skillPath := filepath.Join(cfg.ScenariosDir, "..", "skills", "evidra", "smart-prescribe.md")

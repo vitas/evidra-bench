@@ -2,7 +2,7 @@
 
 Development and testing framework for AI infrastructure agent skills. Run your agent, MCP tool, or skill prompt against real Kubernetes clusters, AWS resources, Helm charts, and Argo CD — measure what actually helps and what's just token waste.
 
-**58 scenarios** | **8 CKA/CKS-aligned tracks** | **4 certification levels** | **5 infrastructure categories**
+**62 scenarios** | **8 CKA/CKS-aligned tracks** | **4 certification levels** | **5 infrastructure categories**
 
 Puzzle Designer: [lab.evidra.cc](https://lab.evidra.cc) | Results: [lab.evidra.cc/results](https://lab.evidra.cc/results)
 
@@ -97,7 +97,7 @@ Aligned with CKA/CKS exam domains:
 | `pod-security` | CKS: Minimize Vulns (20%) | 13 | RBAC, capabilities, PSA, CSR, AWS SG/S3 |
 | `runtime-security` | CKS: Monitoring (20%) | 2 | Chaos resilience, runtime disruptions |
 | `release-ops` | Custom | 8 | Helm, Argo CD, rollbacks, GitOps |
-| `platform-eng` | Custom | 1 | Terraform state management |
+| `platform-eng` | Custom | 5 | Terraform state, drift, import, refactoring |
 
 ### Levels (how the agent thinks)
 
@@ -138,7 +138,7 @@ Every scenario is designed to generate signals. The signals are the product.
 | Kubernetes | kubectl | kind cluster | 49 |
 | Helm | helm | kind cluster | 4 |
 | Argo CD | argocd | kind cluster | 4 |
-| Terraform | terraform | local state | 1 |
+| Terraform | terraform | local state | 5 |
 | **AWS** | **aws CLI** | **LocalStack** | **2** |
 
 AWS scenarios run against [LocalStack](https://localstack.cloud/) — no cloud account needed. The harness auto-provisions a LocalStack container, runs setup scripts, and injects AWS credentials into the agent's environment.

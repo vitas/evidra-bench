@@ -30,6 +30,7 @@ type VersionInfo struct {
 	SkillVersion    string `json:"skill_version,omitempty"`
 	PromptVersion   string `json:"prompt_version,omitempty"`
 	PromptFile      string `json:"prompt_file,omitempty"`
+	Role            string `json:"role,omitempty"`
 }
 
 // CollectVersions gathers version information from the evidra binary,
@@ -40,6 +41,7 @@ func CollectVersions(infraBenchVersion, infraBenchCommit string, cfg Config) Ver
 		InfraBenchCommit:  infraBenchCommit,
 		ContractVersion:   cfg.ContractVersion,
 		PromptFile:        cfg.ResolveSystemPromptFile(),
+		Role:              cfg.Role,
 	}
 
 	if vi.ContractVersion != "" {
@@ -130,6 +132,9 @@ func (v VersionInfo) ToMetadata() map[string]string {
 	}
 	if v.PromptFile != "" {
 		m["system_prompt_file"] = v.PromptFile
+	}
+	if v.Role != "" {
+		m["role"] = v.Role
 	}
 	return m
 }
