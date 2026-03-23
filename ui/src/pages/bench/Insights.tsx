@@ -100,7 +100,7 @@ export function Insights() {
           ))}
         </select>
         {selected && (
-          <Link to={`/scenarios/${selected}`} className="text-accent text-[0.78rem] hover:underline">
+          <Link to={`/bench/scenarios/${selected}`} className="text-accent text-[0.78rem] hover:underline">
             View scenario &rarr;
           </Link>
         )}

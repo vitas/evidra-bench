@@ -264,7 +264,7 @@ export function RunDetail() {
     return (
       <div className="py-12 text-center">
         <p className="text-danger text-[0.9rem] mb-4">{error || "Run not found"}</p>
-        <Link to="/runs" className="text-accent text-[0.82rem] hover:underline">
+        <Link to="/bench/runs" className="text-accent text-[0.82rem] hover:underline">
           &larr; Back to Runs
         </Link>
       </div>
@@ -278,7 +278,7 @@ export function RunDetail() {
       {/* Breadcrumb header */}
       <div className="flex items-center gap-3 flex-wrap">
         <Link
-          to="/runs"
+          to="/bench/runs"
           className="text-accent text-[0.82rem] font-medium hover:underline"
         >
           &larr; Runs

@@ -319,7 +319,7 @@ export function Leaderboard() {
                 {/* Model name */}
                 <td className="px-4 py-3">
                   <Link
-                    to={`/runs?model=${m.model}`}
+                    to={`/bench/runs?model=${m.model}`}
                     className="font-mono text-[0.85rem] font-semibold text-fg hover:text-accent transition-colors"
                     style={{ textDecoration: "none" }}
                   >

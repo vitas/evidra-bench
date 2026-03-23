@@ -5,15 +5,13 @@ import { useAppInfo } from "../../hooks/useAppInfo";
 import { useEvidenceMode, type EvidenceMode } from "../../hooks/useEvidenceMode";
 
 const navItems = [
-  { to: "/", label: "Leaderboard" },
-  { to: "/dashboard", label: "Dashboard" },
-  { to: "/skill-impact", label: "Skill Impact" },
-  { to: "/regressions", label: "Regressions" },
-  { to: "/insights", label: "Insights" },
-  { to: "/runs", label: "Runs" },
-  { to: "/scenarios", label: "Scenarios" },
-  { to: "/compare", label: "Compare" },
-  { to: "/benchmarks", label: "Benchmarks" },
+  { to: "/bench", label: "Leaderboard" },
+  { to: "/bench/dashboard", label: "Dashboard" },
+  { to: "/bench/skill-impact", label: "Skill Impact" },
+  { to: "/bench/runs", label: "Runs" },
+  { to: "/bench/scenarios", label: "Scenarios" },
+  { to: "/bench/compare", label: "Compare" },
+  { to: "/bench/benchmarks", label: "Benchmarks" },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -79,7 +77,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <NavLink
               key={to}
               to={to}
-              end={to === "/"}
+              end={to === "/bench"}
               className={({ isActive }) =>
                 `text-[0.83rem] font-medium px-3 py-1.5 rounded-md transition-all ${
                   isActive

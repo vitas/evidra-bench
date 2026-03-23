@@ -132,7 +132,7 @@ export function Regressions() {
                   </td>
                   <td className="px-4 py-3">
                     <Link
-                      to={`/scenarios/${reg.scenario_id}`}
+                      to={`/bench/scenarios/${reg.scenario_id}`}
                       className="font-mono text-[0.82rem] text-accent hover:underline"
                     >
                       {reg.scenario_id}
@@ -153,7 +153,7 @@ export function Regressions() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link
-                      to={`/runs/${reg.latest_run_id}`}
+                      to={`/bench/runs/${reg.latest_run_id}`}
                       className="text-accent text-[0.78rem] hover:underline"
                     >
                       View run &rarr;

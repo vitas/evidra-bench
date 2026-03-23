@@ -178,7 +178,7 @@ export function ScenarioDetail() {
       {/* Breadcrumb */}
       <div className="flex items-center gap-3 flex-wrap">
         <Link
-          to="/scenarios"
+          to="/bench/scenarios"
           className="text-accent text-[0.82rem] font-medium hover:underline"
         >
           &larr; Scenarios
@@ -342,7 +342,7 @@ export function ScenarioDetail() {
                         </td>
                         <td className="px-4 py-2">
                           <Link
-                            to={`/runs/${run.id}`}
+                            to={`/bench/runs/${run.id}`}
                             className="text-accent text-[0.72rem] hover:underline"
                             onClick={(e) => e.stopPropagation()}
                           >

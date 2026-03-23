@@ -544,7 +544,7 @@ export function Scenarios() {
                     <p>
                       Run:{" "}
                       <Link
-                        to={`/runs/${runJob.run_id}`}
+                        to={`/bench/runs/${runJob.run_id}`}
                         className="text-accent hover:text-accent-bright"
                         onClick={closeModal}
                       >
@@ -589,7 +589,7 @@ function ScenarioCard({
   return (
     <div className="bg-bg-elevated border border-border-subtle rounded-[10px] p-4 hover:border-accent hover:shadow-[var(--shadow-card-lg)] hover:-translate-y-px transition-all flex flex-col gap-2">
       <Link
-        to={`/runs?scenario=${scenario.id}`}
+        to={`/bench/runs?scenario=${scenario.id}`}
         className="flex flex-col gap-1"
         style={{ textDecoration: "none", color: "inherit" }}
       >

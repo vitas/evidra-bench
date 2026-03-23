@@ -362,7 +362,7 @@ export function Dashboard() {
               Recent Runs
             </h2>
             <Link
-              to="/runs"
+              to="/bench/runs"
               className="text-[0.78rem] text-accent hover:text-accent-bright"
             >
               View all &rarr;
@@ -651,7 +651,7 @@ export function Dashboard() {
                     className="border-t border-border-subtle hover:bg-accent-subtle transition-colors"
                   >
                     <td className="py-2 px-5 font-medium text-fg">
-                      <Link to={`/runs?scenario=${s.scenario_id}`} className="text-fg hover:text-accent">
+                      <Link to={`/bench/runs?scenario=${s.scenario_id}`} className="text-fg hover:text-accent">
                         {s.scenario_id}
                       </Link>
                     </td>
@@ -699,7 +699,7 @@ export function Dashboard() {
                     className="border-t border-border-subtle hover:bg-accent-subtle transition-colors"
                   >
                     <td className="py-2 px-5 font-medium text-fg">
-                      <Link to={`/runs?scenario=${s.scenario_id}`} className="text-fg hover:text-accent">
+                      <Link to={`/bench/runs?scenario=${s.scenario_id}`} className="text-fg hover:text-accent">
                         {s.scenario_id}
                       </Link>
                     </td>
