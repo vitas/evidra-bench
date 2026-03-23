@@ -101,3 +101,86 @@ stages:
 		t.Errorf("Stages[1].AgentGoal = %q", s.Stages[1].AgentGoal)
 	}
 }
+
+func TestScenario_Categories_SingleCategory(t *testing.T) {
+	t.Parallel()
+	s := Scenario{Category: "terraform"}
+	if got := s.PrimaryCategory(); got != "terraform" {
+		t.Errorf("PrimaryCategory() = %q, want terraform", got)
+	}
+	cats := s.ResolvedCategories()
+	if len(cats) != 1 || cats[0] != "terraform" {
+		t.Errorf("ResolvedCategories() = %v, want [terraform]", cats)
+	}
+	if !s.HasCategory("terraform") {
+		t.Error("HasCategory(terraform) = false, want true")
+	}
+	if s.HasCategory("aws") {
+		t.Error("HasCategory(aws) = true, want false")
+	}
+}
+
+func TestScenario_Categories_MultiCategory(t *testing.T) {
+	t.Parallel()
+	s := Scenario{Categories: []string{"terraform", "aws"}}
+	if got := s.PrimaryCategory(); got != "terraform" {
+		t.Errorf("PrimaryCategory() = %q, want terraform", got)
+	}
+	cats := s.ResolvedCategories()
+	if len(cats) != 2 {
+		t.Fatalf("ResolvedCategories() = %v, want [terraform aws]", cats)
+	}
+	if !s.HasCategory("terraform") {
+		t.Error("HasCategory(terraform) = false")
+	}
+	if !s.HasCategory("aws") {
+		t.Error("HasCategory(aws) = false")
+	}
+	if !s.HasCategory("AWS") {
+		t.Error("HasCategory(AWS) = false (case-insensitive)")
+	}
+	if s.HasCategory("helm") {
+		t.Error("HasCategory(helm) = true, want false")
+	}
+}
+
+func TestScenario_Categories_MultiOverridesSingle(t *testing.T) {
+	t.Parallel()
+	// When both are set, Categories takes precedence.
+	s := Scenario{Category: "old", Categories: []string{"terraform", "aws"}}
+	if got := s.PrimaryCategory(); got != "terraform" {
+		t.Errorf("PrimaryCategory() = %q, want terraform", got)
+	}
+	if s.HasCategory("old") {
+		t.Error("HasCategory(old) = true; Categories should override Category")
+	}
+}
+
+func TestScenario_Categories_UnmarshalYAML(t *testing.T) {
+	t.Parallel()
+	input := `
+id: tf-aws-test
+title: Terraform AWS test
+categories:
+  - terraform
+  - aws
+prompt: prompts/task.md
+break:
+  type: shell
+  path: fixtures/break.sh
+checks:
+  - type: command-succeeds
+    name: verify
+    condition: fixtures/verify.sh
+`
+	var s Scenario
+	if err := yaml.Unmarshal([]byte(input), &s); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(s.Categories) != 2 {
+		t.Fatalf("Categories = %v, want [terraform aws]", s.Categories)
+	}
+	if !s.HasCategory("terraform") || !s.HasCategory("aws") {
+		t.Errorf("HasCategory failed: %v", s.Categories)
+	}
+}

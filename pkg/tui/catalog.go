@@ -13,7 +13,7 @@ type CatalogItem struct {
 }
 
 // CategoryFilters defines the rotation of category filters.
-var CategoryFilters = []string{"", "kubernetes", "helm", "argocd", "aws"}
+var CategoryFilters = []string{"", "kubernetes", "terraform", "helm", "argocd", "aws"}
 
 // FilterCatalog returns items matching the given text query and category filter.
 func FilterCatalog(items []CatalogItem, query, category string) []CatalogItem {
@@ -23,7 +23,7 @@ func FilterCatalog(items []CatalogItem, query, category string) []CatalogItem {
 	query = strings.ToLower(query)
 	var result []CatalogItem
 	for _, item := range items {
-		if category != "" && !strings.EqualFold(item.Scenario.Category, category) {
+		if category != "" && !item.Scenario.HasCategory(category) {
 			continue
 		}
 		if query != "" && !matchesQuery(item.Scenario, query) {
@@ -41,8 +41,10 @@ func matchesQuery(s *scenario.Scenario, query string) bool {
 	if strings.Contains(strings.ToLower(s.Title), query) {
 		return true
 	}
-	if strings.Contains(strings.ToLower(s.Category), query) {
-		return true
+	for _, cat := range s.ResolvedCategories() {
+		if strings.Contains(strings.ToLower(cat), query) {
+			return true
+		}
 	}
 	for _, tag := range s.Tags {
 		if strings.Contains(strings.ToLower(tag), query) {

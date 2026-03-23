@@ -1,16 +1,20 @@
 // Package scenario defines the scenario model and loader.
 package scenario
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // Scenario is the parsed representation of a scenario.yaml file.
 type Scenario struct {
 	ID          string             `yaml:"id"`
 	Title       string             `yaml:"title"`
 	Description string             `yaml:"description,omitempty"`
-	Category    string             `yaml:"category"`
-	Track       string             `yaml:"track,omitempty"` // workloads, troubleshooting, networking, storage, pod-security, runtime-security, release-ops, platform-eng
-	Level       string             `yaml:"level,omitempty"` // L1 (fix), L2 (diagnose), L3 (judge), L4 (investigate)
+	Category    string             `yaml:"category,omitempty"`   // Primary category (backward compat). Use Categories for multi-category scenarios.
+	Categories  []string           `yaml:"categories,omitempty"` // Multi-category support: categories: [terraform, aws]
+	Track       string             `yaml:"track,omitempty"`      // workloads, troubleshooting, networking, storage, pod-security, runtime-security, release-ops, platform-eng
+	Level       string             `yaml:"level,omitempty"`      // L1 (fix), L2 (diagnose), L3 (judge), L4 (investigate)
 	Path        string             `yaml:"-"`
 	Dir         string             `yaml:"-"`
 	Tags        []string           `yaml:"tags,omitempty"`
@@ -29,6 +33,37 @@ type Scenario struct {
 	Evidra      EvidraExpectations `yaml:"evidra,omitempty"`
 	Skip        bool               `yaml:"skip,omitempty"`
 	SkipReason  string             `yaml:"skip_reason,omitempty"`
+}
+
+// ResolvedCategories returns the effective category list.
+// If Categories is set, it takes precedence. Otherwise Category is used as a single-element list.
+func (s *Scenario) ResolvedCategories() []string {
+	if len(s.Categories) > 0 {
+		return s.Categories
+	}
+	if s.Category != "" {
+		return []string{s.Category}
+	}
+	return nil
+}
+
+// PrimaryCategory returns the first category for display and sorting.
+func (s *Scenario) PrimaryCategory() string {
+	cats := s.ResolvedCategories()
+	if len(cats) > 0 {
+		return cats[0]
+	}
+	return ""
+}
+
+// HasCategory reports whether the scenario belongs to the given category (case-insensitive).
+func (s *Scenario) HasCategory(cat string) bool {
+	for _, c := range s.ResolvedCategories() {
+		if strings.EqualFold(c, cat) {
+			return true
+		}
+	}
+	return false
 }
 
 // Check describes a verification assertion.

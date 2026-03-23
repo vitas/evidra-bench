@@ -17,7 +17,8 @@ type scenario struct {
 	ID          string   `yaml:"id"`
 	Title       string   `yaml:"title"`
 	Description string   `yaml:"description"`
-	Category    string   `yaml:"category"`
+	Category    string   `yaml:"category,omitempty"`
+	Categories  []string `yaml:"categories,omitempty"`
 	Track       string   `yaml:"track"`
 	Level       string   `yaml:"level"`
 	Tags        []string `yaml:"tags"`
@@ -43,6 +44,13 @@ type catalogEntry struct {
 	Description string `json:"description"`
 	Target      string `json:"target"`
 	Chaos       bool   `json:"chaos,omitempty"`
+}
+
+func (s scenario) primaryCategory() string {
+	if len(s.Categories) > 0 {
+		return strings.Join(s.Categories, "/")
+	}
+	return s.Category
 }
 
 func levelToDifficulty(level string) string {
@@ -121,7 +129,7 @@ func main() {
 		entries = append(entries, catalogEntry{
 			ID:          s.ID,
 			Title:       s.Title,
-			Category:    s.Category,
+			Category:    s.primaryCategory(),
 			Difficulty:  levelToDifficulty(s.Level),
 			Track:       s.Track,
 			Level:       s.Level,

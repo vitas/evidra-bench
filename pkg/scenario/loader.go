@@ -163,8 +163,8 @@ func validate(s *Scenario) error {
 	if s.Title == "" {
 		return fmt.Errorf("scenario %s: missing title", s.ID)
 	}
-	if s.Category == "" {
-		return fmt.Errorf("scenario %s: missing category", s.ID)
+	if s.Category == "" && len(s.Categories) == 0 {
+		return fmt.Errorf("scenario %s: missing category (set category or categories)", s.ID)
 	}
 	if s.Prompt == "" {
 		return fmt.Errorf("scenario %s: missing prompt", s.ID)

@@ -112,6 +112,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	f.StringVar(&cfg.EvidraBin, "evidra-bin", cfg.EvidraBin, "path to evidra binary for protocol tools")
 	f.IntVar(&cfg.MemoryWindow, "memory-window", -1, "agent memory window (-1=full, 0=stateless, N=last N exchanges)")
 	f.StringVar(&cfg.SystemPromptFile, "system-prompt-file", cfg.SystemPromptFile, "system prompt file path (overrides default; env: INFRA_BENCH_SYSTEM_PROMPT)")
+	f.StringVar(&cfg.Role, "role", cfg.Role, "role-based skill (k8s-admin, security-ops, release-manager, platform-eng)")
 	f.StringVar(&cfg.ContractVersion, "contract-version", cfg.ContractVersion, "evidra contract version label for tracking")
 	f.BoolVar(&cfg.ProxyMode, "proxy-mode", false, "auto-record evidence for mutations (no agent prescribe/report needed)")
 	f.BoolVar(&cfg.SmartPrescribe, "smart-prescribe", false, "simplified prescribe (tool+operation, 80% fewer tokens)")
@@ -361,6 +362,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	cf.StringVar(&certifyCfg.EvidraAPIKey, "evidra-api-key", certifyCfg.EvidraAPIKey, "Evidra API key")
 	cf.StringVar(&certifyCfg.EvidraBin, "evidra-bin", certifyCfg.EvidraBin, "evidra binary path")
 	cf.StringVar(&certifyCfg.SystemPromptFile, "system-prompt-file", certifyCfg.SystemPromptFile, "system prompt file")
+	cf.StringVar(&certifyCfg.Role, "role", certifyCfg.Role, "role-based skill (k8s-admin, security-ops, release-manager, platform-eng)")
 	cf.StringVar(&certifyCfg.ContractVersion, "contract-version", certifyCfg.ContractVersion, "contract version")
 	_ = certifyCmd.MarkFlagRequired("track")
 	_ = certifyCmd.MarkFlagRequired("model")
@@ -387,6 +389,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	bf.StringVar(&benchCfg.Provider, "provider", benchCfg.Provider, "LLM provider")
 	bf.StringVar(&benchCfg.EvidraBin, "evidra-bin", benchCfg.EvidraBin, "evidra binary path")
 	bf.StringVar(&benchCfg.SystemPromptFile, "system-prompt-file", benchCfg.SystemPromptFile, "system prompt file")
+	bf.StringVar(&benchCfg.Role, "role", benchCfg.Role, "role-based skill (k8s-admin, security-ops, release-manager, platform-eng)")
 	bf.StringVar(&benchCfg.ContractVersion, "contract-version", benchCfg.ContractVersion, "contract version")
 	bf.BoolVar(&benchCfg.ProxyMode, "proxy-mode", false, "auto-record evidence for mutations")
 	bf.BoolVar(&benchCfg.SmartPrescribe, "smart-prescribe", false, "simplified prescribe (tool+operation+resource, v1.1.0)")
@@ -832,7 +835,16 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 			filterSet[f] = true
 		}
 		for _, s := range allScenarios {
-			if filterSet[s.ID] || filterSet[s.Path] || filterSet[s.Category] {
+			match := filterSet[s.ID] || filterSet[s.Path]
+			if !match {
+				for _, cat := range s.ResolvedCategories() {
+					if filterSet[cat] {
+						match = true
+						break
+					}
+				}
+			}
+			if match {
 				selected = append(selected, s)
 			}
 		}

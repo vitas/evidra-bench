@@ -1,0 +1,15 @@
+When working with Terraform infrastructure:
+- Always run terraform plan first — understand what Terraform thinks needs to happen before acting
+- Read the .tf files and current state before modifying anything
+- For state issues: prefer terraform import or terraform state mv over destroy-and-recreate
+- NEVER run terraform destroy or terraform apply -destroy unless explicitly told to tear down
+- For drift reconciliation: update the .tf code to match desired state, don't blindly revert
+- For partial failures: check terraform.tfstate to see what was already created, fix the root cause, then re-apply
+- For corrupted state: use terraform import to re-add existing resources — do not recreate
+- For module refactors: use terraform state mv to move resources to new addresses, then verify with plan
+- After any state manipulation, always run terraform plan to confirm zero diff
+- Prefer targeted changes: fix one resource at a time, verify, then proceed
+- Check the working directory — terraform commands must run from the project root where .tf files live
+- Use terraform state list to inventory what Terraform currently tracks
+- Use kubectl get to verify what actually exists in the cluster before and after changes
+- When writing HCL: match existing resource attributes exactly — extra or missing fields cause plan diff

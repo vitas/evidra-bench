@@ -444,7 +444,7 @@ func (a *App) renderCatalog() string {
 			cursor,
 			badge,
 			evidraMark,
-			catStyle.Render(item.Scenario.Category),
+			catStyle.Render(strings.Join(item.Scenario.ResolvedCategories(), "/")),
 			idStyle.Render(item.Scenario.ID),
 			runCount,
 		)
@@ -480,7 +480,7 @@ func (a *App) renderDetail(item CatalogItem) string {
 
 	b.WriteString(headerStyle.Render(s.Title))
 	b.WriteString("\n")
-	b.WriteString(dimStyle.Render(fmt.Sprintf("  category: %s  timeout: %s", s.Category, s.Timeout.Duration)))
+	b.WriteString(dimStyle.Render(fmt.Sprintf("  category: %s  timeout: %s", strings.Join(s.ResolvedCategories(), "/"), s.Timeout.Duration)))
 	b.WriteString("\n")
 
 	if len(s.Tags) > 0 {
