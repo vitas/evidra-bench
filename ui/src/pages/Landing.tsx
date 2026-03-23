@@ -223,7 +223,7 @@ export function Landing() {
             },
             {
               title: "Lab",
-              desc: "62 scenario catalog with track/level filters. Visual puzzle designer for authoring new scenarios.",
+              desc: "62 scenario catalog with track/level filters. Visual puzzle designer for authoring new scenarios. (Designer: Beta)",
               to: "/scenarios",
               icon: "M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.3 24.3 0 0 1 4.5 0m0 0v5.714a2.25 2.25 0 0 0 .659 1.591L19 14.5",
               tag: "Scenarios",

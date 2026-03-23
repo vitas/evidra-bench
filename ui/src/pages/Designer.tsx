@@ -38,6 +38,7 @@ import { VerifyNode, type VerifyData } from "../components/designer/nodes/Verify
 import { TrapNode, type TrapData } from "../components/designer/nodes/TrapNode";
 import { InfraNode, type InfraData } from "../components/designer/nodes/InfraNode";
 import type { PuzzleMetadata, NodeData } from "../components/designer/yaml-generator";
+import { PublishButton } from "../components/designer/PublishButton";
 
 const nodeTypes: NodeTypes = {
   stack: StackNode,
@@ -440,6 +441,7 @@ function DesignerInner() {
         {/* Toolbar */}
         <div className="flex items-center justify-between px-3 py-1.5 border-b border-border-subtle bg-bg-elevated/50">
           <div className="flex items-center gap-3">
+            <span className="text-[0.6rem] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 border border-amber-500/30">Beta</span>
             {!tour.active && (
               <button
                 onClick={tour.restart}
@@ -490,6 +492,7 @@ function DesignerInner() {
             <div data-tour="export-button">
               <ExportButton nodes={nodes} edges={edges} metadata={metadata} />
             </div>
+            <PublishButton metadata={metadata} />
             {panelCollapsed && (
               <button
                 onClick={() => setPanelCollapsed(false)}
