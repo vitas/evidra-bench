@@ -26,34 +26,22 @@ export function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
 
-          {/* Lab routes (scenario catalog, designer, run configurator) */}
-          <Route path="/*" element={
-            <Layout>
-              <Routes>
-                <Route path="/scenarios" element={<Scenarios />} />
-                <Route path="/designer" element={<Designer />} />
-                <Route path="/run" element={<Run />} />
-                <Route path="/results" element={<Results />} />
-              </Routes>
-            </Layout>
-          } />
-
           {/* Bench routes (rich dashboard with leaderboard, runs, compare) */}
-          <Route path="/bench/*" element={
-            <BenchLayout>
-              <Routes>
-                <Route path="/" element={<Leaderboard />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/runs" element={<Runs />} />
-                <Route path="/runs/:id" element={<RunDetail />} />
-                <Route path="/scenarios" element={<BenchScenarios />} />
-                <Route path="/scenarios/:id" element={<ScenarioDetail />} />
-                <Route path="/compare" element={<Compare />} />
-                <Route path="/skill-impact" element={<SkillImpact />} />
-                <Route path="/benchmarks" element={<Benchmarks />} />
-              </Routes>
-            </BenchLayout>
-          } />
+          <Route path="/bench" element={<BenchLayout><Leaderboard /></BenchLayout>} />
+          <Route path="/bench/dashboard" element={<BenchLayout><Dashboard /></BenchLayout>} />
+          <Route path="/bench/runs" element={<BenchLayout><Runs /></BenchLayout>} />
+          <Route path="/bench/runs/:id" element={<BenchLayout><RunDetail /></BenchLayout>} />
+          <Route path="/bench/scenarios" element={<BenchLayout><BenchScenarios /></BenchLayout>} />
+          <Route path="/bench/scenarios/:id" element={<BenchLayout><ScenarioDetail /></BenchLayout>} />
+          <Route path="/bench/compare" element={<BenchLayout><Compare /></BenchLayout>} />
+          <Route path="/bench/skill-impact" element={<BenchLayout><SkillImpact /></BenchLayout>} />
+          <Route path="/bench/benchmarks" element={<BenchLayout><Benchmarks /></BenchLayout>} />
+
+          {/* Lab routes (scenario catalog, designer, run configurator) */}
+          <Route path="/scenarios" element={<Layout><Scenarios /></Layout>} />
+          <Route path="/designer" element={<Layout><Designer /></Layout>} />
+          <Route path="/run" element={<Layout><Run /></Layout>} />
+          <Route path="/results" element={<Layout><Results /></Layout>} />
         </Routes>
       </BrowserRouter>
     </EvidenceModeProvider>
