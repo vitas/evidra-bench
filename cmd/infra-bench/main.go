@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -90,7 +92,18 @@ with optional Evidra reporting for behavioral analysis.`,
 		},
 	}
 
-	scenarioCmd.AddCommand(listCmd)
+	var pushURL, pushKey string
+	pushCmd := &cobra.Command{
+		Use:   "push",
+		Short: "Push scenario metadata to evidra API",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return pushScenarios(cfg.ScenariosDir, pushURL, pushKey)
+		},
+	}
+	pushCmd.Flags().StringVar(&pushURL, "evidra-url", "https://api.evidra.cc", "Evidra API URL")
+	pushCmd.Flags().StringVar(&pushKey, "evidra-api-key", "", "Evidra API key")
+
+	scenarioCmd.AddCommand(listCmd, pushCmd)
 	scenarioCmd.PersistentFlags().StringVar(&cfg.ScenariosDir, "scenarios-dir", cfg.ScenariosDir, "base directory for scenarios")
 
 	f := runCmd.Flags()
@@ -563,6 +576,69 @@ func listScenarios(cmd *cobra.Command, cfg config.Config) error {
 	for _, s := range scenarios {
 		fmt.Fprintf(cmd.OutOrStdout(), "%-30s %s (%s)\n", s.Path, s.Title, s.ID)
 	}
+	return nil
+}
+
+func pushScenarios(scenariosDir, evidraURL, apiKey string) error {
+	if evidraURL == "" || apiKey == "" {
+		return fmt.Errorf("push-scenarios: --evidra-url and --evidra-api-key are required")
+	}
+
+	scenarios, err := scenario.LoadAll(scenariosDir)
+	if err != nil {
+		return fmt.Errorf("push-scenarios: load: %w", err)
+	}
+
+	type scenarioPayload struct {
+		ID          string   `json:"id"`
+		Title       string   `json:"title"`
+		Description string   `json:"description"`
+		Category    string   `json:"category"`
+		Tags        []string `json:"tags"`
+		Chaos       bool     `json:"chaos"`
+		Evidra      bool     `json:"evidra"`
+	}
+
+	var items []scenarioPayload
+	for _, s := range scenarios {
+		items = append(items, scenarioPayload{
+			ID:          s.ID,
+			Title:       s.Title,
+			Description: s.Description,
+			Category:    s.Category,
+			Tags:        s.Tags,
+			Chaos:       len(s.Chaos.Steps) > 0,
+			Evidra:      s.Evidra.Enabled,
+		})
+	}
+
+	body, err := json.Marshal(map[string]any{"scenarios": items})
+	if err != nil {
+		return fmt.Errorf("push-scenarios: marshal: %w", err)
+	}
+
+	url := evidraURL + "/v1/bench/scenarios/sync"
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("push-scenarios: create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("push-scenarios: POST %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	var result map[string]any
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("push-scenarios: HTTP %d: %v", resp.StatusCode, result)
+	}
+
+	fmt.Printf("Pushed %v scenarios to %s (upserted: %v)\n", result["total"], evidraURL, result["upserted"])
 	return nil
 }
 
