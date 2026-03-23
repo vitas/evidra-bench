@@ -186,13 +186,26 @@ func validateRuntimeContract(s *Scenario) error {
 	// If any bootstrap step is a shell script, we can't statically analyze
 	// what resources it creates. Pre-register resources from checks so that
 	// later kubectl wait steps don't trigger false "unknown resource" errors.
-	hasShellBootstrap := false
+	hasShellBootstrap := s.Break.Type == "shell"
 	for _, step := range s.Bootstrap {
 		if step.Type == "shell" {
 			hasShellBootstrap = true
 			break
 		}
 	}
+	// Pre-register resources from environment addons (Falco, etc.)
+	for _, addon := range s.Environment.Kubernetes.Addons {
+		switch addon {
+		case "falco":
+			known[resourceRef{kind: "DaemonSet", namespace: "falco", name: "falco"}] = true
+			known[resourceRef{kind: "Namespace", name: "falco"}] = true
+		case "gatekeeper":
+			known[resourceRef{kind: "Deployment", namespace: "gatekeeper-system", name: "gatekeeper-controller-manager"}] = true
+		case "trivy-operator":
+			known[resourceRef{kind: "Deployment", namespace: "trivy-system", name: "trivy-operator"}] = true
+		}
+	}
+
 	if hasShellBootstrap {
 		for _, c := range s.Checks {
 			ns := c.Namespace
@@ -676,6 +689,18 @@ func canonicalKind(kind string) string {
 		return "Pod"
 	case "replicaset", "replicasets", "rs":
 		return "ReplicaSet"
+	case "persistentvolumeclaim", "persistentvolumeclaims", "pvc":
+		return "PersistentVolumeClaim"
+	case "persistentvolume", "persistentvolumes", "pv":
+		return "PersistentVolume"
+	case "daemonset", "daemonsets", "ds":
+		return "DaemonSet"
+	case "job", "jobs":
+		return "Job"
+	case "configmap", "configmaps", "cm":
+		return "ConfigMap"
+	case "secret", "secrets":
+		return "Secret"
 	default:
 		return kind
 	}
