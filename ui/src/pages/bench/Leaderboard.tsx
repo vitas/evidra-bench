@@ -14,6 +14,7 @@ interface Run {
   provider: string;
   passed: boolean;
   duration_seconds: number;
+  turns: number;
   prompt_tokens: number;
   completion_tokens: number;
   estimated_cost_usd: number;
@@ -59,8 +60,7 @@ interface ModelStats {
   failed: number;
   rate: number;
   infraRate: number;
-  protocolRate: number | null; // null = no protocol data
-  protocolRuns: number;
+  avgTurns: number;
   scenarios: number;
   avgDuration: number;
   totalCost: number;
@@ -72,13 +72,13 @@ interface ModelStats {
 
 type SortKey = keyof Pick<
   ModelStats,
-  "rate" | "infraRate" | "protocolRate" | "runs" | "avgDuration" | "costPerRun" | "costPerPass" | "avgTokens" | "scenarios"
+  "rate" | "infraRate" | "avgTurns" | "runs" | "avgDuration" | "costPerRun" | "costPerPass" | "avgTokens" | "scenarios"
 >;
 
 const SORT_OPTIONS: { key: SortKey; label: string; desc: boolean }[] = [
   { key: "rate", label: "Overall", desc: true },
   { key: "infraRate", label: "Infra Fix", desc: true },
-  { key: "protocolRate", label: "Protocol", desc: true },
+  { key: "avgTurns", label: "Avg Turns", desc: false },
   { key: "costPerPass", label: "Cost/Pass", desc: false },
   { key: "avgDuration", label: "Duration", desc: false },
   { key: "runs", label: "Runs", desc: true },
@@ -145,8 +145,7 @@ export function Leaderboard() {
         runs: number;
         passed: number;
         infraPassed: number;
-        protocolPassed: number;
-        protocolRuns: number;
+        turns: number;
         scenarios: Set<string>;
         durations: number[];
         cost: number;
@@ -160,8 +159,7 @@ export function Leaderboard() {
         runs: 0,
         passed: 0,
         infraPassed: 0,
-        protocolPassed: 0,
-        protocolRuns: 0,
+        turns: 0,
         scenarios: new Set(),
         durations: [],
         cost: 0,
@@ -172,10 +170,7 @@ export function Leaderboard() {
 
       const compliance = parseProtocolCompliance(r.checks_json);
       if (compliance.infraPass) entry.infraPassed += 1;
-      if (compliance.hasProtocol) {
-        entry.protocolRuns += 1;
-        if (compliance.protocolPass) entry.protocolPassed += 1;
-      }
+      entry.turns += r.turns || 0;
 
       entry.scenarios.add(r.scenario_id);
       entry.durations.push(r.duration_seconds);
@@ -188,7 +183,7 @@ export function Leaderboard() {
     for (const [model, e] of map) {
       const rate = e.runs > 0 ? (e.passed / e.runs) * 100 : 0;
       const infraRate = e.runs > 0 ? (e.infraPassed / e.runs) * 100 : 0;
-      const protocolRate = e.protocolRuns > 0 ? (e.protocolPassed / e.protocolRuns) * 100 : null;
+      const avgTurns = e.runs > 0 ? e.turns / e.runs : 0;
       const avgDuration =
         e.durations.length > 0
           ? e.durations.reduce((a, b) => a + b, 0) / e.durations.length
@@ -200,8 +195,7 @@ export function Leaderboard() {
         failed: e.runs - e.passed,
         rate,
         infraRate,
-        protocolRate,
-        protocolRuns: e.protocolRuns,
+        avgTurns,
         scenarios: e.scenarios.size,
         avgDuration,
         totalCost: e.cost,
@@ -352,19 +346,9 @@ export function Leaderboard() {
                   </span>
                 </td>
 
-                {/* Protocol Compliance */}
-                <td className="px-4 py-3 text-right">
-                  {m.protocolRate !== null ? (
-                    <div>
-                      <span className={`font-mono text-[0.82rem] font-semibold ${rateColor(m.protocolRate)}`}>
-                        {m.protocolRate.toFixed(0)}%
-                      </span>
-                      <br />
-                      <span className="text-[0.65rem] text-fg-muted">{m.protocolRuns} runs</span>
-                    </div>
-                  ) : (
-                    <span className="text-fg-muted text-[0.76rem]">{"\u2014"}</span>
-                  )}
+                {/* Avg Turns */}
+                <td className="px-4 py-3 text-right font-mono text-[0.82rem] text-fg-body">
+                  {m.avgTurns > 0 ? m.avgTurns.toFixed(1) : "\u2014"}
                 </td>
 
                 {/* Cost per Pass */}
