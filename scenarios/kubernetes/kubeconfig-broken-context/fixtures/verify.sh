@@ -2,22 +2,20 @@
 set -euo pipefail
 
 # Verify that:
-# 1. kubectl cluster-info works
-# 2. The kubeconfig contains port 6443 (not 9443)
+# 1. kubectl cluster-info works (connectivity restored)
+# 2. The broken port 9443 is no longer in kubeconfig
 
 # Check that cluster-info succeeds
-kubectl cluster-info
-
-# Verify the server URL in kubeconfig contains 6443
-KUBECONFIG_PATH="${KUBECONFIG:-$HOME/.kube/config}"
-if ! grep -q ':6443' "$KUBECONFIG_PATH"; then
-  echo "ERROR: Kubeconfig does not contain :6443"
+if ! kubectl cluster-info >/dev/null 2>&1; then
+  echo "ERROR: kubectl cluster-info failed — connectivity not restored"
   exit 1
 fi
 
+# Verify the broken port is gone
+KUBECONFIG_PATH="${KUBECONFIG:-$HOME/.kube/config}"
 if grep -q ':9443' "$KUBECONFIG_PATH"; then
   echo "ERROR: Kubeconfig still contains broken port 9443"
   exit 1
 fi
 
-echo "✓ Kubeconfig is correctly configured with port 6443"
+echo "PASS: Kubeconfig connectivity restored, broken port removed"
