@@ -601,12 +601,16 @@ func pushScenarios(scenariosDir, evidraURL, apiKey string) error {
 
 	var items []scenarioPayload
 	for _, s := range scenarios {
+		tags := s.Tags
+		if tags == nil {
+			tags = []string{}
+		}
 		items = append(items, scenarioPayload{
 			ID:          s.ID,
 			Title:       s.Title,
 			Description: s.Description,
 			Category:    s.Category,
-			Tags:        s.Tags,
+			Tags:        tags,
 			Chaos:       len(s.Chaos.Steps) > 0,
 			Evidra:      s.Evidra.Enabled,
 		})
