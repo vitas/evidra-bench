@@ -51,14 +51,12 @@ function Header() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <a
+          <Link
             className="text-[0.82rem] font-medium text-fg-muted tracking-wide hover:text-fg no-underline transition-colors"
-            href="https://evidra.cc/bench"
-            target="_blank"
-            rel="noopener"
+            to="/bench"
           >
-            Leaderboard
-          </a>
+            Bench
+          </Link>
           <a
             className="inline-flex items-center gap-1 text-[0.82rem] font-medium text-fg-muted tracking-wide hover:text-fg no-underline transition-colors"
             href="https://github.com/vitas/evidra"
