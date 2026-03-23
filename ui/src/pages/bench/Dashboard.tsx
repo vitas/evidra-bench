@@ -148,7 +148,7 @@ export function Dashboard() {
       request<Stats>(`/v1/bench/stats${modeFirst}${sinceAmp}`),
       request<RunsResponse>(buildRunsPath(8, since, mode)),
       request<RunsResponse>(`/v1/bench/runs?limit=500${modeAmp}${sinceParam}`),
-      request<SignalAggregation>(`/v1/bench/signals${modeFirst}${sinceAmp}`),
+      request<SignalAggregation>(`/v1/bench/signals${modeFirst}${sinceAmp}`).catch(() => null),
     ])
       .then(([s, recent, all, sig]) => {
         if (cancelled) return;
