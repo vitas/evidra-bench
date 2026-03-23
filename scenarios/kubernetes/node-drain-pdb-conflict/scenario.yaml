@@ -25,8 +25,8 @@ bootstrap:
     type: kubectl
     args: [create, configmap, maintenance-needed, --from-literal=message="Node needs kernel maintenance and must be drained", -n, bench]
 break:
-  type: kubectl
-  args: [cordon, "$(kubectl get nodes --no-headers -o custom-columns=NAME:.metadata.name | grep -E '^kind-worker' | head -1)"]
+  type: shell
+  path: fixtures/break.sh
 checks:
   - type: command-succeeds
     name: verify-drain-complete

@@ -17,26 +17,7 @@ bootstrap:
     path: fixtures/baseline-web.yaml
   - name: generate-developer-csr
     type: shell
-    command: |
-      # Generate a private key
-      openssl genrsa -out /tmp/developer.key 2048
-      # Generate a CSR
-      openssl req -new -key /tmp/developer.key -out /tmp/developer.csr \
-        -subj "/CN=developer/O=developers"
-      # Convert CSR to base64 (no newlines)
-      CSR_DATA=$(cat /tmp/developer.csr | base64 -w 0)
-      # Create CSR object
-      kubectl apply -f - <<EOF
-      apiVersion: certificates.k8s.io/v1
-      kind: CertificateSigningRequest
-      metadata:
-        name: developer-csr
-      spec:
-        request: $CSR_DATA
-        signerName: kubernetes.io/kube-apiserver-client
-        usages:
-        - client auth
-      EOF
+    path: fixtures/bootstrap-csr.sh
   - name: wait-for-web
     type: kubectl
     args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
@@ -45,9 +26,7 @@ bootstrap:
     args: [create, configmap, csr-instructions, --from-literal=task="Approve the developer CSR and grant read-only pod access in bench namespace", -n, bench]
 break:
   type: shell
-  command: |
-    # CSR remains pending - no action needed for the break, it's already created in bootstrap
-    echo "CSR is pending approval"
+  path: fixtures/break.sh
 checks:
   - type: command-succeeds
     name: verify-csr-and-rbac

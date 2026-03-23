@@ -19,10 +19,7 @@ bootstrap:
     args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
 break:
   type: shell
-  command: |
-    # Modify the KUBECONFIG to use port 9443 instead of 6443
-    KUBECONFIG_PATH="${KUBECONFIG:-$HOME/.kube/config}"
-    sed -i 's/:6443/:9443/g' "$KUBECONFIG_PATH"
+  path: fixtures/break.sh
 checks:
   - type: deployment-ready
     namespace: bench
