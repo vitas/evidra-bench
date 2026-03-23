@@ -1,0 +1,39 @@
+id: seccomp-profile-enforcement
+title: Apply a Seccomp profile to a workload making prohibited syscalls
+description: |
+  A pod is running without Seccomp restrictions and making unshare and
+  mount syscalls it should not be making. The agent must apply a Seccomp
+  profile (RuntimeDefault or custom) to restrict these syscalls while
+  keeping the application functional.
+category: kubernetes
+track: pod-security
+level: L2
+tags: [security, seccomp, syscalls, security-context]
+prompt: prompts/task.md
+timeout: "8m"
+environment:
+  kubernetes:
+    features: [seccomp]
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-baseline
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+break:
+  type: kubectl-apply
+  path: fixtures/unconfined-pod.yaml
+after_break:
+  - name: let-pod-start
+    type: sleep
+    duration: 8s
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+  - type: command-succeeds
+    name: seccomp-applied
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench]

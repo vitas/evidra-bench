@@ -4,6 +4,7 @@ import type { StackData } from "./nodes/StackNode";
 import type { BreakData } from "./nodes/BreakNode";
 import type { VerifyData } from "./nodes/VerifyNode";
 import type { TrapData } from "./nodes/TrapNode";
+import type { InfraData } from "./nodes/InfraNode";
 import type { PuzzleMetadata, NodeData } from "./yaml-generator";
 
 interface ConfigPanelProps {
@@ -364,6 +365,119 @@ function TrapConfig({
   );
 }
 
+const ADDON_OPTIONS = [
+  { value: "falco", label: "Falco (runtime detection)" },
+  { value: "gatekeeper", label: "OPA Gatekeeper (admission control)" },
+  { value: "trivy-operator", label: "Trivy Operator (image scanning)" },
+];
+
+const RUNTIME_OPTIONS = [
+  { value: "gvisor", label: "gVisor (sandbox runtime)" },
+];
+
+const FEATURE_OPTIONS = [
+  { value: "apparmor", label: "AppArmor profiles" },
+  { value: "seccomp", label: "Seccomp profiles" },
+  { value: "audit-logging", label: "Audit logging" },
+];
+
+function toggleArrayItem(arr: string[], item: string): string[] {
+  return arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item];
+}
+
+function CheckboxGroup({
+  options,
+  selected,
+  onChange,
+}: {
+  options: { value: string; label: string }[];
+  selected: string[];
+  onChange: (updated: string[]) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      {options.map((o) => (
+        <label key={o.value} className="flex items-center gap-2 cursor-pointer group">
+          <input
+            type="checkbox"
+            checked={selected.includes(o.value)}
+            onChange={() => onChange(toggleArrayItem(selected, o.value))}
+            className="accent-purple-500"
+          />
+          <span className="text-[0.75rem] text-fg-muted group-hover:text-fg transition-colors">
+            {o.label}
+          </span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function InfraConfig({
+  data,
+  nodeId,
+  onNodeDataChange,
+}: {
+  data: InfraData;
+  nodeId: string;
+  onNodeDataChange: (id: string, d: Partial<NodeData>) => void;
+}) {
+  return (
+    <>
+      <SectionHeader icon="&#9881;&#65039;" label="Infra" color="text-purple-500" />
+      <Field label="CNI Plugin">
+        <Select
+          value={data.cni}
+          onChange={(v) =>
+            onNodeDataChange(nodeId, { cni: v } as Partial<InfraData>)
+          }
+          options={[
+            { value: "", label: "Default (kindnet)" },
+            { value: "cilium", label: "Cilium" },
+            { value: "calico", label: "Calico" },
+          ]}
+        />
+        <HelpText>
+          Replaces the default Kind CNI. Cilium enables L7 policies.
+        </HelpText>
+      </Field>
+      <Field label="Addons">
+        <CheckboxGroup
+          options={ADDON_OPTIONS}
+          selected={data.addons}
+          onChange={(updated) =>
+            onNodeDataChange(nodeId, { addons: updated } as Partial<InfraData>)
+          }
+        />
+        <HelpText>
+          Installed via Helm before scenario bootstrap.
+        </HelpText>
+      </Field>
+      <Field label="Runtimes">
+        <CheckboxGroup
+          options={RUNTIME_OPTIONS}
+          selected={data.runtimes}
+          onChange={(updated) =>
+            onNodeDataChange(nodeId, { runtimes: updated } as Partial<InfraData>)
+          }
+        />
+      </Field>
+      <Field label="Features">
+        <CheckboxGroup
+          options={FEATURE_OPTIONS}
+          selected={data.features}
+          onChange={(updated) =>
+            onNodeDataChange(nodeId, { features: updated } as Partial<InfraData>)
+          }
+        />
+        <HelpText>
+          Cluster-level features configured via Kind node config.
+        </HelpText>
+      </Field>
+    </>
+  );
+}
+
 function MetadataConfig({
   metadata,
   onMetadataChange,
@@ -500,6 +614,14 @@ export function ConfigPanel({
     const nodeId = selectedNode.id;
 
     switch (data.kind) {
+      case "infra":
+        return (
+          <InfraConfig
+            data={data}
+            nodeId={nodeId}
+            onNodeDataChange={onNodeDataChange}
+          />
+        );
       case "stack":
         return (
           <StackConfig

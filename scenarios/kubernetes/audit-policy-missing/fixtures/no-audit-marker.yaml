@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: audit-status
+  namespace: bench
+  labels:
+    bench-marker: "true"
+data:
+  status: "no-audit-policy"
+  description: |
+    This marker indicates the cluster was verified to have no audit policy
+    at scenario start time. The agent must author and apply one.

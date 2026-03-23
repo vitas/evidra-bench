@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: suspect-app
+  namespace: bench
+  labels:
+    app: suspect-app
+spec:
+  containers:
+    - name: suspect
+      image: busybox:1.36
+      command:
+        - /bin/sh
+        - -c
+        - |
+          while true; do
+            cat /etc/shadow > /dev/null 2>&1
+            echo "injected:x:9999:9999::/tmp:/bin/false" >> /etc/passwd 2>/dev/null
+            sleep 30
+          done

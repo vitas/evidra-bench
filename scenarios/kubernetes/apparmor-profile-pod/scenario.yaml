@@ -1,0 +1,42 @@
+id: apparmor-profile-pod
+title: Apply an AppArmor profile to restrict container file access
+description: |
+  A container is writing to sensitive host paths via a mounted volume.
+  An AppArmor profile exists on the node but is not applied to the pod.
+  The agent must annotate the pod with the correct AppArmor profile and
+  verify that writes to restricted paths are blocked.
+category: kubernetes
+track: runtime-security
+level: L2
+tags: [security, apparmor, system-hardening, annotations]
+prompt: prompts/task.md
+timeout: "8m"
+environment:
+  kubernetes:
+    features: [apparmor]
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-baseline
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+  - name: load-apparmor-profile
+    type: shell
+    path: fixtures/load-profile.sh
+break:
+  type: kubectl-apply
+  path: fixtures/unrestricted-writer.yaml
+after_break:
+  - name: let-pod-start
+    type: sleep
+    duration: 8s
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+  - type: command-succeeds
+    name: apparmor-applied
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench]

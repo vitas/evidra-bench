@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: writer
+  namespace: bench
+  labels:
+    app: writer
+spec:
+  containers:
+    - name: writer
+      image: busybox:1.36
+      command:
+        - /bin/sh
+        - -c
+        - |
+          while true; do
+            echo "$(date) sensitive-data" >> /data/audit.log
+            echo "$(date) credential-dump" >> /data/secrets.txt
+            sleep 10
+          done
+      volumeMounts:
+        - name: data-vol
+          mountPath: /data
+  volumes:
+    - name: data-vol
+      emptyDir: {}

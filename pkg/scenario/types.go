@@ -127,7 +127,8 @@ type EvidraExpectations struct {
 
 // EnvironmentConfig describes additional infrastructure for a scenario.
 type EnvironmentConfig struct {
-	Cloud CloudConfig `yaml:"cloud,omitempty"`
+	Cloud      CloudConfig      `yaml:"cloud,omitempty"`
+	Kubernetes KubernetesConfig `yaml:"kubernetes,omitempty"`
 }
 
 // CloudConfig describes cloud resources provisioned via LocalStack.
@@ -136,6 +137,20 @@ type CloudConfig struct {
 	Services []string `yaml:"services,omitempty"` // ["s3", "ec2", "iam", "rds"]
 	Setup    string   `yaml:"setup,omitempty"`    // path to setup script
 	Teardown string   `yaml:"teardown,omitempty"` // path to teardown script
+}
+
+// KubernetesConfig describes cluster-level infrastructure requirements.
+type KubernetesConfig struct {
+	CNI      string           `yaml:"cni,omitempty"`      // "cilium", "calico"; empty = kindnet (default)
+	Addons   []string         `yaml:"addons,omitempty"`   // ["falco", "gatekeeper", "trivy-operator"]
+	Runtimes []RuntimeConfig  `yaml:"runtimes,omitempty"` // additional container runtimes (gvisor)
+	Features []string         `yaml:"features,omitempty"` // ["apparmor", "seccomp", "audit-logging"]
+}
+
+// RuntimeConfig describes an additional container runtime for Kind nodes.
+type RuntimeConfig struct {
+	Name    string `yaml:"name"`    // e.g. "gvisor"
+	Handler string `yaml:"handler"` // e.g. "runsc"
 }
 
 // Duration wraps time.Duration for YAML unmarshaling.

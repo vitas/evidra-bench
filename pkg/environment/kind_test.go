@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"samebits.com/evidra-infra-bench/pkg/scenario"
 )
 
 func TestKindProvider_CreateCommand(t *testing.T) {
@@ -84,5 +86,61 @@ func TestKindProvider_Create_ReusesExistingCluster(t *testing.T) {
 		if strings.Contains(cmd, "kind create cluster") {
 			t.Fatalf("unexpected create command when reusing cluster: %s", cmd)
 		}
+	}
+}
+
+func TestBuildKindConfig_Empty(t *testing.T) {
+	t.Parallel()
+	cfg := BuildKindConfig(scenario.KubernetesConfig{})
+	if cfg != "" {
+		t.Fatalf("expected empty config for zero-valued KubernetesConfig, got:\n%s", cfg)
+	}
+}
+
+func TestBuildKindConfig_Cilium(t *testing.T) {
+	t.Parallel()
+	cfg := BuildKindConfig(scenario.KubernetesConfig{CNI: "cilium"})
+	if !strings.Contains(cfg, "disableDefaultCNI: true") {
+		t.Fatalf("expected disableDefaultCNI for cilium, got:\n%s", cfg)
+	}
+	if !strings.Contains(cfg, "kubeProxyMode: none") {
+		t.Fatalf("expected kubeProxyMode: none for cilium, got:\n%s", cfg)
+	}
+}
+
+func TestBuildKindConfig_Calico(t *testing.T) {
+	t.Parallel()
+	cfg := BuildKindConfig(scenario.KubernetesConfig{CNI: "calico"})
+	if !strings.Contains(cfg, "disableDefaultCNI: true") {
+		t.Fatalf("expected disableDefaultCNI for calico, got:\n%s", cfg)
+	}
+	if strings.Contains(cfg, "kubeProxyMode") {
+		t.Fatalf("calico should not set kubeProxyMode, got:\n%s", cfg)
+	}
+}
+
+func TestBuildKindConfig_GVisor(t *testing.T) {
+	t.Parallel()
+	cfg := BuildKindConfig(scenario.KubernetesConfig{
+		Runtimes: []scenario.RuntimeConfig{{Name: "gvisor", Handler: "runsc"}},
+	})
+	if !strings.Contains(cfg, "runsc") {
+		t.Fatalf("expected gvisor mount config, got:\n%s", cfg)
+	}
+	if !strings.Contains(cfg, "extraMounts") {
+		t.Fatalf("expected extraMounts for gvisor, got:\n%s", cfg)
+	}
+}
+
+func TestBuildKindConfig_AuditLogging(t *testing.T) {
+	t.Parallel()
+	cfg := BuildKindConfig(scenario.KubernetesConfig{
+		Features: []string{"audit-logging"},
+	})
+	if !strings.Contains(cfg, "audit-log-path") {
+		t.Fatalf("expected audit-log-path config, got:\n%s", cfg)
+	}
+	if !strings.Contains(cfg, "audit-policy-file") {
+		t.Fatalf("expected audit-policy-file config, got:\n%s", cfg)
 	}
 }

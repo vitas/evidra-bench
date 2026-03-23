@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: syscall-tester
+  namespace: bench
+  labels:
+    app: syscall-tester
+spec:
+  securityContext:
+    seccompProfile:
+      type: Unconfined
+  containers:
+    - name: app
+      image: nginx:1.27-alpine
+      ports:
+        - containerPort: 8080
+      command:
+        - /bin/sh
+        - -c
+        - |
+          # Start nginx in background
+          nginx -g 'daemon off;' &
+          # Periodically attempt dangerous syscalls
+          while true; do
+            unshare --mount --propagation private /bin/true 2>/dev/null || true
+            sleep 30
+          done

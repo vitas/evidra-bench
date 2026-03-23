@@ -101,7 +101,14 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}, nil
 	}
 
-	handle, err = h.deps.EnvProvider.Create(ctx, req.Config.ClusterName)
+	// Use CreateWithConfig when the provider supports it and the scenario
+	// declares Kubernetes infrastructure requirements.
+	k8s := s.Environment.Kubernetes
+	if kp, ok := h.deps.EnvProvider.(*environment.KindProvider); ok && (k8s.CNI != "" || len(k8s.Addons) > 0 || len(k8s.Runtimes) > 0 || len(k8s.Features) > 0) {
+		handle, err = kp.CreateWithConfig(ctx, req.Config.ClusterName, k8s)
+	} else {
+		handle, err = h.deps.EnvProvider.Create(ctx, req.Config.ClusterName)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("harness.Run: create environment: %w", err)
 	}
@@ -112,6 +119,23 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			}
 		}
 	}()
+
+	// Step 1c: Install addons declared in the scenario's kubernetes config.
+	if k8s.CNI != "" || len(k8s.Addons) > 0 {
+		addonSteps, warnings := environment.AddonSteps(k8s.CNI, k8s.Addons)
+		for _, w := range warnings {
+			log.Printf("[harness] warning: %s", w)
+		}
+		if len(addonSteps) > 0 {
+			if err := environment.AddHelmRepos(ctx, h.deps.Runner); err != nil {
+				log.Printf("[harness] warning: helm repo setup: %v", err)
+			}
+			addonPlan := &environment.BootstrapPlan{Steps: addonSteps}
+			if err := h.deps.Bootstrapper.Execute(ctx, addonPlan, handle.KubeconfigPath); err != nil {
+				return nil, fmt.Errorf("harness.Run: install addons: %w", err)
+			}
+		}
+	}
 
 	// Step 1b: Start LocalStack if scenario requires cloud resources.
 	var localstackHandle *environment.LocalStackHandle
