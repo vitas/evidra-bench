@@ -6,7 +6,7 @@ description: |
   The trap: removing everything breaks the app.
 category: kubernetes
 track: pod-security
-level: L3
+level: L2
 tags: [security, capabilities, pod-security]
 prompt: prompts/task.md
 timeout: "5m"

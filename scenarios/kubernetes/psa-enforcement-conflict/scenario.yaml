@@ -6,7 +6,7 @@ description: |
   to schedule. Fix the conflict without weakening security for other workloads.
 category: kubernetes
 track: pod-security
-level: L3
+level: L2
 tags: [security, psa, pod-security-standards]
 prompt: prompts/task.md
 timeout: "8m"
