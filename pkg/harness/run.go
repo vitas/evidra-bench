@@ -528,6 +528,14 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 
 	// Step 8: Store result in database.
 	if h.deps.Store != nil {
+		// Add tool server info to metadata.
+		if req.Config.MCPServer != "" {
+			agentResult.Metadata["tool_server"] = mcpServerName(req.Config.MCPServer)
+			agentResult.Metadata["tool_server_cmd"] = req.Config.MCPServer
+			if ver := mcpServerVersion(req.Config.MCPServer); ver != "" {
+				agentResult.Metadata["tool_server_version"] = ver
+			}
+		}
 		checksPassed, checksTotal := countChecks(verifyResult)
 		checksJSON, _ := json.Marshal(verifyResult)
 		metadataJSON, _ := json.Marshal(agentResult.Metadata)
@@ -548,7 +556,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			Provider:         req.Config.Provider,
 			Adapter:          req.Config.Adapter,
 			EvidenceMode:     evidenceMode,
-			ToolServer:       req.Config.MCPServer,
+			ToolServer:       mcpServerName(req.Config.MCPServer),
 			Passed:           verifyResult.Passed,
 			Duration:         endTime.Sub(startTime).Seconds(),
 			ExitCode:         agentResult.ExitCode,
@@ -1152,6 +1160,29 @@ func runEvidraScorecard(evidraBin, evidenceDir, artifactDir string) {
 	} else {
 		log.Printf("[harness] scorecard written: %s", scorecardPath)
 	}
+}
+
+// mcpServerName extracts the binary name from a full MCP server command.
+// "evidra-mcp --signing-mode optional" → "evidra-mcp"
+func mcpServerName(cmd string) string {
+	if cmd == "" {
+		return ""
+	}
+	parts := strings.Fields(cmd)
+	return parts[0]
+}
+
+// mcpServerVersion queries the MCP server binary for its version string.
+func mcpServerVersion(cmd string) string {
+	if cmd == "" {
+		return ""
+	}
+	parts := strings.Fields(cmd)
+	out, err := exec.Command(parts[0], "--version").CombinedOutput()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func truncateForLog(s string, n int) string {
