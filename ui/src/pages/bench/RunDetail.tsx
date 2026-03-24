@@ -5,6 +5,15 @@ import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { evidenceModeParam } from "../../lib/catalogData.mts";
 import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
+const API_BASE = import.meta.env.VITE_EVIDRA_API_URL || "https://api.evidra.cc";
+const API_KEY = import.meta.env.VITE_EVIDRA_API_KEY || "";
+
+function fetchApi(path: string): Promise<Response> {
+  const headers: Record<string, string> = {};
+  if (API_KEY) headers["Authorization"] = `Bearer ${API_KEY}`;
+  return fetch(`${API_BASE}${path}`, { headers });
+}
+
 interface RunRecord {
   id: string;
   scenario_id: string;
@@ -174,7 +183,7 @@ export function RunDetail() {
   useEffect(() => {
     if (activeTab !== "transcript" || transcript !== null || transcriptLoading || !id) return;
     setTranscriptLoading(true);
-    fetch(`/v1/bench/runs/${id}/transcript${evidenceModeParam("?", mode)}`)
+    fetchApi(`/v1/bench/runs/${id}/transcript${evidenceModeParam("?", mode)}`)
       .then((res) => {
         if (!res.ok) throw new Error(res.statusText);
         return res.text();
@@ -188,7 +197,7 @@ export function RunDetail() {
   useEffect(() => {
     if (activeTab !== "tool-calls" || toolCalls !== null || toolCallsLoading || !id) return;
     setToolCallsLoading(true);
-    fetch(`/v1/bench/runs/${id}/tool-calls${evidenceModeParam("?", mode)}`)
+    fetchApi(`/v1/bench/runs/${id}/tool-calls${evidenceModeParam("?", mode)}`)
       .then((res) => {
         if (!res.ok) {
           if (res.status === 404) return null;
@@ -216,7 +225,7 @@ export function RunDetail() {
   useEffect(() => {
     if (activeTab !== "scorecard" || scorecard !== null || scorecardError !== null || scorecardLoading || !id) return;
     setScorecardLoading(true);
-    fetch(`/v1/bench/runs/${id}/scorecard${evidenceModeParam("?", mode)}`)
+    fetchApi(`/v1/bench/runs/${id}/scorecard${evidenceModeParam("?", mode)}`)
       .then((res) => {
         if (res.status === 404) {
           setScorecardError("not-found");
@@ -236,7 +245,7 @@ export function RunDetail() {
   useEffect(() => {
     if (activeTab !== "timeline" || timeline !== null || timelineError !== null || timelineLoading || !id) return;
     setTimelineLoading(true);
-    fetch(`/v1/bench/runs/${id}/timeline${evidenceModeParam("?", mode)}`)
+    fetchApi(`/v1/bench/runs/${id}/timeline${evidenceModeParam("?", mode)}`)
       .then((res) => {
         if (res.status === 404) {
           setTimelineError("not-found");
