@@ -416,7 +416,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 
 	// Step 5b: Verify Evidra protocol compliance.
 	// Skip in proxy and smart modes — evidence format differs from evidra's native format.
-	if s.Evidra.Enabled && !req.Config.ProxyMode && !req.Config.SmartPrescribe {
+	if s.Evidra.Enabled && !req.Config.ProxyMode && !req.Config.SmartPrescribe && req.Config.MCPServer == "" {
 		// Fall back to simulated evidence if real evidence dir has no segments.
 		if s.Evidra.SimulatedEvidenceDir != "" {
 			if _, err := os.Stat(filepath.Join(evidenceDir, "segments")); err != nil {
@@ -541,7 +541,9 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		metadataJSON, _ := json.Marshal(agentResult.Metadata)
 		// Determine evidence mode for the record.
 		evidenceMode := "none"
-		if req.Config.SmartPrescribe {
+		if req.Config.MCPServer != "" {
+			evidenceMode = "mcp"
+		} else if req.Config.SmartPrescribe {
 			evidenceMode = "smart"
 		} else if req.Config.ProxyMode {
 			evidenceMode = "proxy"
