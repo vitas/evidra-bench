@@ -871,32 +871,59 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 	agentCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	executor := &agent.ToolExecutor{
-		KubeconfigPath: kubeconfigPath,
-		EvidencePath:   evidenceDir,
-		EvidraBin:      req.Config.ResolveEvidraBin(),
-		ExtraEnv:       req.ExtraEnv,
-	}
+	// Choose executor: MCP server or direct.
+	var loopExecutor agent.Executor
+	var mcpTools []agent.ToolDef
+	var mcpExec *agent.MCPExecutor
 
-	// Evidence mode determines which executor and tools the agent gets.
-	var loopExecutor agent.Executor = executor
+	if req.Config.MCPServer != "" {
+		// MCP mode: route tool calls through MCP server.
+		mcpEnv := append(req.ExtraEnv, "KUBECONFIG="+kubeconfigPath)
+		if evidenceDir != "" {
+			mcpEnv = append(mcpEnv, "EVIDRA_EVIDENCE_DIR="+evidenceDir)
+		}
+		var mcpErr error
+		mcpExec, mcpErr = agent.NewMCPExecutor(agentCtx, req.Config.MCPServer, mcpEnv)
+		if mcpErr != nil {
+			return nil, fmt.Errorf("harness: mcp executor: %w", mcpErr)
+		}
+		defer mcpExec.Close()
+		loopExecutor = mcpExec
 
-	if req.Config.SmartPrescribe {
-		// Smart mode: simplified prescribe schema, no evidra binary needed.
-		evidence, evErr := proxy.NewEvidenceWriter(evidenceDir)
-		if evErr != nil {
-			return nil, fmt.Errorf("harness: smart evidence: %w", evErr)
+		// Get tools from MCP server.
+		var toolErr error
+		mcpTools, toolErr = mcpExec.Tools(agentCtx)
+		if toolErr != nil {
+			return nil, fmt.Errorf("harness: mcp tools: %w", toolErr)
 		}
-		defer evidence.Close()
-		loopExecutor = &agent.SmartToolExecutor{Base: executor, Evidence: evidence}
-	} else if req.Config.ProxyMode {
-		// Proxy mode: auto-record, agent unaware.
-		proxyEvidence, proxyErr := proxy.NewEvidenceWriter(evidenceDir)
-		if proxyErr != nil {
-			return nil, fmt.Errorf("harness: proxy evidence: %w", proxyErr)
+		log.Printf("[harness] using MCP server: %s (%d tools)", req.Config.MCPServer, len(mcpTools))
+	} else {
+		// Direct mode: harness executes commands.
+		executor := &agent.ToolExecutor{
+			KubeconfigPath: kubeconfigPath,
+			EvidencePath:   evidenceDir,
+			EvidraBin:      req.Config.ResolveEvidraBin(),
+			ExtraEnv:       req.ExtraEnv,
 		}
-		defer proxyEvidence.Close()
-		executor.ProxyEvidence = proxyEvidence
+		loopExecutor = executor
+
+		if req.Config.SmartPrescribe {
+			// Smart mode: simplified prescribe schema, no evidra binary needed.
+			evidence, evErr := proxy.NewEvidenceWriter(evidenceDir)
+			if evErr != nil {
+				return nil, fmt.Errorf("harness: smart evidence: %w", evErr)
+			}
+			defer evidence.Close()
+			loopExecutor = &agent.SmartToolExecutor{Base: executor, Evidence: evidence}
+		} else if req.Config.ProxyMode {
+			// Proxy mode: auto-record, agent unaware.
+			proxyEvidence, proxyErr := proxy.NewEvidenceWriter(evidenceDir)
+			if proxyErr != nil {
+				return nil, fmt.Errorf("harness: proxy evidence: %w", proxyErr)
+			}
+			defer proxyEvidence.Close()
+			executor.ProxyEvidence = proxyEvidence
+		}
 	}
 
 	loopResult, err := agent.RunLoop(agentCtx, agent.LoopConfig{
@@ -907,6 +934,7 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		MemoryWindow:    req.Config.MemoryWindow,
 		SystemPrompt:    systemPrompt,
 		TaskPrompt:      promptContent,
+		Tools:           mcpTools,
 		InjectChan:      injectChan,
 		MemoryResetChan: memoryResetChan,
 	})

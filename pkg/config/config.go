@@ -30,6 +30,7 @@ type Config struct {
 	SystemPromptFile    string
 	ContractVersion     string
 	Role                string // role-based skill (k8s-admin, security-ops, release-manager, platform-eng)
+	MCPServer           string // MCP server command (e.g. "evidra-mcp --signing-mode optional")
 	ProxyMode           bool   // auto-record evidence for mutations without agent involvement
 	SmartPrescribe      bool   // simplified prescribe (tool+operation, no artifact)
 }

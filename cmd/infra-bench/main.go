@@ -126,6 +126,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	f.IntVar(&cfg.MemoryWindow, "memory-window", -1, "agent memory window (-1=full, 0=stateless, N=last N exchanges)")
 	f.StringVar(&cfg.SystemPromptFile, "system-prompt-file", cfg.SystemPromptFile, "system prompt file path (overrides default; env: INFRA_BENCH_SYSTEM_PROMPT)")
 	f.StringVar(&cfg.Role, "role", cfg.Role, "role-based skill (k8s-admin, security-ops, release-manager, platform-eng)")
+	f.StringVar(&cfg.MCPServer, "mcp-server", cfg.MCPServer, "MCP server command for tool execution (e.g. 'evidra-mcp --signing-mode optional')")
 	f.StringVar(&cfg.ContractVersion, "contract-version", cfg.ContractVersion, "evidra contract version label for tracking")
 	f.BoolVar(&cfg.ProxyMode, "proxy-mode", false, "auto-record evidence for mutations (no agent prescribe/report needed)")
 	f.BoolVar(&cfg.SmartPrescribe, "smart-prescribe", false, "simplified prescribe (tool+operation, 80% fewer tokens)")

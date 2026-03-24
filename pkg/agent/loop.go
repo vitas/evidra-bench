@@ -41,6 +41,11 @@ type LoopConfig struct {
 	SystemPrompt string
 	TaskPrompt   string
 
+	// Tools overrides the default tool definitions. When set, these tools are
+	// sent to the LLM instead of BenchTools/SmartPrescribeTools.
+	// Used by MCPExecutor to pass MCP server tools.
+	Tools []ToolDef
+
 	// InjectChan receives user messages to inject mid-run (e.g., stage agent_goal).
 	// Non-blocking: drained after each tool execution round. Nil = disabled.
 	InjectChan <-chan Message
@@ -75,22 +80,28 @@ func RunLoop(ctx context.Context, cfg LoopConfig) (*LoopResult, error) {
 	// - Direct: full evidra tools (prescribe with artifact, report)
 	// - Smart: simplified evidra tools (prescribe with tool+operation only)
 	// - Proxy/None: only run_command (no evidra tools)
-	mode := cfg.Executor.EvidenceMode()
 	var tools []ToolDef
-	switch mode {
-	case EvidenceModeSmart:
-		tools = SmartPrescribeTools()
-	case EvidenceModeDirect:
-		tools = BenchTools()
-	default:
-		tools = BenchTools()
-		filtered := make([]ToolDef, 0, len(tools))
-		for _, t := range tools {
-			if !strings.HasPrefix(t.Name, "evidra_") {
-				filtered = append(filtered, t)
+	if len(cfg.Tools) > 0 {
+		// MCP mode: use tools from MCP server.
+		tools = cfg.Tools
+	} else {
+		// Direct mode: determine tools from evidence mode.
+		mode := cfg.Executor.EvidenceMode()
+		switch mode {
+		case EvidenceModeSmart:
+			tools = SmartPrescribeTools()
+		case EvidenceModeDirect:
+			tools = BenchTools()
+		default:
+			tools = BenchTools()
+			filtered := make([]ToolDef, 0, len(tools))
+			for _, t := range tools {
+				if !strings.HasPrefix(t.Name, "evidra_") {
+					filtered = append(filtered, t)
+				}
 			}
+			tools = filtered
 		}
-		tools = filtered
 	}
 
 	// Full message history (kept for transcript)
