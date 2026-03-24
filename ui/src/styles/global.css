@@ -41,20 +41,20 @@
 
 /* ── Dark theme — glass morphism ── */
 [data-theme="dark"] {
-  --color-bg: #080b0a;
-  --color-bg-alt: #0d1210;
-  --color-bg-elevated: rgba(255,255,255,0.03);
+  --color-bg: #0f1512;
+  --color-bg-alt: #151d19;
+  --color-bg-elevated: rgba(255,255,255,0.04);
   --color-fg: #e2faf0;
-  --color-fg-body: #b0d9c4;
-  --color-fg-muted: #5e8a72;
+  --color-fg-body: #b8deca;
+  --color-fg-muted: #6b9680;
   --color-accent: #34d399;
   --color-accent-bright: #6ee7b7;
   --color-accent-tint: rgba(52,211,153,0.12);
-  --color-accent-subtle: rgba(52,211,153,0.05);
-  --color-border: rgba(255,255,255,0.07);
-  --color-border-subtle: rgba(255,255,255,0.04);
-  --color-code-bg: rgba(255,255,255,0.03);
-  --color-code-header: rgba(52,211,153,0.08);
+  --color-accent-subtle: rgba(52,211,153,0.06);
+  --color-border: rgba(255,255,255,0.09);
+  --color-border-subtle: rgba(255,255,255,0.05);
+  --color-code-bg: rgba(255,255,255,0.04);
+  --color-code-header: rgba(52,211,153,0.1);
   --color-danger: #f87171;
   --color-danger-tint: rgba(248,113,113,0.08);
   --color-warning: #fbbf24;
