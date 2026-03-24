@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router";
+import { useTheme } from "../hooks/useTheme";
 
 const TRACKS = [
   { id: "workloads", label: "Workloads", count: 12, source: "CKA", icon: "cube" },
@@ -131,6 +132,7 @@ const STATS = [
 ];
 
 export function Landing() {
+  const { theme, toggle } = useTheme();
   return (
     <div className="min-h-screen bg-[#0a0d0c] text-[#d1fae5] overflow-hidden">
       {/* Subtle grid background */}
@@ -142,8 +144,31 @@ export function Landing() {
         }}
       />
 
+      {/* Top bar */}
+      <div className="relative flex items-center justify-end gap-3 max-w-6xl mx-auto px-6 pt-4">
+        <a
+          href="https://github.com/vitas/evidra"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-8 h-8 flex items-center justify-center rounded-md border border-[#1e3a2c] text-[#6b8f7b] hover:border-[#34d399] hover:text-[#34d399] transition-all"
+          aria-label="GitHub"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+          </svg>
+        </a>
+        <button
+          onClick={toggle}
+          className="w-8 h-8 flex items-center justify-center rounded-md border border-[#1e3a2c] text-[#6b8f7b] hover:border-[#34d399] hover:text-[#34d399] transition-all cursor-pointer"
+          style={{ background: "none", fontSize: "0.9rem" }}
+          aria-label="Toggle theme"
+        >
+          {theme === "dark" ? "\u2600" : "\u263E"}
+        </button>
+      </div>
+
       {/* Hero */}
-      <section className="relative max-w-6xl mx-auto px-6 pt-20 pb-16">
+      <section className="relative max-w-6xl mx-auto px-6 pt-12 pb-16">
         {/* Glow effect */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[#059669]/8 rounded-full blur-[120px]" />
 
