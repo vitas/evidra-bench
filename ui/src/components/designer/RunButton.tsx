@@ -108,8 +108,8 @@ export function RunButton({ metadata, nodes, edges }: RunButtonProps) {
                         : "border-border text-fg-muted hover:border-accent/50"
                     }`}
                   >
-                    Proxy
-                    <span className="block text-[0.65rem] font-normal text-fg-muted">Zero overhead</span>
+                    Baseline
+                    <span className="block text-[0.65rem] font-normal text-fg-muted">Direct execution</span>
                   </button>
                   <button
                     onClick={() => setMode("smart")}
@@ -119,8 +119,8 @@ export function RunButton({ metadata, nodes, edges }: RunButtonProps) {
                         : "border-border text-fg-muted hover:border-accent/50"
                     }`}
                   >
-                    Smart Prescribe
-                    <span className="block text-[0.65rem] font-normal text-fg-muted">Risk assessment</span>
+                    Via evidra-mcp
+                    <span className="block text-[0.65rem] font-normal text-fg-muted">Smart output + evidence</span>
                   </button>
                 </div>
               </div>

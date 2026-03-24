@@ -8,6 +8,7 @@
 # Go build output
 /bin/
 /dist/
+/infra-bench
 
 # Test binary
 *.test
@@ -31,6 +32,10 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+
+# TLS credentials
+tls.crt
+tls.key
 
 # Dependency directories
 vendor/

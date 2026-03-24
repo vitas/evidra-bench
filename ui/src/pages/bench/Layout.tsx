@@ -21,10 +21,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const { readonly, version } = useAppInfo();
   const { mode, setMode } = useEvidenceMode();
 
-  const modeOptions: { value: EvidenceMode; label: string }[] = [
-    { value: "proxy", label: "Baseline" },
-    { value: "smart", label: "All" },
-  ];
+  // Mode toggle hidden until we have proper baseline/mcp/all filtering
+  const modeOptions: { value: EvidenceMode; label: string }[] = [];
 
   return (
     <>

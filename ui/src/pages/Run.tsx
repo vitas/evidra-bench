@@ -290,9 +290,9 @@ export function Run() {
                     : "border-border text-fg-muted hover:border-accent/50"
                 }`}
               >
-                Proxy
+                Baseline
                 <span className="block text-[0.65rem] font-normal text-fg-muted">
-                  Zero overhead
+                  Direct execution
                 </span>
               </button>
               <button
@@ -303,9 +303,9 @@ export function Run() {
                     : "border-border text-fg-muted hover:border-accent/50"
                 }`}
               >
-                Smart Prescribe
+                Via evidra-mcp
                 <span className="block text-[0.65rem] font-normal text-fg-muted">
-                  Risk assessment
+                  Smart output + evidence
                 </span>
               </button>
             </div>
