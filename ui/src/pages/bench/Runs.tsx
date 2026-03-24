@@ -11,6 +11,8 @@ interface RunRecord {
   model: string;
   provider: string;
   adapter: string;
+  tool_server: string;
+  tool_server_version: string;
   passed: boolean;
   duration_seconds: number;
   exit_code: number;
@@ -317,8 +319,8 @@ export function Runs() {
                   <th className={thClass} onClick={() => handleSort("model")}>
                     Model <SortArrow field="model" sort={sort} />
                   </th>
-                  <th className={thClass} onClick={() => handleSort("provider")}>
-                    Provider <SortArrow field="provider" sort={sort} />
+                  <th className={thClass}>
+                    Tool
                   </th>
                   <th className={thClass} onClick={() => handleSort("duration_seconds")}>
                     Duration <SortArrow field="duration_seconds" sort={sort} />
@@ -362,7 +364,9 @@ export function Runs() {
                       {run.scenario_id}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-body">{run.model}</td>
-                    <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-body">{run.provider}</td>
+                    <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-muted">
+                      {run.tool_server || "baseline"}
+                    </td>
                     <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-muted">
                       {formatDuration(run.duration_seconds)}
                     </td>

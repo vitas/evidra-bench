@@ -22,8 +22,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const { mode, setMode } = useEvidenceMode();
 
   const modeOptions: { value: EvidenceMode; label: string }[] = [
-    { value: "proxy", label: "Proxy" },
-    { value: "smart", label: "Smart" },
+    { value: "proxy", label: "Baseline" },
+    { value: "smart", label: "All" },
   ];
 
   return (
