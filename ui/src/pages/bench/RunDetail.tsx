@@ -418,7 +418,7 @@ function SummaryTab({
         <h3 className="text-[0.9rem] font-semibold text-fg mb-3">
           Verification Checks
         </h3>
-        {checks && checks.checks.length > 0 ? (
+        {checks && checks.checks && checks.checks.length > 0 ? (
           <div className="space-y-1.5">
             {checks.checks.map((c, i) => (
               <div
