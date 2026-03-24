@@ -278,6 +278,10 @@ export function Results() {
             {t === "all" ? "All time" : t}
           </button>
         ))}
+        {/* Counter */}
+        <span className="text-[0.72rem] text-fg-muted ml-2">
+          {filteredRuns.length} runs · {new Set(filteredRuns.map(r => r.scenario_id)).size} scenarios · {new Set(filteredRuns.map(r => r.model)).size} models
+        </span>
       </div>
 
       <div className="flex gap-1 mb-6 glass-card p-1 w-fit">
