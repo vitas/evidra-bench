@@ -68,6 +68,17 @@ Output:
 ════════════════════════════════════════════════════
 ```
 
+## Execution Modes
+
+| Mode | Command | What it tests |
+|---|---|---|
+| **Baseline** | `infra-bench run --scenario ...` | Raw model ability (direct exec) |
+| **Via evidra-mcp** | `--mcp-server "evidra-mcp --signing-mode optional"` | Agent through evidra (smart output + auto-evidence) |
+| **Via third-party** | `--mcp-server "npx -y @anthropic/mcp-server-kubernetes"` | Agent through any MCP server |
+| **With role skill** | `--role k8s-admin` | Agent behavior with skill prompt (optional) |
+
+Baseline is mandatory for every scenario. MCP server mode tests the real product experience.
+
 ## How It Works
 
 ```
