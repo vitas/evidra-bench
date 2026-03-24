@@ -112,7 +112,7 @@ export function Run() {
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
         {/* Section 1: Scenario Selection */}
-        <div className="bg-bg-elevated border border-border rounded-xl overflow-hidden flex flex-col">
+        <div className="glass-card overflow-hidden flex flex-col">
           {/* Toolbar */}
           <div className="px-4 py-3 border-b border-border-subtle space-y-3">
             {/* Search */}
@@ -254,7 +254,7 @@ export function Run() {
         {/* Section 2: Configuration */}
         <div className="space-y-4">
           {/* Model picker */}
-          <div className="bg-bg-elevated border border-border rounded-xl p-4">
+          <div className="glass-card p-4">
             <label className="text-[0.72rem] font-semibold uppercase tracking-wider text-fg-muted mb-2.5 block">
               Model
             </label>
@@ -277,7 +277,7 @@ export function Run() {
           </div>
 
           {/* Evidence mode */}
-          <div className="bg-bg-elevated border border-border rounded-xl p-4">
+          <div className="glass-card p-4">
             <label className="text-[0.72rem] font-semibold uppercase tracking-wider text-fg-muted mb-2.5 block">
               Evidence Mode
             </label>
@@ -314,7 +314,7 @@ export function Run() {
       </div>
 
       {/* Section 3: Generated Command */}
-      <div className="bg-bg-elevated border border-border rounded-xl overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
           <label className="text-[0.72rem] font-semibold uppercase tracking-wider text-fg-muted">
             Generated Command

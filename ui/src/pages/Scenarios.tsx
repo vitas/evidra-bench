@@ -56,7 +56,7 @@ function ScenarioCard({ scenario }: { scenario: ScenarioMeta }) {
   return (
     <button
       onClick={() => navigate(`/designer?scenario=${scenario.id}`)}
-      className="bg-bg-elevated border border-border rounded-xl p-5 text-left hover:border-accent/50 transition-all group flex flex-col gap-3"
+      className="glass-card p-5 text-left transition-all group flex flex-col gap-3"
     >
       {/* Badges row */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -113,7 +113,7 @@ function ScenarioRow({ scenario }: { scenario: ScenarioMeta }) {
   return (
     <button
       onClick={() => navigate(`/designer?scenario=${scenario.id}`)}
-      className="w-full bg-bg-elevated border border-border rounded-lg px-4 py-3 text-left hover:border-accent/50 transition-all group flex items-center gap-4"
+      className="w-full glass-card px-4 py-3 text-left hover:border-accent/50 transition-all group flex items-center gap-4"
     >
       {/* Badges */}
       <div className="flex items-center gap-1.5 shrink-0 w-[260px]">
@@ -205,7 +205,7 @@ export function Scenarios() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by title or description..."
-          className="w-full bg-bg-elevated border border-border rounded-lg px-4 py-2.5 text-[0.85rem] text-fg placeholder:text-fg-muted/50 focus:outline-none focus:border-accent transition-colors"
+          className="w-full glass-card px-4 py-2.5 text-[0.85rem] text-fg placeholder:text-fg-muted/50 focus:outline-none focus:border-accent transition-colors"
         />
       </div>
 
@@ -320,7 +320,7 @@ export function Scenarios() {
             ? " matching filters"
             : ""}
         </span>
-        <div className="flex items-center gap-0.5 bg-bg-elevated border border-border rounded-lg p-0.5">
+        <div className="flex items-center gap-0.5 glass-card p-0.5">
           <button
             onClick={() => { setView("grid"); localStorage.setItem("evidra-lab-view-mode", "grid"); }}
             className={`p-1.5 rounded-md transition-colors ${view === "grid" ? "bg-accent/15 text-accent" : "text-fg-muted hover:text-fg"}`}

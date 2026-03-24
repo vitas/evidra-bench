@@ -272,7 +272,7 @@ export function Leaderboard() {
       <div className="glass-card overflow-hidden">
         <table className="w-full text-[0.82rem]">
           <thead>
-            <tr className="border-b border-border bg-bg-alt">
+            <tr className="border-b border-border bg-bg-alt/80">
               <th className="text-left text-[0.7rem] font-semibold uppercase tracking-wide text-fg-muted px-4 py-2.5 w-10">
                 #
               </th>
@@ -320,7 +320,7 @@ export function Leaderboard() {
                     {m.model}
                   </Link>
                   <div className="flex items-center gap-2 mt-1">
-                    <div className="flex-1 max-w-[120px] h-1.5 rounded-full bg-bg-alt overflow-hidden">
+                    <div className="flex-1 max-w-[120px] h-1.5 rounded-full bg-bg-alt/80 overflow-hidden">
                       <div
                         className={`h-full rounded-full ${rateBg(m.rate)}`}
                         style={{ width: `${m.rate}%` }}

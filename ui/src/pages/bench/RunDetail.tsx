@@ -384,7 +384,7 @@ export function RunDetail() {
 
 function MetaItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-bg-alt rounded-lg px-3.5 py-2.5">
+    <div className="bg-bg-alt/80 rounded-lg px-3.5 py-2.5">
       <div className="text-[0.68rem] font-semibold text-fg-muted uppercase tracking-wide">
         {label}
       </div>
@@ -423,7 +423,7 @@ function SummaryTab({
             {checks.checks.map((c, i) => (
               <div
                 key={i}
-                className="flex items-center gap-3 px-3 py-2 bg-bg-alt rounded-md text-[0.8rem]"
+                className="flex items-center gap-3 px-3 py-2 bg-bg-alt/80 rounded-md text-[0.8rem]"
               >
                 <span
                   className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${
@@ -457,7 +457,7 @@ function SummaryTab({
             {Object.entries(scorecard.signals).map(([name, count]) => (
               <div
                 key={name}
-                className="flex items-center gap-3 px-3 py-2 bg-bg-alt rounded-md text-[0.8rem]"
+                className="flex items-center gap-3 px-3 py-2 bg-bg-alt/80 rounded-md text-[0.8rem]"
               >
                 <span className="font-mono text-fg">{name}</span>
                 <span className="text-fg-muted ml-auto">&times;{count}</span>
@@ -518,7 +518,7 @@ function ToolCallsTab({
   }
   if (loading || !toolCalls || toolCalls.length === 0) {
     return (
-      <div className={`min-h-[100px] rounded-lg bg-bg-alt transition-opacity duration-200 ${loading ? "opacity-40 animate-pulse" : "opacity-100"}`}>
+      <div className={`min-h-[100px] rounded-lg bg-bg-alt/80 transition-opacity duration-200 ${loading ? "opacity-40 animate-pulse" : "opacity-100"}`}>
         {!loading && <p className="text-fg-muted text-[0.82rem] py-6 text-center">No tool calls recorded.</p>}
       </div>
     );
@@ -606,7 +606,7 @@ function TimelineTab({
           return (
             <div
               key={step.index}
-              className="flex items-start gap-3 px-3 py-2 bg-bg-alt rounded-md text-[0.8rem]"
+              className="flex items-start gap-3 px-3 py-2 bg-bg-alt/80 rounded-md text-[0.8rem]"
             >
               <span className="font-mono text-fg-muted text-[0.75rem] min-w-[1.5rem] text-right flex-shrink-0 pt-0.5">
                 {step.index + 1}

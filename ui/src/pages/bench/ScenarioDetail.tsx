@@ -189,7 +189,7 @@ export function ScenarioDetail() {
 
       {/* Header */}
       {scenario && (
-        <div className="bg-bg-elevated border border-border-subtle rounded-[10px] p-5 shadow-[var(--shadow-card)]">
+        <div className="glass-card p-5">
           <h1 className="text-[1.2rem] font-bold text-fg">{scenario.title}</h1>
           {scenario.description && (
             <p className="text-[0.82rem] text-fg-muted mt-2 leading-relaxed whitespace-pre-line">
@@ -203,7 +203,7 @@ export function ScenarioDetail() {
             {scenario.tags.map((tag) => (
               <span
                 key={tag}
-                className="bg-bg-alt text-fg-muted text-[0.72rem] px-2 py-0.5 rounded"
+                className="bg-bg-alt/80 text-fg-muted text-[0.72rem] px-2 py-0.5 rounded"
               >
                 {tag}
               </span>
@@ -247,7 +247,7 @@ export function ScenarioDetail() {
         {modelGroups.map((group) => (
           <div
             key={group.model}
-            className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden"
+            className="glass-card overflow-hidden"
           >
             {/* Model header */}
             <div className="px-5 py-4 flex items-center gap-4 flex-wrap">
@@ -256,7 +256,7 @@ export function ScenarioDetail() {
                   {group.model}
                 </span>
                 <div className="flex items-center gap-2">
-                  <div className="w-20 h-2 rounded-full bg-bg-alt overflow-hidden">
+                  <div className="w-20 h-2 rounded-full bg-bg-alt/80 overflow-hidden">
                     <div
                       className={`h-full rounded-full ${rateBg(group.rate)}`}
                       style={{ width: `${group.rate}%` }}
@@ -280,7 +280,7 @@ export function ScenarioDetail() {
             {/* Runs table */}
             <table className="w-full text-[0.8rem]">
               <thead>
-                <tr className="border-t border-b border-border bg-bg-alt">
+                <tr className="border-t border-b border-border bg-bg-alt/80">
                   {["", "Status", "Duration", "Turns", "Tokens", "Cost", "Checks", "Date", ""].map(
                     (h, i) => (
                       <th
@@ -354,7 +354,7 @@ export function ScenarioDetail() {
                       {/* Expanded transcript */}
                       {isExpanded && (
                         <tr key={`${run.id}-transcript`}>
-                          <td colSpan={9} className="px-4 py-3 bg-bg-alt">
+                          <td colSpan={9} className="px-4 py-3 bg-bg-alt/80">
                             <pre
                               className={`bg-code-bg border border-border-subtle rounded-lg p-4 font-mono text-[0.75rem] leading-relaxed max-h-[400px] overflow-y-auto whitespace-pre-wrap break-words transition-opacity duration-200 ${
                                 isLoading ? "opacity-40 animate-pulse min-h-[60px]" : "opacity-100"

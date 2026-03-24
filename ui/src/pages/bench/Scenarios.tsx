@@ -240,13 +240,13 @@ export function Scenarios() {
           placeholder="Search by ID or title..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-9 px-3 text-[0.83rem] text-fg bg-bg-elevated border border-border-subtle rounded-lg placeholder:text-fg-muted/50 focus:outline-none focus:border-accent transition-colors w-64"
+          className="h-9 px-3 text-[0.83rem] text-fg glass-card placeholder:text-fg-muted/50 focus:outline-none focus:border-accent transition-colors w-64"
         />
 
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="h-9 px-3 text-[0.83rem] text-fg bg-bg-elevated border border-border-subtle rounded-lg focus:outline-none focus:border-accent transition-colors cursor-pointer"
+          className="h-9 px-3 text-[0.83rem] text-fg glass-card focus:outline-none focus:border-accent transition-colors cursor-pointer"
         >
           {SCENARIO_CATEGORIES.map((c) => (
             <option key={c} value={c}>
@@ -258,7 +258,7 @@ export function Scenarios() {
         <select
           value={feature}
           onChange={(e) => setFeature(e.target.value)}
-          className="h-9 px-3 text-[0.83rem] text-fg bg-bg-elevated border border-border-subtle rounded-lg focus:outline-none focus:border-accent transition-colors cursor-pointer"
+          className="h-9 px-3 text-[0.83rem] text-fg glass-card focus:outline-none focus:border-accent transition-colors cursor-pointer"
         >
           {FEATURES.map((f) => (
             <option key={f} value={f}>
@@ -327,10 +327,10 @@ export function Scenarios() {
 
       {/* List view */}
       {view === "list" && filtered.length > 0 && (
-        <div className="bg-bg-elevated border border-border-subtle rounded-[10px] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           <table className="w-full text-[0.82rem]">
             <thead>
-              <tr className="border-b border-border bg-bg-alt">
+              <tr className="border-b border-border bg-bg-alt/80">
                 {["Scenario", "Title", "Category", "Tags", "Runs", "Passed", "Rate", ...(readonly ? [] : [""])].map((h) => (
                   <th
                     key={h || "actions"}
@@ -370,7 +370,7 @@ export function Scenarios() {
                         {s.tags.slice(0, 3).map((tag) => (
                           <span
                             key={tag}
-                            className="bg-bg-alt text-fg-muted text-[0.68rem] px-1.5 py-0.5 rounded"
+                            className="bg-bg-alt/80 text-fg-muted text-[0.68rem] px-1.5 py-0.5 rounded"
                           >
                             {tag}
                           </span>
@@ -439,7 +439,7 @@ export function Scenarios() {
           onClick={closeModal}
         >
           <div
-            className="bg-bg-elevated border border-border-subtle rounded-[12px] shadow-[var(--shadow-card-lg)] p-6 w-full max-w-md"
+            className="glass-card p-6 w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-[1rem] font-bold text-fg mb-1">Run Scenario</h3>
@@ -455,7 +455,7 @@ export function Scenarios() {
                     <select
                       value={runModel}
                       onChange={(e) => setRunModel(e.target.value)}
-                      className="h-9 px-3 text-[0.83rem] text-fg bg-bg-alt border border-border-subtle rounded-lg cursor-pointer"
+                      className="h-9 px-3 text-[0.83rem] text-fg bg-bg-alt/80 border border-border-subtle rounded-lg cursor-pointer"
                     >
                       {runModels.map((m) => (
                         <option key={m} value={m}>{m}</option>
@@ -474,7 +474,7 @@ export function Scenarios() {
                         setRunProvider(selection.provider);
                         setRunModel(selection.model);
                       }}
-                      className="h-9 px-3 text-[0.83rem] text-fg bg-bg-alt border border-border-subtle rounded-lg cursor-pointer"
+                      className="h-9 px-3 text-[0.83rem] text-fg bg-bg-alt/80 border border-border-subtle rounded-lg cursor-pointer"
                     >
                       {RUN_PROVIDERS.map((p) => (
                         <option key={p} value={p}>{p}</option>
@@ -588,7 +588,7 @@ function ScenarioCard({
     : null;
 
   return (
-    <div className="bg-bg-elevated border border-border-subtle rounded-[10px] p-4 hover:border-accent hover:shadow-[var(--shadow-card-lg)] hover:-translate-y-px transition-all flex flex-col gap-2">
+    <div className="glass-card p-4 hover:border-accent hover:shadow-[var(--shadow-card-lg)] hover:-translate-y-px transition-all flex flex-col gap-2">
       <Link
         to={`/bench/runs?scenario=${scenario.id}`}
         className="flex flex-col gap-1"

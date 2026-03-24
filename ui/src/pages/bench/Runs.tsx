@@ -207,7 +207,7 @@ export function Runs() {
     "font-sans text-[0.8rem] px-3 py-[0.45rem] border border-border rounded-md bg-bg-elevated text-fg-body focus:outline-none focus:border-accent transition-colors";
 
   const thClass =
-    "text-left text-[0.7rem] font-semibold text-fg-muted uppercase tracking-wide bg-bg-alt px-3 py-2.5 select-none cursor-pointer hover:text-fg transition-colors whitespace-nowrap";
+    "text-left text-[0.7rem] font-semibold text-fg-muted uppercase tracking-wide bg-bg-alt/80 px-3 py-2.5 select-none cursor-pointer hover:text-fg transition-colors whitespace-nowrap";
 
   return (
     <div>

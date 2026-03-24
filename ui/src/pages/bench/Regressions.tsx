@@ -88,10 +88,10 @@ export function Regressions() {
 
       {/* Regressions table */}
       {regressions.length > 0 && (
-        <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           <table className="w-full text-[0.82rem]">
             <thead>
-              <tr className="border-b border-border bg-bg-alt">
+              <tr className="border-b border-border bg-bg-alt/80">
                 <th className="text-left text-[0.7rem] font-semibold uppercase tracking-wide text-fg-muted px-5 py-2.5">
                   Severity
                 </th>
@@ -167,7 +167,7 @@ export function Regressions() {
       )}
 
       {/* Explanation */}
-      <div className="bg-bg-alt rounded-[10px] p-5">
+      <div className="bg-bg-alt/80 rounded-[10px] p-5">
         <h3 className="text-[0.85rem] font-semibold text-fg mb-2">How regressions are detected</h3>
         <ul className="text-[0.78rem] text-fg-muted space-y-1 list-disc list-inside">
           <li><strong className="text-fg">Critical</strong> — latest run FAILED, but previous pass rate was 80%+ (reliable scenario now broken)</li>
@@ -192,7 +192,7 @@ function MiniCard({
   accent: string;
 }) {
   return (
-    <div className={`bg-bg-elevated border border-border-subtle rounded-lg p-3 shadow-[var(--shadow-card)] border-l-[3px] border-l-${accent}`}>
+    <div className={`glass-card p-3 border-l-[3px] border-l-${accent}`}>
       <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-fg-muted">
         {label}
       </p>

@@ -420,7 +420,7 @@ function RunDiff() {
             {[diff.run_a, diff.run_b].map((run, idx) => (
               <div
                 key={idx}
-                className="bg-bg-elevated border border-border-subtle rounded-[10px] p-4"
+                className="glass-card p-4"
               >
                 <h3 className="text-[0.7rem] font-semibold uppercase tracking-wide text-fg-muted mb-3">
                   Run {idx === 0 ? "A" : "B"} &mdash;{" "}

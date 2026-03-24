@@ -311,7 +311,7 @@ export function Dashboard() {
           Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
-              className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] p-4"
+              className="glass-card p-4"
             >
               <Pulse className="h-3 w-20 mb-3" />
               <Pulse className="h-7 w-16" />
@@ -356,7 +356,7 @@ export function Dashboard() {
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
         {/* Recent Runs */}
-        <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           <div className="flex items-center justify-between px-5 pt-4 pb-3">
             <h2 className="text-[0.95rem] font-semibold text-fg">
               Recent Runs
@@ -382,7 +382,7 @@ export function Dashboard() {
             <div className="overflow-x-auto">
               <table className="w-full text-[0.82rem]">
                 <thead>
-                  <tr className="border-b border-border bg-bg-alt">
+                  <tr className="border-b border-border bg-bg-alt/80">
                     {["Status", "Scenario", "Model", "Duration", "Cost", "Date"].map(
                       (h) => (
                         <th
@@ -439,7 +439,7 @@ export function Dashboard() {
         {/* Right column */}
         <div className="space-y-4">
           {/* Pass Rate by Model */}
-          <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] p-5">
+          <div className="glass-card p-5">
             <h2 className="text-[0.95rem] font-semibold text-fg mb-4">
               Pass Rate by Model
             </h2>
@@ -465,7 +465,7 @@ export function Dashboard() {
                         {passed}/{total} &middot; {formatCost(cost)}
                       </span>
                     </div>
-                    <div className="h-2 rounded-full bg-bg-alt overflow-hidden">
+                    <div className="h-2 rounded-full bg-bg-alt/80 overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
                           rate >= 70
@@ -497,7 +497,7 @@ export function Dashboard() {
           </div>
 
           {/* Run Activity */}
-          <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] p-5">
+          <div className="glass-card p-5">
             <h2 className="text-[0.95rem] font-semibold text-fg mb-4">
               Run Activity
             </h2>
@@ -603,7 +603,7 @@ export function Dashboard() {
               return (
                 <div
                   key={id}
-                  className="bg-bg-elevated border border-border-subtle rounded-lg p-3"
+                  className="glass-card p-3"
                 >
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className={`text-[0.8rem] ${detected ? "text-warning" : "text-fg-muted"}`}>
@@ -631,7 +631,7 @@ export function Dashboard() {
       {/* Bottom row: worst + best scenarios */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Hardest scenarios */}
-        <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           <div className="px-5 pt-4 pb-2">
             <h2 className="text-[0.95rem] font-semibold text-fg">
               Hardest Scenarios
@@ -679,7 +679,7 @@ export function Dashboard() {
         </div>
 
         {/* Best scenarios */}
-        <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           <div className="px-5 pt-4 pb-2">
             <h2 className="text-[0.95rem] font-semibold text-fg">
               Easiest Scenarios
@@ -737,7 +737,7 @@ function StatCard({
 }) {
   return (
     <div
-      className={`bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] p-4 border-l-[3px] ${borderColor} hover:shadow-[var(--shadow-card-lg)] hover:-translate-y-px transition-all`}
+      className={`glass-card p-4 border-l-[3px] ${borderColor} hover:shadow-[var(--shadow-card-lg)] hover:-translate-y-px transition-all`}
     >
       <p className="text-[0.72rem] font-semibold uppercase tracking-wide text-fg-muted mb-1">
         {label}

@@ -318,7 +318,7 @@ export function Benchmarks() {
             {Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
-                className="bg-bg-elevated border border-border-subtle rounded-[10px] p-4 flex items-center gap-6"
+                className="glass-card p-4 flex items-center gap-6"
               >
                 <Pulse className="h-4 w-24 shrink-0" />
                 <Pulse className="h-5 flex-1" />
@@ -327,7 +327,7 @@ export function Benchmarks() {
             ))}
           </div>
         ) : dayGroups.length === 0 ? (
-          <div className="bg-bg-elevated border border-border-subtle rounded-[10px] p-8 text-center">
+          <div className="glass-card p-8 text-center">
             <p className="text-fg-muted text-[0.85rem]">
               No benchmark runs found for this period.
             </p>
@@ -342,7 +342,7 @@ export function Benchmarks() {
               return (
                 <div
                   key={day.date}
-                  className="bg-bg-elevated border border-border-subtle rounded-[10px] p-4 flex items-center gap-6 cursor-pointer hover:border-accent transition-colors"
+                  className="glass-card p-4 flex items-center gap-6 cursor-pointer hover:border-accent transition-colors"
                 >
                   {/* Date */}
                   <span className="font-mono text-[0.78rem] text-fg-muted whitespace-nowrap shrink-0 w-28">
@@ -350,7 +350,7 @@ export function Benchmarks() {
                   </span>
 
                   {/* Stacked bar */}
-                  <div className="flex-1 h-5 rounded bg-bg-alt overflow-hidden flex">
+                  <div className="flex-1 h-5 rounded bg-bg-alt/80 overflow-hidden flex">
                     {passPct > 0 && (
                       <div
                         className="bg-accent h-full"
@@ -394,7 +394,7 @@ export function Benchmarks() {
         </h2>
 
         {loading ? (
-          <div className="bg-bg-elevated border border-border-subtle rounded-[10px] p-5">
+          <div className="glass-card p-5">
             <div className="space-y-3">
               {Array.from({ length: 4 }).map((_, i) => (
                 <Pulse key={i} className="h-8 w-full" />
@@ -402,13 +402,13 @@ export function Benchmarks() {
             </div>
           </div>
         ) : categories.length === 0 ? (
-          <div className="bg-bg-elevated border border-border-subtle rounded-[10px] p-8 text-center">
+          <div className="glass-card p-8 text-center">
             <p className="text-fg-muted text-[0.85rem]">
               No category data available.
             </p>
           </div>
         ) : (
-          <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
+          <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-[0.82rem]">
                 <thead>

@@ -92,7 +92,7 @@ export function Insights() {
         <select
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
-          className="h-9 px-3 text-[0.83rem] text-fg bg-bg-elevated border border-border-subtle rounded-lg cursor-pointer flex-1 max-w-md"
+          className="h-9 px-3 text-[0.83rem] text-fg glass-card cursor-pointer flex-1 max-w-md"
         >
           <option value="">Select scenario...</option>
           {scenarios.map((s) => (
@@ -128,14 +128,14 @@ export function Insights() {
 
           {/* Check failures — the "what failed" */}
           {(insights.check_failures ?? []).length > 0 && (
-            <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
+            <div className="glass-card overflow-hidden">
               <div className="px-5 pt-4 pb-2">
                 <h2 className="text-[0.95rem] font-semibold text-fg">What Failed</h2>
                 <p className="text-[0.72rem] text-fg-muted">Check failures across {insights.failed_runs} failed runs</p>
               </div>
               <table className="w-full text-[0.82rem]">
                 <thead>
-                  <tr className="border-t border-b border-border bg-bg-alt">
+                  <tr className="border-t border-b border-border bg-bg-alt/80">
                     <th className="text-left text-[0.7rem] font-semibold uppercase tracking-wide text-fg-muted px-5 py-2">Check</th>
                     <th className="text-left text-[0.7rem] font-semibold uppercase tracking-wide text-fg-muted px-4 py-2">Type</th>
                     <th className="text-center text-[0.7rem] font-semibold uppercase tracking-wide text-fg-muted px-4 py-2">Count</th>
@@ -151,7 +151,7 @@ export function Insights() {
                       <td className="px-4 py-2.5 text-center font-mono text-[0.78rem] text-danger font-semibold">{cf.fail_count}</td>
                       <td className="px-4 py-2.5 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <div className="w-16 h-1.5 rounded-full bg-bg-alt overflow-hidden">
+                          <div className="w-16 h-1.5 rounded-full bg-bg-alt/80 overflow-hidden">
                             <div className="h-full rounded-full bg-danger" style={{ width: `${cf.fail_rate}%` }} />
                           </div>
                           <span className="font-mono text-[0.72rem] text-danger">{cf.fail_rate.toFixed(0)}%</span>
@@ -169,7 +169,7 @@ export function Insights() {
           {(failSignals.length > 0 || passSignals.length > 0) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {failSignals.length > 0 && (
-                <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
+                <div className="glass-card overflow-hidden">
                   <div className="px-5 pt-4 pb-2">
                     <h2 className="text-[0.95rem] font-semibold text-danger">Failure Signals</h2>
                     <p className="text-[0.72rem] text-fg-muted">Commands only seen in failed runs</p>
@@ -186,7 +186,7 @@ export function Insights() {
                 </div>
               )}
               {passSignals.length > 0 && (
-                <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
+                <div className="glass-card overflow-hidden">
                   <div className="px-5 pt-4 pb-2">
                     <h2 className="text-[0.95rem] font-semibold text-accent">Success Signals</h2>
                     <p className="text-[0.72rem] text-fg-muted">Commands only seen in passing runs</p>
@@ -206,14 +206,14 @@ export function Insights() {
           )}
 
           {/* Behavior comparison */}
-          <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
+          <div className="glass-card overflow-hidden">
             <div className="px-5 pt-4 pb-2">
               <h2 className="text-[0.95rem] font-semibold text-fg">Behavior Comparison</h2>
               <p className="text-[0.72rem] text-fg-muted">How pass and fail runs differ in execution metrics</p>
             </div>
             <table className="w-full text-[0.82rem]">
               <thead>
-                <tr className="border-t border-b border-border bg-bg-alt">
+                <tr className="border-t border-b border-border bg-bg-alt/80">
                   <th className="text-left text-[0.7rem] font-semibold uppercase tracking-wide text-fg-muted px-5 py-2">Metric</th>
                   <th className="text-center text-[0.7rem] font-semibold uppercase tracking-wide text-accent px-4 py-2">Pass Avg</th>
                   <th className="text-center text-[0.7rem] font-semibold uppercase tracking-wide text-danger px-4 py-2">Fail Avg</th>
@@ -231,7 +231,7 @@ export function Insights() {
 
           {/* Model breakdown */}
           {(insights.model_breakdown ?? []).length > 0 && (
-            <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
+            <div className="glass-card overflow-hidden">
               <div className="px-5 pt-4 pb-2">
                 <h2 className="text-[0.95rem] font-semibold text-fg">Model Breakdown</h2>
                 <p className="text-[0.72rem] text-fg-muted">Which models pass and fail this scenario</p>
@@ -240,7 +240,7 @@ export function Insights() {
                 {(insights.model_breakdown ?? []).map((m) => (
                   <div key={m.model} className="flex items-center gap-3">
                     <span className="font-mono text-[0.78rem] text-fg font-semibold w-44 truncate">{m.model}</span>
-                    <div className="flex-1 h-2 rounded-full bg-bg-alt overflow-hidden">
+                    <div className="flex-1 h-2 rounded-full bg-bg-alt/80 overflow-hidden">
                       <div
                         className={`h-full rounded-full ${m.rate >= 70 ? "bg-accent" : m.rate >= 40 ? "bg-warning" : "bg-danger"}`}
                         style={{ width: `${m.rate}%` }}
@@ -263,7 +263,7 @@ export function Insights() {
 
 function MiniCard({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
-    <div className={`bg-bg-elevated border border-border-subtle rounded-lg p-3 shadow-[var(--shadow-card)] ${accent ? `border-l-[3px] border-l-${accent}` : ""}`}>
+    <div className={`glass-card p-3 ${accent ? `border-l-[3px] border-l-${accent}` : ""}`}>
       <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-fg-muted">{label}</p>
       <p className="font-mono text-[1.1rem] font-bold text-fg mt-0.5">{value}</p>
     </div>

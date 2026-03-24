@@ -280,7 +280,7 @@ export function Results() {
         ))}
       </div>
 
-      <div className="flex gap-1 mb-6 bg-bg-elevated border border-border rounded-lg p-1 w-fit">
+      <div className="flex gap-1 mb-6 glass-card p-1 w-fit">
         {(["leaderboard", "runs"] as Tab[]).map((t) => (
           <button
             key={t}

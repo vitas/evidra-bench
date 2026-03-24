@@ -202,10 +202,10 @@ export function SkillImpact() {
             How the Evidra protocol skill affects agent reliability
           </p>
         </div>
-        <div className="bg-bg-elevated border border-border-subtle rounded-[10px] p-8 text-center">
+        <div className="glass-card p-8 text-center">
           <p className="text-fg-muted text-[0.9rem] mb-2">No skill-enabled runs yet</p>
           <p className="text-fg-muted text-[0.78rem]">
-            Run benchmarks with <code className="font-mono bg-bg-alt px-1.5 py-0.5 rounded text-accent">--system-prompt-file</code> pointing
+            Run benchmarks with <code className="font-mono bg-bg-alt/80 px-1.5 py-0.5 rounded text-accent">--system-prompt-file</code> pointing
             to the evidra contract skill to see the impact comparison.
           </p>
         </div>
@@ -266,7 +266,7 @@ export function SkillImpact() {
       </div>
 
       {/* Model comparison table */}
-      <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="px-5 pt-4 pb-2">
           <h2 className="text-[0.95rem] font-semibold text-fg">
             Pass Rate by Model
@@ -277,7 +277,7 @@ export function SkillImpact() {
         </div>
         <table className="w-full text-[0.82rem]">
           <thead>
-            <tr className="border-b border-t border-border bg-bg-alt">
+            <tr className="border-b border-t border-border bg-bg-alt/80">
               <th className="text-left text-[0.7rem] font-semibold uppercase tracking-wide text-fg-muted px-5 py-2">
                 Model
               </th>
@@ -357,7 +357,7 @@ export function SkillImpact() {
       </div>
 
       {/* Scenario-level impact */}
-      <div className="bg-bg-elevated border border-border-subtle rounded-[10px] shadow-[var(--shadow-card)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="px-5 pt-4 pb-2">
           <h2 className="text-[0.95rem] font-semibold text-fg">
             Scenario Impact
@@ -368,7 +368,7 @@ export function SkillImpact() {
         </div>
         <table className="w-full text-[0.82rem]">
           <thead>
-            <tr className="border-b border-t border-border bg-bg-alt">
+            <tr className="border-b border-t border-border bg-bg-alt/80">
               <th className="text-left text-[0.7rem] font-semibold uppercase tracking-wide text-fg-muted px-5 py-2">
                 Scenario
               </th>
@@ -454,7 +454,7 @@ export function SkillImpact() {
         </p>
         <p className="text-fg-muted text-[0.8rem]">
           Run benchmarks with the evidra protocol skill to build a complete comparison.
-          Use <code className="font-mono bg-bg-alt px-1.5 py-0.5 rounded text-accent">--system-prompt-file</code> with
+          Use <code className="font-mono bg-bg-alt/80 px-1.5 py-0.5 rounded text-accent">--system-prompt-file</code> with
           the contract prompt to enable skill-mode runs.
         </p>
       </div>
@@ -476,7 +476,7 @@ function MiniCard({
   accent?: string;
 }) {
   return (
-    <div className={`bg-bg-elevated border border-border-subtle rounded-lg p-3 shadow-[var(--shadow-card)] ${accent ? `border-l-[3px] border-l-${accent}` : ""}`}>
+    <div className={`glass-card p-3 ${accent ? `border-l-[3px] border-l-${accent}` : ""}`}>
       <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-fg-muted">
         {label}
       </p>
