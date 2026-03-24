@@ -118,7 +118,7 @@ func (e *ToolExecutor) Execute(ctx context.Context, tc ToolCall) string {
 
 // allowedCommandPrefixes restricts which commands the LLM can execute.
 var allowedCommandPrefixes = []string{
-	"kubectl", "helm", "argocd", "kind", "terraform", "aws",
+	"kubectl", "helm", "argocd", "kind", "terraform", "aws", "kustomize",
 	"cat", "echo", "grep", "head", "tail", "wc", "ls", "find", "openssl",
 	"jq", "yq", "sed", "tee", "cp", "mkdir", "rm", "mv",
 }
