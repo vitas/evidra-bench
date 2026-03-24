@@ -29,11 +29,8 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <>
       <header
-        className="sticky top-0 z-50 border-b border-border-subtle"
-        style={{
-          background: "color-mix(in srgb, var(--color-bg-elevated) 85%, transparent)",
-          backdropFilter: "blur(12px)",
-        }}
+        className="sticky top-0 z-50 glass border-b-0"
+        style={{ borderBottom: "1px solid var(--glass-border)" }}
       >
         {/* Top row: logo + mode toggle + icons */}
         <div className="h-12 flex items-center gap-4 px-4 sm:px-6">

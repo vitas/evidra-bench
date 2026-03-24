@@ -25,7 +25,7 @@ function Header() {
   const { pathname } = useLocation();
 
   return (
-    <header className="sticky top-0 z-50 bg-[color-mix(in_srgb,var(--color-bg)_85%,transparent)] backdrop-blur-xl border-b border-border-subtle">
+    <header className="sticky top-0 z-50 glass" style={{ borderBottom: "1px solid var(--glass-border)" }}>
       <div className="px-4 sm:px-6 flex justify-between items-center py-3 gap-4">
         <div className="flex items-center gap-4 sm:gap-8 min-w-0">
           <Link

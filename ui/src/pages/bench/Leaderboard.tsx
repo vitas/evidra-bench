@@ -269,7 +269,7 @@ export function Leaderboard() {
       </div>
 
       {/* Leaderboard table */}
-      <div className="bg-bg-elevated border border-border-subtle rounded-[10px] overflow-hidden shadow-[var(--shadow-card)]">
+      <div className="glass-card overflow-hidden">
         <table className="w-full text-[0.82rem]">
           <thead>
             <tr className="border-b border-border bg-bg-alt">
@@ -434,11 +434,11 @@ export function Leaderboard() {
 
 function MiniCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-bg-elevated border border-border-subtle rounded-lg p-3 shadow-[var(--shadow-card)]">
-      <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-fg-muted">
+    <div className="glass-card p-4">
+      <p className="text-[0.68rem] font-semibold uppercase tracking-widest text-fg-muted">
         {label}
       </p>
-      <p className="font-mono text-[1.1rem] font-bold text-fg mt-0.5">{value}</p>
+      <p className="font-mono text-[1.15rem] font-bold text-fg mt-1">{value}</p>
     </div>
   );
 }
@@ -457,8 +457,8 @@ function InsightCard({
   accent: string;
 }) {
   return (
-    <div className={`bg-bg-elevated border border-border-subtle rounded-[10px] p-4 shadow-[var(--shadow-card)] border-l-[3px] border-l-${accent}`}>
-      <p className="text-[0.72rem] font-semibold uppercase tracking-wide text-fg-muted mb-1">
+    <div className={`glass-card p-4 border-l-[3px] border-l-${accent}`}>
+      <p className="text-[0.72rem] font-semibold uppercase tracking-widest text-fg-muted mb-1">
         {title}
       </p>
       <p className="font-mono text-[0.92rem] font-bold text-fg">{model}</p>

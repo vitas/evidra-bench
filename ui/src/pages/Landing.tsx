@@ -264,7 +264,7 @@ export function Landing() {
             <Link
               key={p.title}
               to={p.to}
-              className="group relative p-6 rounded-xl border border-border bg-bg-alt hover:border-accent/40 hover:bg-bg-elevated transition-all"
+              className="group relative p-6 glass-card transition-all"
             >
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-8 h-8 rounded-lg bg-accent/15 flex items-center justify-center text-accent">
@@ -297,7 +297,7 @@ export function Landing() {
           ].map((l) => (
             <div
               key={l.level}
-              className="relative p-5 rounded-xl border border-border bg-bg-alt hover:border-accent/30 transition-all group"
+              className="relative p-5 glass-card transition-all group"
             >
               <div
                 className="absolute top-0 left-0 w-full h-0.5 rounded-t-xl"
@@ -333,7 +333,7 @@ export function Landing() {
             <Link
               key={track.id}
               to={`/scenarios?track=${track.id}`}
-              className="flex items-center gap-3 p-4 rounded-lg border border-border bg-bg-alt hover:border-accent/40 hover:bg-bg-elevated transition-all group"
+              className="flex items-center gap-3 p-4 glass-card transition-all group"
             >
               <div className="text-accent opacity-60 group-hover:opacity-100 transition-opacity">
                 <TrackIcon icon={track.icon} />
