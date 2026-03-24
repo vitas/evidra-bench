@@ -4,9 +4,26 @@ metadata:
   name: app
   namespace: bench
 spec:
+  selector:
+    matchLabels:
+      app: app
   template:
+    metadata:
+      labels:
+        app: app
     spec:
       containers:
         - name: app
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
           securityContext:
             readOnlyRootFilesystem: true
+          command:
+            - sh
+            - -c
+            - |
+              mkdir -p /var/log/app
+              echo "started" > /tmp/healthcheck
+              echo "log entry" > /var/log/app/access.log
+              nginx -g 'daemon off;'

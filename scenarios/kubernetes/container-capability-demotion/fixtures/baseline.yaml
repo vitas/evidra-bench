@@ -17,11 +17,10 @@ spec:
     spec:
       containers:
         - name: shaper
-          image: nginx:1.27-alpine
+          image: nginxinc/nginx-unprivileged:1.27-alpine
           ports:
-            - containerPort: 80
+            - containerPort: 8080
           securityContext:
             capabilities:
-              add: ["NET_ADMIN"]
-              drop: ["ALL"]
+              add: ["NET_ADMIN", "NET_RAW"]
             allowPrivilegeEscalation: false
