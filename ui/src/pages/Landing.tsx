@@ -64,33 +64,33 @@ function TerminalAnimation() {
   }, []);
 
   return (
-    <div className="relative rounded-xl overflow-hidden border border-[#1e3a2c] shadow-[0_0_60px_rgba(52,211,153,0.08)]">
+    <div className="relative rounded-xl overflow-hidden border border-border shadow-[0_0_60px_rgba(52,211,153,0.08)]">
       {/* Terminal header */}
-      <div className="flex items-center gap-2 px-4 py-2.5 bg-[#0a110e] border-b border-[#1e3a2c]">
+      <div className="flex items-center gap-2 px-4 py-2.5 bg-[#0a110e] border-b border-border">
         <div className="flex gap-1.5">
           <div className="w-2.5 h-2.5 rounded-full bg-[#ef4444]/70" />
           <div className="w-2.5 h-2.5 rounded-full bg-[#eab308]/70" />
-          <div className="w-2.5 h-2.5 rounded-full bg-[#22c55e]/70" />
+          <div className="w-2.5 h-2.5 rounded-full bg-accent-bright/70" />
         </div>
-        <span className="text-[0.65rem] text-[#6b8f7b] font-mono ml-2">infra-bench — certification run</span>
+        <span className="text-[0.65rem] text-fg-muted font-mono ml-2">infra-bench — certification run</span>
       </div>
       {/* Terminal body */}
       <div
         ref={containerRef}
-        className="bg-[#0c0f0e] p-4 font-mono text-[0.72rem] leading-relaxed h-[380px] overflow-hidden"
+        className="bg-bg-alt p-4 font-mono text-[0.72rem] leading-relaxed h-[380px] overflow-hidden"
       >
         {TERMINAL_LINES.slice(0, visibleLines).map((line, i) => (
           <div
             key={i}
             className={`
-              ${line.type === "input" ? "text-[#34d399]" : ""}
-              ${line.type === "progress" ? "text-[#6b8f7b]" : ""}
-              ${line.type === "pass" ? "text-[#22c55e] font-semibold" : ""}
-              ${line.type === "border" ? "text-[#34d399]/60" : ""}
-              ${line.type === "title" ? "text-[#d1fae5] font-bold" : ""}
-              ${line.type === "grade" ? "text-[#34d399] font-bold text-[0.85rem]" : ""}
-              ${line.type === "level-pass" ? "text-[#22c55e]" : ""}
-              ${line.type === "info" ? "text-[#a7cdb8]" : ""}
+              ${line.type === "input" ? "text-accent" : ""}
+              ${line.type === "progress" ? "text-fg-muted" : ""}
+              ${line.type === "pass" ? "text-accent-bright font-semibold" : ""}
+              ${line.type === "border" ? "text-accent/60" : ""}
+              ${line.type === "title" ? "text-fg font-bold" : ""}
+              ${line.type === "grade" ? "text-accent font-bold text-[0.85rem]" : ""}
+              ${line.type === "level-pass" ? "text-accent-bright" : ""}
+              ${line.type === "info" ? "text-fg-body" : ""}
               ${line.type === "blank" ? "h-4" : ""}
             `}
             style={{ animation: "fadeInLine 0.15s ease-out" }}
@@ -99,7 +99,7 @@ function TerminalAnimation() {
           </div>
         ))}
         {visibleLines < TERMINAL_LINES.length && (
-          <span className="inline-block w-2 h-4 bg-[#34d399] animate-pulse ml-0.5" />
+          <span className="inline-block w-2 h-4 bg-accent animate-pulse ml-0.5" />
         )}
       </div>
     </div>
@@ -134,12 +134,12 @@ const STATS = [
 export function Landing() {
   const { theme, toggle } = useTheme();
   return (
-    <div className="min-h-screen bg-[#0a0d0c] text-[#d1fae5] overflow-hidden">
+    <div className="min-h-screen bg-bg text-fg overflow-hidden">
       {/* Subtle grid background */}
       <div
         className="fixed inset-0 opacity-[0.03]"
         style={{
-          backgroundImage: `linear-gradient(#34d399 1px, transparent 1px), linear-gradient(90deg, #34d399 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(var(--color-accent) 1px, transparent 1px), linear-gradient(90deg, var(--color-accent) 1px, transparent 1px)`,
           backgroundSize: "60px 60px",
         }}
       />
@@ -150,7 +150,7 @@ export function Landing() {
           href="https://github.com/vitas/evidra"
           target="_blank"
           rel="noopener noreferrer"
-          className="w-8 h-8 flex items-center justify-center rounded-md border border-[#1e3a2c] text-[#6b8f7b] hover:border-[#34d399] hover:text-[#34d399] transition-all"
+          className="w-8 h-8 flex items-center justify-center rounded-md border border-border text-fg-muted hover:border-accent hover:text-accent transition-all"
           aria-label="GitHub"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -159,7 +159,7 @@ export function Landing() {
         </a>
         <button
           onClick={toggle}
-          className="w-8 h-8 flex items-center justify-center rounded-md border border-[#1e3a2c] text-[#6b8f7b] hover:border-[#34d399] hover:text-[#34d399] transition-all cursor-pointer"
+          className="w-8 h-8 flex items-center justify-center rounded-md border border-border text-fg-muted hover:border-accent hover:text-accent transition-all cursor-pointer"
           style={{ background: "none", fontSize: "0.9rem" }}
           aria-label="Toggle theme"
         >
@@ -170,16 +170,16 @@ export function Landing() {
       {/* Hero */}
       <section className="relative max-w-6xl mx-auto px-6 pt-12 pb-16">
         {/* Glow effect */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[#059669]/8 rounded-full blur-[120px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-accent/8 rounded-full blur-[120px]" />
 
         <div className="relative grid lg:grid-cols-2 gap-16 items-center">
           {/* Left: messaging */}
           <div>
             <Link
               to="/results"
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#34d399]/40 bg-[#059669]/10 text-[0.75rem] text-[#34d399] font-medium mb-8 hover:bg-[#059669]/20 hover:border-[#34d399]/60 transition-all group"
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent/40 bg-accent/10 text-[0.75rem] text-accent font-medium mb-8 hover:bg-accent/20 hover:border-accent/60 transition-all group"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-accent-bright animate-pulse" />
               8 models certified — view live results
               <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
                 <path d="M5 12h14M12 5l7 7-7 7" />
@@ -193,7 +193,7 @@ export function Landing() {
               </span>
             </h1>
 
-            <p className="text-[1.05rem] text-[#6b8f7b] leading-relaxed mb-10 max-w-lg">
+            <p className="text-[1.05rem] text-fg-muted leading-relaxed mb-10 max-w-lg">
               A 5-line skill cuts L1 turns by 75% but breaks L2 diagnosis.
               58 CKA/CKS scenarios on real clusters tell you which skills
               help and which hurt — before your users find out.
@@ -202,7 +202,7 @@ export function Landing() {
             <div className="flex items-center gap-4 mb-12">
               <Link
                 to="/bench"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-[#059669] hover:bg-[#047857] text-white text-[0.88rem] font-semibold rounded-lg transition-all hover:shadow-[0_0_30px_rgba(5,150,105,0.3)]"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-accent hover:bg-accent-bright text-white text-[0.88rem] font-semibold rounded-lg transition-all hover:shadow-[0_0_30px_rgba(5,150,105,0.3)]"
               >
                 Benchmark Dashboard
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
@@ -211,7 +211,7 @@ export function Landing() {
               </Link>
               <Link
                 to="/results"
-                className="inline-flex items-center gap-2 px-6 py-3 border border-[#1e3a2c] text-[#a7cdb8] text-[0.88rem] font-medium rounded-lg hover:border-[#34d399]/50 hover:text-[#d1fae5] transition-all"
+                className="inline-flex items-center gap-2 px-6 py-3 border border-border text-fg-body text-[0.88rem] font-medium rounded-lg hover:border-accent/50 hover:text-fg transition-all"
               >
                 Exam Results
               </Link>
@@ -221,8 +221,8 @@ export function Landing() {
             <div className="flex gap-8">
               {STATS.map((stat) => (
                 <div key={stat.label}>
-                  <div className="text-2xl font-bold text-[#34d399]">{stat.value}</div>
-                  <div className="text-[0.72rem] text-[#6b8f7b] uppercase tracking-wider">{stat.label}</div>
+                  <div className="text-2xl font-bold text-accent">{stat.value}</div>
+                  <div className="text-[0.72rem] text-fg-muted uppercase tracking-wider">{stat.label}</div>
                 </div>
               ))}
             </div>
@@ -264,18 +264,18 @@ export function Landing() {
             <Link
               key={p.title}
               to={p.to}
-              className="group relative p-6 rounded-xl border border-[#1e3a2c] bg-[#0c0f0e] hover:border-[#34d399]/40 hover:bg-[#111916] transition-all"
+              className="group relative p-6 rounded-xl border border-border bg-bg-alt hover:border-accent/40 hover:bg-bg-elevated transition-all"
             >
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-[#059669]/15 flex items-center justify-center text-[#34d399]">
+                <div className="w-8 h-8 rounded-lg bg-accent/15 flex items-center justify-center text-accent">
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
                     <path d={p.icon} />
                   </svg>
                 </div>
-                <h3 className="text-[1.05rem] font-bold text-[#d1fae5] group-hover:text-[#34d399] transition-colors">{p.title}</h3>
-                <span className="ml-auto text-[0.6rem] uppercase tracking-widest text-[#4a6b5a] border border-[#1e3a2c] rounded px-2 py-0.5">{p.tag}</span>
+                <h3 className="text-[1.05rem] font-bold text-fg group-hover:text-accent transition-colors">{p.title}</h3>
+                <span className="ml-auto text-[0.6rem] uppercase tracking-widest text-fg-muted border border-border rounded px-2 py-0.5">{p.tag}</span>
               </div>
-              <p className="text-[0.8rem] text-[#6b8f7b] leading-relaxed">{p.desc}</p>
+              <p className="text-[0.8rem] text-fg-muted leading-relaxed">{p.desc}</p>
             </Link>
           ))}
         </div>
@@ -284,7 +284,7 @@ export function Landing() {
       {/* Certification levels */}
       <section className="relative max-w-6xl mx-auto px-6 py-20">
         <h2 className="text-center text-[1.6rem] font-bold mb-3">Four Certification Levels</h2>
-        <p className="text-center text-[0.88rem] text-[#6b8f7b] mb-12 max-w-xl mx-auto">
+        <p className="text-center text-[0.88rem] text-fg-muted mb-12 max-w-xl mx-auto">
           Not just pass/fail — we measure how your agent thinks. Each level tests deeper capabilities.
         </p>
 
@@ -297,7 +297,7 @@ export function Landing() {
           ].map((l) => (
             <div
               key={l.level}
-              className="relative p-5 rounded-xl border border-[#1e3a2c] bg-[#0c0f0e] hover:border-[#34d399]/30 transition-all group"
+              className="relative p-5 rounded-xl border border-border bg-bg-alt hover:border-accent/30 transition-all group"
             >
               <div
                 className="absolute top-0 left-0 w-full h-0.5 rounded-t-xl"
@@ -310,10 +310,10 @@ export function Landing() {
                 >
                   {l.level}
                 </span>
-                <span className="text-[0.88rem] font-semibold text-[#d1fae5]">{l.name}</span>
+                <span className="text-[0.88rem] font-semibold text-fg">{l.name}</span>
               </div>
-              <p className="text-[0.78rem] text-[#6b8f7b] leading-relaxed mb-3">{l.desc}</p>
-              <span className="text-[0.65rem] text-[#4a6b5a] uppercase tracking-wider">
+              <p className="text-[0.78rem] text-fg-muted leading-relaxed mb-3">{l.desc}</p>
+              <span className="text-[0.65rem] text-fg-muted uppercase tracking-wider">
                 {l.analogy} engineer equivalent
               </span>
             </div>
@@ -324,7 +324,7 @@ export function Landing() {
       {/* Tracks */}
       <section className="relative max-w-6xl mx-auto px-6 py-20">
         <h2 className="text-center text-[1.6rem] font-bold mb-3">Exam-Aligned Tracks</h2>
-        <p className="text-center text-[0.88rem] text-[#6b8f7b] mb-12 max-w-xl mx-auto">
+        <p className="text-center text-[0.88rem] text-fg-muted mb-12 max-w-xl mx-auto">
           Mapped to CKA/CKS certification domains. Your agent earns a grade per track.
         </p>
 
@@ -333,20 +333,20 @@ export function Landing() {
             <Link
               key={track.id}
               to={`/scenarios?track=${track.id}`}
-              className="flex items-center gap-3 p-4 rounded-lg border border-[#1e3a2c] bg-[#0c0f0e] hover:border-[#34d399]/40 hover:bg-[#111916] transition-all group"
+              className="flex items-center gap-3 p-4 rounded-lg border border-border bg-bg-alt hover:border-accent/40 hover:bg-bg-elevated transition-all group"
             >
-              <div className="text-[#34d399] opacity-60 group-hover:opacity-100 transition-opacity">
+              <div className="text-accent opacity-60 group-hover:opacity-100 transition-opacity">
                 <TrackIcon icon={track.icon} />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[0.82rem] font-semibold text-[#d1fae5] group-hover:text-[#34d399] transition-colors truncate">
+                <div className="text-[0.82rem] font-semibold text-fg group-hover:text-accent transition-colors truncate">
                   {track.label}
                 </div>
-                <div className="text-[0.65rem] text-[#4a6b5a]">
+                <div className="text-[0.65rem] text-fg-muted">
                   {track.count} scenarios · {track.source}
                 </div>
               </div>
-              <svg className="w-3.5 h-3.5 text-[#1e3a2c] group-hover:text-[#34d399] transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-3.5 h-3.5 text-border group-hover:text-accent transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path d="M9 18l6-6-6-6" />
               </svg>
             </Link>
@@ -377,12 +377,12 @@ export function Landing() {
             },
           ].map((item) => (
             <div key={item.step} className="relative">
-              <div className="text-[3rem] font-black text-[#34d399]/10 absolute -top-4 -left-2 select-none">
+              <div className="text-[3rem] font-black text-accent/10 absolute -top-4 -left-2 select-none">
                 {item.step}
               </div>
               <div className="relative pt-8">
-                <h3 className="text-[1rem] font-semibold text-[#d1fae5] mb-2">{item.title}</h3>
-                <p className="text-[0.82rem] text-[#6b8f7b] leading-relaxed">{item.desc}</p>
+                <h3 className="text-[1rem] font-semibold text-fg mb-2">{item.title}</h3>
+                <p className="text-[0.82rem] text-fg-muted leading-relaxed">{item.desc}</p>
               </div>
             </div>
           ))}
@@ -390,25 +390,25 @@ export function Landing() {
 
         {/* CTA */}
         <div className="text-center mt-16">
-          <code className="block text-[0.82rem] text-[#34d399] bg-[#0c0f0e] border border-[#1e3a2c] rounded-lg px-6 py-3 font-mono inline-block mb-6">
+          <code className="block text-[0.82rem] text-accent bg-bg-alt border border-border rounded-lg px-6 py-3 font-mono inline-block mb-6">
             infra-bench certify --track workloads --model your-agent --provider bifrost
           </code>
           <div className="flex justify-center gap-4">
             <Link
               to="/bench"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#d1fae5] text-[#064e3b] text-[0.82rem] font-semibold rounded-lg hover:bg-white transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent-tint text-fg text-[0.82rem] font-semibold rounded-lg hover:bg-white transition-colors"
             >
               Open Benchmark Dashboard
             </Link>
             <Link
               to="/scenarios"
-              className="inline-flex items-center gap-2 px-5 py-2.5 border border-[#1e3a2c] text-[#a7cdb8] text-[0.82rem] font-medium rounded-lg hover:border-[#34d399]/50 transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-fg-body text-[0.82rem] font-medium rounded-lg hover:border-accent/50 transition-colors"
             >
               View All 62 Scenarios
             </Link>
             <Link
               to="/results"
-              className="inline-flex items-center gap-2 px-5 py-2.5 border border-[#1e3a2c] text-[#a7cdb8] text-[0.82rem] font-medium rounded-lg hover:border-[#34d399]/50 transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-fg-body text-[0.82rem] font-medium rounded-lg hover:border-accent/50 transition-colors"
             >
               Exam Results
             </Link>
@@ -417,14 +417,14 @@ export function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="max-w-6xl mx-auto px-6 py-8 border-t border-[#1e3a2c]">
-        <div className="flex items-center justify-between text-[0.72rem] text-[#4a6b5a]">
+      <footer className="max-w-6xl mx-auto px-6 py-8 border-t border-border">
+        <div className="flex items-center justify-between text-[0.72rem] text-fg-muted">
           <span>evidra.lab — test framework for AI infrastructure agent skills</span>
           <div className="flex items-center gap-4">
-            <Link to="/bench" className="hover:text-[#34d399] transition-colors">Bench</Link>
-            <Link to="/scenarios" className="hover:text-[#34d399] transition-colors">Lab</Link>
-            <Link to="/results" className="hover:text-[#34d399] transition-colors">Exams</Link>
-            <a href="https://github.com/vitas/evidra" target="_blank" rel="noopener noreferrer" className="hover:text-[#34d399] transition-colors">
+            <Link to="/bench" className="hover:text-accent transition-colors">Bench</Link>
+            <Link to="/scenarios" className="hover:text-accent transition-colors">Lab</Link>
+            <Link to="/results" className="hover:text-accent transition-colors">Exams</Link>
+            <a href="https://github.com/vitas/evidra" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">
               GitHub
             </a>
           </div>
