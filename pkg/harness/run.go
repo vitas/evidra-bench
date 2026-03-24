@@ -548,6 +548,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			Provider:         req.Config.Provider,
 			Adapter:          req.Config.Adapter,
 			EvidenceMode:     evidenceMode,
+			ToolServer:       req.Config.MCPServer,
 			Passed:           verifyResult.Passed,
 			Duration:         endTime.Sub(startTime).Seconds(),
 			ExitCode:         agentResult.ExitCode,
