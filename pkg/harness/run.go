@@ -222,6 +222,10 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 				"delete", "namespace", ns, "--ignore-not-found", "--timeout=15s")
 			cleanCmd.CombinedOutput()
 		}
+		// Clean ArgoCD applications (if ArgoCD is installed)
+		cleanCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
+			"delete", "application", "--all", "-n", "argocd", "--ignore-not-found", "--timeout=15s")
+		cleanCmd.CombinedOutput()
 	}
 
 	// Step 2b: Bootstrap.
