@@ -43,6 +43,7 @@ export function App() {
 
           {/* Lab routes (scenario catalog, designer, run configurator) */}
           <Route path="/scenarios" element={<Layout><Scenarios /></Layout>} />
+          <Route path="/scenarios/:id" element={<BenchLayout><ScenarioDetail /></BenchLayout>} />
           <Route path="/designer" element={<Layout><Designer /></Layout>} />
           <Route path="/run" element={<Layout><Run /></Layout>} />
           <Route path="/results" element={<Layout><Results /></Layout>} />
