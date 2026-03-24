@@ -21,9 +21,12 @@ MCP_SERVER="evidra-mcp --signing-mode optional"
 
 MODELS=(
   "gemini-2.5-flash"
+  "gemini-2.5-pro"
+  "gpt-4.1"
+  "gpt-5.2"
   "claude-sonnet-4-20250514"
-  "gpt-4o"
   "deepseek-chat"
+  "qwen-plus"
 )
 
 provider_url_for_model() {
