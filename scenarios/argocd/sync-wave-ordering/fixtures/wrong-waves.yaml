@@ -5,6 +5,12 @@ metadata:
   namespace: bench
   annotations:
     argocd.argoproj.io/sync-wave: "5"
+spec:
+  selector:
+    tier: frontend
+  ports:
+    - port: 80
+      targetPort: 80
 ---
 apiVersion: apps/v1
 kind: ReplicaSet
