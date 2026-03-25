@@ -33,6 +33,8 @@ type Config struct {
 	MCPServer           string // MCP server command (e.g. "evidra-mcp --signing-mode optional")
 	ProxyMode           bool   // auto-record evidence for mutations without agent involvement
 	SmartPrescribe      bool   // simplified prescribe (tool+operation, no artifact)
+	Parallel            int    // number of parallel workers (0 or 1 = sequential)
+	DatabaseURL         string // PostgreSQL connection string for River job queue
 }
 
 // ResolveSystemPromptFile returns the system prompt file path from flag, env, or empty.
@@ -42,6 +44,15 @@ func (c *Config) ResolveSystemPromptFile() string {
 		return c.SystemPromptFile
 	}
 	return os.Getenv("INFRA_BENCH_SYSTEM_PROMPT")
+}
+
+// ResolveDatabaseURL returns the database URL from flag, env, or empty.
+// Priority: flag > BENCH_DATABASE_URL > empty.
+func (c *Config) ResolveDatabaseURL() string {
+	if c.DatabaseURL != "" {
+		return c.DatabaseURL
+	}
+	return os.Getenv("BENCH_DATABASE_URL")
 }
 
 // ResolveEvidraBin returns the evidra binary path from flag, env, or empty.

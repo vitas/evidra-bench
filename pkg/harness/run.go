@@ -51,9 +51,10 @@ type Deps struct {
 
 // RunRequest describes what to run.
 type RunRequest struct {
-	Config   config.Config
-	Scenario *scenario.Scenario
-	ExtraEnv []string // Additional env vars for the agent executor (e.g., AWS_ENDPOINT_URL)
+	Config          config.Config
+	Scenario        *scenario.Scenario
+	ExtraEnv        []string // Additional env vars for the agent executor (e.g., AWS_ENDPOINT_URL)
+	TargetNamespace string   // Override namespace (default: "bench")
 }
 
 // RunResult holds the outcome of a harness run.
@@ -88,6 +89,12 @@ func New(deps Deps) *Harness {
 func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	startTime := time.Now()
 	s := req.Scenario
+
+	// Resolve target namespace.
+	ns := req.TargetNamespace
+	if ns == "" {
+		ns = "bench"
+	}
 
 	// Step 1: Create or reuse environment.
 	var handle *environment.Handle
@@ -205,7 +212,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	if req.Config.ReuseCluster && handle.KubeconfigPath != "" {
 		for _, res := range []string{"all", "pvc", "configmap", "secret", "ingress", "networkpolicy"} {
 			cleanCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
-				"delete", res, "--all", "-n", "bench", "--ignore-not-found", "--timeout=15s")
+				"delete", res, "--all", "-n", ns, "--ignore-not-found", "--timeout=15s")
 			if out, err := cleanCmd.CombinedOutput(); err != nil {
 				log.Printf("[harness] bench cleanup %s (non-fatal): %s %v", res, string(out), err)
 			}
