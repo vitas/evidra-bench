@@ -4,21 +4,21 @@ FROM golang:1.25-alpine AS bench-builder
 RUN apk add --no-cache git
 WORKDIR /build
 
-# Clone evidra to satisfy the replace directive.
+# Clone the parent module to satisfy the replace directive.
 ARG EVIDRA_REPO=https://github.com/vitas/evidra.git
 ARG EVIDRA_REF=main
-RUN git clone --depth 1 --branch ${EVIDRA_REF} ${EVIDRA_REPO} /build/evidra
+RUN git clone --depth 1 --branch ${EVIDRA_REF} ${EVIDRA_REPO} /build/parent
 
 # Build evidra-mcp from the cloned source (needed for provider mode).
-WORKDIR /build/evidra
+WORKDIR /build/parent
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" \
     -o /evidra-mcp ./cmd/evidra-mcp
 
 # Copy bench service source and build.
 WORKDIR /build/bench
 COPY go.mod go.sum ./
-# Rewrite replace directive to point to cloned path.
-RUN sed -i 's|=> ../evidra|=> /build/evidra|' go.mod
+# Rewrite replace directive to point to cloned path (matches any ../X pattern).
+RUN sed -i 's|=> \.\./[^ ]*|=> /build/parent|' go.mod
 RUN go mod download
 COPY . .
 
