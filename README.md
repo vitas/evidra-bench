@@ -2,7 +2,7 @@
 
 Development and testing framework for AI infrastructure agent skills. Run your agent, MCP tool, or skill prompt against real Kubernetes clusters, AWS resources, Helm charts, and Argo CD — measure what actually helps and what's just token waste.
 
-**62 scenarios** | **8 CKA/CKS-aligned tracks** | **4 certification levels** | **5 infrastructure categories**
+**75 scenarios** | **8 CKA/CKS-aligned tracks** | **4 certification levels** | **5 infrastructure categories**
 
 Puzzle Designer: [lab.evidra.cc](https://lab.evidra.cc) | Results: [lab.evidra.cc/results](https://lab.evidra.cc/results)
 
@@ -12,18 +12,18 @@ A 5-line troubleshooting skill cuts L1 scenario turns from 17 to 4 — **75% fas
 The same skill on L2 makes the agent skip diagnosis and **fail.**
 
 Skills aren't universally good or bad. You need to test them on real scenarios
-to know which help and which hurt. That's what infra-bench does.
+to know which help and which hurt. That's what `bench-cli` does.
 
 ```
 # Without skill: 17 turns, PASS
-infra-bench run --scenario kubernetes/broken-deployment --model gemini-2.5-flash
+bench-cli run --scenario kubernetes/broken-deployment --provider bifrost --model gemini-2.5-flash
 
 # With skill: 4 turns, PASS — 4x faster
-infra-bench run --scenario kubernetes/broken-deployment --model gemini-2.5-flash \
+bench-cli run --scenario kubernetes/broken-deployment --provider bifrost --model gemini-2.5-flash \
   --system-prompt-file my-skill.md
 
 # Same skill on harder scenario: 4 turns, FAIL — skipped diagnosis
-infra-bench run --scenario kubernetes/crashloop-backoff --model gemini-2.5-flash \
+bench-cli run --scenario kubernetes/crashloop-backoff --provider bifrost --model gemini-2.5-flash \
   --system-prompt-file my-skill.md
 ```
 
@@ -40,10 +40,10 @@ infra-bench run --scenario kubernetes/crashloop-backoff --model gemini-2.5-flash
 make build
 
 # Certify an agent on Kubernetes Admin scenarios
-infra-bench certify --track workloads --model sonnet --provider bifrost
+bench-cli certify --track workloads --model sonnet --provider bifrost
 
 # Certify on Kubernetes Security (includes AWS scenarios via LocalStack)
-infra-bench certify --track pod-security --model gpt-4o --provider bifrost
+bench-cli certify --track pod-security --model gpt-4o --provider bifrost
 ```
 
 Output:
@@ -72,7 +72,7 @@ Output:
 
 | Mode | Command | What it tests |
 |---|---|---|
-| **Baseline** | `infra-bench run --scenario ...` | Raw model ability (direct exec) |
+| **Baseline** | `bench-cli run --scenario ...` | Raw model ability (direct exec) |
 | **Via evidra-mcp** | `--mcp-server "evidra-mcp --signing-mode optional"` | Agent through evidra (smart output + auto-evidence) |
 | **Via third-party** | `--mcp-server "npx -y @anthropic/mcp-server-kubernetes"` | Agent through any MCP server |
 | **With role skill** | `--role k8s-admin` | Agent behavior with skill prompt (optional) |
@@ -101,14 +101,14 @@ Aligned with CKA/CKS exam domains:
 
 | Track | Source | Scenarios | What it proves |
 |---|---|---|---|
-| `workloads` | CKA: Workloads & Scheduling (15%) | 12 | Deployments, pods, scheduling, resources |
-| `troubleshooting` | CKA: Troubleshooting (30%) | 12 | Diagnosis, judgment, cascading failures |
-| `networking` | CKA: Services & Networking (20%) | 6 | Services, DNS, ingress, network policies |
+| `workloads` | CKA: Workloads & Scheduling (15%) | 14 | Deployments, pods, scheduling, resources |
+| `troubleshooting` | CKA: Troubleshooting (30%) | 14 | Diagnosis, judgment, cascading failures |
+| `networking` | CKA: Services & Networking (20%) | 7 | Services, DNS, ingress, network policies |
 | `storage` | CKA: Storage (10%) | 4 | PVC, StorageClass, volume expansion |
-| `pod-security` | CKS: Minimize Vulns (20%) | 13 | RBAC, capabilities, PSA, CSR, AWS SG/S3 |
-| `runtime-security` | CKS: Monitoring (20%) | 2 | Chaos resilience, runtime disruptions |
+| `pod-security` | CKS: Minimize Vulns (20%) | 16 | RBAC, capabilities, PSA, CSR, AWS SG/S3 |
+| `runtime-security` | CKS: Monitoring (20%) | 4 | Chaos resilience, runtime disruptions |
 | `release-ops` | Custom | 8 | Helm, Argo CD, rollbacks, GitOps |
-| `platform-eng` | Custom | 5 | Terraform state, drift, import, refactoring |
+| `platform-eng` | Custom | 7 | Terraform state, drift, import, refactoring |
 
 ### Levels (how the agent thinks)
 
@@ -146,7 +146,7 @@ Every scenario is designed to generate signals. The signals are the product.
 
 | Category | Tool | Runtime | Scenarios |
 |---|---|---|---|
-| Kubernetes | kubectl | kind cluster | 49 |
+| Kubernetes | kubectl | kind cluster | 60 |
 | Helm | helm | kind cluster | 4 |
 | Argo CD | argocd | kind cluster | 4 |
 | Terraform | terraform | local state | 5 |
@@ -183,38 +183,38 @@ The agent runs in one continuous session. `memory: compact` summarizes prior con
 # Prerequisites: Go 1.25+, kind, kubectl, helm
 make build
 
-# List all 45 scenarios
-infra-bench scenario list
+# List all available scenarios
+bench-cli scenario list
 
 # Dry-run (validate without cluster)
-infra-bench run --scenario kubernetes/broken-deployment --dry-run
+bench-cli run --scenario kubernetes/broken-deployment --dry-run
 
 # Run a scenario with a model
-infra-bench run \
+bench-cli run \
   --scenario kubernetes/broken-deployment \
   --provider bifrost --model gemini-2.5-flash \
   --reuse-cluster
 
 # Run all scenarios in a track
-infra-bench certify --track workloads --model sonnet --provider bifrost
+bench-cli certify --track workloads --model sonnet --provider bifrost
 
 # Full benchmark across all scenarios
-infra-bench bench --provider bifrost --model sonnet --reuse-cluster
+bench-cli bench --provider bifrost --model sonnet --reuse-cluster
 
 # Interactive TUI
-infra-bench lab
+bench-cli lab
 ```
 
 ## Pluggable Providers
 
 ```bash
 # Any model via Bifrost proxy
-infra-bench run --provider bifrost --model openai/gpt-4o --scenario ...
-infra-bench run --provider bifrost --model anthropic/claude-sonnet-4 --scenario ...
-infra-bench run --provider bifrost --model google/gemini-2.5-flash --scenario ...
+bench-cli run --provider bifrost --model openai/gpt-4o --scenario ...
+bench-cli run --provider bifrost --model anthropic/claude-sonnet-4 --scenario ...
+bench-cli run --provider bifrost --model google/gemini-2.5-flash --scenario ...
 
 # Claude CLI directly
-infra-bench run --provider claude --model sonnet --scenario ...
+bench-cli run --provider claude --model sonnet --scenario ...
 ```
 
 ## Visual Puzzle Designer
@@ -222,7 +222,7 @@ infra-bench run --provider claude --model sonnet --scenario ...
 Design scenarios visually at [lab.evidra.cc](https://lab.evidra.cc):
 
 - Drag-and-drop puzzle builder with React Flow
-- 45-scenario catalog with track/level/category filters
+- 75-scenario catalog with track/level/category filters
 - Multi-stage chain builder (+ Stage button)
 - Export as YAML, generate CLI commands
 - Run configurator with model picker
@@ -232,7 +232,7 @@ Source: `ui/` directory. Deploy: `make ui-docker`.
 ## Development
 
 ```bash
-make test           # 216 tests across 13 packages
+make test           # Go unit tests
 make test-race      # with race detector
 make fmt            # gofmt
 make lint           # golangci-lint

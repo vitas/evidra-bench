@@ -544,7 +544,7 @@ func (a *App) renderResult() string {
 			if c.Verdict == "fail" {
 				icon = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render("!!")
 			}
-			b.WriteString(fmt.Sprintf("  %s %s", icon, c.Name))
+			fmt.Fprintf(&b, "  %s %s", icon, c.Name)
 			if c.Message != "" {
 				b.WriteString(dimStyle.Render(fmt.Sprintf(" — %s", c.Message)))
 			}
@@ -573,15 +573,15 @@ func (a *App) renderConfig() string {
 	if modelDisplay == "" {
 		modelDisplay = "(default)"
 	}
-	b.WriteString(fmt.Sprintf("  [1] Adapter:       %s\n", a.cfg.Adapter))
-	b.WriteString(fmt.Sprintf("  [2] Dry-run:       %v\n", a.cfg.DryRun))
-	b.WriteString(fmt.Sprintf("  [3] Model:         %s\n", modelDisplay))
-	b.WriteString(fmt.Sprintf("  [4] Provider:      %s\n", providerDisplay))
-	b.WriteString(fmt.Sprintf("      Agent command: %s\n", a.cfg.AgentCommand))
-	b.WriteString(fmt.Sprintf("      Evidra bin:    %s\n", a.cfg.EvidraBin))
-	b.WriteString(fmt.Sprintf("      Timeout:       %s\n", a.cfg.Timeout))
+	fmt.Fprintf(&b, "  [1] Adapter:       %s\n", a.cfg.Adapter)
+	fmt.Fprintf(&b, "  [2] Dry-run:       %v\n", a.cfg.DryRun)
+	fmt.Fprintf(&b, "  [3] Model:         %s\n", modelDisplay)
+	fmt.Fprintf(&b, "  [4] Provider:      %s\n", providerDisplay)
+	fmt.Fprintf(&b, "      Agent command: %s\n", a.cfg.AgentCommand)
+	fmt.Fprintf(&b, "      Evidra bin:    %s\n", a.cfg.EvidraBin)
+	fmt.Fprintf(&b, "      Timeout:       %s\n", a.cfg.Timeout)
 	if a.cfg.EvidraEvidenceDir != "" {
-		b.WriteString(fmt.Sprintf("      Evidence dir:  %s\n", a.cfg.EvidraEvidenceDir))
+		fmt.Fprintf(&b, "      Evidence dir:  %s\n", a.cfg.EvidraEvidenceDir)
 	}
 
 	b.WriteString("\n")
@@ -609,9 +609,9 @@ func (a *App) renderHelp() string {
 	b.WriteString("  q             Quit\n")
 	b.WriteString("\n")
 	b.WriteString("  Badges:\n")
-	b.WriteString(fmt.Sprintf("  %s = last run passed\n", lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Render("P")))
-	b.WriteString(fmt.Sprintf("  %s = last run failed\n", lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render("F")))
-	b.WriteString(fmt.Sprintf("  %s = evidra protocol checks enabled\n", lipgloss.NewStyle().Foreground(lipgloss.Color("33")).Render("E")))
+	fmt.Fprintf(&b, "  %s = last run passed\n", lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Render("P"))
+	fmt.Fprintf(&b, "  %s = last run failed\n", lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render("F"))
+	fmt.Fprintf(&b, "  %s = evidra protocol checks enabled\n", lipgloss.NewStyle().Foreground(lipgloss.Color("33")).Render("E"))
 	b.WriteString("\n")
 	b.WriteString(dimStyle.Render("Press any key to return"))
 	return b.String()
@@ -634,8 +634,8 @@ func (a *App) renderHistory() string {
 	b.WriteString(headerStyle.Render(fmt.Sprintf("Run History: %s", s.ID)))
 	b.WriteString("\n\n")
 
-	b.WriteString(fmt.Sprintf("  Total runs: %d   Pass: %d   Fail: %d\n\n",
-		stats.TotalRuns, stats.PassCount, stats.FailCount))
+	fmt.Fprintf(&b, "  Total runs: %d   Pass: %d   Fail: %d\n\n",
+		stats.TotalRuns, stats.PassCount, stats.FailCount)
 
 	if len(runs) == 0 {
 		b.WriteString(dimStyle.Render("  No runs yet\n"))
@@ -675,7 +675,7 @@ func (a *App) renderHistory() string {
 			scoreInfo = dimStyle.Render(fmt.Sprintf("  score: %.0f (%s)", r.Score, r.ScoreBand))
 		}
 
-		b.WriteString(fmt.Sprintf("  %s  %s  %s%s%s%s\n", verdict, ts, dimStyle.Render(dur.String()), checkSummary, signalInfo, scoreInfo))
+		fmt.Fprintf(&b, "  %s  %s  %s%s%s%s\n", verdict, ts, dimStyle.Render(dur.String()), checkSummary, signalInfo, scoreInfo)
 
 		// Show check diff between this run and the previous one
 		if i < maxShow-1 && i+1 < len(runs) {

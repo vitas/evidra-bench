@@ -55,7 +55,9 @@ func ReportToEvidra(evidraURL, apiKey string, rec store.RunRecord, transcript st
 
 	if resp.StatusCode >= 400 {
 		var result map[string]any
-		json.NewDecoder(resp.Body).Decode(&result)
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			log.Printf("[evidra-report] decode error response: %v", err)
+		}
 		log.Printf("[evidra-report] HTTP %d: %v", resp.StatusCode, result)
 		return
 	}
@@ -92,12 +94,16 @@ func ReportBatchToEvidra(evidraURL, apiKey string, records []store.RunRecord) er
 
 	if resp.StatusCode >= 400 {
 		var result map[string]any
-		json.NewDecoder(resp.Body).Decode(&result)
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return fmt.Errorf("decode error response: %w", err)
+		}
 		return fmt.Errorf("HTTP %d: %v", resp.StatusCode, result)
 	}
 
 	var result map[string]any
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return fmt.Errorf("decode success response: %w", err)
+	}
 	log.Printf("[evidra-report] batch: imported %v records", result["imported"])
 	return nil
 }

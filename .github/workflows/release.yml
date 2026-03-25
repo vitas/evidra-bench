@@ -37,6 +37,13 @@ jobs:
           go-version-file: evidra-stand/go.mod
           cache: true
 
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: evidra-stand/ui/package-lock.json
+
       - name: Check formatting
         working-directory: evidra-stand
         run: |
@@ -46,6 +53,22 @@ jobs:
             echo "$files" >&2
             exit 1
           fi
+
+      - name: Run lint
+        working-directory: evidra-stand
+        run: make lint
+
+      - name: Install UI deps
+        working-directory: evidra-stand/ui
+        run: npm ci
+
+      - name: Run UI command tests
+        working-directory: evidra-stand/ui
+        run: node --test src/lib/runOptions.test.mts src/lib/commandBuilder.test.mts
+
+      - name: Build UI
+        working-directory: evidra-stand/ui
+        run: npm run build
 
       - name: Run tests
         working-directory: evidra-stand

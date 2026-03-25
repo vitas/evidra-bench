@@ -105,7 +105,7 @@ func parseJSONLFile(path string) ([]evidraEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var entries []evidraEntry
 	scanner := bufio.NewScanner(file)

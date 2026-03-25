@@ -13,7 +13,7 @@ func RenderMarkdown(benchmark Benchmark) string {
 
 	b.WriteString("# Skill Delta Benchmark\n\n")
 	if benchmark.Metadata.GeneratedAt != "" {
-		b.WriteString(fmt.Sprintf("Generated: %s\n\n", benchmark.Metadata.GeneratedAt))
+		fmt.Fprintf(&b, "Generated: %s\n\n", benchmark.Metadata.GeneratedAt)
 	}
 
 	b.WriteString("## Summary\n\n")
@@ -30,7 +30,7 @@ func RenderMarkdown(benchmark Benchmark) string {
 	b.WriteString("| Scenario | Model | Repeat | Without | With | Compliance Δ | Token Δ | Cost Δ | Score Δ |\n")
 	b.WriteString("| --- | --- | ---: | --- | --- | ---: | ---: | ---: | ---: |\n")
 	for _, pair := range benchmark.Pairs {
-		b.WriteString(fmt.Sprintf("| %s | %s | %d | %s | %s | %s | %s | %s | %s |\n",
+		fmt.Fprintf(&b, "| %s | %s | %d | %s | %s | %s | %s | %s | %s |\n",
 			pair.ScenarioID,
 			pair.Model,
 			pair.Repeat,
@@ -40,7 +40,7 @@ func RenderMarkdown(benchmark Benchmark) string {
 			signed(pair.TokenDelta.TotalTokens, 0),
 			signed(pair.CostDeltaUSD, 4),
 			signed(pair.ScoreDelta, 2),
-		))
+		)
 	}
 
 	return b.String()
@@ -55,12 +55,12 @@ func WriteMarkdown(path string, benchmark Benchmark) error {
 }
 
 func writeSummaryRow(b *strings.Builder, label string, without, with NumericSummary, delta float64, precision int) {
-	b.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n",
+	fmt.Fprintf(b, "| %s | %s | %s | %s |\n",
 		label,
 		summaryCell(without, precision),
 		summaryCell(with, precision),
 		signed(delta, precision),
-	))
+	)
 }
 
 func summaryCell(summary NumericSummary, precision int) string {

@@ -1,6 +1,6 @@
 # Lab TUI User Guide
 
-`infra-bench lab` is an interactive terminal UI for browsing, running, and reviewing benchmark scenarios.
+`bench-cli lab` is an interactive terminal UI for browsing, running, and reviewing benchmark scenarios.
 
 ## Quick Start
 
@@ -9,13 +9,13 @@
 make build
 
 # Launch in dry-run mode (default)
-./bin/infra-bench lab
+./bin/bench-cli lab
 
 # Launch with agent configured
-./bin/infra-bench lab --agent-command /path/to/agent --adapter cli
+./bin/bench-cli lab --agent-command /path/to/agent --adapter cli
 
 # Launch pointing at a custom scenarios directory
-./bin/infra-bench lab --scenarios-dir ./scenarios
+./bin/bench-cli lab --scenarios-dir ./scenarios
 ```
 
 ## Views
@@ -25,7 +25,7 @@ make build
 The main screen shows all scenarios in a filterable list.
 
 ```
-infra-bench lab  [all]  [dry-run]
+bench-cli lab  [all]  [dry-run]
 
   P E kubernetes    broken-deployment           (2/3)
 >   E kubernetes    crashloop-backoff
@@ -126,7 +126,7 @@ Run Configuration
 Press `1` to toggle between `cli` and `mcp` adapter.
 Press `2` to toggle dry-run.
 
-Configuration persists across sessions in `.infra-bench-lab.yaml`.
+Configuration persists across sessions in `.bench-cli-lab.yaml`.
 
 ## Configuration
 
@@ -141,11 +141,11 @@ Configuration persists across sessions in `.infra-bench-lab.yaml`.
 ```
 
 CLI flags override saved configuration. Without flags, the TUI loads
-the last-used config from `.infra-bench-lab.yaml`.
+the last-used config from `.bench-cli-lab.yaml`.
 
 ### Persistent Config
 
-The TUI saves your last-used settings to `.infra-bench-lab.yaml`:
+The TUI saves your last-used settings to `.bench-cli-lab.yaml`:
 
 ```yaml
 adapter: cli
@@ -164,7 +164,7 @@ or modify the file directly.
 
 ```bash
 # First time — configure and dry-run
-./bin/infra-bench lab --agent-command "./my-agent" --dry-run
+./bin/bench-cli lab --agent-command "./my-agent" --dry-run
 
 # Browse scenarios, pick one, press Enter to dry-run
 # Press 'd' to disable dry-run when ready
@@ -176,7 +176,7 @@ or modify the file directly.
 
 ```bash
 # After adding a new scenario YAML
-./bin/infra-bench lab
+./bin/bench-cli lab
 
 # Filter with '/' and type the scenario name
 # Press Enter to dry-run — verifies it loads without error
@@ -186,7 +186,7 @@ or modify the file directly.
 ### Iterative Debugging
 
 ```bash
-./bin/infra-bench lab --agent-command "./my-agent"
+./bin/bench-cli lab --agent-command "./my-agent"
 
 # Run a scenario, see which checks fail
 # Fix your agent, run again
@@ -216,10 +216,10 @@ Every non-dry-run is also stored in `runs/bench.db` (SQLite). Use the CLI
 to query results outside the TUI:
 
 ```bash
-infra-bench db stats                               # aggregate stats
-infra-bench db query --model haiku                 # filter by model
-infra-bench db query --scenario broken-deployment  # by scenario
-infra-bench db query --failed --limit 5            # recent failures
+bench-cli db stats                               # aggregate stats
+bench-cli db query --model haiku                 # filter by model
+bench-cli db query --scenario broken-deployment  # by scenario
+bench-cli db query --failed --limit 5            # recent failures
 ```
 
 The JSONL backup at `runs/results.jsonl` is committable to git for

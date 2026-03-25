@@ -88,11 +88,11 @@ func waitForLocalStack(ctx context.Context, endpointURL string) error {
 		case <-ticker.C:
 			resp, err := http.Get(endpointURL + "/_localstack/health")
 			if err == nil && resp.StatusCode == 200 {
-				resp.Body.Close()
+				_ = resp.Body.Close()
 				return nil
 			}
 			if resp != nil {
-				resp.Body.Close()
+				_ = resp.Body.Close()
 			}
 		}
 	}

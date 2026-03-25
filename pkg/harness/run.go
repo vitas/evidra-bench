@@ -179,12 +179,17 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 
 		// Create a wrapper script for `aws` that injects --endpoint-url.
 		// This works with all AWS CLI versions (env var requires 2.13+).
-		awsBinDir, _ := os.MkdirTemp("", "evidra-aws-bin-*")
+		awsBinDir, err := os.MkdirTemp("", "evidra-aws-bin-*")
+		if err != nil {
+			return nil, fmt.Errorf("harness.Run: create aws wrapper dir: %w", err)
+		}
 		awsWrapper := filepath.Join(awsBinDir, "aws")
-		os.WriteFile(awsWrapper, []byte(fmt.Sprintf(
+		if err := os.WriteFile(awsWrapper, []byte(fmt.Sprintf(
 			"#!/bin/sh\nexec /usr/local/bin/aws --endpoint-url %s \"$@\"\n", lsHandle.EndpointURL,
-		)), 0755)
-		defer os.RemoveAll(awsBinDir)
+		)), 0755); err != nil {
+			return nil, fmt.Errorf("harness.Run: write aws wrapper: %w", err)
+		}
+		defer func() { _ = os.RemoveAll(awsBinDir) }()
 
 		// Prepend wrapper dir to PATH so `aws` resolves to our wrapper.
 		awsEnv["PATH"] = awsBinDir + ":" + os.Getenv("PATH")
@@ -192,11 +197,13 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		// Set AWS env vars on the process so verifier checks can inherit them.
 		// This is safe: these are test credentials for a local LocalStack container.
 		for k, v := range awsEnv {
-			os.Setenv(k, v)
+			if err := os.Setenv(k, v); err != nil {
+				return nil, fmt.Errorf("harness.Run: set %s: %w", k, err)
+			}
 		}
 		defer func() {
 			for k := range awsEnv {
-				os.Unsetenv(k)
+				_ = os.Unsetenv(k)
 			}
 		}()
 
@@ -237,18 +244,24 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		for _, res := range []string{"pv", "storageclass", "validatingwebhookconfiguration", "mutatingwebhookconfiguration"} {
 			cleanCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
 				"delete", res, "--all", "--ignore-not-found", "--timeout=10s")
-			cleanCmd.CombinedOutput()
+			if out, err := cleanCmd.CombinedOutput(); err != nil {
+				log.Printf("[harness] cluster cleanup %s (non-fatal): %s %v", res, string(out), err)
+			}
 		}
 		// Clean scenario-created namespaces (webhook-system, etc.)
 		for _, ns := range []string{"webhook-system"} {
 			cleanCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
 				"delete", "namespace", ns, "--ignore-not-found", "--timeout=15s")
-			cleanCmd.CombinedOutput()
+			if out, err := cleanCmd.CombinedOutput(); err != nil {
+				log.Printf("[harness] namespace cleanup %s (non-fatal): %s %v", ns, string(out), err)
+			}
 		}
 		// Clean ArgoCD applications (if ArgoCD is installed)
 		cleanCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
 			"delete", "application", "--all", "-n", "argocd", "--ignore-not-found", "--timeout=15s")
-		cleanCmd.CombinedOutput()
+		if out, err := cleanCmd.CombinedOutput(); err != nil {
+			log.Printf("[harness] argocd application cleanup (non-fatal): %s %v", string(out), err)
+		}
 	}
 
 	// Step 2b: Ensure target namespace exists (parallel workers use non-default namespaces).
@@ -260,8 +273,12 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		nsApply.Stdin = pipe
 		if err := nsCmd.Start(); err == nil {
 			if err := nsApply.Start(); err == nil {
-				nsCmd.Wait()
-				nsApply.Wait()
+				if err := nsCmd.Wait(); err != nil {
+					log.Printf("[harness] namespace create command failed (non-fatal): %v", err)
+				}
+				if err := nsApply.Wait(); err != nil {
+					log.Printf("[harness] namespace apply command failed (non-fatal): %v", err)
+				}
 			}
 		}
 	}
@@ -841,13 +858,13 @@ func (s chaosSummary) Log() string {
 		if event.Error != "" {
 			status = "error: " + event.Error
 		}
-		b.WriteString(fmt.Sprintf(
+		fmt.Fprintf(&b,
 			"%s %s %s %s\n",
 			event.StartedAt.Format(time.RFC3339Nano),
 			event.Name,
 			event.Type,
 			status,
-		))
+		)
 	}
 	return b.String()
 }
@@ -940,7 +957,7 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		if mcpErr != nil {
 			return nil, fmt.Errorf("harness: mcp executor: %w", mcpErr)
 		}
-		defer mcpExec.Close()
+		defer func() { _ = mcpExec.Close() }()
 		loopExecutor = mcpExec
 
 		// Get tools from MCP server.
@@ -966,7 +983,7 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 			if evErr != nil {
 				return nil, fmt.Errorf("harness: smart evidence: %w", evErr)
 			}
-			defer evidence.Close()
+			defer func() { _ = evidence.Close() }()
 			loopExecutor = &agent.SmartToolExecutor{Base: executor, Evidence: evidence}
 		} else if req.Config.ProxyMode {
 			// Proxy mode: auto-record, agent unaware.
@@ -974,7 +991,7 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 			if proxyErr != nil {
 				return nil, fmt.Errorf("harness: proxy evidence: %w", proxyErr)
 			}
-			defer proxyEvidence.Close()
+			defer func() { _ = proxyEvidence.Close() }()
 			executor.ProxyEvidence = proxyEvidence
 		}
 	}
@@ -998,9 +1015,9 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 	// Build transcript from messages
 	var transcript strings.Builder
 	for _, m := range loopResult.Messages {
-		transcript.WriteString(fmt.Sprintf("[%s] %s\n", m.Role, truncateForLog(m.Content, 500)))
+		fmt.Fprintf(&transcript, "[%s] %s\n", m.Role, truncateForLog(m.Content, 500))
 		for _, tc := range m.ToolCalls {
-			transcript.WriteString(fmt.Sprintf("  -> %s(%s)\n", tc.Name, truncateForLog(tc.Arguments, 200)))
+			fmt.Fprintf(&transcript, "  -> %s(%s)\n", tc.Name, truncateForLog(tc.Arguments, 200))
 		}
 	}
 

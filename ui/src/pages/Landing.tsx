@@ -1,20 +1,21 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { useTheme } from "../hooks/useTheme";
+import { SCENARIOS } from "../data/catalog";
 
 const TRACKS = [
-  { id: "workloads", label: "Workloads", count: 12, source: "CKA", icon: "cube" },
-  { id: "troubleshooting", label: "Troubleshooting", count: 12, source: "CKA", icon: "search" },
-  { id: "networking", label: "Networking", count: 6, source: "CKA", icon: "globe" },
-  { id: "pod-security", label: "Pod Security", count: 13, source: "CKS", icon: "shield" },
-  { id: "runtime-security", label: "Runtime Security", count: 2, source: "CKS", icon: "zap" },
-  { id: "release-ops", label: "Release Ops", count: 8, source: "Custom", icon: "rocket" },
-  { id: "storage", label: "Storage", count: 4, source: "CKA", icon: "database" },
-  { id: "platform-eng", label: "Platform Eng", count: 5, source: "Custom", icon: "cloud" },
-];
+  { id: "workloads", label: "Workloads", source: "CKA", icon: "cube" },
+  { id: "troubleshooting", label: "Troubleshooting", source: "CKA", icon: "search" },
+  { id: "networking", label: "Networking", source: "CKA", icon: "globe" },
+  { id: "pod-security", label: "Pod Security", source: "CKS", icon: "shield" },
+  { id: "runtime-security", label: "Runtime Security", source: "CKS", icon: "zap" },
+  { id: "release-ops", label: "Release Ops", source: "Custom", icon: "rocket" },
+  { id: "storage", label: "Storage", source: "CKA", icon: "database" },
+  { id: "platform-eng", label: "Platform Eng", source: "Custom", icon: "cloud" },
+] as const;
 
 const TERMINAL_LINES = [
-  { text: "$ infra-bench certify --track pod-security --model sonnet", delay: 0, type: "input" as const },
+  { text: "$ bench-cli certify --track pod-security --model sonnet", delay: 0, type: "input" as const },
   { text: "", delay: 600, type: "blank" as const },
   { text: "[1/7] networkpolicy-blocking (L2) ...", delay: 800, type: "progress" as const },
   { text: "  PASS  12.3s", delay: 1400, type: "pass" as const },
@@ -72,7 +73,7 @@ function TerminalAnimation() {
           <div className="w-2.5 h-2.5 rounded-full bg-[#eab308]/70" />
           <div className="w-2.5 h-2.5 rounded-full bg-accent-bright/70" />
         </div>
-        <span className="text-[0.65rem] text-fg-muted font-mono ml-2">infra-bench — certification run</span>
+        <span className="text-[0.65rem] text-fg-muted font-mono ml-2">bench-cli — certification run</span>
       </div>
       {/* Terminal body */}
       <div
@@ -124,15 +125,19 @@ function TrackIcon({ icon }: { icon: string }) {
   );
 }
 
-const STATS = [
-  { value: "62", label: "Scenarios" },
-  { value: "8", label: "Exam Tracks" },
-  { value: "5", label: "Categories" },
-  { value: "4", label: "Cert Levels" },
-];
+const TRACK_COUNTS = SCENARIOS.reduce<Record<string, number>>((acc, scenario) => {
+  acc[scenario.track] = (acc[scenario.track] || 0) + 1;
+  return acc;
+}, {});
 
 export function Landing() {
   const { theme, toggle } = useTheme();
+  const stats = [
+    { value: String(SCENARIOS.length), label: "Scenarios" },
+    { value: String(TRACKS.length), label: "Exam Tracks" },
+    { value: String(new Set(SCENARIOS.map((scenario) => scenario.category)).size), label: "Categories" },
+    { value: "4", label: "Cert Levels" },
+  ];
   return (
     <div className="min-h-screen bg-bg text-fg overflow-hidden">
       {/* Subtle grid background */}
@@ -195,7 +200,7 @@ export function Landing() {
 
             <p className="text-[1.05rem] text-fg-muted leading-relaxed mb-10 max-w-lg">
               A 5-line skill cuts L1 turns by 75% but breaks L2 diagnosis.
-              58 CKA/CKS scenarios on real clusters tell you which skills
+              The current CKA/CKS-aligned scenario catalog tells you which skills
               help and which hurt — before your users find out.
             </p>
 
@@ -219,7 +224,7 @@ export function Landing() {
 
             {/* Stats row */}
             <div className="flex gap-8">
-              {STATS.map((stat) => (
+              {stats.map((stat) => (
                 <div key={stat.label}>
                   <div className="text-2xl font-bold text-accent">{stat.value}</div>
                   <div className="text-[0.72rem] text-fg-muted uppercase tracking-wider">{stat.label}</div>
@@ -248,7 +253,7 @@ export function Landing() {
             },
             {
               title: "Lab",
-              desc: "62 scenario catalog with track/level filters. Visual puzzle designer for authoring new scenarios. (Designer: Beta)",
+              desc: "Current scenario catalog with track/level filters. Visual puzzle designer for authoring new scenarios. (Designer: Beta)",
               to: "/scenarios",
               icon: "M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.3 24.3 0 0 1 4.5 0m0 0v5.714a2.25 2.25 0 0 0 .659 1.591L19 14.5",
               tag: "Scenarios",
@@ -343,7 +348,7 @@ export function Landing() {
                   {track.label}
                 </div>
                 <div className="text-[0.65rem] text-fg-muted">
-                  {track.count} scenarios · {track.source}
+                  {TRACK_COUNTS[track.id] || 0} scenarios · {track.source}
                 </div>
               </div>
               <svg className="w-3.5 h-3.5 text-border group-hover:text-accent transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -391,7 +396,7 @@ export function Landing() {
         {/* CTA */}
         <div className="text-center mt-16">
           <code className="block text-[0.82rem] text-accent bg-bg-alt border border-border rounded-lg px-6 py-3 font-mono inline-block mb-6">
-            infra-bench certify --track workloads --model your-agent --provider bifrost
+            bench-cli certify --track workloads --model your-agent --provider bifrost
           </code>
           <div className="flex justify-center gap-4">
             <Link
@@ -404,7 +409,7 @@ export function Landing() {
               to="/scenarios"
               className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-fg-body text-[0.82rem] font-medium rounded-lg hover:border-accent/50 transition-colors"
             >
-              View All 62 Scenarios
+              View All {SCENARIOS.length} Scenarios
             </Link>
             <Link
               to="/results"

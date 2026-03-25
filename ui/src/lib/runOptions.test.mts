@@ -37,5 +37,6 @@ test("getModelsForProvider only exposes supported models", () => {
 
 test("scenario categories match backend values", () => {
   assert.equal(SCENARIO_CATEGORIES.includes("kubernetes"), true);
+  assert.equal(SCENARIO_CATEGORIES.includes("aws"), true);
   assert.equal(SCENARIO_CATEGORIES.includes("kubectl"), false);
 });

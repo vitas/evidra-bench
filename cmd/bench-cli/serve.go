@@ -16,6 +16,10 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 )
 
+type parallelRunner interface {
+	RunParallel(ctx context.Context, runCfg config.Config, reporter orchestrator.ProgressReporter, scenarios []string, models []string, repeats, parallel int, dbURL string) (*orchestrator.RunResult, error)
+}
+
 // CertifyRequest matches the Evidra executor contract v1.0.0.
 type CertifyRequest struct {
 	ContractVersion string   `json:"contract_version"`
@@ -89,7 +93,7 @@ func authMiddleware(token string, next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func handleCertifyAPI(baseCfg config.Config, orch *orchestrator.Orchestrator, dbURL string) http.HandlerFunc {
+func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string) http.HandlerFunc {
 	// Load scenarios once at handler construction.
 	scenarioPathMap := make(map[string]string) // ID → Path
 	if allScenarios, loadErr := scenario.LoadAll(baseCfg.ScenariosDir); loadErr == nil {
@@ -128,13 +132,7 @@ func handleCertifyAPI(baseCfg config.Config, orch *orchestrator.Orchestrator, db
 			parallel = 1
 		}
 
-		provider := req.Provider
-		if provider == "" {
-			provider = baseCfg.Provider
-			if provider == "" {
-				provider = "bifrost"
-			}
-		}
+		runCfg := buildCertifyRunConfig(baseCfg, req)
 
 		// Run async via orchestrator.
 		jobID := req.JobID
@@ -150,15 +148,15 @@ func handleCertifyAPI(baseCfg config.Config, orch *orchestrator.Orchestrator, db
 			evidraURL = baseCfg.EvidraURL
 		}
 
-		orch.SetReporter(&evidraReporter{
+		reporter := &evidraReporter{
 			progressURL: progressURL,
 			evidraURL:   evidraURL,
 			authToken:   authToken,
-		})
+		}
 
 		go func() {
 			runCtx := context.Background()
-			result, err := orch.RunParallel(runCtx, scenarioPaths, []string{req.Model}, 1, parallel, dbURL)
+			result, err := runner.RunParallel(runCtx, runCfg, reporter, scenarioPaths, []string{req.Model}, 1, parallel, dbURL)
 			if err != nil {
 				log.Printf("[bench-service] certify job %s failed: %v", jobID, err)
 				return
@@ -174,10 +172,29 @@ func handleCertifyAPI(baseCfg config.Config, orch *orchestrator.Orchestrator, db
 	}
 }
 
+func buildCertifyRunConfig(baseCfg config.Config, req CertifyRequest) config.Config {
+	runCfg := baseCfg
+	if req.Provider != "" {
+		runCfg.Provider = req.Provider
+	}
+	if runCfg.Provider == "" {
+		runCfg.Provider = "bifrost"
+	}
+	if req.Config.Adapter != "" {
+		runCfg.Adapter = req.Config.Adapter
+	}
+	if req.Config.TimeoutPerScenario > 0 {
+		runCfg.Timeout = time.Duration(req.Config.TimeoutPerScenario) * time.Second
+	}
+	return runCfg
+}
+
 func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		log.Printf("[serve] encode response: %v", err)
+	}
 }
 
 // evidraReporter implements orchestrator.ProgressReporter by sending
@@ -233,7 +250,9 @@ func (r *evidraReporter) sendProgress(ev orchestrator.ScenarioEvent) {
 		log.Printf("[evidra-reporter] send progress: %v", err)
 		return
 	}
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		log.Printf("[evidra-reporter] close progress response: %v", err)
+	}
 }
 
 func (r *evidraReporter) submitBenchRun(ev orchestrator.ScenarioEvent) {
@@ -276,7 +295,9 @@ func (r *evidraReporter) submitBenchRun(ev orchestrator.ScenarioEvent) {
 		log.Printf("[evidra-reporter] submit bench run: %v", err)
 		return
 	}
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		log.Printf("[evidra-reporter] close bench run response: %v", err)
+	}
 }
 
 func boolToInt(b bool) int {

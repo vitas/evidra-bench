@@ -1,8 +1,8 @@
 # Testing Methodology
 
-## What infra-bench Tests
+## What bench-cli Tests
 
-infra-bench evaluates AI infrastructure agents on three dimensions:
+bench-cli evaluates AI infrastructure agents on three dimensions:
 
 ### 1. Remediation Capability
 
@@ -63,7 +63,7 @@ baseline remediation. Chaos scenarios are for a narrower question:
 
 **does the agent stay reliable when the environment changes underneath it?**
 
-infra-bench uses a deliberately small chaos model:
+bench-cli uses a deliberately small chaos model:
 
 - deterministic timed steps
 - the same command vocabulary as bootstrap/break steps
@@ -81,7 +81,7 @@ platform.
 
 ## Ambiguous & Cross-cutting Scenarios
 
-Beyond clean remediation puzzles, infra-bench includes scenarios that test
+Beyond clean remediation puzzles, bench-cli includes scenarios that test
 **agent judgment under operational ambiguity**. These are based on 10
 signal-generating patterns from the research doc:
 
@@ -155,17 +155,17 @@ similar:** You can save cost without losing quality.
 
 ```bash
 # Full memory (baseline)
-infra-bench run --provider claude --model sonnet \
+bench-cli run --provider claude --model sonnet \
   --scenario kubernetes/broken-deployment \
   --memory-window -1
 
 # Stateless
-infra-bench run --provider claude --model sonnet \
+bench-cli run --provider claude --model sonnet \
   --scenario kubernetes/broken-deployment \
   --memory-window 0
 
 # Sliding window of 3
-infra-bench run --provider claude --model sonnet \
+bench-cli run --provider claude --model sonnet \
   --scenario kubernetes/broken-deployment \
   --memory-window 3
 ```
@@ -189,9 +189,9 @@ Different models have different strengths:
 
 ```bash
 # Same scenario, different models
-infra-bench run --provider bifrost --model anthropic/claude-3-5-sonnet --scenario ...
-infra-bench run --provider bifrost --model openai/gpt-4o --scenario ...
-infra-bench run --provider claude --model haiku --scenario ...
+bench-cli run --provider bifrost --model anthropic/claude-3-5-sonnet --scenario ...
+bench-cli run --provider bifrost --model openai/gpt-4o --scenario ...
+bench-cli run --provider claude --model haiku --scenario ...
 
 ```
 
@@ -201,17 +201,17 @@ and token usage — making it easy to compare.
 
 ## Provider Architecture
 
-infra-bench supports two execution paths:
+bench-cli supports two execution paths:
 
 ### Provider Path (recommended for benchmarking)
 
-infra-bench owns the tool-use loop. It sends prompts to the LLM, executes
+bench-cli owns the tool-use loop. It sends prompts to the LLM, executes
 tool calls locally (kubectl, helm, evidra CLI), and feeds results back.
 
 ```
-infra-bench → Provider.Chat() → LLM response with tool calls
+bench-cli → Provider.Chat() → LLM response with tool calls
                                          ↓
-                               infra-bench executes tools locally
+                               bench-cli executes tools locally
                                          ↓
                                feed results back → next turn
 ```
@@ -224,16 +224,16 @@ The Bifrost provider works with any OpenAI-compatible endpoint:
 # OpenAI directly
 INFRA_BENCH_BIFROST_URL=https://api.openai.com/v1 \
 EVIDRA_BIFROST_AUTH_BEARER=sk-proj-... \
-infra-bench run --provider bifrost --model gpt-4o ...
+bench-cli run --provider bifrost --model gpt-4o ...
 
 # Alibaba DashScope (Qwen)
 INFRA_BENCH_BIFROST_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1 \
 EVIDRA_BIFROST_AUTH_BEARER=sk-... \
-infra-bench run --provider bifrost --model qwen-plus ...
+bench-cli run --provider bifrost --model qwen-plus ...
 
 # Any OpenAI-compatible proxy (LiteLLM, vLLM, Ollama, etc.)
 INFRA_BENCH_BIFROST_URL=http://localhost:8080/v1 \
-infra-bench run --provider bifrost --model my-model ...
+bench-cli run --provider bifrost --model my-model ...
 ```
 
 Tool schemas are automatically sanitized for strict providers (OpenAI requires
@@ -242,10 +242,10 @@ Tool schemas are automatically sanitized for strict providers (OpenAI requires
 ### Adapter Path (legacy)
 
 The agent is an external process that manages its own tool loop.
-infra-bench just launches it and captures output.
+bench-cli just launches it and captures output.
 
 ```
-infra-bench → spawn agent process → agent manages tools internally
+bench-cli → spawn agent process → agent manages tools internally
 ```
 
 Adapters: `cli` (any command), `mcp` (MCP-capable command).
@@ -255,7 +255,7 @@ Adapters: `cli` (any command), `mcp` (MCP-capable command).
 Compare two runs side by side:
 
 ```bash
-infra-bench compare runs/<run-A>/ runs/<run-B>/
+bench-cli compare runs/<run-A>/ runs/<run-B>/
 ```
 
 The output shows: verdict change (improved/regressed/same), duration delta,
@@ -268,16 +268,16 @@ View detailed results and visual comparisons on the Evidra dashboard at
 
 ```bash
 # Run the same scenario with different models
-infra-bench run --provider bifrost --model gpt-4o --scenario kubernetes/broken-deployment \
+bench-cli run --provider bifrost --model gpt-4o --scenario kubernetes/broken-deployment \
   --runs-dir runs/gpt4o --reuse-cluster --cluster-name evidra \
   --evidra-bin ../evidra-benchmark/bin/evidra
 
-infra-bench run --provider bifrost --model qwen-plus --scenario kubernetes/broken-deployment \
+bench-cli run --provider bifrost --model qwen-plus --scenario kubernetes/broken-deployment \
   --runs-dir runs/qwen --reuse-cluster --cluster-name evidra \
   --evidra-bin ../evidra-benchmark/bin/evidra
 
 # Compare
-infra-bench compare runs/gpt4o/<run-dir>/ runs/qwen/<run-dir>/
+bench-cli compare runs/gpt4o/<run-dir>/ runs/qwen/<run-dir>/
 ```
 
 ## Cost Tracking
@@ -311,15 +311,15 @@ Every non-dry-run stores structured results in SQLite with a JSONL backup:
 
 ```bash
 # Aggregate statistics
-infra-bench db stats
+bench-cli db stats
 
 # Query by filters
-infra-bench db query --scenario broken-deployment
-infra-bench db query --model haiku --failed
-infra-bench db query --provider bifrost --limit 50
+bench-cli db query --scenario broken-deployment
+bench-cli db query --model haiku --failed
+bench-cli db query --provider bifrost --limit 50
 
 # Rebuild DB from JSONL backup
-infra-bench db rebuild
+bench-cli db rebuild
 ```
 
 **Storage model:**
@@ -336,14 +336,14 @@ The `compare` command shows regressions between specific runs.
 
 ## Batch Benchmark Pipeline
 
-`infra-bench bench` runs all scenarios with automated post-processing:
+`bench-cli bench` runs all scenarios with automated post-processing:
 
 ```
 run scenarios → write artifacts → generate scorecard → signal audit → report to Evidra
 ```
 
 ```bash
-infra-bench bench --provider claude --model sonnet --reuse-cluster --cluster-name evidra
+bench-cli bench --provider claude --model sonnet --reuse-cluster --cluster-name evidra
 ```
 
 Output:
@@ -374,7 +374,7 @@ broken-deployment:
 ```
 
 ```bash
-infra-bench audit signals --runs-dir runs/e2e
+bench-cli audit signals --runs-dir runs/e2e
 ```
 
 The audit reports:

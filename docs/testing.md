@@ -16,7 +16,7 @@ make fmt           # gofmt -w .
 
 | Package | Tests | What it covers |
 |---------|-------|----------------|
-| `cmd/infra-bench` | 8 | CLI commands: run --dry-run, scenario list, skill-delta |
+| `cmd/bench-cli` | CLI tests | CLI commands: run --dry-run, scenario list, skill-delta |
 | `pkg/adapter` | 20 | CLI and MCP agent adapters, env vars, exit codes |
 | `pkg/agent` | 20+ | Provider loop, context window, tool schemas, message injection, memory reset |
 | `pkg/artifact` | 18 | Run bundle writing, transcript/tool-call export |
@@ -30,7 +30,7 @@ make fmt           # gofmt -w .
 | `pkg/tui` | 35 | Lab TUI config, catalog filtering, run history |
 | `pkg/verifier` | 12 | Kubernetes checks, PollChecks retry loop |
 
-**Total: ~216 tests across 13 packages.**
+The suite covers the CLI plus the core runtime packages listed above.
 
 ## CI Pipeline
 
@@ -48,7 +48,7 @@ CI requires checkout of the parent `evidra-benchmark` repo (for contract schema 
 
 **File:** `pkg/scenario/runtime_contract_test.go`
 
-Validates all 37 YAML scenarios at load time — no cluster needed. Catches:
+Validates all scenario YAML files at load time — no cluster needed. Catches:
 
 - Break patches referencing containers not in the baseline deployment
 - Checks referencing resources that don't exist in bootstrap

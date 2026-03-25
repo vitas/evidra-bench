@@ -40,7 +40,7 @@ func Open(runsDir string) (*Store, error) {
 
 	s := &Store{db: db, dbPath: dbPath, jsonlPath: jsonlPath}
 	if err := s.migrate(); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, err
 	}
 	return s, nil
@@ -124,7 +124,7 @@ func (s *Store) appendJSONL(r RunRecord) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	_, err = f.Write(append(data, '\n'))
 	return err
 }
@@ -166,7 +166,7 @@ func (s *Store) Query(filters QueryFilters) ([]RunRecord, error) {
 	if err != nil {
 		return nil, fmt.Errorf("store.Query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var records []RunRecord
 	for rows.Next() {
@@ -201,7 +201,7 @@ func (s *Store) Stats() (*StatsResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var ss ScenarioStat
 		if err := rows.Scan(&ss.ScenarioID, &ss.Runs, &ss.Passed); err != nil {

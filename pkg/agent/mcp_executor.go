@@ -84,10 +84,12 @@ func (e *MCPExecutor) Tools(ctx context.Context) ([]ToolDef, error) {
 		}
 		if t.InputSchema != nil {
 			// Convert JSON schema to map for OpenAI format
-			schemaBytes, _ := json.Marshal(t.InputSchema)
-			var params map[string]any
-			json.Unmarshal(schemaBytes, &params)
-			def.Parameters = params
+			if schemaBytes, err := json.Marshal(t.InputSchema); err == nil {
+				var params map[string]any
+				if err := json.Unmarshal(schemaBytes, &params); err == nil {
+					def.Parameters = params
+				}
+			}
 		}
 		defs = append(defs, def)
 	}

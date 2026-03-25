@@ -316,6 +316,6 @@ func TestBuildEvidraCheckers_ImplementsChecker(t *testing.T) {
 		t.Fatalf("expected 10 checkers, got %d", len(checkers))
 	}
 	for _, c := range checkers {
-		var _ Checker = c
+		var _ = Checker(c)
 	}
 }

@@ -11,7 +11,9 @@ func TestRewriteNamespace_YAMLFiles(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	fixture := filepath.Join(dir, "deployment.yaml")
-	os.WriteFile(fixture, []byte("apiVersion: v1\nkind: Namespace\nmetadata:\n  name: bench\n---\napiVersion: apps/v1\nmetadata:\n  namespace: bench\n"), 0644)
+	if err := os.WriteFile(fixture, []byte("apiVersion: v1\nkind: Namespace\nmetadata:\n  name: bench\n---\napiVersion: apps/v1\nmetadata:\n  namespace: bench\n"), 0644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
 
 	if err := RewriteNamespace(dir, "bench", "bench-w3"); err != nil {
 		t.Fatalf("RewriteNamespace: %v", err)
@@ -31,7 +33,9 @@ func TestRewriteNamespace_ShellFlags(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	script := filepath.Join(dir, "verify.sh")
-	os.WriteFile(script, []byte("kubectl get pods -n bench\nkubectl -n=bench describe pod"), 0644)
+	if err := os.WriteFile(script, []byte("kubectl get pods -n bench\nkubectl -n=bench describe pod"), 0644); err != nil {
+		t.Fatalf("write script: %v", err)
+	}
 
 	if err := RewriteNamespace(dir, "bench", "bench-w1"); err != nil {
 		t.Fatalf("RewriteNamespace: %v", err)
@@ -51,7 +55,9 @@ func TestRewriteNamespace_SkipsNonTarget(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	txt := filepath.Join(dir, "data.json")
-	os.WriteFile(txt, []byte(`{"namespace": "bench"}`), 0644)
+	if err := os.WriteFile(txt, []byte(`{"namespace": "bench"}`), 0644); err != nil {
+		t.Fatalf("write data file: %v", err)
+	}
 
 	if err := RewriteNamespace(dir, "bench", "bench-w0"); err != nil {
 		t.Fatalf("RewriteNamespace: %v", err)
@@ -66,9 +72,13 @@ func TestRewriteNamespace_SkipsNonTarget(t *testing.T) {
 func TestRewriteNamespace_TaskPrompt(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	os.MkdirAll(filepath.Join(dir, "prompts"), 0755)
+	if err := os.MkdirAll(filepath.Join(dir, "prompts"), 0755); err != nil {
+		t.Fatalf("mkdir prompts: %v", err)
+	}
 	prompt := filepath.Join(dir, "prompts", "task.md")
-	os.WriteFile(prompt, []byte("Fix the app in the `bench` namespace."), 0644)
+	if err := os.WriteFile(prompt, []byte("Fix the app in the `bench` namespace."), 0644); err != nil {
+		t.Fatalf("write prompt: %v", err)
+	}
 
 	if err := RewriteNamespace(dir, "bench", "bench-w1"); err != nil {
 		t.Fatalf("RewriteNamespace: %v", err)

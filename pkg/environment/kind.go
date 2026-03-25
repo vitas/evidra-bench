@@ -55,13 +55,16 @@ func (p *KindProvider) createCommandWithConfig(clusterName string, k8s scenario.
 		return nil, nil, fmt.Errorf("write kind config: %w", err)
 	}
 	if _, err := tmpFile.WriteString(configYAML); err != nil {
-		tmpFile.Close()
-		os.Remove(tmpFile.Name())
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpFile.Name())
 		return nil, nil, fmt.Errorf("write kind config: %w", err)
 	}
-	tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		_ = os.Remove(tmpFile.Name())
+		return nil, nil, fmt.Errorf("write kind config: %w", err)
+	}
 
-	cleanup := func() { os.Remove(tmpFile.Name()) }
+	cleanup := func() { _ = os.Remove(tmpFile.Name()) }
 
 	cmd := exec.Command("kind", "create", "cluster",
 		"--name", clusterName,

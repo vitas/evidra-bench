@@ -42,7 +42,7 @@ trap:
 	if s.OnFail != "stop" {
 		t.Errorf("OnFail = %q, want stop", s.OnFail)
 	}
-	if !s.Timeout.Set || s.Timeout.Duration.Minutes() != 3 {
+	if !s.Timeout.Set || s.Timeout.Minutes() != 3 {
 		t.Errorf("Timeout = %v", s.Timeout)
 	}
 	if s.Trap == nil || s.Trap.Name != "delete-policy" {

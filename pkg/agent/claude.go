@@ -52,13 +52,13 @@ func (p *ClaudeProvider) Chat(ctx context.Context, req ChatRequest) (*ChatRespon
 			prompt.WriteString(m.Content)
 			prompt.WriteString("\n")
 		case "tool":
-			prompt.WriteString(fmt.Sprintf("[Tool result for %s]: %s\n", m.ToolCallID, m.Content))
+			fmt.Fprintf(&prompt, "[Tool result for %s]: %s\n", m.ToolCallID, m.Content)
 		case "assistant":
 			if m.Content != "" {
-				prompt.WriteString(fmt.Sprintf("[Assistant]: %s\n", m.Content))
+				fmt.Fprintf(&prompt, "[Assistant]: %s\n", m.Content)
 			}
 			for _, tc := range m.ToolCalls {
-				prompt.WriteString(fmt.Sprintf("[Tool call]: %s(%s)\n", tc.Name, tc.Arguments))
+				fmt.Fprintf(&prompt, "[Tool call]: %s(%s)\n", tc.Name, tc.Arguments)
 			}
 		}
 	}
@@ -92,7 +92,7 @@ func buildToolPrompt(tools []ToolDef) string {
 	b.WriteString("```json\n{\"tool\": \"<tool_name>\", \"arguments\": {<args>}}\n```\n\n")
 	b.WriteString("Available tools (ONLY these):\n\n")
 	for _, t := range tools {
-		b.WriteString(fmt.Sprintf("### %s\n%s\n", t.Name, t.Description))
+		fmt.Fprintf(&b, "### %s\n%s\n", t.Name, t.Description)
 		if props, ok := t.Parameters["properties"].(map[string]any); ok {
 			b.WriteString("Parameters:\n")
 			for name, schema := range props {
@@ -100,7 +100,7 @@ func buildToolPrompt(tools []ToolDef) string {
 				if s, ok := schema.(map[string]any); ok {
 					desc, _ = s["description"].(string)
 				}
-				b.WriteString(fmt.Sprintf("  - %s: %s\n", name, desc))
+				fmt.Fprintf(&b, "  - %s: %s\n", name, desc)
 			}
 		}
 		b.WriteString("\n")

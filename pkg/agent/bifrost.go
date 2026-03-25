@@ -130,7 +130,7 @@ func (p *BifrostProvider) doRequest(ctx context.Context, body []byte) (*http.Res
 	if err != nil {
 		return nil, nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {

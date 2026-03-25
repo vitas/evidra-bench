@@ -79,8 +79,10 @@ func probeEvidraVersions(evidraBin string) (specVersion, scoringVersion, profile
 	if err != nil {
 		return
 	}
-	defer os.RemoveAll(tmpDir)
-	os.MkdirAll(tmpDir+"/segments", 0755)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+	if err := os.MkdirAll(tmpDir+"/segments", 0755); err != nil {
+		return
+	}
 
 	out, err := exec.Command(evidraBin, "scorecard", "--evidence-dir", tmpDir, "--ttl", "1s").CombinedOutput()
 	if err != nil {
@@ -164,7 +166,7 @@ func readFileHead(path string, n int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	buf := make([]byte, n)
 	nr, err := f.Read(buf)
 	if err != nil {

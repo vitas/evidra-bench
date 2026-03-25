@@ -319,17 +319,17 @@ stages:
 
 ```bash
 # Validate the scenario loads
-infra-bench scenario list | grep my-scenario
+bench-cli scenario list | grep my-scenario
 
 # Dry-run (validates YAML, no cluster)
-infra-bench run --scenario my-scenario --dry-run
+bench-cli run --scenario my-scenario --dry-run
 
 # Run against a real cluster
-infra-bench run --scenario category/my-scenario \
+bench-cli run --scenario category/my-scenario \
   --provider bifrost --model gpt-4o --proxy-mode --reuse-cluster
 
 # Run the full track
-infra-bench certify --track my-track --model gpt-4o --provider bifrost
+bench-cli certify --track my-track --model gpt-4o --provider bifrost
 ```
 
 ### Runtime contract validation

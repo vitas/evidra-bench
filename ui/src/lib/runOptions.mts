@@ -1,4 +1,4 @@
-export const SCENARIO_CATEGORIES = ["All", "kubernetes", "helm", "argocd", "terraform"] as const;
+export const SCENARIO_CATEGORIES = ["All", "kubernetes", "helm", "argocd", "terraform", "aws"] as const;
 
 export const RUN_MODELS_BY_PROVIDER = {
   claude: ["sonnet", "haiku", "opus"],

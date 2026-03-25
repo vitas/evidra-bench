@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -176,14 +177,18 @@ with optional Evidra reporting for behavioral analysis.`,
 			if err != nil {
 				return err
 			}
-			defer s.Close()
+			defer func() {
+				if closeErr := s.Close(); closeErr != nil {
+					log.Printf("[db] close stats store: %v", closeErr)
+				}
+			}()
 			st, err := s.Stats()
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Total: %d  Pass: %d  Fail: %d\n\n", st.TotalRuns, st.PassCount, st.FailCount)
+			writef(cmd.OutOrStdout(), "Total: %d  Pass: %d  Fail: %d\n\n", st.TotalRuns, st.PassCount, st.FailCount)
 			for _, ss := range st.ByScenario {
-				fmt.Fprintf(cmd.OutOrStdout(), "  %-35s %d/%d\n", ss.ScenarioID, ss.Passed, ss.Runs)
+				writef(cmd.OutOrStdout(), "  %-35s %d/%d\n", ss.ScenarioID, ss.Passed, ss.Runs)
 			}
 			return nil
 		},
@@ -196,7 +201,11 @@ with optional Evidra reporting for behavioral analysis.`,
 			if err != nil {
 				return err
 			}
-			defer s.Close()
+			defer func() {
+				if closeErr := s.Close(); closeErr != nil {
+					log.Printf("[db] close query store: %v", closeErr)
+				}
+			}()
 			scenarioFilter, _ := cmd.Flags().GetString("scenario")
 			modelFilter, _ := cmd.Flags().GetString("model")
 			providerFilter, _ := cmd.Flags().GetString("provider")
@@ -219,7 +228,7 @@ with optional Evidra reporting for behavioral analysis.`,
 				if !r.Passed {
 					verdict = "FAIL"
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "[%s] %-30s model=%-10s provider=%-8s dur=%.1fs checks=%d/%d cost=$%.4f %s\n",
+				writef(cmd.OutOrStdout(), "[%s] %-30s model=%-10s provider=%-8s dur=%.1fs checks=%d/%d cost=$%.4f %s\n",
 					verdict, r.ScenarioID, r.Model, r.Provider, r.Duration,
 					r.ChecksPassed, r.ChecksTotal, r.EstimatedCost,
 					r.CreatedAt.Format("2006-01-02 15:04"))
@@ -242,12 +251,16 @@ with optional Evidra reporting for behavioral analysis.`,
 			if err != nil {
 				return err
 			}
-			defer s.Close()
+			defer func() {
+				if closeErr := s.Close(); closeErr != nil {
+					log.Printf("[db] close rebuild store: %v", closeErr)
+				}
+			}()
 			count, err := s.Rebuild()
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Rebuilt %d records from results.jsonl\n", count)
+			writef(cmd.OutOrStdout(), "Rebuilt %d records from results.jsonl\n", count)
 			return nil
 		},
 	}
@@ -260,12 +273,16 @@ with optional Evidra reporting for behavioral analysis.`,
 			if err != nil {
 				return err
 			}
-			defer s.Close()
+			defer func() {
+				if closeErr := s.Close(); closeErr != nil {
+					log.Printf("[db] close import store: %v", closeErr)
+				}
+			}()
 			count, err := s.ImportFromArtifacts(cfg.RunsDir)
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Imported %d records from run artifacts\n", count)
+			writef(cmd.OutOrStdout(), "Imported %d records from run artifacts\n", count)
 			return nil
 		},
 	}
@@ -340,7 +357,7 @@ with optional Evidra reporting for behavioral analysis.`,
 
 	skillDeltaReportCmd := &cobra.Command{
 		Use:   "report",
-		Short: "Generate benchmark.html from benchmark.json",
+		Short: "Read benchmark.json and point users to the web UI",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return executeSkillDeltaReport(cmd, skillDeltaDir)
 		},
@@ -514,10 +531,10 @@ func executeRun(cmd *cobra.Command, cfg config.Config) error {
 	if !result.Passed {
 		verdict = "FAIL"
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "[%s] scenario=%s duration=%s exit_code=%d\n",
+	writef(cmd.OutOrStdout(), "[%s] scenario=%s duration=%s exit_code=%d\n",
 		verdict, result.ScenarioID, result.Duration.Round(time.Millisecond), result.ExitCode)
 	if result.ArtifactDir != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "artifacts: %s\n", result.ArtifactDir)
+		writef(cmd.OutOrStdout(), "artifacts: %s\n", result.ArtifactDir)
 	}
 
 	if !result.Passed {
@@ -575,7 +592,11 @@ func runScenarioOnce(ctx context.Context, cfg config.Config, s *scenario.Scenari
 		log.Printf("[harness] warning: could not open results store: %v", err)
 	}
 	if resultsStore != nil {
-		defer resultsStore.Close()
+		defer func() {
+			if closeErr := resultsStore.Close(); closeErr != nil {
+				log.Printf("[harness] warning: could not close results store: %v", closeErr)
+			}
+		}()
 	}
 
 	h := harness.New(harness.Deps{
@@ -638,7 +659,11 @@ func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *sce
 			log.Printf("[harness] warning: could not open results store: %v", storeErr)
 		}
 		if resultsStore != nil {
-			defer resultsStore.Close()
+			defer func() {
+				if closeErr := resultsStore.Close(); closeErr != nil {
+					log.Printf("[harness] warning: could not close workspace-local results store: %v", closeErr)
+				}
+			}()
 		}
 	}
 
@@ -677,11 +702,11 @@ func listScenarios(cmd *cobra.Command, cfg config.Config) error {
 		return fmt.Errorf("list scenarios: %w", err)
 	}
 	if len(scenarios) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "no scenarios found")
+		writef(cmd.OutOrStdout(), "no scenarios found\n")
 		return nil
 	}
 	for _, s := range scenarios {
-		fmt.Fprintf(cmd.OutOrStdout(), "%-30s %s (%s)\n", s.Path, s.Title, s.ID)
+		writef(cmd.OutOrStdout(), "%-30s %s (%s)\n", s.Path, s.Title, s.ID)
 	}
 	return nil
 }
@@ -740,10 +765,16 @@ func pushScenarios(scenariosDir, evidraURL, apiKey string) error {
 	if err != nil {
 		return fmt.Errorf("push-scenarios: POST %s: %w", url, err)
 	}
-	defer resp.Body.Close()
 
 	var result map[string]any
-	json.NewDecoder(resp.Body).Decode(&result)
+	decodeErr := json.NewDecoder(resp.Body).Decode(&result)
+	closeErr := resp.Body.Close()
+	if decodeErr != nil && !stderrors.Is(decodeErr, io.EOF) {
+		return fmt.Errorf("push-scenarios: decode response: %w", decodeErr)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("push-scenarios: close response body: %w", closeErr)
+	}
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("push-scenarios: HTTP %d: %v", resp.StatusCode, result)
@@ -849,7 +880,7 @@ func executeSkillDeltaRun(cmd *cobra.Command, cfg config.Config, scenarios []str
 				if err := skilldelta.WritePairJSON(paths.PairJSONPath, pair); err != nil {
 					return fmt.Errorf("write pair.json: %w", err)
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "pair: %s\n", paths.PairJSONPath)
+				writef(cmd.OutOrStdout(), "pair: %s\n", paths.PairJSONPath)
 			}
 		}
 	}
@@ -875,8 +906,8 @@ func executeSkillDeltaAggregate(cmd *cobra.Command, dir string) error {
 	if err := skilldelta.WriteMarkdown(mdPath, benchmark); err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "benchmark: %s\n", jsonPath)
-	fmt.Fprintf(cmd.OutOrStdout(), "markdown: %s\n", mdPath)
+	writef(cmd.OutOrStdout(), "benchmark: %s\n", jsonPath)
+	writef(cmd.OutOrStdout(), "markdown: %s\n", mdPath)
 	return nil
 }
 
@@ -889,7 +920,7 @@ func executeSkillDeltaReport(cmd *cobra.Command, dir string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(cmd.OutOrStdout(), "HTML report generation has been removed; use the web UI instead.")
+	writef(cmd.OutOrStdout(), "HTML report generation has been removed; use the web UI instead.\n")
 	return nil
 }
 
@@ -918,8 +949,8 @@ func executeSignalAudit(cmd *cobra.Command, runsDir, manifestPath, scenarioFilte
 		return err
 	}
 
-	fmt.Fprint(cmd.OutOrStdout(), signalaudit.FormatSummary(result))
-	fmt.Fprintf(cmd.OutOrStdout(), "json: %s\n", outputPath)
+	writef(cmd.OutOrStdout(), "%s", signalaudit.FormatSummary(result))
+	writef(cmd.OutOrStdout(), "json: %s\n", outputPath)
 	return nil
 }
 
@@ -1071,7 +1102,7 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 			if reason == "" {
 				reason = "skip: true in scenario.yaml"
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "SKIP %s — %s\n", s.ID, reason)
+			writef(cmd.OutOrStdout(), "SKIP %s — %s\n", s.ID, reason)
 			continue
 		}
 		for _, model := range models {
@@ -1093,7 +1124,7 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 				runCfg.EvidraEvidenceDir = evidenceDir
 
 				label := fmt.Sprintf("[%d/%d] %s model=%s repeat=%d", total, len(selected)*len(models)*repeats, s.ID, model, rep)
-				fmt.Fprintf(cmd.OutOrStdout(), "%s ...\n", label)
+				writef(cmd.OutOrStdout(), "%s ...\n", label)
 
 				runResult, runErr := runScenarioOnce(cmd.Context(), runCfg, s)
 
@@ -1129,7 +1160,7 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 				if r.Error != "" && r.Error != fmt.Sprintf("scenario %s: verification failed", s.ID) {
 					verdict = "ERROR"
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "  %s %s %s\n", verdict, r.Duration, r.Error)
+				writef(cmd.OutOrStdout(), "  %s %s %s\n", verdict, r.Duration, r.Error)
 				results = append(results, r)
 			}
 		}
@@ -1151,7 +1182,9 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 		"results":      results,
 	}
 	summaryJSON, _ := json.MarshalIndent(summary, "", "  ")
-	os.WriteFile(summaryPath, summaryJSON, 0644)
+	if err := os.WriteFile(summaryPath, summaryJSON, 0o644); err != nil {
+		return fmt.Errorf("write summary: %w", err)
+	}
 
 	// Step 2: Signal audit (if manifest exists)
 	auditManifestPath := resolveAuditManifestPath("configs/signal-audit.yaml")
@@ -1167,35 +1200,37 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 					auditResult = &ar
 					auditPath = filepath.Join(outDir, "signal-audit.json")
 					auditJSON, _ := json.MarshalIndent(ar, "", "  ")
-					os.WriteFile(auditPath, auditJSON, 0644)
+					if err := os.WriteFile(auditPath, auditJSON, 0o644); err != nil {
+						return fmt.Errorf("write signal audit: %w", err)
+					}
 				}
 			}
 		}
 	}
 
 	// Print summary
-	fmt.Fprintf(cmd.OutOrStdout(), "\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "════════════════════════════════════════\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  BENCH RESULTS\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "════════════════════════════════════════\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  Total:   %d\n", total)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Passed:  %d\n", passed)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Failed:  %d\n", failed)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Errors:  %d\n", errors)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Skipped: %d\n", skipped)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Rate:    %.0f%%\n", float64(passed)/float64(max(total, 1))*100)
-	fmt.Fprintf(cmd.OutOrStdout(), "\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  Artifacts:\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "    Summary: %s\n", summaryPath)
+	writef(cmd.OutOrStdout(), "\n")
+	writef(cmd.OutOrStdout(), "════════════════════════════════════════\n")
+	writef(cmd.OutOrStdout(), "  BENCH RESULTS\n")
+	writef(cmd.OutOrStdout(), "════════════════════════════════════════\n")
+	writef(cmd.OutOrStdout(), "  Total:   %d\n", total)
+	writef(cmd.OutOrStdout(), "  Passed:  %d\n", passed)
+	writef(cmd.OutOrStdout(), "  Failed:  %d\n", failed)
+	writef(cmd.OutOrStdout(), "  Errors:  %d\n", errors)
+	writef(cmd.OutOrStdout(), "  Skipped: %d\n", skipped)
+	writef(cmd.OutOrStdout(), "  Rate:    %.0f%%\n", float64(passed)/float64(max(total, 1))*100)
+	writef(cmd.OutOrStdout(), "\n")
+	writef(cmd.OutOrStdout(), "  Artifacts:\n")
+	writef(cmd.OutOrStdout(), "    Summary: %s\n", summaryPath)
 	if auditResult != nil {
-		fmt.Fprintf(cmd.OutOrStdout(), "    Audit:   %s\n", auditPath)
-		fmt.Fprintf(cmd.OutOrStdout(), "      audited=%d missing=%d forbidden=%d unstable=%d\n",
+		writef(cmd.OutOrStdout(), "    Audit:   %s\n", auditPath)
+		writef(cmd.OutOrStdout(), "      audited=%d missing=%d forbidden=%d unstable=%d\n",
 			auditResult.AuditedScenarioCount,
 			auditResult.FindingTotals.MissingExpected,
 			auditResult.FindingTotals.ForbiddenSignals,
 			auditResult.FindingTotals.UnstableGroups)
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "════════════════════════════════════════\n")
+	writef(cmd.OutOrStdout(), "════════════════════════════════════════\n")
 
 	if failed > 0 || errors > 0 {
 		return fmt.Errorf("bench: %d failed, %d errors out of %d", failed, errors, total)
@@ -1277,12 +1312,12 @@ func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*sce
 		}
 	}
 
-	result, err := orch.RunParallel(ctx, scenarioIDs, models, repeats, cfg.Parallel, dbURL)
+	result, err := orch.RunParallel(ctx, cfg, nil, scenarioIDs, models, repeats, cfg.Parallel, dbURL)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "\nCompleted: %d total, %d passed, %d failed\n",
+	writef(cmd.OutOrStdout(), "\nCompleted: %d total, %d passed, %d failed\n",
 		result.Total, result.Passed, result.Failed)
 	return nil
 }

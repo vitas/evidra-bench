@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import { generateScenario, type PuzzleMetadata } from "./yaml-generator";
 import { MODELS } from "../../data/models";
+import { buildRunCommand, EVIDENCE_MODES } from "../../lib/commandBuilder.mts";
 
 interface RunButtonProps {
   metadata: PuzzleMetadata;
@@ -19,18 +20,11 @@ export function RunButton({ metadata, nodes, edges }: RunButtonProps) {
     const scenario = generateScenario(nodes, edges, metadata);
     if (scenario.warnings.length > 0 && !scenario.scenarioYaml) return;
 
-    const model = selectedModel;
-    const command = [
-      "infra-bench run",
-      `--scenario ./${metadata.name || "my-puzzle"}`,
-      `--model ${model}`,
-      "--provider bifrost",
-      mode === "smart" ? "--smart-prescribe" : "--proxy-mode",
-      "--reuse-cluster",
-      "--timeout 5m",
-      "--evidra-url $EVIDRA_URL",
-      "--evidra-api-key $EVIDRA_API_KEY",
-    ].join(" \\\n  ");
+    const command = buildRunCommand({
+      scenario: `./${metadata.name || "my-puzzle"}`,
+      model: selectedModel,
+      evidenceMode: mode === "smart" ? "evidra-mcp" : "baseline",
+    });
 
     setResult({ command });
   }, [nodes, edges, metadata, selectedModel, mode]);
@@ -100,28 +94,27 @@ export function RunButton({ metadata, nodes, edges }: RunButtonProps) {
                   Evidence Mode
                 </label>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => setMode("proxy")}
-                    className={`flex-1 px-3 py-1.5 rounded-md border text-[0.78rem] font-medium transition-all ${
-                      mode === "proxy"
-                        ? "border-accent bg-accent/10 text-fg"
-                        : "border-border text-fg-muted hover:border-accent/50"
-                    }`}
-                  >
-                    Baseline
-                    <span className="block text-[0.65rem] font-normal text-fg-muted">Direct execution</span>
-                  </button>
-                  <button
-                    onClick={() => setMode("smart")}
-                    className={`flex-1 px-3 py-1.5 rounded-md border text-[0.78rem] font-medium transition-all ${
-                      mode === "smart"
-                        ? "border-accent bg-accent/10 text-fg"
-                        : "border-border text-fg-muted hover:border-accent/50"
-                    }`}
-                  >
-                    Via evidra-mcp
-                    <span className="block text-[0.65rem] font-normal text-fg-muted">Smart output + evidence</span>
-                  </button>
+                  {EVIDENCE_MODES.map((evidenceMode) => {
+                    const isSelected =
+                      (mode === "proxy" && evidenceMode.id === "baseline") ||
+                      (mode === "smart" && evidenceMode.id === "evidra-mcp");
+                    return (
+                      <button
+                        key={evidenceMode.id}
+                        onClick={() => setMode(evidenceMode.id === "baseline" ? "proxy" : "smart")}
+                        className={`flex-1 px-3 py-1.5 rounded-md border text-[0.78rem] font-medium transition-all ${
+                          isSelected
+                            ? "border-accent bg-accent/10 text-fg"
+                            : "border-border text-fg-muted hover:border-accent/50"
+                        }`}
+                      >
+                        {evidenceMode.label}
+                        <span className="block text-[0.65rem] font-normal text-fg-muted">
+                          {evidenceMode.description}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

@@ -293,11 +293,13 @@ func (e *ToolExecutor) evidraPrescribe(ctx context.Context, argsJSON string) str
 	if err != nil {
 		return fmt.Sprintf("error creating temp file: %v", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 	if _, err := tmpFile.WriteString(input.RawArtifact); err != nil {
 		return fmt.Sprintf("error writing artifact: %v", err)
 	}
-	tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Sprintf("error closing artifact: %v", err)
+	}
 
 	cmdArgs, err := buildPrescribeCommandArgs(e.EvidencePath, tmpFile.Name(), input)
 	if err != nil {

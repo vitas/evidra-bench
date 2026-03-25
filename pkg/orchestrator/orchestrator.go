@@ -45,21 +45,16 @@ type ProgressReporter interface {
 
 // Orchestrator coordinates provisioning, parallel execution, and teardown.
 type Orchestrator struct {
-	cfg      config.Config
-	runFn    RunFunc
-	cluster  *environment.Handle
-	provider environment.Provider
-	reporter ProgressReporter
+	cfg         config.Config
+	runFn       RunFunc
+	cluster     *environment.Handle
+	provider    environment.Provider
+	ownsCluster bool
 }
 
 // New creates an orchestrator with the given config and scenario run function.
 func New(cfg config.Config, runFn RunFunc) *Orchestrator {
 	return &Orchestrator{cfg: cfg, runFn: runFn}
-}
-
-// SetReporter attaches a progress reporter for scenario lifecycle events.
-func (o *Orchestrator) SetReporter(r ProgressReporter) {
-	o.reporter = r
 }
 
 // Provision creates or reuses the target cluster. Must be called before Run.
@@ -71,6 +66,7 @@ func (o *Orchestrator) Provision(ctx context.Context) (string, error) {
 			ClusterName:    o.cfg.ClusterName,
 			KubeconfigPath: o.cfg.KubeconfigPath,
 		}
+		o.ownsCluster = false
 		log.Printf("[orchestrator] using existing kubeconfig: %s", o.cfg.KubeconfigPath)
 		return o.cfg.KubeconfigPath, nil
 	}
@@ -91,13 +87,14 @@ func (o *Orchestrator) Provision(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("orchestrator: provision: %w", err)
 	}
 	o.cluster = handle
+	o.ownsCluster = true
 	log.Printf("[orchestrator] cluster %s ready, kubeconfig: %s", o.cfg.ClusterName, handle.KubeconfigPath)
 	return handle.KubeconfigPath, nil
 }
 
 // Teardown destroys the cluster unless --reuse-cluster is set.
 func (o *Orchestrator) Teardown(ctx context.Context) {
-	if o.cluster == nil || o.cfg.ReuseCluster {
+	if o.cluster == nil || o.cfg.ReuseCluster || !o.ownsCluster || o.provider == nil {
 		return
 	}
 	log.Printf("[orchestrator] destroying cluster %s", o.cfg.ClusterName)
@@ -124,27 +121,25 @@ type RunResult struct {
 
 // RunParallel enqueues and executes scenarios via River.
 // Returns after all jobs complete or ctx is cancelled.
-func (o *Orchestrator) RunParallel(ctx context.Context, scenarios []string, models []string, repeats, parallel int, dbURL string) (*RunResult, error) {
+func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, reporter ProgressReporter, scenarios []string, models []string, repeats, parallel int, dbURL string) (*RunResult, error) {
 	if o.cluster == nil {
 		return nil, fmt.Errorf("orchestrator: cluster not provisioned — call Provision first")
 	}
 	kubeconfigPath := o.cluster.KubeconfigPath
 
 	// Open shared results store.
-	sharedStore, err := store.Open(o.cfg.RunsDir)
+	sharedStore, err := store.Open(runCfg.RunsDir)
 	if err != nil {
 		log.Printf("[orchestrator] warning: could not open shared store: %v", err)
 	}
 	if sharedStore != nil {
-		defer sharedStore.Close()
+		defer func() { _ = sharedStore.Close() }()
 	}
 
 	var completed, passed, failed int64
 	total := int64(len(scenarios) * len(models) * repeats)
-	cfg := o.cfg
+	cfg := runCfg
 	runFn := o.runFn
-
-	reporter := o.reporter
 
 	// Build River worker function.
 	workerFn := func(jobCtx context.Context, args jobqueue.BenchJobArgs, ns string) error {
@@ -258,7 +253,7 @@ func (o *Orchestrator) RunParallel(ctx context.Context, scenarios []string, mode
 		select {
 		case <-ctx.Done():
 			stopCtx, cancel := context.WithTimeout(context.Background(), config.GracefulStopTimeout)
-			client.Stop(stopCtx)
+			_ = client.Stop(stopCtx)
 			cancel()
 			return nil, ctx.Err()
 		case <-ticker.C:
@@ -270,7 +265,7 @@ func (o *Orchestrator) RunParallel(ctx context.Context, scenarios []string, mode
 
 	stopCtx, cancel := context.WithTimeout(context.Background(), config.GracefulStopTimeout)
 	defer cancel()
-	client.Stop(stopCtx)
+	_ = client.Stop(stopCtx)
 
 	return &RunResult{
 		Total:     total,

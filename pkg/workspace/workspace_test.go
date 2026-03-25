@@ -9,8 +9,12 @@ import (
 func TestNew_CreatesDirectories(t *testing.T) {
 	t.Parallel()
 	srcDir := t.TempDir()
-	os.MkdirAll(filepath.Join(srcDir, "kubernetes", "broken-deployment", "fixtures"), 0755)
-	os.WriteFile(filepath.Join(srcDir, "kubernetes", "broken-deployment", "scenario.yaml"), []byte("id: broken-deployment"), 0644)
+	if err := os.MkdirAll(filepath.Join(srcDir, "kubernetes", "broken-deployment", "fixtures"), 0755); err != nil {
+		t.Fatalf("mkdir fixtures: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "kubernetes", "broken-deployment", "scenario.yaml"), []byte("id: broken-deployment"), 0644); err != nil {
+		t.Fatalf("write scenario: %v", err)
+	}
 
 	ws, err := New("test-job-1", srcDir)
 	if err != nil {
@@ -36,7 +40,9 @@ func TestNew_CreatesDirectories(t *testing.T) {
 func TestNew_IsolatesWrites(t *testing.T) {
 	t.Parallel()
 	srcDir := t.TempDir()
-	os.WriteFile(filepath.Join(srcDir, "test.yaml"), []byte("original"), 0644)
+	if err := os.WriteFile(filepath.Join(srcDir, "test.yaml"), []byte("original"), 0644); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
 
 	ws, err := New("test-job-2", srcDir)
 	if err != nil {
@@ -44,7 +50,9 @@ func TestNew_IsolatesWrites(t *testing.T) {
 	}
 	defer ws.Cleanup()
 
-	os.WriteFile(filepath.Join(ws.ScenariosDir, "test.yaml"), []byte("modified"), 0644)
+	if err := os.WriteFile(filepath.Join(ws.ScenariosDir, "test.yaml"), []byte("modified"), 0644); err != nil {
+		t.Fatalf("write workspace file: %v", err)
+	}
 
 	data, _ := os.ReadFile(filepath.Join(srcDir, "test.yaml"))
 	if string(data) != "original" {

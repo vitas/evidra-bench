@@ -76,7 +76,7 @@ const TOUR_STEPS: TourStep[] = [
     id: "export",
     title: "Export your puzzle!",
     description:
-      "Click 'Export YAML' to see the generated scenario. Copy it and run with infra-bench.",
+      "Click 'Export YAML' to see the generated scenario. Copy it and run with bench-cli.",
     target: "export-button",
     action: "click-next",
     placement: "top",

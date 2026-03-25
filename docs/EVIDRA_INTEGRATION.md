@@ -2,7 +2,7 @@
 
 ## Overview
 
-infra-bench can verify that agents follow the Evidra prescribe/report protocol
+bench-cli can verify that agents follow the Evidra prescribe/report protocol
 while solving infrastructure scenarios. This is opt-in per scenario via the
 `evidra:` block in scenario.yaml.
 
@@ -12,11 +12,11 @@ There are two paths for generating evidence:
 
 ### Provider path (recommended)
 
-When using `--provider claude` or `--provider bifrost`, infra-bench owns the
+When using `--provider claude` or `--provider bifrost`, `bench-cli` owns the
 tool-use loop. The agent calls `evidra_prescribe` and `evidra_report` tools
 which the harness executes via the local `evidra` CLI binary:
 
-    infra-bench run \
+    bench-cli run \
       --provider claude \
       --model sonnet \
       --scenario kubernetes/broken-deployment \
@@ -31,7 +31,7 @@ The harness passes `--evidra-bin` to the tool executor, which runs
 When using `--adapter mcp`, the agent runs with evidra-mcp connected as an
 MCP server. The agent manages its own prescribe/report calls via MCP:
 
-    infra-bench run \
+    bench-cli run \
       --scenario kubernetes/privileged-pod-review \
       --adapter mcp \
       --agent-command "claude -p" \

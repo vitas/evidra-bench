@@ -3,6 +3,7 @@ import { SCENARIOS, CATEGORY_LABELS, TRACK_LABELS, type ScenarioMeta } from "../
 import { MODELS } from "../data/models";
 import { CATEGORY_COLORS, DIFFICULTY_COLORS, LEVEL_COLORS } from "../data/colors";
 import { useEvidenceMode } from "../hooks/useEvidenceMode";
+import { buildBenchCommand, EVIDENCE_MODES } from "../lib/commandBuilder.mts";
 
 type Category = "all" | ScenarioMeta["category"];
 type Track = "all" | ScenarioMeta["track"];
@@ -13,6 +14,7 @@ const CATEGORY_PILLS: { value: Category; label: string }[] = [
   { value: "helm", label: CATEGORY_LABELS["helm"] },
   { value: "argocd", label: CATEGORY_LABELS["argocd"] },
   { value: "terraform", label: CATEGORY_LABELS["terraform"] },
+  { value: "aws", label: CATEGORY_LABELS["aws"] },
 ];
 
 const TRACK_PILLS: { value: Track; label: string }[] = [
@@ -75,19 +77,11 @@ export function Run() {
 
   const command = useMemo(() => {
     if (selectedIds.size === 0) return null;
-    const scenarioFlags = [...selectedIds].map((id) => `  --scenario ${id} \\`);
-    const lines = [
-      "infra-bench bench \\",
-      ...scenarioFlags,
-      `  --model ${selectedModel} \\`,
-      "  --provider bifrost \\",
-      mode === "smart" ? "  --smart-prescribe \\" : "  --proxy-mode \\",
-      "  --reuse-cluster \\",
-      "  --timeout 5m \\",
-      "  --evidra-url $EVIDRA_URL \\",
-      "  --evidra-api-key $EVIDRA_API_KEY",
-    ];
-    return lines.join("\n");
+    return buildBenchCommand({
+      scenarios: [...selectedIds],
+      model: selectedModel,
+      evidenceMode: mode === "smart" ? "evidra-mcp" : "baseline",
+    });
   }, [selectedIds, selectedModel, mode]);
 
   const handleCopy = useCallback(() => {
@@ -282,32 +276,27 @@ export function Run() {
               Evidence Mode
             </label>
             <div className="flex gap-2">
-              <button
-                onClick={() => setMode("proxy")}
-                className={`flex-1 px-3 py-2 rounded-md border text-[0.78rem] font-medium transition-all ${
-                  mode === "proxy"
-                    ? "border-accent bg-accent/10 text-fg"
-                    : "border-border text-fg-muted hover:border-accent/50"
-                }`}
-              >
-                Baseline
-                <span className="block text-[0.65rem] font-normal text-fg-muted">
-                  Direct execution
-                </span>
-              </button>
-              <button
-                onClick={() => setMode("smart")}
-                className={`flex-1 px-3 py-2 rounded-md border text-[0.78rem] font-medium transition-all ${
-                  mode === "smart"
-                    ? "border-accent bg-accent/10 text-fg"
-                    : "border-border text-fg-muted hover:border-accent/50"
-                }`}
-              >
-                Via evidra-mcp
-                <span className="block text-[0.65rem] font-normal text-fg-muted">
-                  Smart output + evidence
-                </span>
-              </button>
+              {EVIDENCE_MODES.map((evidenceMode) => {
+                const isSelected =
+                  (mode === "proxy" && evidenceMode.id === "baseline") ||
+                  (mode === "smart" && evidenceMode.id === "evidra-mcp");
+                return (
+                  <button
+                    key={evidenceMode.id}
+                    onClick={() => setMode(evidenceMode.id === "baseline" ? "proxy" : "smart")}
+                    className={`flex-1 px-3 py-2 rounded-md border text-[0.78rem] font-medium transition-all ${
+                      isSelected
+                        ? "border-accent bg-accent/10 text-fg"
+                        : "border-border text-fg-muted hover:border-accent/50"
+                    }`}
+                  >
+                    {evidenceMode.label}
+                    <span className="block text-[0.65rem] font-normal text-fg-muted">
+                      {evidenceMode.description}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

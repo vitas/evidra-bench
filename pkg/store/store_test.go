@@ -16,8 +16,19 @@ func testStore(t *testing.T) *Store {
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() {
+		if err := s.Close(); err != nil {
+			t.Errorf("close store: %v", err)
+		}
+	})
 	return s
+}
+
+func mustInsert(t *testing.T, s *Store, r RunRecord) {
+	t.Helper()
+	if err := s.Insert(r); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
 }
 
 func TestOpenAndClose(t *testing.T) {
@@ -63,9 +74,9 @@ func TestQueryByModel(t *testing.T) {
 	s := testStore(t)
 	now := time.Now().UTC()
 
-	s.Insert(RunRecord{ID: "r1", ScenarioID: "s1", Model: "haiku", CreatedAt: now})
-	s.Insert(RunRecord{ID: "r2", ScenarioID: "s1", Model: "sonnet", CreatedAt: now})
-	s.Insert(RunRecord{ID: "r3", ScenarioID: "s2", Model: "haiku", CreatedAt: now})
+	mustInsert(t, s, RunRecord{ID: "r1", ScenarioID: "s1", Model: "haiku", CreatedAt: now})
+	mustInsert(t, s, RunRecord{ID: "r2", ScenarioID: "s1", Model: "sonnet", CreatedAt: now})
+	mustInsert(t, s, RunRecord{ID: "r3", ScenarioID: "s2", Model: "haiku", CreatedAt: now})
 
 	runs, _ := s.Query(QueryFilters{Model: "haiku"})
 	if len(runs) != 2 {
@@ -78,8 +89,8 @@ func TestQueryPassedOnly(t *testing.T) {
 	s := testStore(t)
 	now := time.Now().UTC()
 
-	s.Insert(RunRecord{ID: "r1", ScenarioID: "s1", Passed: true, CreatedAt: now})
-	s.Insert(RunRecord{ID: "r2", ScenarioID: "s1", Passed: false, CreatedAt: now})
+	mustInsert(t, s, RunRecord{ID: "r1", ScenarioID: "s1", Passed: true, CreatedAt: now})
+	mustInsert(t, s, RunRecord{ID: "r2", ScenarioID: "s1", Passed: false, CreatedAt: now})
 
 	runs, _ := s.Query(QueryFilters{PassedOnly: true})
 	if len(runs) != 1 {
@@ -93,7 +104,7 @@ func TestQueryLimit(t *testing.T) {
 	now := time.Now().UTC()
 
 	for i := 0; i < 10; i++ {
-		s.Insert(RunRecord{ID: fmt.Sprintf("r%d", i), ScenarioID: "s1", CreatedAt: now})
+		mustInsert(t, s, RunRecord{ID: fmt.Sprintf("r%d", i), ScenarioID: "s1", CreatedAt: now})
 	}
 
 	runs, _ := s.Query(QueryFilters{Limit: 3})
@@ -107,9 +118,9 @@ func TestStats(t *testing.T) {
 	s := testStore(t)
 	now := time.Now().UTC()
 
-	s.Insert(RunRecord{ID: "r1", ScenarioID: "s1", Passed: true, CreatedAt: now})
-	s.Insert(RunRecord{ID: "r2", ScenarioID: "s1", Passed: false, CreatedAt: now})
-	s.Insert(RunRecord{ID: "r3", ScenarioID: "s2", Passed: true, CreatedAt: now})
+	mustInsert(t, s, RunRecord{ID: "r1", ScenarioID: "s1", Passed: true, CreatedAt: now})
+	mustInsert(t, s, RunRecord{ID: "r2", ScenarioID: "s1", Passed: false, CreatedAt: now})
+	mustInsert(t, s, RunRecord{ID: "r3", ScenarioID: "s2", Passed: true, CreatedAt: now})
 
 	st, err := s.Stats()
 	if err != nil {
@@ -129,11 +140,18 @@ func TestStats(t *testing.T) {
 func TestJSONLBackup(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	s, _ := Open(dir)
-	defer s.Close()
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer func() {
+		if err := s.Close(); err != nil {
+			t.Errorf("close store: %v", err)
+		}
+	}()
 
-	s.Insert(RunRecord{ID: "r1", ScenarioID: "s1", Model: "haiku", CreatedAt: time.Now().UTC()})
-	s.Insert(RunRecord{ID: "r2", ScenarioID: "s2", Model: "sonnet", CreatedAt: time.Now().UTC()})
+	mustInsert(t, s, RunRecord{ID: "r1", ScenarioID: "s1", Model: "haiku", CreatedAt: time.Now().UTC()})
+	mustInsert(t, s, RunRecord{ID: "r2", ScenarioID: "s2", Model: "sonnet", CreatedAt: time.Now().UTC()})
 
 	// Check JSONL exists
 	jsonlPath := filepath.Join(dir, "results.jsonl")
@@ -155,18 +173,32 @@ func TestJSONLBackup(t *testing.T) {
 func TestRebuild(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	s, _ := Open(dir)
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
 
-	s.Insert(RunRecord{ID: "r1", ScenarioID: "s1", Passed: true, CreatedAt: time.Now().UTC()})
-	s.Insert(RunRecord{ID: "r2", ScenarioID: "s2", Passed: false, CreatedAt: time.Now().UTC()})
-	s.Close()
+	mustInsert(t, s, RunRecord{ID: "r1", ScenarioID: "s1", Passed: true, CreatedAt: time.Now().UTC()})
+	mustInsert(t, s, RunRecord{ID: "r2", ScenarioID: "s2", Passed: false, CreatedAt: time.Now().UTC()})
+	if err := s.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
 
 	// Delete DB, keep JSONL
-	os.Remove(filepath.Join(dir, "bench.db"))
+	if err := os.Remove(filepath.Join(dir, "bench.db")); err != nil {
+		t.Fatalf("remove db: %v", err)
+	}
 
 	// Reopen and rebuild
-	s2, _ := Open(dir)
-	defer s2.Close()
+	s2, err := Open(dir)
+	if err != nil {
+		t.Fatalf("reopen store: %v", err)
+	}
+	defer func() {
+		if err := s2.Close(); err != nil {
+			t.Errorf("close rebuilt store: %v", err)
+		}
+	}()
 
 	count, err := s2.Rebuild()
 	if err != nil {
