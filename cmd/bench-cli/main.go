@@ -130,6 +130,8 @@ with optional Evidra reporting for behavioral analysis.`,
 	f.StringVar(&cfg.ContractVersion, "contract-version", cfg.ContractVersion, "evidra contract version label for tracking")
 	f.BoolVar(&cfg.ProxyMode, "proxy-mode", false, "auto-record evidence for mutations (no agent prescribe/report needed)")
 	f.BoolVar(&cfg.SmartPrescribe, "smart-prescribe", false, "simplified prescribe (tool+operation, 80% fewer tokens)")
+	f.IntVar(&cfg.Parallel, "parallel", 1, "number of parallel workers (1 = sequential)")
+	f.StringVar(&cfg.DatabaseURL, "database-url", "", "PostgreSQL URL for job queue (env: BENCH_DATABASE_URL)")
 
 	labCfg := tui.DefaultLabConfig()
 	labCmd := &cobra.Command{
@@ -414,6 +416,8 @@ with optional Evidra reporting for behavioral analysis.`,
 	bf.IntVar(&benchCfg.MemoryWindow, "memory-window", -1, "memory window")
 	bf.StringVar(&benchCfg.EvidraURL, "evidra-url", benchCfg.EvidraURL, "Evidra API URL for reporting results")
 	bf.StringVar(&benchCfg.EvidraAPIKey, "evidra-api-key", benchCfg.EvidraAPIKey, "Evidra API key")
+	bf.IntVar(&benchCfg.Parallel, "parallel", 1, "number of parallel workers (1 = sequential)")
+	bf.StringVar(&benchCfg.DatabaseURL, "database-url", "", "PostgreSQL URL for job queue (env: BENCH_DATABASE_URL)")
 
 	serveCmd := &cobra.Command{
 		Use:   "serve",

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"testing"
 	"time"
 )
@@ -71,5 +72,40 @@ func TestValidate_ValidConfig(t *testing.T) {
 	cfg.AgentCommand = "my-agent"
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestConfig_ResolveDatabaseURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		cfg      Config
+		envVal   string
+		expected string
+	}{
+		{"flag wins", Config{DatabaseURL: "postgres://flag"}, "postgres://env", "postgres://flag"},
+		{"env fallback", Config{}, "postgres://env", "postgres://env"},
+		{"empty", Config{}, "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.envVal != "" {
+				os.Setenv("BENCH_DATABASE_URL", tt.envVal)
+				defer os.Unsetenv("BENCH_DATABASE_URL")
+			} else {
+				os.Unsetenv("BENCH_DATABASE_URL")
+			}
+			got := tt.cfg.ResolveDatabaseURL()
+			if got != tt.expected {
+				t.Errorf("got %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestConfig_Parallel_Default(t *testing.T) {
+	t.Parallel()
+	cfg := Config{}
+	if cfg.Parallel != 0 {
+		t.Errorf("default Parallel should be 0 (sequential), got %d", cfg.Parallel)
 	}
 }
