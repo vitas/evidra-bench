@@ -10,10 +10,8 @@ import (
 	"time"
 
 	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/environment"
-	"samebits.com/evidra-infra-bench/pkg/jobqueue"
+	"samebits.com/evidra-infra-bench/pkg/orchestrator"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
-	"samebits.com/evidra-infra-bench/pkg/store"
 )
 
 // CertifyRequest matches the Evidra executor contract v1.0.0.
@@ -47,70 +45,12 @@ func serveAPI(cfg config.Config, addr string) error {
 
 	ctx := context.Background()
 
-	// Open shared results store for parallel workers.
-	sharedStore, storeErr := store.Open(cfg.RunsDir)
-	if storeErr != nil {
-		log.Printf("[bench-service] warning: could not open shared store: %v", storeErr)
-	}
-	if sharedStore != nil {
-		defer sharedStore.Close()
-	}
-
 	// Provision cluster once for all workers.
-	var envProvider environment.Provider
-	switch cfg.EnvironmentProvider {
-	case "k3d":
-		p := environment.NewK3dProvider()
-		p.ReuseExisting = cfg.ReuseCluster
-		envProvider = p
-	default:
-		p := environment.NewKindProvider()
-		p.ReuseExisting = cfg.ReuseCluster
-		envProvider = p
+	orch := orchestrator.New(cfg, makeScenarioRunFunc())
+	if _, err := orch.Provision(ctx); err != nil {
+		return fmt.Errorf("serve: %w", err)
 	}
-	handle, provErr := envProvider.Create(ctx, cfg.ClusterName)
-	if provErr != nil {
-		return fmt.Errorf("serve: provision cluster: %w", provErr)
-	}
-	kubeconfigPath := handle.KubeconfigPath
-	log.Printf("[bench-service] cluster %s ready, kubeconfig: %s", cfg.ClusterName, kubeconfigPath)
-	if !cfg.ReuseCluster {
-		defer func() {
-			if err := envProvider.Destroy(ctx, handle); err != nil {
-				log.Printf("[bench-service] warning: destroy cluster: %v", err)
-			}
-		}()
-	}
-
-	// Build the run function that River workers will call.
-	var completed, passed, failed int64
-	runFn := buildParallelRunFunc(cfg, &completed, &passed, &failed, sharedStore, kubeconfigPath)
-
-	parallel := cfg.Parallel
-	if parallel < 1 {
-		parallel = 1
-	}
-
-	jqClient, err := jobqueue.NewClient(ctx, dbURL, parallel, runFn)
-	if err != nil {
-		return fmt.Errorf("serve: job queue: %w", err)
-	}
-
-	if err := jqClient.Migrate(ctx); err != nil {
-		return fmt.Errorf("serve: river migrate: %w", err)
-	}
-
-	// Start River workers in background.
-	go func() {
-		if err := jqClient.Start(ctx); err != nil {
-			log.Printf("[bench-service] river stopped: %v", err)
-		}
-	}()
-	defer func() {
-		stopCtx, cancel := context.WithTimeout(context.Background(), config.GracefulStopTimeout)
-		defer cancel()
-		jqClient.Stop(stopCtx)
-	}()
+	defer orch.Teardown(ctx)
 
 	// Sync scenarios to Evidra on startup.
 	if cfg.EvidraURL != "" {
@@ -125,13 +65,13 @@ func serveAPI(cfg config.Config, addr string) error {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /v1/certify", authMiddleware(apiToken, handleCertifyAPI(cfg, jqClient)))
+	mux.HandleFunc("POST /v1/certify", authMiddleware(apiToken, handleCertifyAPI(cfg, orch, dbURL)))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.WriteString(w, `{"status":"ok"}`)
 	})
 
-	log.Printf("bench service listening on %s (parallel=%d)", addr, parallel)
+	log.Printf("bench service listening on %s", addr)
 	return http.ListenAndServe(addr, mux)
 }
 
@@ -147,8 +87,8 @@ func authMiddleware(token string, next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func handleCertifyAPI(baseCfg config.Config, jqClient *jobqueue.Client) http.HandlerFunc {
-	// Load scenarios once at handler construction — used for validation and path lookup.
+func handleCertifyAPI(baseCfg config.Config, orch *orchestrator.Orchestrator, dbURL string) http.HandlerFunc {
+	// Load scenarios once at handler construction.
 	scenarioPathMap := make(map[string]string) // ID → Path
 	if allScenarios, loadErr := scenario.LoadAll(baseCfg.ScenariosDir); loadErr == nil {
 		for _, s := range allScenarios {
@@ -170,7 +110,7 @@ func handleCertifyAPI(baseCfg config.Config, jqClient *jobqueue.Client) http.Han
 			return
 		}
 
-		// Validate and resolve scenario paths in one pass.
+		// Validate and resolve scenario paths.
 		var scenarioPaths []string
 		for _, sid := range req.Scenarios {
 			p, ok := scenarioPathMap[sid]
@@ -179,11 +119,6 @@ func handleCertifyAPI(baseCfg config.Config, jqClient *jobqueue.Client) http.Han
 				return
 			}
 			scenarioPaths = append(scenarioPaths, p)
-		}
-
-		jobID := req.JobID
-		if jobID == "" {
-			jobID = fmt.Sprintf("certify-%s", time.Now().UTC().Format("20060102-150405"))
 		}
 
 		parallel := baseCfg.Parallel
@@ -199,11 +134,21 @@ func handleCertifyAPI(baseCfg config.Config, jqClient *jobqueue.Client) http.Han
 			}
 		}
 
-		if err := jqClient.InsertBatch(r.Context(), scenarioPaths, req.Model, provider,
-			baseCfg.MCPServer, jobID, "", parallel); err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-			return
+		// Run async via orchestrator.
+		jobID := req.JobID
+		if jobID == "" {
+			jobID = fmt.Sprintf("certify-%s", time.Now().UTC().Format("20060102-150405"))
 		}
+
+		go func() {
+			runCtx := context.Background()
+			result, err := orch.RunParallel(runCtx, scenarioPaths, []string{req.Model}, 1, parallel, dbURL)
+			if err != nil {
+				log.Printf("[bench-service] certify job %s failed: %v", jobID, err)
+				return
+			}
+			log.Printf("[bench-service] certify job %s done: %d/%d passed", jobID, result.Passed, result.Total)
+		}()
 
 		writeJSON(w, http.StatusAccepted, map[string]string{
 			"job_id": jobID,

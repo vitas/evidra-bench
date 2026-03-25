@@ -17,20 +17,18 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"sync/atomic"
 
 	"samebits.com/evidra-infra-bench/pkg/adapter"
 	"samebits.com/evidra-infra-bench/pkg/artifact"
 	"samebits.com/evidra-infra-bench/pkg/config"
 	"samebits.com/evidra-infra-bench/pkg/environment"
 	"samebits.com/evidra-infra-bench/pkg/harness"
-	"samebits.com/evidra-infra-bench/pkg/jobqueue"
+	"samebits.com/evidra-infra-bench/pkg/orchestrator"
 	"samebits.com/evidra-infra-bench/pkg/report"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 	"samebits.com/evidra-infra-bench/pkg/skilldelta"
 	"samebits.com/evidra-infra-bench/pkg/store"
 	"samebits.com/evidra-infra-bench/pkg/tui"
-	"samebits.com/evidra-infra-bench/pkg/workspace"
 	"samebits.com/evidra/pkg/signalaudit"
 )
 
@@ -1260,162 +1258,42 @@ func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*sce
 	}
 
 	ctx := cmd.Context()
-	var completed, passed, failed int64
 
-	// Phase 1: Provision cluster once.
-	var kubeconfigPath string
-	var envProvider environment.Provider
-	switch cfg.EnvironmentProvider {
-	case "k3d":
-		p := environment.NewK3dProvider()
-		p.ReuseExisting = cfg.ReuseCluster
-		envProvider = p
-	default:
-		p := environment.NewKindProvider()
-		p.ReuseExisting = cfg.ReuseCluster
-		envProvider = p
-	}
-
-	handle, err := envProvider.Create(ctx, cfg.ClusterName)
+	orch := orchestrator.New(cfg, makeScenarioRunFunc())
+	kubeconfigPath, err := orch.Provision(ctx)
 	if err != nil {
-		return fmt.Errorf("provision cluster: %w", err)
+		return err
 	}
-	kubeconfigPath = handle.KubeconfigPath
-	log.Printf("[parallel] cluster %s ready, kubeconfig: %s", cfg.ClusterName, kubeconfigPath)
+	_ = kubeconfigPath
+	defer orch.Teardown(ctx)
 
-	// Phase 3 (deferred): Teardown cluster after all workers complete.
-	if !cfg.ReuseCluster {
-		defer func() {
-			log.Printf("[parallel] destroying cluster %s", cfg.ClusterName)
-			if destroyErr := envProvider.Destroy(ctx, handle); destroyErr != nil {
-				log.Printf("[parallel] warning: destroy failed: %v", destroyErr)
-			}
-		}()
+	var scenarioIDs []string
+	for _, s := range selected {
+		if !s.Skip {
+			scenarioIDs = append(scenarioIDs, s.Path)
+		}
 	}
 
-	// Open shared results store so parallel run results survive workspace cleanup.
-	sharedStore, storeErr := store.Open(cfg.RunsDir)
-	if storeErr != nil {
-		log.Printf("[parallel] warning: could not open shared store: %v", storeErr)
-	}
-	if sharedStore != nil {
-		defer sharedStore.Close()
-	}
-
-	// Phase 2: Run scenarios in parallel — each worker gets the pre-provisioned kubeconfig.
-	runFn := buildParallelRunFunc(cfg, &completed, &passed, &failed, sharedStore, kubeconfigPath)
-
-	client, err := jobqueue.NewClient(ctx, dbURL, cfg.Parallel, runFn)
+	result, err := orch.RunParallel(ctx, scenarioIDs, models, repeats, cfg.Parallel, dbURL)
 	if err != nil {
-		return fmt.Errorf("job queue: %w", err)
+		return err
 	}
 
-	if err := client.Migrate(ctx); err != nil {
-		return fmt.Errorf("river migrate: %w", err)
-	}
-
-	// Enqueue: models × scenarios × repeats.
-	var total int64
-	for _, model := range models {
-		for rep := 1; rep <= repeats; rep++ {
-			var ids []string
-			for _, s := range selected {
-				if !s.Skip {
-					ids = append(ids, s.Path)
-				}
-			}
-			jobID := fmt.Sprintf("bench-%s-r%d-%s", model, rep, time.Now().UTC().Format("20060102-150405"))
-			if err := client.InsertBatch(ctx, ids, model, cfg.Provider, cfg.MCPServer, jobID, "", cfg.Parallel); err != nil {
-				return fmt.Errorf("enqueue: %w", err)
-			}
-			total += int64(len(ids))
-		}
-	}
-	fmt.Fprintf(cmd.OutOrStdout(), "Enqueued %d runs across %d workers\n", total, cfg.Parallel)
-
-	// Start workers.
-	if err := client.Start(ctx); err != nil {
-		return fmt.Errorf("start workers: %w", err)
-	}
-
-	// Wait for all jobs to complete.
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-	for {
-		c := atomic.LoadInt64(&completed)
-		if c >= total {
-			break
-		}
-		select {
-		case <-ctx.Done():
-			client.Stop(ctx)
-			return ctx.Err()
-		case <-ticker.C:
-			p := atomic.LoadInt64(&passed)
-			f := atomic.LoadInt64(&failed)
-			fmt.Fprintf(cmd.OutOrStdout(), "Progress: %d/%d (pass=%d fail=%d)\n", c, total, p, f)
-		}
-	}
-
-	stopCtx, cancel := context.WithTimeout(context.Background(), config.GracefulStopTimeout)
-	defer cancel()
-	client.Stop(stopCtx)
-
-	p := atomic.LoadInt64(&passed)
-	f := atomic.LoadInt64(&failed)
-	fmt.Fprintf(cmd.OutOrStdout(), "\nCompleted: %d total, %d passed, %d failed\n", total, p, f)
+	fmt.Fprintf(cmd.OutOrStdout(), "\nCompleted: %d total, %d passed, %d failed\n",
+		result.Total, result.Passed, result.Failed)
 	return nil
 }
 
-// buildParallelRunFunc creates the RunFunc shared by CLI bench and serve.
-// Each invocation gets an isolated workspace with namespace rewriting.
-// The shared store ensures results survive workspace cleanup.
-// kubeconfigPath is the pre-provisioned cluster kubeconfig (empty = let harness provision).
-func buildParallelRunFunc(cfg config.Config, completed, passed, failed *int64, sharedStore *store.Store, kubeconfigPath string) jobqueue.RunFunc {
-	return func(ctx context.Context, args jobqueue.BenchJobArgs, ns string) error {
-		ws, err := workspace.New(
-			fmt.Sprintf("%s-%s-%d", args.ScenarioID, args.Model, time.Now().UnixNano()),
-			cfg.ScenariosDir,
-		)
-		if err != nil {
-			return fmt.Errorf("workspace: %w", err)
-		}
-		defer ws.Cleanup()
-
-		// Rewrite namespace across the entire workspace (scenarios + manifests + charts).
-		if err := workspace.RewriteNamespace(ws.Root, config.DefaultNamespace, ns); err != nil {
-			log.Printf("[worker-%d] namespace rewrite warning: %v", args.NamespaceSlot, err)
-		}
-
-		workerCfg := cfg
-		workerCfg.Scenario = args.ScenarioID
-		workerCfg.ScenariosDir = ws.ScenariosDir
-		workerCfg.RunsDir = ws.RunsDir
-		workerCfg.EvidraEvidenceDir = ws.EvidenceDir
-		workerCfg.Model = args.Model
-
-		scenarioPath := filepath.Join(ws.ScenariosDir, args.ScenarioID)
-		s, loadErr := scenario.Load(scenarioPath)
+// makeScenarioRunFunc creates the function that executes a single scenario.
+// This is the core run logic shared across all execution modes.
+func makeScenarioRunFunc() orchestrator.RunFunc {
+	return func(ctx context.Context, cfg config.Config, scenarioPath, targetNS, kubeconfigPath string, sharedStore *store.Store) error {
+		s, loadErr := scenario.Load(filepath.Join(cfg.ScenariosDir, scenarioPath))
 		if loadErr != nil {
 			return fmt.Errorf("load scenario: %w", loadErr)
 		}
-
-		// Pass the worker namespace and pre-provisioned kubeconfig to the harness.
-		// The harness skips cluster create/destroy when KubeconfigPath is set.
-		runResult, runErr := runScenarioOnceWithNamespace(ctx, workerCfg, s, ns, kubeconfigPath, sharedStore)
-		atomic.AddInt64(completed, 1)
-
-		if runErr != nil {
-			atomic.AddInt64(failed, 1)
-			log.Printf("[worker-%d] FAIL %s: %v", args.NamespaceSlot, args.ScenarioID, runErr)
-		} else if runResult != nil && runResult.Passed {
-			atomic.AddInt64(passed, 1)
-			log.Printf("[worker-%d] PASS %s (%s)", args.NamespaceSlot, args.ScenarioID, runResult.Duration)
-		} else {
-			atomic.AddInt64(failed, 1)
-			log.Printf("[worker-%d] FAIL %s", args.NamespaceSlot, args.ScenarioID)
-		}
-		return nil // don't fail River job on scenario failure
+		_, runErr := runScenarioOnceWithNamespace(ctx, cfg, s, targetNS, kubeconfigPath, sharedStore)
+		return runErr
 	}
 }
 
