@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { SCENARIOS, TRACK_LABELS } from "../data/catalog";
 
-const API_URL = import.meta.env.VITE_EVIDRA_API_URL || "https://api.evidra.cc";
+const API_URL = import.meta.env.VITE_EVIDRA_API_URL || "";
 const API_KEY = import.meta.env.VITE_EVIDRA_API_KEY || "";
 
 // Build lookup from scenario ID → track/level from our catalog

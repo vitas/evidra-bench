@@ -360,12 +360,10 @@ export function Run() {
             <p className="text-[0.72rem] text-fg-muted">
               Run this command locally.{" "}
               <a
-                href="https://evidra.cc/bench"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/bench"
                 className="text-accent hover:text-accent/80 transition-colors"
               >
-                View results at evidra.cc/bench
+                View results
               </a>{" "}
               after the run completes.
             </p>

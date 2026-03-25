@@ -148,7 +148,7 @@ function ModelMatrix() {
     if (selectedScenarioIDs.length > 0) params.set("scenarios", selectedScenarioIDs.join(","));
     request<ModelMatrixResponse>(`/v1/bench/compare/models?${params}${evidenceModeParam("&", mode)}`)
       .then(setData)
-      .catch(() => setError("Model comparison API not available yet. Use the old dashboard at bench.evidra.cc/compare"))
+      .catch(() => setError("Model comparison requires at least two models with bench runs."))
       .finally(() => setLoading(false));
   }, [activeModels, category, request, scenarios, mode]);
 

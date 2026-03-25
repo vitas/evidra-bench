@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import type { PuzzleMetadata } from "./yaml-generator";
 
-const API_BASE = import.meta.env.VITE_EVIDRA_API_URL || "https://api.evidra.cc";
+const API_BASE = import.meta.env.VITE_EVIDRA_API_URL || "";
 const API_KEY = import.meta.env.VITE_EVIDRA_API_KEY || "";
 
 interface PublishButtonProps {
