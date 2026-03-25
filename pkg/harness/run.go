@@ -209,7 +209,13 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 
 	// Step 2: Clean bench namespace before bootstrap (prevent leftover resources from prior runs).
 	// Delete all resources inside the namespace, not the namespace itself (avoids terminating race).
-	if req.Config.ReuseCluster && handle.KubeconfigPath != "" {
+	kubeconfigExists := handle.KubeconfigPath != ""
+	if kubeconfigExists {
+		if _, statErr := os.Stat(handle.KubeconfigPath); statErr != nil {
+			kubeconfigExists = false
+		}
+	}
+	if req.Config.ReuseCluster && kubeconfigExists {
 		for _, res := range []string{"all", "pvc", "configmap", "secret", "ingress", "networkpolicy"} {
 			cleanCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
 				"delete", res, "--all", "-n", ns, "--ignore-not-found", "--timeout=15s")
