@@ -191,7 +191,7 @@ func TestBuildVersionString_UsesBuildMetadata(t *testing.T) {
 	date = "2026-03-15T12:00:00Z"
 
 	got := buildVersionString()
-	want := "infra-bench v0.1.0-3-gabcdef0 (commit: abcdef0, built: 2026-03-15T12:00:00Z)"
+	want := "bench-cli v0.1.0-3-gabcdef0 (commit: abcdef0, built: 2026-03-15T12:00:00Z)"
 	if got != want {
 		t.Fatalf("buildVersionString() = %q, want %q", got, want)
 	}

@@ -83,12 +83,12 @@ jobs:
         run: |
           VERSION=${{ github.ref_name }}
           COMMIT=${{ github.sha }}
-          go build -ldflags "-X main.version=${VERSION} -X main.commit=${COMMIT}" -o infra-bench ./cmd/infra-bench/
+          go build -ldflags "-X main.version=${VERSION} -X main.commit=${COMMIT}" -o bench-cli ./cmd/bench-cli/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: evidra-stand/infra-bench
+          files: evidra-stand/bench-cli
           generate_release_notes: true
 
   docker:
@@ -106,7 +106,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository_owner }}/infra-bench
+          images: ghcr.io/${{ github.repository_owner }}/bench-cli
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -128,7 +128,7 @@ jobs:
           context: .
           file: Dockerfile.bench
           load: true
-          tags: infra-bench:smoke
+          tags: bench-cli:smoke
           build-args: |
             VERSION=${{ github.ref_name }}
             COMMIT=${{ github.sha }}
@@ -136,9 +136,9 @@ jobs:
 
       - name: Smoke test
         run: |
-          docker run --rm infra-bench:smoke --version \
+          docker run --rm bench-cli:smoke --version \
             || { echo "FAIL: smoke test failed"; exit 1; }
-          echo "PASS: infra-bench smoke test ok"
+          echo "PASS: bench-cli smoke test ok"
 
       - name: Push image
         uses: docker/build-push-action@v7

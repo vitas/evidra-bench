@@ -36,7 +36,7 @@ func NewMCPExecutor(ctx context.Context, command string, extraEnv []string) (*MC
 
 	client := mcp.NewClient(
 		&mcp.Implementation{
-			Name:    "infra-bench",
+			Name:    "bench-cli",
 			Version: "v1.0.0",
 		},
 		nil,

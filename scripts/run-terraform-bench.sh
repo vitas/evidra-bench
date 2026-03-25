@@ -70,7 +70,7 @@ for MODEL in "${MODELS[@]}"; do
     echo "  $SCENARIO / $MODEL"
     echo "════════════════════════════════════════"
 
-    if bin/infra-bench run \
+    if bin/bench-cli run \
       --scenario "$SCENARIO" \
       --model "$MODEL" \
       --provider bifrost \

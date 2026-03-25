@@ -27,9 +27,9 @@ ARG COMMIT=dev
 ARG BUILD_DATE=unknown
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
     -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" \
-    -o /infra-bench ./cmd/infra-bench
+    -o /bench-cli ./cmd/bench-cli
 
-# Runtime — Alpine with kubectl + infra-bench + evidra-mcp + scenarios.
+# Runtime — Alpine with kubectl + bench-cli + evidra-mcp + scenarios.
 FROM alpine:3.21
 
 ARG KUBECTL_VERSION=v1.32.0
@@ -45,7 +45,7 @@ RUN apk add --no-cache ca-certificates curl && \
     chmod +x kubectl && mv kubectl /usr/local/bin/ && \
     rm -rf /var/cache/apk/*
 
-COPY --from=bench-builder /infra-bench /usr/local/bin/infra-bench
+COPY --from=bench-builder /bench-cli /usr/local/bin/bench-cli
 COPY --from=bench-builder /evidra-mcp /usr/local/bin/evidra-mcp
 COPY scenarios/ /scenarios/
 COPY manifests/ /manifests/
@@ -56,5 +56,5 @@ EXPOSE 8090
 HEALTHCHECK --interval=5s --timeout=3s --retries=5 \
   CMD curl -fsS http://localhost:8090/healthz >/dev/null
 
-ENTRYPOINT ["infra-bench"]
+ENTRYPOINT ["bench-cli"]
 CMD ["serve"]

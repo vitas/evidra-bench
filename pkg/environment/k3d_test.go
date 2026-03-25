@@ -52,17 +52,17 @@ func TestK3dProvider_Create_ReusesExistingCluster(t *testing.T) {
 
 	runner := &stubRunner{
 		outputs: map[string][]byte{
-			"k3d cluster list --no-headers":  []byte("infra-bench   1/1   0/0   true\n"),
-			"k3d kubeconfig get infra-bench": []byte("apiVersion: v1\nkind: Config\n"),
+			"k3d cluster list --no-headers":  []byte("bench-cli   1/1   0/0   true\n"),
+			"k3d kubeconfig get bench-cli": []byte("apiVersion: v1\nkind: Config\n"),
 		},
 	}
 	p := &K3dProvider{Runner: runner, ReuseExisting: true}
 
-	handle, err := p.Create(context.Background(), "infra-bench")
+	handle, err := p.Create(context.Background(), "bench-cli")
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
-	if handle.ClusterName != "infra-bench" {
+	if handle.ClusterName != "bench-cli" {
 		t.Fatalf("unexpected cluster: %s", handle.ClusterName)
 	}
 	for _, cmd := range runner.seen {

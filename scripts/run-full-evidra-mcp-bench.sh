@@ -5,7 +5,7 @@
 # Prerequisites:
 #   - source .env && export $(grep -v '^#' .env | grep -v '^$' | xargs)
 #   - evidra-mcp installed (brew install samebits/tap/evidra or build from source)
-#   - kind cluster running (infra-bench creates one if needed)
+#   - kind cluster running (bench-cli creates one if needed)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -110,7 +110,7 @@ for MODEL in "${MODELS[@]}"; do
     echo ""
     echo "[$RUN_NUM/$TOTAL_RUNS] $SCENARIO / $MODEL (via evidra-mcp)"
 
-    if bin/infra-bench run \
+    if bin/bench-cli run \
       --scenario "$SCENARIO" \
       --model "$MODEL" \
       --provider bifrost \

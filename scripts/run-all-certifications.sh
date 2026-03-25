@@ -62,7 +62,7 @@ provider_key_for_model() {
 }
 
 # ── Build ──
-echo "Building infra-bench..."
+echo "Building bench-cli..."
 make build
 
 # ── Run ──
@@ -90,7 +90,7 @@ for EXAM in "${EXAMS[@]}"; do
     echo "  ${EXAM} / ${MODEL}"
     echo "════════════════════════════════════════"
 
-    if bin/infra-bench certify \
+    if bin/bench-cli certify \
       --track "$EXAM" \
       --model "$MODEL" \
       --provider "$PROVIDER" \

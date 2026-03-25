@@ -58,7 +58,7 @@ func (p *K3dProvider) Create(ctx context.Context, clusterName string) (*Handle, 
 		return nil, fmt.Errorf("environment.K3dProvider.Create: get kubeconfig: %w", err)
 	}
 
-	kubeconfigPath := filepath.Join(os.TempDir(), fmt.Sprintf("infra-bench-%s-kubeconfig", clusterName))
+	kubeconfigPath := filepath.Join(os.TempDir(), fmt.Sprintf("bench-cli-%s-kubeconfig", clusterName))
 	if err := os.WriteFile(kubeconfigPath, out, 0600); err != nil {
 		return nil, fmt.Errorf("environment.K3dProvider.Create: write kubeconfig: %w", err)
 	}

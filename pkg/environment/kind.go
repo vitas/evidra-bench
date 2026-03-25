@@ -112,7 +112,7 @@ func (p *KindProvider) CreateWithConfig(ctx context.Context, clusterName string,
 		return nil, fmt.Errorf("environment.KindProvider.Create: get kubeconfig: %w", err)
 	}
 
-	kubeconfigPath := filepath.Join(os.TempDir(), fmt.Sprintf("infra-bench-%s-kubeconfig", clusterName))
+	kubeconfigPath := filepath.Join(os.TempDir(), fmt.Sprintf("bench-cli-%s-kubeconfig", clusterName))
 	if err := os.WriteFile(kubeconfigPath, out, 0600); err != nil {
 		return nil, fmt.Errorf("environment.KindProvider.Create: write kubeconfig: %w", err)
 	}

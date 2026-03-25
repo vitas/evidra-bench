@@ -5,12 +5,12 @@
 # This script:
 # 1. Creates a dedicated kind cluster with ArgoCD pre-installed
 # 2. Runs ArgoCD scenarios against it
-# 3. Keeps the cluster for reuse (delete manually with: kind delete cluster --name infra-bench-argocd)
+# 3. Keeps the cluster for reuse (delete manually with: kind delete cluster --name bench-cli-argocd)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-CLUSTER_NAME="infra-bench-argocd"
+CLUSTER_NAME="bench-cli-argocd"
 ARGOCD_VERSION="v2.13.3"
 
 if [ -f "$PROJECT_DIR/.env" ]; then
@@ -91,7 +91,7 @@ for MODEL in "${MODELS[@]}"; do
     echo ""
     echo "════ $SCENARIO / $MODEL ════"
 
-    if bin/infra-bench run \
+    if bin/bench-cli run \
       --scenario "$SCENARIO" \
       --model "$MODEL" \
       --provider bifrost \

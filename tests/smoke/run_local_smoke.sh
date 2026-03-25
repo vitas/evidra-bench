@@ -3,9 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-BINARY="${ROOT_DIR}/bin/infra-bench"
+BINARY="${ROOT_DIR}/bin/bench-cli"
 
-echo "=== Using built infra-bench ==="
+echo "=== Using built bench-cli ==="
 cd "$ROOT_DIR"
 if [[ ! -x "$BINARY" ]]; then
   echo "missing built binary: $BINARY" >&2

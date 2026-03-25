@@ -37,7 +37,7 @@ var (
 )
 
 func buildVersionString() string {
-	return fmt.Sprintf("infra-bench %s (commit: %s, built: %s)", version, commit, date)
+	return fmt.Sprintf("bench-cli %s (commit: %s, built: %s)", version, commit, date)
 }
 
 func newRootCommand() *cobra.Command {
@@ -58,9 +58,9 @@ func newRootCommand() *cobra.Command {
 	auditOutputPath := ""
 
 	root := &cobra.Command{
-		Use:   "infra-bench",
+		Use:   "bench-cli",
 		Short: "Run infrastructure-agent benchmark scenarios",
-		Long: `infra-bench provisions disposable Kubernetes environments, injects
+		Long: `bench-cli provisions disposable Kubernetes environments, injects
 failures, executes real agents, and verifies outcomes.
 
 It produces local artifact bundles for debugging and dataset generation,
@@ -140,7 +140,7 @@ with optional Evidra reporting for behavioral analysis.`,
 			if err != nil {
 				return fmt.Errorf("resolve scenarios dir: %w", err)
 			}
-			cfgPath := ".infra-bench-lab.yaml"
+			cfgPath := ".bench-cli-lab.yaml"
 			labCfg = tui.LoadLabConfig(cfgPath)
 			// Inherit runs-dir from saved config if not overridden by flag
 			if !cmd.Flags().Changed("runs-dir") && labCfg.RunsDir != "" {
@@ -1127,7 +1127,7 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 // to prevent stale state from previous runs causing bootstrap failures.
 func cleanBenchNamespace(ctx context.Context, clusterName string, s *scenario.Scenario) {
 	// Use the provider's kubeconfig temp file (same path convention as providers).
-	kubeconfigPath := filepath.Join(os.TempDir(), fmt.Sprintf("infra-bench-%s-kubeconfig", clusterName))
+	kubeconfigPath := filepath.Join(os.TempDir(), fmt.Sprintf("bench-cli-%s-kubeconfig", clusterName))
 	if _, err := os.Stat(kubeconfigPath); err != nil {
 		// Fallback to KUBECONFIG env or default.
 		kubeconfigPath = os.Getenv("KUBECONFIG")

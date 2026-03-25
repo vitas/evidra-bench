@@ -316,7 +316,7 @@ func (a *App) runScenario() tea.Cmd {
 			Timeout:           a.cfg.TimeoutDuration(),
 			DryRun:            a.cfg.DryRun,
 			RunsDir:           a.runsDir,
-			ClusterName:       "infra-bench",
+			ClusterName:       "bench-cli",
 			EvidraEvidenceDir: a.cfg.EvidraEvidenceDir,
 			ProxyMode:         a.cfg.ProxyMode,
 			SmartPrescribe:    a.cfg.SmartPrescribe,
@@ -375,7 +375,7 @@ func (a *App) renderCatalog() string {
 
 	// Title bar
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("99"))
-	title := "infra-bench lab"
+	title := "bench-cli lab"
 	if a.dbTotal > 0 {
 		title += fmt.Sprintf("  %d runs %s", a.dbTotal, a.dbPassRate)
 	}
@@ -594,7 +594,7 @@ func (a *App) renderHelp() string {
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("99"))
 	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
 
-	b.WriteString(headerStyle.Render("infra-bench lab — Help"))
+	b.WriteString(headerStyle.Render("bench-cli lab — Help"))
 	b.WriteString("\n\n")
 	b.WriteString("  j/k, arrows   Navigate scenario list\n")
 	b.WriteString("  /             Search by text (id, title, tags)\n")

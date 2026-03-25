@@ -39,7 +39,7 @@ while IFS= read -r scenario; do
   kubectl --kubeconfig "$KUBECONFIG_PATH" delete ns bench-staging --ignore-not-found 2>/dev/null
   sleep 2
 
-  RESULT=$(bin/infra-bench run \
+  RESULT=$(bin/bench-cli run \
     --scenario "$scenario" \
     --provider "$PRIMARY_PROVIDER" \
     --model "$PRIMARY_MODEL" \
@@ -60,7 +60,7 @@ while IFS= read -r scenario; do
     ERROR_SCENARIOS+=("$scenario")
     echo "  $scenario: ERROR (will retry with $FALLBACK_PROVIDER)"
   fi
-done < <(bin/infra-bench scenario list 2>&1 | awk '{print $1}')
+done < <(bin/bench-cli scenario list 2>&1 | awk '{print $1}')
 
 echo ""
 echo "=== Primary results: PASS=$PASS FAIL=$FAIL ERROR=$ERROR ==="
@@ -78,7 +78,7 @@ if [ ${#ERROR_SCENARIOS[@]} -gt 0 ]; then
     sleep 2
 
     RETRIED=$((RETRIED + 1))
-    RESULT=$(bin/infra-bench run \
+    RESULT=$(bin/bench-cli run \
       --scenario "$scenario" \
       --provider "$FALLBACK_PROVIDER" \
       --model "$FALLBACK_MODEL" \

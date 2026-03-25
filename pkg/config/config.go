@@ -1,4 +1,4 @@
-// Package config defines run configuration for infra-bench.
+// Package config defines run configuration for bench-cli.
 package config
 
 import (
