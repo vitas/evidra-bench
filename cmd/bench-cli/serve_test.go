@@ -27,8 +27,10 @@ func TestBuildCertifyRunConfig_UsesRequestOverrides(t *testing.T) {
 	if got.Provider != "bifrost" {
 		t.Fatalf("Provider = %q, want bifrost", got.Provider)
 	}
-	if got.Adapter != "mcp" {
-		t.Fatalf("Adapter = %q, want mcp", got.Adapter)
+	// When provider is set, adapter override is skipped (provider mode
+	// uses its own agent loop, not CLI/MCP adapters).
+	if got.Adapter != "cli" {
+		t.Fatalf("Adapter = %q, want cli (provider mode ignores adapter override)", got.Adapter)
 	}
 	if got.Timeout != 120*time.Second {
 		t.Fatalf("Timeout = %s, want 2m0s", got.Timeout)

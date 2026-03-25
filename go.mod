@@ -65,4 +65,4 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 )
 
-replace samebits.com/evidra => ../evidra-benchmark
+replace samebits.com/evidra => ../evidra
