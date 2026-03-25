@@ -37,7 +37,18 @@ func New(cfg config.Config, runFn RunFunc) *Orchestrator {
 }
 
 // Provision creates or reuses the target cluster. Must be called before Run.
+// If KubeconfigPath is already set (e.g. via KUBECONFIG env), skips cluster
+// provisioning and uses the provided kubeconfig directly.
 func (o *Orchestrator) Provision(ctx context.Context) (string, error) {
+	if o.cfg.KubeconfigPath != "" {
+		o.cluster = &environment.Handle{
+			ClusterName:    o.cfg.ClusterName,
+			KubeconfigPath: o.cfg.KubeconfigPath,
+		}
+		log.Printf("[orchestrator] using existing kubeconfig: %s", o.cfg.KubeconfigPath)
+		return o.cfg.KubeconfigPath, nil
+	}
+
 	switch o.cfg.EnvironmentProvider {
 	case "k3d":
 		p := environment.NewK3dProvider()

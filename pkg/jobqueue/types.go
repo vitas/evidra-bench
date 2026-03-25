@@ -17,6 +17,7 @@ type BenchJobArgs struct {
 	Provider      string `json:"provider"`
 	MCPServer     string `json:"mcp_server,omitempty"`
 	NamespaceSlot int    `json:"namespace_slot"` // Round-robin slot for namespace isolation (bench-w0..bench-wN)
+	Parallel      int    `json:"parallel"`       // Total worker count; 1 = no namespace isolation
 }
 
 // Kind returns the River job kind identifier.

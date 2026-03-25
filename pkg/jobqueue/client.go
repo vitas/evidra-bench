@@ -98,6 +98,7 @@ func (c *Client) InsertBatch(ctx context.Context, scenarios []string, model, pro
 				Provider:      provider,
 				MCPServer:     mcpServer,
 				NamespaceSlot: i % parallel,
+				Parallel:      parallel,
 			},
 		})
 	}

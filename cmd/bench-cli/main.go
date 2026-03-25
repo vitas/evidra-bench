@@ -449,6 +449,9 @@ with optional Evidra reporting for behavioral analysis.`,
 			if os.Getenv("INFRA_BENCH_REUSE_CLUSTER") == "true" {
 				cfg.ReuseCluster = true
 			}
+			if v := os.Getenv("KUBECONFIG"); v != "" {
+				cfg.KubeconfigPath = v
+			}
 			return serveAPI(cfg, addr)
 		},
 	}

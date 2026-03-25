@@ -28,7 +28,10 @@ func NewBenchWorker(fn RunFunc) *BenchWorker {
 
 // Work executes a single scenario in an isolated namespace.
 func (w *BenchWorker) Work(ctx context.Context, job *river.Job[BenchJobArgs]) error {
-	ns := fmt.Sprintf("%s-w%d", config.DefaultNamespace, job.Args.NamespaceSlot)
+	ns := config.DefaultNamespace
+	if job.Args.Parallel > 1 {
+		ns = fmt.Sprintf("%s-w%d", config.DefaultNamespace, job.Args.NamespaceSlot)
+	}
 	log.Printf("[worker-%d] running %s / %s in namespace %s",
 		job.Args.NamespaceSlot, job.Args.ScenarioID, job.Args.Model, ns)
 
