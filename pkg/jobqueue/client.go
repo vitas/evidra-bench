@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -33,6 +34,7 @@ func NewClient(ctx context.Context, databaseURL string, parallel int, runFn RunF
 	river.AddWorker(workers, NewBenchWorker(runFn))
 
 	riverClient, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
+		JobTimeout: 10 * time.Minute, // Scenarios need time for bootstrap + agent loop + verify.
 		Queues: map[string]river.QueueConfig{
 			river.QueueDefault: {MaxWorkers: parallel},
 		},
