@@ -180,7 +180,9 @@ func buildCertifyRunConfig(baseCfg config.Config, req CertifyRequest) config.Con
 	if runCfg.Provider == "" {
 		runCfg.Provider = "bifrost"
 	}
-	if req.Config.Adapter != "" {
+	// Only override adapter if provider mode is not active.
+	// Provider mode uses its own agent loop, not CLI/MCP adapters.
+	if req.Config.Adapter != "" && runCfg.Provider == "" {
 		runCfg.Adapter = req.Config.Adapter
 	}
 	if req.Config.TimeoutPerScenario > 0 {
@@ -207,6 +209,9 @@ type evidraReporter struct {
 
 // OnScenario sends a progress webhook and (on completion) submits the bench run.
 func (r *evidraReporter) OnScenario(_ context.Context, ev orchestrator.ScenarioEvent) {
+	log.Printf("[evidra-reporter] %s %s/%s (completed=%d/%d, progressURL=%q)",
+		ev.Status, ev.ScenarioID, ev.Model, ev.Completed, ev.Total, r.progressURL)
+
 	// Send progress webhook.
 	r.sendProgress(ev)
 
@@ -250,6 +255,7 @@ func (r *evidraReporter) sendProgress(ev orchestrator.ScenarioEvent) {
 		log.Printf("[evidra-reporter] send progress: %v", err)
 		return
 	}
+	log.Printf("[evidra-reporter] progress POST %s → %d", r.progressURL, resp.StatusCode)
 	if err := resp.Body.Close(); err != nil {
 		log.Printf("[evidra-reporter] close progress response: %v", err)
 	}
@@ -295,6 +301,7 @@ func (r *evidraReporter) submitBenchRun(ev orchestrator.ScenarioEvent) {
 		log.Printf("[evidra-reporter] submit bench run: %v", err)
 		return
 	}
+	log.Printf("[evidra-reporter] bench run POST %s → %d", url, resp.StatusCode)
 	if err := resp.Body.Close(); err != nil {
 		log.Printf("[evidra-reporter] close bench run response: %v", err)
 	}
