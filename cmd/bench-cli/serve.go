@@ -8,12 +8,14 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"samebits.com/evidra-infra-bench/pkg/config"
+	"samebits.com/evidra-infra-bench/pkg/jobqueue"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"samebits.com/evidra-infra-bench/pkg/workspace"
 )
 
 // CertifyRequest matches the Evidra executor contract v1.0.0.
@@ -51,7 +53,43 @@ func serveAPI(cfg config.Config, addr string) error {
 		return fmt.Errorf("serve: --evidra-api-key required for bench service authentication")
 	}
 
-	// Sync scenarios to Evidra on startup so the UI dropdown is populated.
+	dbURL := cfg.ResolveDatabaseURL()
+	if dbURL == "" {
+		return fmt.Errorf("serve: --database-url required for bench service")
+	}
+
+	ctx := context.Background()
+
+	// Build the run function that River workers will call.
+	runFn := buildServeRunFunc(cfg)
+
+	parallel := cfg.Parallel
+	if parallel < 1 {
+		parallel = 1
+	}
+
+	jqClient, err := jobqueue.NewClient(ctx, dbURL, parallel, runFn)
+	if err != nil {
+		return fmt.Errorf("serve: job queue: %w", err)
+	}
+
+	if err := jqClient.Migrate(ctx); err != nil {
+		return fmt.Errorf("serve: river migrate: %w", err)
+	}
+
+	// Start River workers in background.
+	go func() {
+		if err := jqClient.Start(ctx); err != nil {
+			log.Printf("[bench-service] river stopped: %v", err)
+		}
+	}()
+	defer func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		jqClient.Stop(stopCtx)
+	}()
+
+	// Sync scenarios to Evidra on startup.
 	if cfg.EvidraURL != "" {
 		go func() {
 			if err := pushScenarios(cfg.ScenariosDir, cfg.EvidraURL, cfg.EvidraAPIKey); err != nil {
@@ -64,13 +102,13 @@ func serveAPI(cfg config.Config, addr string) error {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /v1/certify", authMiddleware(apiToken, handleCertifyAPI(cfg)))
+	mux.HandleFunc("POST /v1/certify", authMiddleware(apiToken, handleCertifyAPI(cfg, jqClient)))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.WriteString(w, `{"status":"ok"}`)
 	})
 
-	log.Printf("bench service listening on %s", addr)
+	log.Printf("bench service listening on %s (parallel=%d)", addr, parallel)
 	return http.ListenAndServe(addr, mux)
 }
 
@@ -86,10 +124,7 @@ func authMiddleware(token string, next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func handleCertifyAPI(baseCfg config.Config) http.HandlerFunc {
-	var mu sync.Mutex
-	running := false
-
+func handleCertifyAPI(baseCfg config.Config, jqClient *jobqueue.Client) http.HandlerFunc {
 	// Load valid scenario IDs for validation.
 	validScenarios := make(map[string]bool)
 	if allScenarios, loadErr := scenario.LoadAll(baseCfg.ScenariosDir); loadErr == nil {
@@ -99,7 +134,6 @@ func handleCertifyAPI(baseCfg config.Config) http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Limit request body to 1MB.
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 
 		var req CertifyRequest
@@ -113,7 +147,6 @@ func handleCertifyAPI(baseCfg config.Config) http.HandlerFunc {
 			return
 		}
 
-		// Validate scenario IDs against known scenarios.
 		for _, sid := range req.Scenarios {
 			if !validScenarios[sid] {
 				writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("unknown scenario: %q", sid)})
@@ -121,161 +154,108 @@ func handleCertifyAPI(baseCfg config.Config) http.HandlerFunc {
 			}
 		}
 
-		mu.Lock()
-		if running {
-			mu.Unlock()
-			writeJSON(w, http.StatusConflict, map[string]string{"error": "a certification run is already in progress"})
+		jobID := req.JobID
+		if jobID == "" {
+			jobID = fmt.Sprintf("certify-%s", time.Now().UTC().Format("20060102-150405"))
+		}
+
+		parallel := baseCfg.Parallel
+		if parallel < 1 {
+			parallel = 1
+		}
+
+		// Resolve scenario paths for enqueue.
+		var scenarioPaths []string
+		allScenarios, _ := scenario.LoadAll(baseCfg.ScenariosDir)
+		pathMap := make(map[string]string)
+		for _, s := range allScenarios {
+			pathMap[s.ID] = s.Path
+		}
+		for _, sid := range req.Scenarios {
+			if p, ok := pathMap[sid]; ok {
+				scenarioPaths = append(scenarioPaths, p)
+			}
+		}
+
+		provider := req.Provider
+		if provider == "" {
+			provider = "bifrost"
+		}
+
+		if err := jqClient.InsertBatch(r.Context(), scenarioPaths, req.Model, provider,
+			baseCfg.MCPServer, jobID, "", parallel); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
 		}
-		running = true
-		mu.Unlock()
-
-		// Build config for this run.
-		runCfg := baseCfg
-		runCfg.Model = req.Model
-		runCfg.Provider = req.Provider
-		if runCfg.Provider == "" {
-			runCfg.Provider = "bifrost"
-		}
-		if req.Callback.EvidraURL != "" {
-			runCfg.EvidraURL = req.Callback.EvidraURL
-		}
-		if req.Callback.EvidraAPIKey != "" {
-			runCfg.EvidraAPIKey = req.Callback.EvidraAPIKey
-		}
-
-		jobID := req.JobID
-		progressURL := req.Callback.ProgressURL
-		progressAuth := req.Callback.EvidraAPIKey // Bearer token for progress webhook
-		scenarios := req.Scenarios
-
-		// Start async with timeout (15min per scenario).
-		go func() {
-			defer func() {
-				mu.Lock()
-				running = false
-				mu.Unlock()
-			}()
-
-			timeout := time.Duration(len(scenarios)) * 15 * time.Minute
-			ctx, cancel := context.WithTimeout(context.Background(), timeout)
-			defer cancel()
-			completed := 0
-			total := len(scenarios)
-
-			for _, scenarioID := range scenarios {
-				// Notify: running.
-				sendProgress(progressURL, progressAuth, ProgressCallback{
-					ContractVersion: "v1.0.0",
-					JobID:           jobID,
-					Scenario:        scenarioID,
-					Status:          "running",
-					Completed:       completed,
-					Total:           total,
-				})
-
-				// Run the scenario using existing certify infrastructure.
-				cert, err := runCertifyScenario(ctx, runCfg, scenarioID)
-
-				completed++
-				status := "passed"
-				runID := ""
-				if err != nil || cert == nil || cert.Passed < cert.Total {
-					status = "failed"
-				}
-				if cert != nil {
-					runID = fmt.Sprintf("%s-%s-%s",
-						time.Now().UTC().Format("20060102-150405"),
-						scenarioID, runCfg.Model)
-				}
-
-				// Submit bench run to Evidra.
-				if runCfg.EvidraURL != "" && cert != nil {
-					submitBenchRun(runCfg, scenarioID, runID, cert)
-				}
-
-				// Notify: done.
-				sendProgress(progressURL, progressAuth, ProgressCallback{
-					ContractVersion: "v1.0.0",
-					JobID:           jobID,
-					Scenario:        scenarioID,
-					Status:          status,
-					RunID:           runID,
-					Completed:       completed,
-					Total:           total,
-				})
-			}
-		}()
 
 		writeJSON(w, http.StatusAccepted, map[string]string{
 			"job_id": jobID,
 			"status": "accepted",
+			"total":  fmt.Sprintf("%d", len(req.Scenarios)),
 		})
 	}
 }
 
-// runCertifyScenario runs a single scenario by ID.
-func runCertifyScenario(ctx context.Context, cfg config.Config, scenarioID string) (*CertResult, error) {
-	return runCertifySingleScenario(ctx, cfg, scenarioID)
-}
-
-// runCertifySingleScenario runs exactly one scenario by ID.
-func runCertifySingleScenario(ctx context.Context, cfg config.Config, scenarioID string) (*CertResult, error) {
-	scenariosDir := cfg.ScenariosDir
-	if scenariosDir == "" {
-		scenariosDir = "scenarios"
-	}
-
-	allScenarios, err := scenario.LoadAll(scenariosDir)
-	if err != nil {
-		return nil, fmt.Errorf("load scenarios: %w", err)
-	}
-
-	var target *scenario.Scenario
-	for _, s := range allScenarios {
-		if s.ID == scenarioID {
-			target = s
-			break
+// buildServeRunFunc creates the RunFunc for the serve command.
+func buildServeRunFunc(cfg config.Config) jobqueue.RunFunc {
+	return func(ctx context.Context, args jobqueue.BenchJobArgs, ns string) error {
+		ws, err := workspace.New(
+			fmt.Sprintf("%s-%s-%d", args.ScenarioID, args.Model, time.Now().UnixNano()),
+			cfg.ScenariosDir,
+		)
+		if err != nil {
+			return fmt.Errorf("workspace: %w", err)
 		}
+		defer ws.Cleanup()
+
+		scenarioDir := filepath.Join(ws.ScenariosDir, filepath.Dir(args.ScenarioID))
+		if err := workspace.RewriteNamespace(scenarioDir, "bench", ns); err != nil {
+			log.Printf("[serve-worker] namespace rewrite warning: %v", err)
+		}
+
+		workerCfg := cfg
+		workerCfg.Scenario = args.ScenarioID
+		workerCfg.ScenariosDir = ws.ScenariosDir
+		workerCfg.RunsDir = ws.RunsDir
+		workerCfg.EvidraEvidenceDir = ws.EvidenceDir
+		workerCfg.Model = args.Model
+		workerCfg.Provider = args.Provider
+
+		scenarioPath := filepath.Join(ws.ScenariosDir, args.ScenarioID)
+		s, loadErr := scenario.Load(scenarioPath)
+		if loadErr != nil {
+			return fmt.Errorf("load scenario: %w", loadErr)
+		}
+
+		runResult, runErr := runScenarioOnce(ctx, workerCfg, s)
+
+		if runErr != nil {
+			log.Printf("[serve-worker] FAIL %s/%s: %v", args.ScenarioID, args.Model, runErr)
+		} else if runResult != nil && runResult.Passed {
+			log.Printf("[serve-worker] PASS %s/%s (%s)", args.ScenarioID, args.Model, runResult.Duration)
+		} else {
+			log.Printf("[serve-worker] FAIL %s/%s", args.ScenarioID, args.Model)
+		}
+
+		// Submit to Evidra API if configured.
+		if workerCfg.EvidraURL != "" && runResult != nil {
+			passedCount := 0
+			if runResult.Passed {
+				passedCount = 1
+			}
+			submitBenchRun(workerCfg, args.ScenarioID,
+				fmt.Sprintf("%s-%s-%s", time.Now().UTC().Format("20060102-150405"), args.ScenarioID, args.Model),
+				&CertResult{
+					Model:    args.Model,
+					Provider: args.Provider,
+					Total:    1,
+					Passed:   passedCount,
+					Duration: runResult.Duration,
+				})
+		}
+
+		return nil // don't fail River job on scenario failure
 	}
-	if target == nil {
-		return nil, fmt.Errorf("scenario %q not found", scenarioID)
-	}
-
-	startTime := time.Now()
-	runDir := fmt.Sprintf("/tmp/bench-service/%s_%s", scenarioID, cfg.Model)
-
-	runCfg := cfg
-	runCfg.Scenario = target.Path
-	runCfg.RunsDir = runDir
-	runCfg.EvidraEvidenceDir = runDir + "/evidence"
-
-	if cfg.ReuseCluster {
-		cleanBenchNamespace(ctx, cfg.ClusterName, target)
-	}
-
-	runResult, runErr := runScenarioOnce(ctx, runCfg, target)
-
-	passed := false
-	if runErr == nil && runResult != nil {
-		passed = runResult.Passed
-	}
-
-	passedCount := 0
-	if passed {
-		passedCount = 1
-	}
-
-	return &CertResult{
-		Track:       target.Track,
-		Model:       cfg.Model,
-		Provider:    cfg.Provider,
-		Grade:       "single",
-		Total:       1,
-		Passed:      passedCount,
-		Duration:    time.Since(startTime),
-		CertifiedAt: time.Now().UTC(),
-	}, nil
 }
 
 func sendProgress(progressURL, authToken string, payload ProgressCallback) {
