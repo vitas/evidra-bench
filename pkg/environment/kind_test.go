@@ -69,7 +69,7 @@ func TestKindProvider_Create_ReusesExistingCluster(t *testing.T) {
 
 	runner := &stubRunner{
 		outputs: map[string][]byte{
-			"kind get clusters":                      []byte("bench-cli\n"),
+			"kind get clusters":                    []byte("bench-cli\n"),
 			"kind get kubeconfig --name bench-cli": []byte("apiVersion: v1\nkind: Config\n"),
 		},
 	}

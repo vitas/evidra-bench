@@ -52,8 +52,8 @@ func TestK3dProvider_Create_ReusesExistingCluster(t *testing.T) {
 
 	runner := &stubRunner{
 		outputs: map[string][]byte{
-			"k3d cluster list --no-headers":  []byte("bench-cli   1/1   0/0   true\n"),
-			"k3d kubeconfig get bench-cli": []byte("apiVersion: v1\nkind: Config\n"),
+			"k3d cluster list --no-headers": []byte("bench-cli   1/1   0/0   true\n"),
+			"k3d kubeconfig get bench-cli":  []byte("apiVersion: v1\nkind: Config\n"),
 		},
 	}
 	p := &K3dProvider{Runner: runner, ReuseExisting: true}
