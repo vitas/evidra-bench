@@ -25,7 +25,6 @@ export function Layout({ children }: { children: ReactNode }) {
     { value: "all", label: "All" },
     { value: "proxy", label: "Baseline" },
     { value: "smart", label: "Smart" },
-    { value: "direct", label: "Direct" },
   ];
 
   return (
