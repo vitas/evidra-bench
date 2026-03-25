@@ -15,11 +15,11 @@ jobs:
         with:
           path: bench
 
-      - name: Checkout parent (evidra-benchmark)
+      - name: Checkout evidra (parent module)
         uses: actions/checkout@v6
         with:
           repository: ${{ github.repository_owner }}/evidra
-          path: evidra-benchmark
+          path: evidra
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Go
