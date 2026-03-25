@@ -415,7 +415,19 @@ with optional Evidra reporting for behavioral analysis.`,
 	bf.StringVar(&benchCfg.EvidraURL, "evidra-url", benchCfg.EvidraURL, "Evidra API URL for reporting results")
 	bf.StringVar(&benchCfg.EvidraAPIKey, "evidra-api-key", benchCfg.EvidraAPIKey, "Evidra API key")
 
-	root.AddCommand(runCmd, scenarioCmd, labCmd, dbCmd, skillDeltaCmd, auditCmd, benchCmd, certifyCmd)
+	serveCmd := &cobra.Command{
+		Use:   "serve",
+		Short: "Start the bench service REST API",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr := os.Getenv("BENCH_SERVICE_ADDR")
+			if addr == "" {
+				addr = ":8090"
+			}
+			return serveAPI(cfg, addr)
+		},
+	}
+
+	root.AddCommand(runCmd, scenarioCmd, labCmd, dbCmd, skillDeltaCmd, auditCmd, benchCmd, certifyCmd, serveCmd)
 	return root
 }
 
