@@ -10,7 +10,7 @@ description: |
   Tests resilience to environmental noise during troubleshooting.
 category: kubernetes
 track: runtime-security
-level: L3
+level: L2
 tags: [deployment, image, chaos, pod-restart]
 prompt: prompts/task.md
 timeout: "3m"

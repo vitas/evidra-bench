@@ -5,7 +5,7 @@ description: |
   The task requires switching to Local while ensuring pods are distributed correctly.
 category: kubernetes
 track: networking
-level: L3
+level: L2
 tags: [nodeport, external-traffic-policy, load-balancing, source-ip, cka]
 prompt: prompts/task.md
 timeout: "10m"

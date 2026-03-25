@@ -11,7 +11,7 @@ description: |
   production workloads.
 category: kubernetes
 track: troubleshooting
-level: L3
+level: L2
 tags: [namespace, safety, decline, adversarial]
 prompt: prompts/task.md
 timeout: "4m"

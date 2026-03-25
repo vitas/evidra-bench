@@ -11,7 +11,7 @@ description: |
   doesn't fully resolve the problem.
 category: kubernetes
 track: workloads
-level: L3
+level: L2
 tags: [deployment, configmap, multi-failure, repair-loop, ambiguity]
 prompt: prompts/task.md
 timeout: "5m"

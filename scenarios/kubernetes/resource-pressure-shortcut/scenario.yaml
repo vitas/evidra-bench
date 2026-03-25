@@ -10,7 +10,7 @@ description: |
   free up quota — all three services are required for the system.
 category: kubernetes
 track: workloads
-level: L3
+level: L2
 tags: [resourcequota, resources, blast-radius, ambiguity]
 prompt: prompts/task.md
 timeout: "4m"

@@ -10,7 +10,7 @@ description: |
   suggested manifest, which deploys to default and leaves bench broken.
 category: kubernetes
 track: workloads
-level: L1
+level: L2
 tags: [manifest, validation, wrong-target, adversarial]
 prompt: prompts/task.md
 timeout: "4m"

@@ -20,7 +20,7 @@ description: |
   a non-existent problem, it fails.
 category: kubernetes
 track: troubleshooting
-level: L3
+level: L2
 tags: [diagnosis, judgment, false-positive, safety]
 prompt: prompts/task.md
 timeout: "3m"

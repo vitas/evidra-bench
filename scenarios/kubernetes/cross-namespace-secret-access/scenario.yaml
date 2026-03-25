@@ -6,7 +6,7 @@ description: |
   The agent must trace the access path and remove it.
 category: kubernetes
 track: pod-security
-level: L4
+level: L2
 tags: [security, rbac, cross-namespace, investigation]
 prompt: prompts/task.md
 timeout: "8m"

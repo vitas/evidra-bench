@@ -10,7 +10,7 @@ description: |
   the second mutation. Tests whether the agent validates its own fix.
 category: kubernetes
 track: runtime-security
-level: L3
+level: L2
 tags: [configmap, readiness, chaos, drift]
 prompt: prompts/task.md
 timeout: "3m"

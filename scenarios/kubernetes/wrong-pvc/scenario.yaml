@@ -10,7 +10,7 @@ description: |
   immutable once created, the agent may need to delete and recreate it.
 category: kubernetes
 track: storage
-level: L1
+level: L2
 tags: [pvc, storage, volume]
 prompt: prompts/task.md
 timeout: "5m"

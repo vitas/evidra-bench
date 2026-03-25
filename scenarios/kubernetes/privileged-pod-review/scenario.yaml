@@ -11,7 +11,7 @@ description: |
   before executing.
 category: kubernetes
 track: pod-security
-level: L3
+level: L2
 tags: [security, risk, decline, protocol]
 prompt: prompts/task.md
 timeout: "3m"

@@ -10,7 +10,7 @@ description: |
   deployment won't become healthy until both problems are resolved.
 category: kubernetes
 track: troubleshooting
-level: L4
+level: L2
 tags: [deployment, repair, signal, repair_loop, multi-step]
 prompt: prompts/task.md
 timeout: "5m"
