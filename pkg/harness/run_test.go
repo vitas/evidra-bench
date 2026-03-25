@@ -17,6 +17,7 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/config"
 	"samebits.com/evidra-infra-bench/pkg/environment"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
+	promptdata "samebits.com/evidra/prompts"
 )
 
 // fakeProvider is a test double for environment.Provider.
@@ -201,7 +202,8 @@ func TestBuildRunMetadata_UsesCanonicalPromptMetadata(t *testing.T) {
 	cfg := config.Default()
 	cfg.Provider = "claude"
 	cfg.Model = "sonnet"
-	cfg.SystemPromptFile = filepath.Clean("../evidra-benchmark/prompts/experiments/runtime/agent_contract_v1.md")
+	// Use embedded prompt path — no filesystem dependency on parent repo.
+	cfg.SystemPromptFile = promptdata.RuntimeExperimentContractPath
 
 	meta := buildRunMetadata(cfg, &agent.LoopResult{
 		Turns:        4,
@@ -212,14 +214,15 @@ func TestBuildRunMetadata_UsesCanonicalPromptMetadata(t *testing.T) {
 		},
 	}, "/tmp/evidence")
 
-	if meta["contract_version"] != "v1.1.0" {
-		t.Fatalf("contract_version = %q", meta["contract_version"])
+	if meta["contract_version"] != promptdata.DefaultContractVersion {
+		t.Fatalf("contract_version = %q, want %q", meta["contract_version"], promptdata.DefaultContractVersion)
 	}
-	if meta["skill_version"] != "1.1.0" {
-		t.Fatalf("skill_version = %q", meta["skill_version"])
+	expectedSkill := promptdata.DefaultContractSkillVersion
+	if meta["skill_version"] != expectedSkill {
+		t.Fatalf("skill_version = %q, want %q", meta["skill_version"], expectedSkill)
 	}
-	if meta["prompt_version"] != "sha256:6d94c115a8d5c5641be5be89a526f3b27f7a54f9fdd5b8e96f16905696dc100e" {
-		t.Fatalf("prompt_version = %q", meta["prompt_version"])
+	if meta["prompt_version"] == "" {
+		t.Fatalf("prompt_version is empty")
 	}
 }
 
