@@ -17,16 +17,20 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"sync/atomic"
+
 	"samebits.com/evidra-infra-bench/pkg/adapter"
 	"samebits.com/evidra-infra-bench/pkg/artifact"
 	"samebits.com/evidra-infra-bench/pkg/config"
 	"samebits.com/evidra-infra-bench/pkg/environment"
 	"samebits.com/evidra-infra-bench/pkg/harness"
+	"samebits.com/evidra-infra-bench/pkg/jobqueue"
 	"samebits.com/evidra-infra-bench/pkg/report"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 	"samebits.com/evidra-infra-bench/pkg/skilldelta"
 	"samebits.com/evidra-infra-bench/pkg/store"
 	"samebits.com/evidra-infra-bench/pkg/tui"
+	"samebits.com/evidra-infra-bench/pkg/workspace"
 	"samebits.com/evidra/pkg/signalaudit"
 )
 
@@ -969,6 +973,11 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 		return fmt.Errorf("no scenarios matched filters")
 	}
 
+	// Parallel execution via River job queue.
+	if cfg.Parallel > 1 {
+		return executeBenchParallel(cmd, cfg, selected, models, repeats)
+	}
+
 	stamp := time.Now().UTC().Format("20060102-150405")
 	outDir := filepath.Join(cfg.RunsDir, "bench", stamp)
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
@@ -1176,6 +1185,133 @@ func cleanBenchNamespace(ctx context.Context, clusterName string, s *scenario.Sc
 			time.Sleep(2 * time.Second)
 		}
 	}
+}
+
+func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*scenario.Scenario, models []string, repeats int) error {
+	dbURL := cfg.ResolveDatabaseURL()
+	if dbURL == "" {
+		return fmt.Errorf("--database-url required for parallel execution (or set BENCH_DATABASE_URL)")
+	}
+
+	ctx := cmd.Context()
+	var completed, passed, failed int64
+
+	// Build scenario ID list (expand models × repeats).
+	var scenarioIDs []string
+	for _, s := range selected {
+		if s.Skip {
+			continue
+		}
+		for _, model := range models {
+			for rep := 1; rep <= repeats; rep++ {
+				_ = rep
+				_ = model
+				scenarioIDs = append(scenarioIDs, s.Path)
+			}
+		}
+	}
+
+	runFn := func(ctx context.Context, args jobqueue.BenchJobArgs, ns string) error {
+		ws, err := workspace.New(fmt.Sprintf("%s-%s-%d", args.ScenarioID, args.Model, time.Now().UnixNano()), cfg.ScenariosDir)
+		if err != nil {
+			return fmt.Errorf("workspace: %w", err)
+		}
+		defer ws.Cleanup()
+
+		// Rewrite namespace in workspace copy.
+		scenarioRelDir := args.ScenarioID
+		scenarioDir := filepath.Join(ws.ScenariosDir, filepath.Dir(scenarioRelDir))
+		if err := workspace.RewriteNamespace(scenarioDir, "bench", ns); err != nil {
+			log.Printf("[worker-%d] namespace rewrite warning: %v", args.WorkerID, err)
+		}
+
+		workerCfg := cfg
+		workerCfg.Scenario = args.ScenarioID
+		workerCfg.ScenariosDir = ws.ScenariosDir
+		workerCfg.RunsDir = ws.RunsDir
+		workerCfg.EvidraEvidenceDir = ws.EvidenceDir
+		workerCfg.Model = args.Model
+
+		scenarioPath := filepath.Join(ws.ScenariosDir, args.ScenarioID)
+		s, loadErr := scenario.Load(scenarioPath)
+		if loadErr != nil {
+			return fmt.Errorf("load scenario: %w", loadErr)
+		}
+
+		runResult, runErr := runScenarioOnce(ctx, workerCfg, s)
+		atomic.AddInt64(&completed, 1)
+
+		if runErr != nil {
+			atomic.AddInt64(&failed, 1)
+			log.Printf("[worker-%d] FAIL %s: %v", args.WorkerID, args.ScenarioID, runErr)
+		} else if runResult != nil && runResult.Passed {
+			atomic.AddInt64(&passed, 1)
+			log.Printf("[worker-%d] PASS %s (%s)", args.WorkerID, args.ScenarioID, runResult.Duration)
+		} else {
+			atomic.AddInt64(&failed, 1)
+			log.Printf("[worker-%d] FAIL %s", args.WorkerID, args.ScenarioID)
+		}
+		return nil // don't fail the River job on scenario failure
+	}
+
+	client, err := jobqueue.NewClient(ctx, dbURL, cfg.Parallel, runFn)
+	if err != nil {
+		return fmt.Errorf("job queue: %w", err)
+	}
+
+	if err := client.Migrate(ctx); err != nil {
+		return fmt.Errorf("river migrate: %w", err)
+	}
+
+	// Build per-model scenario lists and enqueue.
+	for _, model := range models {
+		var ids []string
+		for _, s := range selected {
+			if !s.Skip {
+				ids = append(ids, s.Path)
+			}
+		}
+		jobID := fmt.Sprintf("bench-%s-%s", model, time.Now().UTC().Format("20060102-150405"))
+		if err := client.InsertBatch(ctx, ids, model, cfg.Provider, cfg.MCPServer, jobID, "", cfg.Parallel); err != nil {
+			return fmt.Errorf("enqueue: %w", err)
+		}
+	}
+
+	total := int64(len(scenarioIDs))
+	fmt.Fprintf(cmd.OutOrStdout(), "Enqueued %d runs across %d workers\n", total, cfg.Parallel)
+
+	// Start workers.
+	if err := client.Start(ctx); err != nil {
+		return fmt.Errorf("start workers: %w", err)
+	}
+
+	// Wait for all jobs to complete.
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		c := atomic.LoadInt64(&completed)
+		if c >= total {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			client.Stop(ctx)
+			return ctx.Err()
+		case <-ticker.C:
+			p := atomic.LoadInt64(&passed)
+			f := atomic.LoadInt64(&failed)
+			fmt.Fprintf(cmd.OutOrStdout(), "Progress: %d/%d (pass=%d fail=%d)\n", c, total, p, f)
+		}
+	}
+
+	stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	client.Stop(stopCtx)
+
+	p := atomic.LoadInt64(&passed)
+	f := atomic.LoadInt64(&failed)
+	fmt.Fprintf(cmd.OutOrStdout(), "\nCompleted: %d total, %d passed, %d failed\n", total, p, f)
+	return nil
 }
 
 func main() {
