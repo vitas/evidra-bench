@@ -41,8 +41,8 @@ interface ScenarioPair {
 
 /* ── Helpers ── */
 
-function hasSkill(metadataJson: string): boolean {
-  return metadataJson.includes("skill_version");
+function hasSkill(metadataJson: string | null | undefined): boolean {
+  return (metadataJson ?? "").includes("skill_version");
 }
 
 function formatPct(n: number): string {
