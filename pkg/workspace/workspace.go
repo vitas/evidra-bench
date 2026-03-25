@@ -10,7 +10,8 @@ import (
 )
 
 // Workspace provides an isolated directory for a single bench job.
-// Scenarios are copied so agent writes never touch the source repo.
+// Scenarios and supporting directories (manifests, charts) are copied
+// so agent writes never touch the source repo.
 type Workspace struct {
 	Root         string
 	ScenariosDir string
@@ -19,7 +20,8 @@ type Workspace struct {
 }
 
 // New creates an isolated workspace for the given job ID.
-// Copies srcScenariosDir into the workspace so it's writable.
+// Copies srcScenariosDir and sibling directories (manifests/, charts/)
+// into the workspace so relative paths (../../../manifests/) resolve correctly.
 // The caller must call Cleanup when done to remove the temp directory.
 func New(jobID string, srcScenariosDir string) (*Workspace, error) {
 	root := filepath.Join(os.TempDir(), "bench-jobs", jobID)
@@ -32,6 +34,17 @@ func New(jobID string, srcScenariosDir string) (*Workspace, error) {
 
 	if err := copyDir(srcScenariosDir, ws.ScenariosDir); err != nil {
 		return nil, fmt.Errorf("workspace: copy scenarios: %w", err)
+	}
+
+	// Copy sibling directories that scenarios reference via ../../../ xxx paths.
+	repoRoot := filepath.Dir(srcScenariosDir)
+	for _, sibling := range []string{"manifests", "charts"} {
+		srcPath := filepath.Join(repoRoot, sibling)
+		if info, err := os.Stat(srcPath); err == nil && info.IsDir() {
+			if err := copyDir(srcPath, filepath.Join(root, sibling)); err != nil {
+				return nil, fmt.Errorf("workspace: copy %s: %w", sibling, err)
+			}
+		}
 	}
 	if err := os.MkdirAll(ws.RunsDir, 0755); err != nil {
 		return nil, fmt.Errorf("workspace: mkdir runs: %w", err)

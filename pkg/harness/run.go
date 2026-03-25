@@ -241,7 +241,22 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		cleanCmd.CombinedOutput()
 	}
 
-	// Step 2b: Bootstrap.
+	// Step 2b: Ensure target namespace exists (parallel workers use non-default namespaces).
+	if handle.KubeconfigPath != "" {
+		nsCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
+			"create", "namespace", ns, "--dry-run=client", "-o", "yaml")
+		nsApply := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath, "apply", "-f", "-")
+		pipe, _ := nsCmd.StdoutPipe()
+		nsApply.Stdin = pipe
+		if err := nsCmd.Start(); err == nil {
+			if err := nsApply.Start(); err == nil {
+				nsCmd.Wait()
+				nsApply.Wait()
+			}
+		}
+	}
+
+	// Step 2c: Bootstrap.
 	if h.deps.Bootstrapper != nil {
 		plan := buildBootstrapPlan(s, req.Config.ScenariosDir)
 		if err := h.deps.Bootstrapper.Execute(ctx, plan, handle.KubeconfigPath); err != nil {

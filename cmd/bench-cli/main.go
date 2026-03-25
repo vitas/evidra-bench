@@ -420,6 +420,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	bf.IntVar(&benchCfg.MemoryWindow, "memory-window", -1, "memory window")
 	bf.StringVar(&benchCfg.EvidraURL, "evidra-url", benchCfg.EvidraURL, "Evidra API URL for reporting results")
 	bf.StringVar(&benchCfg.EvidraAPIKey, "evidra-api-key", benchCfg.EvidraAPIKey, "Evidra API key")
+	bf.StringVar(&benchCfg.MCPServer, "mcp-server", "", "MCP server command (e.g. 'evidra-mcp --signing-mode optional')")
 	bf.IntVar(&benchCfg.Parallel, "parallel", 1, "number of parallel workers (1 = sequential)")
 	bf.StringVar(&benchCfg.DatabaseURL, "database-url", "", "PostgreSQL URL for job queue (env: BENCH_DATABASE_URL)")
 
@@ -1351,9 +1352,8 @@ func buildParallelRunFunc(cfg config.Config, completed, passed, failed *int64, s
 		}
 		defer ws.Cleanup()
 
-		// Rewrite namespace in workspace copy.
-		scenarioDir := filepath.Join(ws.ScenariosDir, filepath.Dir(args.ScenarioID))
-		if err := workspace.RewriteNamespace(scenarioDir, config.DefaultNamespace, ns); err != nil {
+		// Rewrite namespace across the entire workspace (scenarios + manifests + charts).
+		if err := workspace.RewriteNamespace(ws.Root, config.DefaultNamespace, ns); err != nil {
 			log.Printf("[worker-%d] namespace rewrite warning: %v", args.NamespaceSlot, err)
 		}
 
