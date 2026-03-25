@@ -271,7 +271,7 @@ func (r *evidraReporter) submitBenchRun(ev orchestrator.ScenarioEvent) {
 		"model":            ev.Model,
 		"provider":         ev.Provider,
 		"adapter":          "bench-cli",
-		"evidence_mode":    "direct",
+		"evidence_mode":    "smart",
 		"passed":           ev.Passed,
 		"duration_seconds": ev.Duration.Seconds(),
 		"checks_passed":    boolToInt(ev.Passed),
