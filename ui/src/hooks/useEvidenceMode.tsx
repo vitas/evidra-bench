@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 
-export type EvidenceMode = "proxy" | "smart";
+export type EvidenceMode = "all" | "proxy" | "smart" | "direct";
 
 interface EvidenceModeCtx {
   mode: EvidenceMode;
@@ -8,14 +8,15 @@ interface EvidenceModeCtx {
 }
 
 const EvidenceModeContext = createContext<EvidenceModeCtx>({
-  mode: "proxy",
+  mode: "all",
   setMode: () => {},
 });
 
 export function EvidenceModeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<EvidenceMode>(() => {
     const saved = localStorage.getItem("evidra-bench-evidence-mode");
-    return saved === "smart" ? "smart" : "proxy";
+    if (saved === "proxy" || saved === "smart" || saved === "direct") return saved;
+    return "all";
   });
 
   const setMode = (m: EvidenceMode) => {

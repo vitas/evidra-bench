@@ -14,19 +14,19 @@ export function normalizeCatalog(catalog: CatalogResponse): CatalogResponse {
   };
 }
 
-/** Default evidence mode for all API queries. Proxy = fair infra-only comparison. */
-export const DEFAULT_EVIDENCE_MODE = "proxy";
+/** Default evidence mode for all API queries. "all" = no filter. */
+export const DEFAULT_EVIDENCE_MODE = "all";
 
 /** Append evidence_mode param to a URLSearchParams object. */
 export function applyEvidenceMode(params: URLSearchParams, mode?: string): void {
   const m = mode ?? DEFAULT_EVIDENCE_MODE;
-  if (m) params.set("evidence_mode", m);
+  if (m && m !== "all") params.set("evidence_mode", m);
 }
 
-/** Build query string fragment: ?evidence_mode=proxy or &evidence_mode=proxy */
+/** Build query string fragment: ?evidence_mode=X or &evidence_mode=X. Empty for "all". */
 export function evidenceModeParam(prefix: "?" | "&", mode?: string): string {
   const m = mode ?? DEFAULT_EVIDENCE_MODE;
-  return m ? `${prefix}evidence_mode=${encodeURIComponent(m)}` : "";
+  return m && m !== "all" ? `${prefix}evidence_mode=${encodeURIComponent(m)}` : "";
 }
 
 export function buildRunsPath(limit: number, since?: string, mode?: string): string {
