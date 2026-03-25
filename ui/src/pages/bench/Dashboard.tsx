@@ -139,16 +139,17 @@ export function Dashboard() {
     setLoading(true);
 
     const since = periodToSince(period);
-    const sinceParam = since ? `&since=${encodeURIComponent(since)}` : "";
-    const modeFirst = evidenceModeParam("?", mode);
+    const modeQ = evidenceModeParam("?", mode);
     const modeAmp = evidenceModeParam("&", mode);
+    // When evidence mode is "all", modeQ is empty so since needs "?" prefix.
+    const sinceQ = since ? `${modeQ ? "&" : "?"}since=${encodeURIComponent(since)}` : "";
     const sinceAmp = since ? `&since=${encodeURIComponent(since)}` : "";
 
     Promise.all([
-      request<Stats>(`/v1/bench/stats${modeFirst}${sinceAmp}`),
+      request<Stats>(`/v1/bench/stats${modeQ}${sinceQ}`),
       request<RunsResponse>(buildRunsPath(8, since, mode)),
-      request<RunsResponse>(`/v1/bench/runs?limit=500${modeAmp}${sinceParam}`),
-      request<SignalAggregation>(`/v1/bench/signals${modeFirst}${sinceAmp}`).catch(() => null),
+      request<RunsResponse>(`/v1/bench/runs?limit=500${modeAmp}${sinceAmp}`),
+      request<SignalAggregation>(`/v1/bench/signals${modeQ}${sinceQ}`).catch(() => null),
     ])
       .then(([s, recent, all, sig]) => {
         if (cancelled) return;
