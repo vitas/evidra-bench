@@ -596,10 +596,16 @@ func runScenarioOnce(ctx context.Context, cfg config.Config, s *scenario.Scenari
 	return result, nil
 }
 
+// ParallelRunOpts configures a parallel worker run.
+type ParallelRunOpts struct {
+	TargetNamespace string       // Worker namespace (e.g. "bench-w0")
+	KubeconfigPath  string       // Pre-provisioned cluster kubeconfig
+	SharedStore     *store.Store // Shared results store (survives workspace cleanup)
+}
+
 // runScenarioOnceWithNamespace runs a scenario with a specific target namespace.
-// Used by parallel workers where each worker has its own namespace.
-// If sharedStore is non-nil, results are written there instead of a workspace-local store.
-func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *scenario.Scenario, targetNS string, sharedStore ...*store.Store) (*harness.RunResult, error) {
+// Used by parallel workers where each worker has its own namespace and pre-provisioned cluster.
+func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *scenario.Scenario, targetNS, kubeconfigPath string, sharedStore *store.Store) (*harness.RunResult, error) {
 	var agentAdapter adapter.Adapter
 	switch cfg.Adapter {
 	case "cli":
@@ -610,17 +616,8 @@ func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *sce
 		return nil, fmt.Errorf("unknown adapter: %s", cfg.Adapter)
 	}
 
-	var envProvider environment.Provider
-	switch cfg.EnvironmentProvider {
-	case "k3d":
-		p := environment.NewK3dProvider()
-		p.ReuseExisting = cfg.ReuseCluster
-		envProvider = p
-	default:
-		p := environment.NewKindProvider()
-		p.ReuseExisting = cfg.ReuseCluster
-		envProvider = p
-	}
+	// No environment provider needed — cluster is pre-provisioned.
+	// The harness will skip create/destroy when KubeconfigPath is set.
 	runner := &environment.ExecRunner{}
 	bootstrapper := environment.NewBootstrapper(runner)
 	writer := artifact.NewWriter(cfg.RunsDir)
@@ -631,8 +628,8 @@ func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *sce
 
 	// Use shared store if provided (parallel mode), otherwise open workspace-local.
 	var resultsStore *store.Store
-	if len(sharedStore) > 0 && sharedStore[0] != nil {
-		resultsStore = sharedStore[0]
+	if sharedStore != nil {
+		resultsStore = sharedStore
 	} else {
 		var storeErr error
 		resultsStore, storeErr = store.Open(cfg.RunsDir)
@@ -645,7 +642,6 @@ func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *sce
 	}
 
 	h := harness.New(harness.Deps{
-		EnvProvider:  envProvider,
 		Bootstrapper: bootstrapper,
 		Adapter:      agentAdapter,
 		Writer:       writer,
@@ -657,6 +653,7 @@ func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *sce
 		Config:          cfg,
 		Scenario:        s,
 		TargetNamespace: targetNS,
+		KubeconfigPath:  kubeconfigPath,
 	})
 	if runErr != nil {
 		return nil, runErr
@@ -1265,6 +1262,37 @@ func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*sce
 	ctx := cmd.Context()
 	var completed, passed, failed int64
 
+	// Phase 1: Provision cluster once.
+	var kubeconfigPath string
+	var envProvider environment.Provider
+	switch cfg.EnvironmentProvider {
+	case "k3d":
+		p := environment.NewK3dProvider()
+		p.ReuseExisting = cfg.ReuseCluster
+		envProvider = p
+	default:
+		p := environment.NewKindProvider()
+		p.ReuseExisting = cfg.ReuseCluster
+		envProvider = p
+	}
+
+	handle, err := envProvider.Create(ctx, cfg.ClusterName)
+	if err != nil {
+		return fmt.Errorf("provision cluster: %w", err)
+	}
+	kubeconfigPath = handle.KubeconfigPath
+	log.Printf("[parallel] cluster %s ready, kubeconfig: %s", cfg.ClusterName, kubeconfigPath)
+
+	// Phase 3 (deferred): Teardown cluster after all workers complete.
+	if !cfg.ReuseCluster {
+		defer func() {
+			log.Printf("[parallel] destroying cluster %s", cfg.ClusterName)
+			if destroyErr := envProvider.Destroy(ctx, handle); destroyErr != nil {
+				log.Printf("[parallel] warning: destroy failed: %v", destroyErr)
+			}
+		}()
+	}
+
 	// Open shared results store so parallel run results survive workspace cleanup.
 	sharedStore, storeErr := store.Open(cfg.RunsDir)
 	if storeErr != nil {
@@ -1274,7 +1302,8 @@ func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*sce
 		defer sharedStore.Close()
 	}
 
-	runFn := buildParallelRunFunc(cfg, &completed, &passed, &failed, sharedStore)
+	// Phase 2: Run scenarios in parallel — each worker gets the pre-provisioned kubeconfig.
+	runFn := buildParallelRunFunc(cfg, &completed, &passed, &failed, sharedStore, kubeconfigPath)
 
 	client, err := jobqueue.NewClient(ctx, dbURL, cfg.Parallel, runFn)
 	if err != nil {
@@ -1341,7 +1370,8 @@ func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*sce
 // buildParallelRunFunc creates the RunFunc shared by CLI bench and serve.
 // Each invocation gets an isolated workspace with namespace rewriting.
 // The shared store ensures results survive workspace cleanup.
-func buildParallelRunFunc(cfg config.Config, completed, passed, failed *int64, sharedStore *store.Store) jobqueue.RunFunc {
+// kubeconfigPath is the pre-provisioned cluster kubeconfig (empty = let harness provision).
+func buildParallelRunFunc(cfg config.Config, completed, passed, failed *int64, sharedStore *store.Store, kubeconfigPath string) jobqueue.RunFunc {
 	return func(ctx context.Context, args jobqueue.BenchJobArgs, ns string) error {
 		ws, err := workspace.New(
 			fmt.Sprintf("%s-%s-%d", args.ScenarioID, args.Model, time.Now().UnixNano()),
@@ -1370,9 +1400,9 @@ func buildParallelRunFunc(cfg config.Config, completed, passed, failed *int64, s
 			return fmt.Errorf("load scenario: %w", loadErr)
 		}
 
-		// Pass the worker namespace to the harness via RunRequest.TargetNamespace
-		// so cleanup and env vars use the correct namespace.
-		runResult, runErr := runScenarioOnceWithNamespace(ctx, workerCfg, s, ns, sharedStore)
+		// Pass the worker namespace and pre-provisioned kubeconfig to the harness.
+		// The harness skips cluster create/destroy when KubeconfigPath is set.
+		runResult, runErr := runScenarioOnceWithNamespace(ctx, workerCfg, s, ns, kubeconfigPath, sharedStore)
 		atomic.AddInt64(completed, 1)
 
 		if runErr != nil {

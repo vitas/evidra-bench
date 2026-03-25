@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"samebits.com/evidra-infra-bench/pkg/config"
+	"samebits.com/evidra-infra-bench/pkg/environment"
 	"samebits.com/evidra-infra-bench/pkg/jobqueue"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 	"samebits.com/evidra-infra-bench/pkg/store"
@@ -55,9 +56,35 @@ func serveAPI(cfg config.Config, addr string) error {
 		defer sharedStore.Close()
 	}
 
+	// Provision cluster once for all workers.
+	var envProvider environment.Provider
+	switch cfg.EnvironmentProvider {
+	case "k3d":
+		p := environment.NewK3dProvider()
+		p.ReuseExisting = cfg.ReuseCluster
+		envProvider = p
+	default:
+		p := environment.NewKindProvider()
+		p.ReuseExisting = cfg.ReuseCluster
+		envProvider = p
+	}
+	handle, provErr := envProvider.Create(ctx, cfg.ClusterName)
+	if provErr != nil {
+		return fmt.Errorf("serve: provision cluster: %w", provErr)
+	}
+	kubeconfigPath := handle.KubeconfigPath
+	log.Printf("[bench-service] cluster %s ready, kubeconfig: %s", cfg.ClusterName, kubeconfigPath)
+	if !cfg.ReuseCluster {
+		defer func() {
+			if err := envProvider.Destroy(ctx, handle); err != nil {
+				log.Printf("[bench-service] warning: destroy cluster: %v", err)
+			}
+		}()
+	}
+
 	// Build the run function that River workers will call.
 	var completed, passed, failed int64
-	runFn := buildParallelRunFunc(cfg, &completed, &passed, &failed, sharedStore)
+	runFn := buildParallelRunFunc(cfg, &completed, &passed, &failed, sharedStore, kubeconfigPath)
 
 	parallel := cfg.Parallel
 	if parallel < 1 {

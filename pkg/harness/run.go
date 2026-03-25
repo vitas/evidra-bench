@@ -55,6 +55,7 @@ type RunRequest struct {
 	Scenario        *scenario.Scenario
 	ExtraEnv        []string // Additional env vars for the agent executor (e.g., AWS_ENDPOINT_URL)
 	TargetNamespace string   // Override namespace (default: "bench")
+	KubeconfigPath  string   // Pre-provisioned kubeconfig — skip cluster create/destroy if set
 }
 
 // RunResult holds the outcome of a harness run.
@@ -108,24 +109,33 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}, nil
 	}
 
-	// Use CreateWithConfig when the provider supports it and the scenario
-	// declares Kubernetes infrastructure requirements.
 	k8s := s.Environment.Kubernetes
-	if kp, ok := h.deps.EnvProvider.(*environment.KindProvider); ok && (k8s.CNI != "" || len(k8s.Addons) > 0 || len(k8s.Runtimes) > 0 || len(k8s.Features) > 0) {
-		handle, err = kp.CreateWithConfig(ctx, req.Config.ClusterName, k8s)
-	} else {
-		handle, err = h.deps.EnvProvider.Create(ctx, req.Config.ClusterName)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("harness.Run: create environment: %w", err)
-	}
-	defer func() {
-		if !req.Config.ReuseCluster {
-			if destroyErr := h.deps.EnvProvider.Destroy(ctx, handle); destroyErr != nil {
-				log.Printf("[harness] warning: destroy failed: %v", destroyErr)
-			}
+
+	if req.KubeconfigPath != "" {
+		// Pre-provisioned cluster (parallel mode) — skip create/destroy.
+		handle = &environment.Handle{
+			ClusterName:    req.Config.ClusterName,
+			KubeconfigPath: req.KubeconfigPath,
 		}
-	}()
+	} else {
+		// Use CreateWithConfig when the provider supports it and the scenario
+		// declares Kubernetes infrastructure requirements.
+		if kp, ok := h.deps.EnvProvider.(*environment.KindProvider); ok && (k8s.CNI != "" || len(k8s.Addons) > 0 || len(k8s.Runtimes) > 0 || len(k8s.Features) > 0) {
+			handle, err = kp.CreateWithConfig(ctx, req.Config.ClusterName, k8s)
+		} else {
+			handle, err = h.deps.EnvProvider.Create(ctx, req.Config.ClusterName)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("harness.Run: create environment: %w", err)
+		}
+		defer func() {
+			if !req.Config.ReuseCluster {
+				if destroyErr := h.deps.EnvProvider.Destroy(ctx, handle); destroyErr != nil {
+					log.Printf("[harness] warning: destroy failed: %v", destroyErr)
+				}
+			}
+		}()
+	}
 
 	// Step 1c: Install addons declared in the scenario's kubernetes config.
 	if k8s.CNI != "" || len(k8s.Addons) > 0 {
