@@ -4,6 +4,7 @@ package workspace
 import (
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -42,7 +43,9 @@ func New(jobID string, srcScenariosDir string) (*Workspace, error) {
 
 // Cleanup removes the entire workspace directory.
 func (ws *Workspace) Cleanup() {
-	os.RemoveAll(ws.Root)
+	if err := os.RemoveAll(ws.Root); err != nil {
+		log.Printf("[workspace] cleanup warning: %v", err)
+	}
 }
 
 func copyDir(src, dst string) error {

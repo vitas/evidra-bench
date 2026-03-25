@@ -88,13 +88,13 @@ func (c *Client) InsertBatch(ctx context.Context, scenarios []string, model, pro
 	for i, sid := range scenarios {
 		params = append(params, river.InsertManyParams{
 			Args: BenchJobArgs{
-				JobID:      jobID,
-				TenantID:   tenantID,
-				ScenarioID: sid,
-				Model:      model,
-				Provider:   provider,
-				MCPServer:  mcpServer,
-				WorkerID:   i % parallel,
+				JobID:         jobID,
+				TenantID:      tenantID,
+				ScenarioID:    sid,
+				Model:         model,
+				Provider:      provider,
+				MCPServer:     mcpServer,
+				NamespaceSlot: i % parallel,
 			},
 		})
 	}

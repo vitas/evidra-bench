@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestWorkerID_RoundRobin(t *testing.T) {
+func TestNamespaceSlot_RoundRobin(t *testing.T) {
 	t.Parallel()
 	scenarios := []string{"a", "b", "c", "d", "e"}
 	parallel := 3

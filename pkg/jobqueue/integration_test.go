@@ -18,7 +18,7 @@ func TestParallelDryRun(t *testing.T) {
 
 	var completed int64
 	runFn := func(ctx context.Context, args BenchJobArgs, ns string) error {
-		t.Logf("worker-%d: running %s in %s", args.WorkerID, args.ScenarioID, ns)
+		t.Logf("worker-%d: running %s in %s", args.NamespaceSlot, args.ScenarioID, ns)
 		time.Sleep(50 * time.Millisecond) // simulate work
 		atomic.AddInt64(&completed, 1)
 		return nil

@@ -597,7 +597,8 @@ func runScenarioOnce(ctx context.Context, cfg config.Config, s *scenario.Scenari
 
 // runScenarioOnceWithNamespace runs a scenario with a specific target namespace.
 // Used by parallel workers where each worker has its own namespace.
-func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *scenario.Scenario, targetNS string) (*harness.RunResult, error) {
+// If sharedStore is non-nil, results are written there instead of a workspace-local store.
+func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *scenario.Scenario, targetNS string, sharedStore ...*store.Store) (*harness.RunResult, error) {
 	var agentAdapter adapter.Adapter
 	switch cfg.Adapter {
 	case "cli":
@@ -627,12 +628,19 @@ func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *sce
 		EvidencePath: filepath.Join(cfg.RunsDir, "evidra"),
 	})
 
-	resultsStore, err := store.Open(cfg.RunsDir)
-	if err != nil {
-		log.Printf("[harness] warning: could not open results store: %v", err)
-	}
-	if resultsStore != nil {
-		defer resultsStore.Close()
+	// Use shared store if provided (parallel mode), otherwise open workspace-local.
+	var resultsStore *store.Store
+	if len(sharedStore) > 0 && sharedStore[0] != nil {
+		resultsStore = sharedStore[0]
+	} else {
+		var storeErr error
+		resultsStore, storeErr = store.Open(cfg.RunsDir)
+		if storeErr != nil {
+			log.Printf("[harness] warning: could not open results store: %v", storeErr)
+		}
+		if resultsStore != nil {
+			defer resultsStore.Close()
+		}
 	}
 
 	h := harness.New(harness.Deps{
@@ -1256,7 +1264,16 @@ func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*sce
 	ctx := cmd.Context()
 	var completed, passed, failed int64
 
-	runFn := buildParallelRunFunc(cfg, &completed, &passed, &failed)
+	// Open shared results store so parallel run results survive workspace cleanup.
+	sharedStore, storeErr := store.Open(cfg.RunsDir)
+	if storeErr != nil {
+		log.Printf("[parallel] warning: could not open shared store: %v", storeErr)
+	}
+	if sharedStore != nil {
+		defer sharedStore.Close()
+	}
+
+	runFn := buildParallelRunFunc(cfg, &completed, &passed, &failed, sharedStore)
 
 	client, err := jobqueue.NewClient(ctx, dbURL, cfg.Parallel, runFn)
 	if err != nil {
@@ -1322,7 +1339,8 @@ func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*sce
 
 // buildParallelRunFunc creates the RunFunc shared by CLI bench and serve.
 // Each invocation gets an isolated workspace with namespace rewriting.
-func buildParallelRunFunc(cfg config.Config, completed, passed, failed *int64) jobqueue.RunFunc {
+// The shared store ensures results survive workspace cleanup.
+func buildParallelRunFunc(cfg config.Config, completed, passed, failed *int64, sharedStore *store.Store) jobqueue.RunFunc {
 	return func(ctx context.Context, args jobqueue.BenchJobArgs, ns string) error {
 		ws, err := workspace.New(
 			fmt.Sprintf("%s-%s-%d", args.ScenarioID, args.Model, time.Now().UnixNano()),
@@ -1336,7 +1354,7 @@ func buildParallelRunFunc(cfg config.Config, completed, passed, failed *int64) j
 		// Rewrite namespace in workspace copy.
 		scenarioDir := filepath.Join(ws.ScenariosDir, filepath.Dir(args.ScenarioID))
 		if err := workspace.RewriteNamespace(scenarioDir, "bench", ns); err != nil {
-			log.Printf("[worker-%d] namespace rewrite warning: %v", args.WorkerID, err)
+			log.Printf("[worker-%d] namespace rewrite warning: %v", args.NamespaceSlot, err)
 		}
 
 		workerCfg := cfg
@@ -1354,18 +1372,18 @@ func buildParallelRunFunc(cfg config.Config, completed, passed, failed *int64) j
 
 		// Pass the worker namespace to the harness via RunRequest.TargetNamespace
 		// so cleanup and env vars use the correct namespace.
-		runResult, runErr := runScenarioOnceWithNamespace(ctx, workerCfg, s, ns)
+		runResult, runErr := runScenarioOnceWithNamespace(ctx, workerCfg, s, ns, sharedStore)
 		atomic.AddInt64(completed, 1)
 
 		if runErr != nil {
 			atomic.AddInt64(failed, 1)
-			log.Printf("[worker-%d] FAIL %s: %v", args.WorkerID, args.ScenarioID, runErr)
+			log.Printf("[worker-%d] FAIL %s: %v", args.NamespaceSlot, args.ScenarioID, runErr)
 		} else if runResult != nil && runResult.Passed {
 			atomic.AddInt64(passed, 1)
-			log.Printf("[worker-%d] PASS %s (%s)", args.WorkerID, args.ScenarioID, runResult.Duration)
+			log.Printf("[worker-%d] PASS %s (%s)", args.NamespaceSlot, args.ScenarioID, runResult.Duration)
 		} else {
 			atomic.AddInt64(failed, 1)
-			log.Printf("[worker-%d] FAIL %s", args.WorkerID, args.ScenarioID)
+			log.Printf("[worker-%d] FAIL %s", args.NamespaceSlot, args.ScenarioID)
 		}
 		return nil // don't fail River job on scenario failure
 	}

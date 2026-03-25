@@ -14,6 +14,7 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/config"
 	"samebits.com/evidra-infra-bench/pkg/jobqueue"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"samebits.com/evidra-infra-bench/pkg/store"
 )
 
 // CertifyRequest matches the Evidra executor contract v1.0.0.
@@ -58,10 +59,18 @@ func serveAPI(cfg config.Config, addr string) error {
 
 	ctx := context.Background()
 
+	// Open shared results store for parallel workers.
+	sharedStore, storeErr := store.Open(cfg.RunsDir)
+	if storeErr != nil {
+		log.Printf("[bench-service] warning: could not open shared store: %v", storeErr)
+	}
+	if sharedStore != nil {
+		defer sharedStore.Close()
+	}
+
 	// Build the run function that River workers will call.
-	// Shared with CLI bench command via buildParallelRunFunc.
 	var completed, passed, failed int64
-	runFn := buildParallelRunFunc(cfg, &completed, &passed, &failed)
+	runFn := buildParallelRunFunc(cfg, &completed, &passed, &failed, sharedStore)
 
 	parallel := cfg.Parallel
 	if parallel < 1 {
