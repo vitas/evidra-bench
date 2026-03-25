@@ -4,7 +4,7 @@ COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(BUILD_DATE)"
 
-.PHONY: build db-import test test-race fmt lint tidy clean smoke catalog ui-install ui-dev ui-build ui-docker
+.PHONY: build db-import test test-race fmt lint tidy clean smoke catalog ui-install ui-dev ui-build ui-docker docker-bench
 
 build:
 	go build $(LDFLAGS) -o bin/$(BINARY) ./cmd/infra-bench
@@ -47,3 +47,12 @@ ui-build: catalog
 
 ui-docker:
 	docker build -t ghcr.io/samebits/evidra-bench-ui:latest ui/
+
+docker-bench:
+	docker build -f Dockerfile.bench \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg COMMIT=$(COMMIT) \
+		--build-arg BUILD_DATE=$(BUILD_DATE) \
+		-t ghcr.io/vitas/infra-bench:latest \
+		-t ghcr.io/vitas/infra-bench:$(VERSION) \
+		.

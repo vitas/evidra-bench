@@ -423,6 +423,25 @@ with optional Evidra reporting for behavioral analysis.`,
 			if addr == "" {
 				addr = ":8090"
 			}
+			// Override config from environment for containerized deployment.
+			if v := os.Getenv("INFRA_BENCH_SCENARIOS_DIR"); v != "" {
+				cfg.ScenariosDir = v
+			}
+			if v := os.Getenv("INFRA_BENCH_PROVIDER"); v != "" {
+				cfg.Provider = v
+			}
+			if v := os.Getenv("INFRA_BENCH_MODEL"); v != "" {
+				cfg.Model = v
+			}
+			if v := os.Getenv("INFRA_BENCH_MCP_SERVER"); v != "" {
+				cfg.MCPServer = v
+			}
+			if v := os.Getenv("INFRA_BENCH_CLUSTER_NAME"); v != "" {
+				cfg.ClusterName = v
+			}
+			if os.Getenv("INFRA_BENCH_REUSE_CLUSTER") == "true" {
+				cfg.ReuseCluster = true
+			}
 			return serveAPI(cfg, addr)
 		},
 	}

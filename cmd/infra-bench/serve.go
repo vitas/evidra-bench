@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -48,6 +49,17 @@ func serveAPI(cfg config.Config, addr string) error {
 	apiToken := cfg.EvidraAPIKey
 	if apiToken == "" {
 		return fmt.Errorf("serve: --evidra-api-key required for bench service authentication")
+	}
+
+	// Sync scenarios to Evidra on startup so the UI dropdown is populated.
+	if cfg.EvidraURL != "" {
+		go func() {
+			if err := pushScenarios(cfg.ScenariosDir, cfg.EvidraURL, cfg.EvidraAPIKey); err != nil {
+				log.Printf("[bench-service] scenario sync failed (non-fatal): %v", err)
+			} else {
+				log.Printf("[bench-service] scenarios synced to %s", cfg.EvidraURL)
+			}
+		}()
 	}
 
 	mux := http.NewServeMux()
@@ -134,6 +146,7 @@ func handleCertifyAPI(baseCfg config.Config) http.HandlerFunc {
 
 		jobID := req.JobID
 		progressURL := req.Callback.ProgressURL
+		progressAuth := req.Callback.EvidraAPIKey // Bearer token for progress webhook
 		scenarios := req.Scenarios
 
 		// Start async with timeout (15min per scenario).
@@ -152,7 +165,7 @@ func handleCertifyAPI(baseCfg config.Config) http.HandlerFunc {
 
 			for _, scenarioID := range scenarios {
 				// Notify: running.
-				sendProgress(progressURL, ProgressCallback{
+				sendProgress(progressURL, progressAuth, ProgressCallback{
 					ContractVersion: "v1.0.0",
 					JobID:           jobID,
 					Scenario:        scenarioID,
@@ -182,7 +195,7 @@ func handleCertifyAPI(baseCfg config.Config) http.HandlerFunc {
 				}
 
 				// Notify: done.
-				sendProgress(progressURL, ProgressCallback{
+				sendProgress(progressURL, progressAuth, ProgressCallback{
 					ContractVersion: "v1.0.0",
 					JobID:           jobID,
 					Scenario:        scenarioID,
@@ -265,7 +278,7 @@ func runCertifySingleScenario(ctx context.Context, cfg config.Config, scenarioID
 	}, nil
 }
 
-func sendProgress(progressURL string, payload ProgressCallback) {
+func sendProgress(progressURL, authToken string, payload ProgressCallback) {
 	if progressURL == "" {
 		return
 	}
@@ -280,6 +293,9 @@ func sendProgress(progressURL string, payload ProgressCallback) {
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if authToken != "" {
+		req.Header.Set("Authorization", authToken)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Printf("[bench-service] send progress: %v", err)
@@ -317,7 +333,11 @@ func submitBenchRun(cfg config.Config, scenarioID, runID string, cert *CertResul
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if cfg.EvidraAPIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+cfg.EvidraAPIKey)
+		auth := cfg.EvidraAPIKey
+		if !strings.HasPrefix(auth, "Bearer ") {
+			auth = "Bearer " + auth
+		}
+		req.Header.Set("Authorization", auth)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

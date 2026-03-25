@@ -1,0 +1,60 @@
+# Self-contained bench service image.
+# Clones the evidra dependency at build time to resolve the replace directive.
+FROM golang:1.25-alpine AS bench-builder
+RUN apk add --no-cache git
+WORKDIR /build
+
+# Clone evidra-benchmark to satisfy the replace directive.
+ARG EVIDRA_REPO=https://github.com/vitas/evidra.git
+ARG EVIDRA_REF=main
+RUN git clone --depth 1 --branch ${EVIDRA_REF} ${EVIDRA_REPO} /build/evidra-benchmark
+
+# Build evidra-mcp from the cloned source (needed for provider mode).
+WORKDIR /build/evidra-benchmark
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" \
+    -o /evidra-mcp ./cmd/evidra-mcp
+
+# Copy bench service source and build.
+WORKDIR /build/evidra-stand
+COPY go.mod go.sum ./
+# Rewrite replace directive to point to cloned path.
+RUN sed -i 's|=> ../evidra-benchmark|=> /build/evidra-benchmark|' go.mod
+RUN go mod download
+COPY . .
+
+ARG VERSION=dev
+ARG COMMIT=dev
+ARG BUILD_DATE=unknown
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
+    -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" \
+    -o /infra-bench ./cmd/infra-bench
+
+# Runtime — Alpine with kubectl + infra-bench + evidra-mcp + scenarios.
+FROM alpine:3.21
+
+ARG KUBECTL_VERSION=v1.32.0
+
+RUN apk add --no-cache ca-certificates curl && \
+    ARCH=$(uname -m) && \
+    case "$ARCH" in \
+        x86_64) KUBECTL_ARCH=amd64 ;; \
+        aarch64) KUBECTL_ARCH=arm64 ;; \
+        *) KUBECTL_ARCH=amd64 ;; \
+    esac && \
+    curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${KUBECTL_ARCH}/kubectl" && \
+    chmod +x kubectl && mv kubectl /usr/local/bin/ && \
+    rm -rf /var/cache/apk/*
+
+COPY --from=bench-builder /infra-bench /usr/local/bin/infra-bench
+COPY --from=bench-builder /evidra-mcp /usr/local/bin/evidra-mcp
+COPY scenarios/ /scenarios/
+COPY manifests/ /manifests/
+
+WORKDIR /workspace
+EXPOSE 8090
+
+HEALTHCHECK --interval=5s --timeout=3s --retries=5 \
+  CMD curl -fsS http://localhost:8090/healthz >/dev/null
+
+ENTRYPOINT ["infra-bench"]
+CMD ["serve"]
