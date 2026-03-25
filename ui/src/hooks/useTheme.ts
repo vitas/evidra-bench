@@ -6,7 +6,7 @@ export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
     const saved = localStorage.getItem("evidra-theme");
     if (saved === "light" || saved === "dark") return saved;
-    return "dark";
+    return "light";
   });
 
   useEffect(() => {

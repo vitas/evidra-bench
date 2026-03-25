@@ -24,7 +24,7 @@ import { Insights } from "./pages/bench/Insights";
 export function App() {
   return (
     <EvidenceModeProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
         <Routes>
           <Route path="/" element={<Landing />} />
 
