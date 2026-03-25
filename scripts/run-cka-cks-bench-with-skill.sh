@@ -82,7 +82,7 @@ for MODEL in "${MODELS[@]}"; do
       --reuse-cluster \
       --timeout 10m \
       --evidra-url "https://api.evidra.cc" \
-      --evidra-api-key "${EVIDRA_API_KEY:-REDACTED_KEY}" \
+      --evidra-api-key "${EVIDRA_API_KEY:?EVIDRA_API_KEY must be set}" \
       2>&1; then
       PASSED=$((PASSED + 1))
       RESULTS+=("PASS  $SCENARIO  $MODEL  (role:$ROLE)")

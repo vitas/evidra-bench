@@ -45,9 +45,14 @@ type ProgressCallback struct {
 }
 
 func serveAPI(cfg config.Config, addr string) error {
+	apiToken := cfg.EvidraAPIKey
+	if apiToken == "" {
+		return fmt.Errorf("serve: --evidra-api-key required for bench service authentication")
+	}
+
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /v1/certify", handleCertifyAPI(cfg))
+	mux.HandleFunc("POST /v1/certify", authMiddleware(apiToken, handleCertifyAPI(cfg)))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.WriteString(w, `{"status":"ok"}`)
@@ -57,11 +62,34 @@ func serveAPI(cfg config.Config, addr string) error {
 	return http.ListenAndServe(addr, mux)
 }
 
+// authMiddleware checks for a valid Bearer token.
+func authMiddleware(token string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		if auth != "Bearer "+token {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return
+		}
+		next(w, r)
+	}
+}
+
 func handleCertifyAPI(baseCfg config.Config) http.HandlerFunc {
 	var mu sync.Mutex
 	running := false
 
+	// Load valid scenario IDs for validation.
+	validScenarios := make(map[string]bool)
+	if allScenarios, loadErr := scenario.LoadAll(baseCfg.ScenariosDir); loadErr == nil {
+		for _, s := range allScenarios {
+			validScenarios[s.ID] = true
+		}
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Limit request body to 1MB.
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
 		var req CertifyRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
@@ -71,6 +99,14 @@ func handleCertifyAPI(baseCfg config.Config) http.HandlerFunc {
 		if req.Model == "" || len(req.Scenarios) == 0 {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "model and scenarios required"})
 			return
+		}
+
+		// Validate scenario IDs against known scenarios.
+		for _, sid := range req.Scenarios {
+			if !validScenarios[sid] {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("unknown scenario: %q", sid)})
+				return
+			}
 		}
 
 		mu.Lock()
@@ -100,7 +136,7 @@ func handleCertifyAPI(baseCfg config.Config) http.HandlerFunc {
 		progressURL := req.Callback.ProgressURL
 		scenarios := req.Scenarios
 
-		// Start async.
+		// Start async with timeout (15min per scenario).
 		go func() {
 			defer func() {
 				mu.Lock()
@@ -108,7 +144,9 @@ func handleCertifyAPI(baseCfg config.Config) http.HandlerFunc {
 				mu.Unlock()
 			}()
 
-			ctx := context.Background()
+			timeout := time.Duration(len(scenarios)) * 15 * time.Minute
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
 			completed := 0
 			total := len(scenarios)
 
@@ -163,16 +201,9 @@ func handleCertifyAPI(baseCfg config.Config) http.HandlerFunc {
 	}
 }
 
-// runCertifyScenario runs a single scenario using the existing certify infrastructure.
+// runCertifyScenario runs a single scenario by ID.
 func runCertifyScenario(ctx context.Context, cfg config.Config, scenarioID string) (*CertResult, error) {
-	// Find the track for this scenario by checking all loaded scenarios.
-	// For now, treat each scenario as its own "track" for single-scenario runs.
-	cert, err := runCertifySingle(ctx, cfg, "", cfg.Model)
-	if err != nil {
-		// Try running as a specific scenario filter.
-		return runCertifySingleScenario(ctx, cfg, scenarioID)
-	}
-	return cert, nil
+	return runCertifySingleScenario(ctx, cfg, scenarioID)
 }
 
 // runCertifySingleScenario runs exactly one scenario by ID.
@@ -234,8 +265,8 @@ func runCertifySingleScenario(ctx context.Context, cfg config.Config, scenarioID
 	}, nil
 }
 
-func sendProgress(url string, payload ProgressCallback) {
-	if url == "" {
+func sendProgress(progressURL string, payload ProgressCallback) {
+	if progressURL == "" {
 		return
 	}
 	body, err := json.Marshal(payload)
@@ -243,7 +274,13 @@ func sendProgress(url string, payload ProgressCallback) {
 		log.Printf("[bench-service] marshal progress: %v", err)
 		return
 	}
-	resp, err := http.Post(url, "application/json", bytes.NewReader(body))
+	req, err := http.NewRequest("POST", progressURL, bytes.NewReader(body))
+	if err != nil {
+		log.Printf("[bench-service] create progress request: %v", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Printf("[bench-service] send progress: %v", err)
 		return
@@ -267,9 +304,17 @@ func submitBenchRun(cfg config.Config, scenarioID, runID string, cert *CertResul
 		"checks_passed":    cert.Passed,
 		"checks_total":     cert.Total,
 	}
-	body, _ := json.Marshal(run)
+	body, err := json.Marshal(run)
+	if err != nil {
+		log.Printf("[bench-service] marshal bench run: %v", err)
+		return
+	}
 	url := cfg.EvidraURL + "/v1/bench/runs"
-	req, _ := http.NewRequest("POST", url, bytes.NewReader(body))
+	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	if err != nil {
+		log.Printf("[bench-service] create bench run request: %v", err)
+		return
+	}
 	req.Header.Set("Content-Type", "application/json")
 	if cfg.EvidraAPIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+cfg.EvidraAPIKey)
