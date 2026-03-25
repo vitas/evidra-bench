@@ -23,17 +23,43 @@ import (
 // sharedStore persists results beyond workspace cleanup.
 type RunFunc func(ctx context.Context, cfg config.Config, scenarioPath, targetNS, kubeconfigPath string, sharedStore *store.Store) error
 
+// ScenarioEvent describes a scenario lifecycle transition for external reporting.
+type ScenarioEvent struct {
+	JobID      string        // Evidra trigger job ID
+	ScenarioID string        // Scenario identifier
+	Model      string        // LLM model name
+	Provider   string        // LLM provider
+	Status     string        // "running", "passed", "failed"
+	RunID      string        // Unique run identifier (set on completion)
+	Completed  int           // Scenarios completed so far
+	Total      int           // Total scenarios in the job
+	Duration   time.Duration // Scenario wall-clock duration (set on completion)
+	Passed     bool          // Whether verification passed
+}
+
+// ProgressReporter receives scenario lifecycle events. Implementations must be
+// safe for concurrent use when parallel > 1.
+type ProgressReporter interface {
+	OnScenario(ctx context.Context, event ScenarioEvent)
+}
+
 // Orchestrator coordinates provisioning, parallel execution, and teardown.
 type Orchestrator struct {
 	cfg      config.Config
 	runFn    RunFunc
 	cluster  *environment.Handle
 	provider environment.Provider
+	reporter ProgressReporter
 }
 
 // New creates an orchestrator with the given config and scenario run function.
 func New(cfg config.Config, runFn RunFunc) *Orchestrator {
 	return &Orchestrator{cfg: cfg, runFn: runFn}
+}
+
+// SetReporter attaches a progress reporter for scenario lifecycle events.
+func (o *Orchestrator) SetReporter(r ProgressReporter) {
+	o.reporter = r
 }
 
 // Provision creates or reuses the target cluster. Must be called before Run.
@@ -114,8 +140,11 @@ func (o *Orchestrator) RunParallel(ctx context.Context, scenarios []string, mode
 	}
 
 	var completed, passed, failed int64
+	total := int64(len(scenarios) * len(models) * repeats)
 	cfg := o.cfg
 	runFn := o.runFn
+
+	reporter := o.reporter
 
 	// Build River worker function.
 	workerFn := func(jobCtx context.Context, args jobqueue.BenchJobArgs, ns string) error {
@@ -140,17 +169,56 @@ func (o *Orchestrator) RunParallel(ctx context.Context, scenarios []string, mode
 		workerCfg.EvidraEvidenceDir = ws.EvidenceDir
 		workerCfg.Model = args.Model
 
-		scenarioPath := args.ScenarioID
-		runErr := runFn(jobCtx, workerCfg, scenarioPath, ns, kubeconfigPath, sharedStore)
-		atomic.AddInt64(&completed, 1)
+		// Report scenario started.
+		c := int(atomic.LoadInt64(&completed))
+		if reporter != nil {
+			reporter.OnScenario(jobCtx, ScenarioEvent{
+				JobID:      args.JobID,
+				ScenarioID: args.ScenarioID,
+				Model:      args.Model,
+				Provider:   args.Provider,
+				Status:     "running",
+				Completed:  c,
+				Total:      int(total),
+			})
+		}
 
+		scenarioPath := args.ScenarioID
+		startTime := time.Now()
+		runErr := runFn(jobCtx, workerCfg, scenarioPath, ns, kubeconfigPath, sharedStore)
+		duration := time.Since(startTime)
+		atomic.AddInt64(&completed, 1)
+		c = int(atomic.LoadInt64(&completed))
+
+		status := "passed"
 		if runErr != nil {
+			status = "failed"
 			atomic.AddInt64(&failed, 1)
 			log.Printf("[worker-%d] FAIL %s: %v", args.NamespaceSlot, args.ScenarioID, runErr)
 		} else {
 			atomic.AddInt64(&passed, 1)
 			log.Printf("[worker-%d] PASS %s", args.NamespaceSlot, args.ScenarioID)
 		}
+
+		// Report scenario completed.
+		if reporter != nil {
+			runID := fmt.Sprintf("%s-%s-%s",
+				time.Now().UTC().Format("20060102-150405"),
+				args.ScenarioID, args.Model)
+			reporter.OnScenario(jobCtx, ScenarioEvent{
+				JobID:      args.JobID,
+				ScenarioID: args.ScenarioID,
+				Model:      args.Model,
+				Provider:   args.Provider,
+				Status:     status,
+				RunID:      runID,
+				Completed:  c,
+				Total:      int(total),
+				Duration:   duration,
+				Passed:     runErr == nil,
+			})
+		}
+
 		return nil // don't fail River job on scenario failure
 	}
 
@@ -164,14 +232,12 @@ func (o *Orchestrator) RunParallel(ctx context.Context, scenarios []string, mode
 	}
 
 	// Enqueue: models × scenarios × repeats.
-	var total int64
 	for _, model := range models {
 		for rep := 1; rep <= repeats; rep++ {
 			jobID := fmt.Sprintf("bench-%s-r%d-%s", model, rep, time.Now().UTC().Format("20060102-150405"))
 			if err := client.InsertBatch(ctx, scenarios, model, cfg.Provider, cfg.MCPServer, jobID, "", parallel); err != nil {
 				return nil, fmt.Errorf("orchestrator: enqueue: %w", err)
 			}
-			total += int64(len(scenarios))
 		}
 	}
 	log.Printf("[orchestrator] enqueued %d runs across %d workers", total, parallel)

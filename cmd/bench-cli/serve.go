@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"samebits.com/evidra-infra-bench/pkg/config"
@@ -140,6 +142,20 @@ func handleCertifyAPI(baseCfg config.Config, orch *orchestrator.Orchestrator, db
 			jobID = fmt.Sprintf("certify-%s", time.Now().UTC().Format("20060102-150405"))
 		}
 
+		// Wire progress reporter for this certify request.
+		progressURL := req.Callback.ProgressURL
+		evidraURL := req.Callback.EvidraURL
+		authToken := req.Callback.EvidraAPIKey
+		if evidraURL == "" {
+			evidraURL = baseCfg.EvidraURL
+		}
+
+		orch.SetReporter(&evidraReporter{
+			progressURL: progressURL,
+			evidraURL:   evidraURL,
+			authToken:   authToken,
+		})
+
 		go func() {
 			runCtx := context.Background()
 			result, err := orch.RunParallel(runCtx, scenarioPaths, []string{req.Model}, 1, parallel, dbURL)
@@ -162,4 +178,110 @@ func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(data)
+}
+
+// evidraReporter implements orchestrator.ProgressReporter by sending
+// progress webhooks and bench run submissions to the Evidra API.
+type evidraReporter struct {
+	progressURL string // POST progress updates here
+	evidraURL   string // POST bench runs here
+	authToken   string // Bearer token for both endpoints
+}
+
+// OnScenario sends a progress webhook and (on completion) submits the bench run.
+func (r *evidraReporter) OnScenario(_ context.Context, ev orchestrator.ScenarioEvent) {
+	// Send progress webhook.
+	r.sendProgress(ev)
+
+	// Submit bench run on terminal status.
+	if ev.Status == "passed" || ev.Status == "failed" {
+		r.submitBenchRun(ev)
+	}
+}
+
+func (r *evidraReporter) sendProgress(ev orchestrator.ScenarioEvent) {
+	if r.progressURL == "" {
+		return
+	}
+	payload := map[string]any{
+		"contract_version": "v1.0.0",
+		"job_id":           ev.JobID,
+		"scenario":         ev.ScenarioID,
+		"status":           ev.Status,
+		"completed":        ev.Completed,
+		"total":            ev.Total,
+	}
+	if ev.RunID != "" {
+		payload["run_id"] = ev.RunID
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("[evidra-reporter] marshal progress: %v", err)
+		return
+	}
+	req, err := http.NewRequest("POST", r.progressURL, bytes.NewReader(body))
+	if err != nil {
+		log.Printf("[evidra-reporter] create progress request: %v", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if r.authToken != "" {
+		req.Header.Set("Authorization", r.authToken)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Printf("[evidra-reporter] send progress: %v", err)
+		return
+	}
+	resp.Body.Close()
+}
+
+func (r *evidraReporter) submitBenchRun(ev orchestrator.ScenarioEvent) {
+	if r.evidraURL == "" {
+		return
+	}
+	run := map[string]any{
+		"id":               ev.RunID,
+		"scenario_id":      ev.ScenarioID,
+		"model":            ev.Model,
+		"provider":         ev.Provider,
+		"adapter":          "bench-cli",
+		"evidence_mode":    "direct",
+		"passed":           ev.Passed,
+		"duration_seconds": ev.Duration.Seconds(),
+		"checks_passed":    boolToInt(ev.Passed),
+		"checks_total":     1,
+	}
+	body, err := json.Marshal(run)
+	if err != nil {
+		log.Printf("[evidra-reporter] marshal bench run: %v", err)
+		return
+	}
+	url := r.evidraURL + "/v1/bench/runs"
+	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	if err != nil {
+		log.Printf("[evidra-reporter] create bench run request: %v", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if r.authToken != "" {
+		auth := r.authToken
+		if !strings.HasPrefix(auth, "Bearer ") {
+			auth = "Bearer " + auth
+		}
+		req.Header.Set("Authorization", auth)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Printf("[evidra-reporter] submit bench run: %v", err)
+		return
+	}
+	resp.Body.Close()
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
