@@ -13,7 +13,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          path: evidra-stand
+          path: bench
 
       - name: Checkout parent (evidra-benchmark)
         uses: actions/checkout@v6
@@ -25,7 +25,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version-file: evidra-stand/go.mod
+          go-version-file: bench/go.mod
           cache: true
 
       - name: Setup Node
@@ -33,10 +33,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: evidra-stand/ui/package-lock.json
+          cache-dependency-path: bench/ui/package-lock.json
 
       - name: Check formatting
-        working-directory: evidra-stand
+        working-directory: bench
         run: |
           files=$(gofmt -l .)
           if [ -n "$files" ]; then
@@ -49,25 +49,25 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.10.1
-          working-directory: evidra-stand
+          working-directory: bench
           args: --timeout=5m
 
       - name: Install UI deps
-        working-directory: evidra-stand/ui
+        working-directory: bench/ui
         run: npm ci
 
       - name: Run UI command tests
-        working-directory: evidra-stand/ui
+        working-directory: bench/ui
         run: node --test src/lib/runOptions.test.mts src/lib/commandBuilder.test.mts
 
       - name: Build UI
-        working-directory: evidra-stand/ui
+        working-directory: bench/ui
         run: npm run build
 
       - name: Run tests
-        working-directory: evidra-stand
+        working-directory: bench
         run: go test ./... -count=1
 
       - name: Race detector
-        working-directory: evidra-stand
+        working-directory: bench
         run: go test -race ./... -count=1
