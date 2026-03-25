@@ -26,16 +26,37 @@ func RewriteNamespace(dir string, oldNS, newNS string) error {
 		if err != nil {
 			return err
 		}
+		// Replace namespace references with word-boundary awareness.
+		// Each pattern includes a trailing boundary (newline, space, quote, EOF)
+		// to avoid matching "benchmark" when oldNS is "bench".
 		replacements := []struct{ old, new string }{
+			{"namespace: " + oldNS + "\n", "namespace: " + newNS + "\n"},
+			{"namespace: " + oldNS + "\r", "namespace: " + newNS + "\r"},
+			{"-n " + oldNS + " ", "-n " + newNS + " "},
+			{"-n " + oldNS + "\n", "-n " + newNS + "\n"},
+			{"-n " + oldNS + "\r", "-n " + newNS + "\r"},
+			{"-n=" + oldNS + " ", "-n=" + newNS + " "},
+			{"-n=" + oldNS + "\n", "-n=" + newNS + "\n"},
+			{"namespace=" + oldNS + " ", "namespace=" + newNS + " "},
+			{"namespace=" + oldNS + "\n", "namespace=" + newNS + "\n"},
+			{"`" + oldNS + "`", "`" + newNS + "`"},
+		}
+		// Also handle end-of-file (no trailing newline).
+		eofReplacements := []struct{ old, new string }{
 			{"namespace: " + oldNS, "namespace: " + newNS},
 			{"-n " + oldNS, "-n " + newNS},
 			{"-n=" + oldNS, "-n=" + newNS},
 			{"namespace=" + oldNS, "namespace=" + newNS},
-			{"`" + oldNS + "`", "`" + newNS + "`"},
 		}
 		modified := data
 		for _, r := range replacements {
 			modified = bytes.ReplaceAll(modified, []byte(r.old), []byte(r.new))
+		}
+		// Apply EOF replacements only if the file ends with the pattern.
+		for _, r := range eofReplacements {
+			if bytes.HasSuffix(modified, []byte(r.old)) {
+				modified = append(modified[:len(modified)-len(r.old)], []byte(r.new)...)
+			}
 		}
 		if !bytes.Equal(data, modified) {
 			return os.WriteFile(path, modified, 0644)

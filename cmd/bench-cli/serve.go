@@ -8,14 +8,12 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"samebits.com/evidra-infra-bench/pkg/config"
 	"samebits.com/evidra-infra-bench/pkg/jobqueue"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
-	"samebits.com/evidra-infra-bench/pkg/workspace"
 )
 
 // CertifyRequest matches the Evidra executor contract v1.0.0.
@@ -61,7 +59,9 @@ func serveAPI(cfg config.Config, addr string) error {
 	ctx := context.Background()
 
 	// Build the run function that River workers will call.
-	runFn := buildServeRunFunc(cfg)
+	// Shared with CLI bench command via buildParallelRunFunc.
+	var completed, passed, failed int64
+	runFn := buildParallelRunFunc(cfg, &completed, &passed, &failed)
 
 	parallel := cfg.Parallel
 	if parallel < 1 {
@@ -193,68 +193,6 @@ func handleCertifyAPI(baseCfg config.Config, jqClient *jobqueue.Client) http.Han
 			"status": "accepted",
 			"total":  fmt.Sprintf("%d", len(req.Scenarios)),
 		})
-	}
-}
-
-// buildServeRunFunc creates the RunFunc for the serve command.
-func buildServeRunFunc(cfg config.Config) jobqueue.RunFunc {
-	return func(ctx context.Context, args jobqueue.BenchJobArgs, ns string) error {
-		ws, err := workspace.New(
-			fmt.Sprintf("%s-%s-%d", args.ScenarioID, args.Model, time.Now().UnixNano()),
-			cfg.ScenariosDir,
-		)
-		if err != nil {
-			return fmt.Errorf("workspace: %w", err)
-		}
-		defer ws.Cleanup()
-
-		scenarioDir := filepath.Join(ws.ScenariosDir, filepath.Dir(args.ScenarioID))
-		if err := workspace.RewriteNamespace(scenarioDir, "bench", ns); err != nil {
-			log.Printf("[serve-worker] namespace rewrite warning: %v", err)
-		}
-
-		workerCfg := cfg
-		workerCfg.Scenario = args.ScenarioID
-		workerCfg.ScenariosDir = ws.ScenariosDir
-		workerCfg.RunsDir = ws.RunsDir
-		workerCfg.EvidraEvidenceDir = ws.EvidenceDir
-		workerCfg.Model = args.Model
-		workerCfg.Provider = args.Provider
-
-		scenarioPath := filepath.Join(ws.ScenariosDir, args.ScenarioID)
-		s, loadErr := scenario.Load(scenarioPath)
-		if loadErr != nil {
-			return fmt.Errorf("load scenario: %w", loadErr)
-		}
-
-		runResult, runErr := runScenarioOnce(ctx, workerCfg, s)
-
-		if runErr != nil {
-			log.Printf("[serve-worker] FAIL %s/%s: %v", args.ScenarioID, args.Model, runErr)
-		} else if runResult != nil && runResult.Passed {
-			log.Printf("[serve-worker] PASS %s/%s (%s)", args.ScenarioID, args.Model, runResult.Duration)
-		} else {
-			log.Printf("[serve-worker] FAIL %s/%s", args.ScenarioID, args.Model)
-		}
-
-		// Submit to Evidra API if configured.
-		if workerCfg.EvidraURL != "" && runResult != nil {
-			passedCount := 0
-			if runResult.Passed {
-				passedCount = 1
-			}
-			submitBenchRun(workerCfg, args.ScenarioID,
-				fmt.Sprintf("%s-%s-%s", time.Now().UTC().Format("20060102-150405"), args.ScenarioID, args.Model),
-				&CertResult{
-					Model:    args.Model,
-					Provider: args.Provider,
-					Total:    1,
-					Passed:   passedCount,
-					Duration: runResult.Duration,
-				})
-		}
-
-		return nil // don't fail River job on scenario failure
 	}
 }
 

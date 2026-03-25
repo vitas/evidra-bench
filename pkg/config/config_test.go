@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"testing"
 	"time"
 )
@@ -89,10 +88,9 @@ func TestConfig_ResolveDatabaseURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.envVal != "" {
-				os.Setenv("BENCH_DATABASE_URL", tt.envVal)
-				defer os.Unsetenv("BENCH_DATABASE_URL")
+				t.Setenv("BENCH_DATABASE_URL", tt.envVal)
 			} else {
-				os.Unsetenv("BENCH_DATABASE_URL")
+				t.Setenv("BENCH_DATABASE_URL", "")
 			}
 			got := tt.cfg.ResolveDatabaseURL()
 			if got != tt.expected {

@@ -50,16 +50,24 @@ func copyDir(src, dst string) error {
 		if err != nil {
 			return err
 		}
-		rel, _ := filepath.Rel(src, path)
+		rel, relErr := filepath.Rel(src, path)
+		if relErr != nil {
+			return fmt.Errorf("workspace: rel path: %w", relErr)
+		}
 		target := filepath.Join(dst, rel)
 
 		if d.IsDir() {
 			return os.MkdirAll(target, 0755)
 		}
+		// Preserve file permissions (execute bit for shell scripts).
+		info, infoErr := d.Info()
+		if infoErr != nil {
+			return fmt.Errorf("workspace: file info %s: %w", path, infoErr)
+		}
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
-		return os.WriteFile(target, data, 0644)
+		return os.WriteFile(target, data, info.Mode())
 	})
 }
