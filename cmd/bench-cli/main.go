@@ -1218,10 +1218,10 @@ func cleanBenchNamespace(ctx context.Context, clusterName string, s *scenario.Sc
 		}
 	}
 
-	// Collect namespaces from the scenario scope, default to "bench".
+	// Collect namespaces from the scenario scope, default to DefaultNamespace.
 	namespaces := s.Scope.Namespaces
 	if len(namespaces) == 0 {
-		namespaces = []string{"bench"}
+		namespaces = []string{config.DefaultNamespace}
 	}
 
 	// No context arg needed — the kubeconfig from providers has the correct context.
@@ -1327,7 +1327,7 @@ func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*sce
 		}
 	}
 
-	stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	stopCtx, cancel := context.WithTimeout(context.Background(), config.GracefulStopTimeout)
 	defer cancel()
 	client.Stop(stopCtx)
 
@@ -1353,7 +1353,7 @@ func buildParallelRunFunc(cfg config.Config, completed, passed, failed *int64, s
 
 		// Rewrite namespace in workspace copy.
 		scenarioDir := filepath.Join(ws.ScenariosDir, filepath.Dir(args.ScenarioID))
-		if err := workspace.RewriteNamespace(scenarioDir, "bench", ns); err != nil {
+		if err := workspace.RewriteNamespace(scenarioDir, config.DefaultNamespace, ns); err != nil {
 			log.Printf("[worker-%d] namespace rewrite warning: %v", args.NamespaceSlot, err)
 		}
 

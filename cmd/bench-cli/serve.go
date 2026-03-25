@@ -1,14 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"samebits.com/evidra-infra-bench/pkg/config"
@@ -33,17 +31,6 @@ type CertifyRequest struct {
 		EvidraURL    string `json:"evidra_url"`
 		EvidraAPIKey string `json:"evidra_api_key"`
 	} `json:"callback"`
-}
-
-// ProgressCallback sends a progress update to the Evidra trigger webhook.
-type ProgressCallback struct {
-	ContractVersion string `json:"contract_version"`
-	JobID           string `json:"job_id"`
-	Scenario        string `json:"scenario"`
-	Status          string `json:"status"`
-	RunID           string `json:"run_id,omitempty"`
-	Completed       int    `json:"completed"`
-	Total           int    `json:"total"`
 }
 
 func serveAPI(cfg config.Config, addr string) error {
@@ -93,7 +80,7 @@ func serveAPI(cfg config.Config, addr string) error {
 		}
 	}()
 	defer func() {
-		stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		stopCtx, cancel := context.WithTimeout(context.Background(), config.GracefulStopTimeout)
 		defer cancel()
 		jqClient.Stop(stopCtx)
 	}()
@@ -134,11 +121,11 @@ func authMiddleware(token string, next http.HandlerFunc) http.HandlerFunc {
 }
 
 func handleCertifyAPI(baseCfg config.Config, jqClient *jobqueue.Client) http.HandlerFunc {
-	// Load valid scenario IDs for validation.
-	validScenarios := make(map[string]bool)
+	// Load scenarios once at handler construction — used for validation and path lookup.
+	scenarioPathMap := make(map[string]string) // ID → Path
 	if allScenarios, loadErr := scenario.LoadAll(baseCfg.ScenariosDir); loadErr == nil {
 		for _, s := range allScenarios {
-			validScenarios[s.ID] = true
+			scenarioPathMap[s.ID] = s.Path
 		}
 	}
 
@@ -156,11 +143,15 @@ func handleCertifyAPI(baseCfg config.Config, jqClient *jobqueue.Client) http.Han
 			return
 		}
 
+		// Validate and resolve scenario paths in one pass.
+		var scenarioPaths []string
 		for _, sid := range req.Scenarios {
-			if !validScenarios[sid] {
+			p, ok := scenarioPathMap[sid]
+			if !ok {
 				writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("unknown scenario: %q", sid)})
 				return
 			}
+			scenarioPaths = append(scenarioPaths, p)
 		}
 
 		jobID := req.JobID
@@ -173,22 +164,12 @@ func handleCertifyAPI(baseCfg config.Config, jqClient *jobqueue.Client) http.Han
 			parallel = 1
 		}
 
-		// Resolve scenario paths for enqueue.
-		var scenarioPaths []string
-		allScenarios, _ := scenario.LoadAll(baseCfg.ScenariosDir)
-		pathMap := make(map[string]string)
-		for _, s := range allScenarios {
-			pathMap[s.ID] = s.Path
-		}
-		for _, sid := range req.Scenarios {
-			if p, ok := pathMap[sid]; ok {
-				scenarioPaths = append(scenarioPaths, p)
-			}
-		}
-
 		provider := req.Provider
 		if provider == "" {
-			provider = "bifrost"
+			provider = baseCfg.Provider
+			if provider == "" {
+				provider = "bifrost"
+			}
 		}
 
 		if err := jqClient.InsertBatch(r.Context(), scenarioPaths, req.Model, provider,
@@ -203,75 +184,6 @@ func handleCertifyAPI(baseCfg config.Config, jqClient *jobqueue.Client) http.Han
 			"total":  fmt.Sprintf("%d", len(req.Scenarios)),
 		})
 	}
-}
-
-func sendProgress(progressURL, authToken string, payload ProgressCallback) {
-	if progressURL == "" {
-		return
-	}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		log.Printf("[bench-service] marshal progress: %v", err)
-		return
-	}
-	req, err := http.NewRequest("POST", progressURL, bytes.NewReader(body))
-	if err != nil {
-		log.Printf("[bench-service] create progress request: %v", err)
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if authToken != "" {
-		req.Header.Set("Authorization", authToken)
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Printf("[bench-service] send progress: %v", err)
-		return
-	}
-	resp.Body.Close()
-}
-
-func submitBenchRun(cfg config.Config, scenarioID, runID string, cert *CertResult) {
-	if cfg.EvidraURL == "" {
-		return
-	}
-	run := map[string]any{
-		"id":               runID,
-		"scenario_id":      scenarioID,
-		"model":            cfg.Model,
-		"provider":         cfg.Provider,
-		"adapter":          "kagent",
-		"evidence_mode":    "direct",
-		"passed":           cert.Passed > 0,
-		"duration_seconds": cert.Duration.Seconds(),
-		"checks_passed":    cert.Passed,
-		"checks_total":     cert.Total,
-	}
-	body, err := json.Marshal(run)
-	if err != nil {
-		log.Printf("[bench-service] marshal bench run: %v", err)
-		return
-	}
-	url := cfg.EvidraURL + "/v1/bench/runs"
-	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
-	if err != nil {
-		log.Printf("[bench-service] create bench run request: %v", err)
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if cfg.EvidraAPIKey != "" {
-		auth := cfg.EvidraAPIKey
-		if !strings.HasPrefix(auth, "Bearer ") {
-			auth = "Bearer " + auth
-		}
-		req.Header.Set("Authorization", auth)
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Printf("[bench-service] submit bench run: %v", err)
-		return
-	}
-	resp.Body.Close()
 }
 
 func writeJSON(w http.ResponseWriter, status int, data any) {

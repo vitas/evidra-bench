@@ -20,6 +20,7 @@ type Workspace struct {
 
 // New creates an isolated workspace for the given job ID.
 // Copies srcScenariosDir into the workspace so it's writable.
+// The caller must call Cleanup when done to remove the temp directory.
 func New(jobID string, srcScenariosDir string) (*Workspace, error) {
 	root := filepath.Join(os.TempDir(), "bench-jobs", jobID)
 	ws := &Workspace{

@@ -59,7 +59,9 @@ func TestParallelDryRun(t *testing.T) {
 
 	stopCtx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer stopCancel()
-	client.Stop(stopCtx)
+	if err := client.Stop(stopCtx); err != nil {
+		t.Errorf("Stop: %v", err)
+	}
 
 	if got := atomic.LoadInt64(&completed); got != int64(len(scenarios)) {
 		t.Errorf("expected %d completed, got %d", len(scenarios), got)

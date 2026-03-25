@@ -6,10 +6,13 @@ import (
 	"log"
 
 	"github.com/riverqueue/river"
+	"samebits.com/evidra-infra-bench/pkg/config"
 )
 
 // RunFunc is the function that executes a single scenario.
 // It receives the job args and the worker namespace.
+// Returning an error triggers a River retry (MaxAttempts=2).
+// Return nil even on scenario failure to avoid retries.
 type RunFunc func(ctx context.Context, args BenchJobArgs, namespace string) error
 
 // BenchWorker implements river.Worker for scenario execution.
@@ -25,7 +28,7 @@ func NewBenchWorker(fn RunFunc) *BenchWorker {
 
 // Work executes a single scenario in an isolated namespace.
 func (w *BenchWorker) Work(ctx context.Context, job *river.Job[BenchJobArgs]) error {
-	ns := fmt.Sprintf("bench-w%d", job.Args.NamespaceSlot)
+	ns := fmt.Sprintf("%s-w%d", config.DefaultNamespace, job.Args.NamespaceSlot)
 	log.Printf("[worker-%d] running %s / %s in namespace %s",
 		job.Args.NamespaceSlot, job.Args.ScenarioID, job.Args.Model, ns)
 

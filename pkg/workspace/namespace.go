@@ -59,7 +59,13 @@ func RewriteNamespace(dir string, oldNS, newNS string) error {
 			}
 		}
 		if !bytes.Equal(data, modified) {
-			return os.WriteFile(path, modified, 0644)
+			// Preserve original file permissions (execute bit for scripts).
+			info, infoErr := os.Stat(path)
+			mode := os.FileMode(0644)
+			if infoErr == nil {
+				mode = info.Mode()
+			}
+			return os.WriteFile(path, modified, mode)
 		}
 		return nil
 	})

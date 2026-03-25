@@ -13,6 +13,9 @@ import (
 )
 
 // Client wraps a River client with bench-specific configuration.
+// Client wraps a River client with bench-specific configuration.
+// Lifecycle: NewClient → Migrate → Insert/InsertBatch → Start → Stop.
+// Migrate must be called before Start. Stop must be called exactly once.
 type Client struct {
 	river *river.Client[pgx.Tx]
 	pool  *pgxpool.Pool

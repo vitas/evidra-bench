@@ -93,7 +93,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	// Resolve target namespace.
 	ns := req.TargetNamespace
 	if ns == "" {
-		ns = "bench"
+		ns = config.DefaultNamespace
 	}
 
 	// Step 1: Create or reuse environment.
@@ -1129,7 +1129,7 @@ func waitForRollouts(ctx context.Context, kubeconfigPath string, s *scenario.Sce
 		}
 		ns := check.Namespace
 		if ns == "" {
-			ns = "bench"
+			ns = config.DefaultNamespace
 		}
 		waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		cmd := exec.CommandContext(waitCtx, "kubectl",

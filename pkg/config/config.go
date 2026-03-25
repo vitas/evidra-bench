@@ -7,6 +7,12 @@ import (
 	"time"
 )
 
+// DefaultNamespace is the default Kubernetes namespace for benchmark scenarios.
+const DefaultNamespace = "bench"
+
+// GracefulStopTimeout is the timeout for graceful shutdown of River workers.
+const GracefulStopTimeout = 30 * time.Second
+
 // Config holds all settings for a benchmark run.
 type Config struct {
 	EnvironmentProvider string
@@ -33,8 +39,8 @@ type Config struct {
 	MCPServer           string // MCP server command (e.g. "evidra-mcp --signing-mode optional")
 	ProxyMode           bool   // auto-record evidence for mutations without agent involvement
 	SmartPrescribe      bool   // simplified prescribe (tool+operation, no artifact)
-	Parallel            int    // number of parallel workers (0 or 1 = sequential)
-	DatabaseURL         string // PostgreSQL connection string for River job queue
+	Parallel            int    // number of parallel workers (0 or 1 = sequential, >1 requires --database-url)
+	DatabaseURL         string // PostgreSQL connection string for River job queue (env: BENCH_DATABASE_URL)
 }
 
 // ResolveSystemPromptFile returns the system prompt file path from flag, env, or empty.
