@@ -46,8 +46,11 @@ jobs:
           fi
 
       - name: Run lint
-        working-directory: evidra-stand
-        run: make lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.10.1
+          working-directory: evidra-stand
+          args: --timeout=5m
 
       - name: Install UI deps
         working-directory: evidra-stand/ui
