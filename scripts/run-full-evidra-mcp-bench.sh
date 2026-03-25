@@ -74,6 +74,19 @@ PASSED=0
 FAILED=0
 SKIPPED=0
 RESULTS=()
+RESULTS_FILE="$PROJECT_DIR/runs/results.jsonl"
+
+# Check if a run already exists in results.jsonl
+run_exists() {
+  local scenario_id="$1" model="$2"
+  # Extract scenario_id (last path component)
+  scenario_id="${scenario_id##*/}"
+  if [ -f "$RESULTS_FILE" ]; then
+    grep -q "\"scenario_id\":\"${scenario_id}\".*\"model\":\"${model}\".*\"evidence_mode\":\"mcp\"" "$RESULTS_FILE" && return 0
+    grep -q "\"model\":\"${model}\".*\"scenario_id\":\"${scenario_id}\".*\"evidence_mode\":\"mcp\"" "$RESULTS_FILE" && return 0
+  fi
+  return 1
+}
 
 for MODEL in "${MODELS[@]}"; do
   export EVIDRA_BIFROST_BASE_URL=$(provider_url_for_model "$MODEL")
@@ -87,6 +100,13 @@ for MODEL in "${MODELS[@]}"; do
 
   for SCENARIO in $SCENARIOS; do
     RUN_NUM=$((PASSED + FAILED + SKIPPED + 1))
+
+    if run_exists "$SCENARIO" "$MODEL"; then
+      echo "[$RUN_NUM/$TOTAL_RUNS] SKIP (already done) $SCENARIO / $MODEL"
+      SKIPPED=$((SKIPPED + 1))
+      continue
+    fi
+
     echo ""
     echo "[$RUN_NUM/$TOTAL_RUNS] $SCENARIO / $MODEL (via evidra-mcp)"
 
