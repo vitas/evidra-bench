@@ -96,9 +96,11 @@ export function Results() {
 
   type ExamFilter = "all" | "cka" | "cks" | "custom";
   type TimeFilter = "24h" | "7d" | "30d" | "all";
+  type EvidenceFilter = "all" | "none" | "evidra";
   const [tab, setTab] = useState<Tab>("leaderboard");
   const [examFilter, setExamFilter] = useState<ExamFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [evidenceFilter, setEvidenceFilter] = useState<EvidenceFilter>("all");
   const [runs, setRuns] = useState<RunResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,7 +118,8 @@ export function Results() {
 
   useEffect(() => {
     setLoading(true);
-    fetchAPI<{ items: RunResult[] }>("/v1/bench/runs?limit=2000")
+    const modeParam = evidenceFilter !== "all" ? `&evidence_mode=${evidenceFilter}` : "";
+    fetchAPI<{ items: RunResult[] }>(`/v1/bench/runs?limit=2000${modeParam}`)
       .then((data) => {
         // Exclude dry-run/test records (0s duration or test IDs)
         const real = (data.items || []).filter((r) =>
@@ -127,7 +130,7 @@ export function Results() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [evidenceFilter]);
 
   const filteredRuns = useMemo(() => {
     const now = Date.now();
@@ -278,6 +281,30 @@ export function Results() {
             {t === "all" ? "All time" : t}
           </button>
         ))}
+        {/* Separator */}
+        <div className="w-px h-5 bg-border hidden sm:block" />
+
+        {/* Evidence mode filter */}
+        {(
+          [
+            { key: "all" as EvidenceFilter, label: "All" },
+            { key: "none" as EvidenceFilter, label: "Baseline" },
+            { key: "evidra" as EvidenceFilter, label: "Evidra" },
+          ]
+        ).map((ef) => (
+          <button
+            key={ef.key}
+            onClick={() => setEvidenceFilter(ef.key)}
+            className={`px-2.5 py-1.5 text-[0.72rem] font-medium rounded-lg transition-colors ${
+              evidenceFilter === ef.key
+                ? "bg-accent/15 text-accent"
+                : "text-fg-muted hover:text-fg"
+            }`}
+          >
+            {ef.label}
+          </button>
+        ))}
+
         {/* Counter */}
         <span className="text-[0.72rem] text-fg-muted ml-2">
           {filteredRuns.length} runs · {new Set(filteredRuns.map(r => r.scenario_id)).size} scenarios · {new Set(filteredRuns.map(r => r.model)).size} models
