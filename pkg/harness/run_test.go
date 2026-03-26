@@ -202,8 +202,8 @@ func TestBuildRunMetadata_UsesCanonicalPromptMetadata(t *testing.T) {
 	cfg := config.Default()
 	cfg.Provider = "claude"
 	cfg.Model = "sonnet"
-	// Use embedded prompt path — no filesystem dependency on parent repo.
-	cfg.SystemPromptFile = promptdata.RuntimeExperimentContractPath
+	// Use an embedded prompt path — no filesystem dependency on the parent repo.
+	cfg.SystemPromptFile = promptdata.MCPAgentContractPath
 
 	meta := buildRunMetadata(cfg, &agent.LoopResult{
 		Turns:        4,
@@ -223,6 +223,25 @@ func TestBuildRunMetadata_UsesCanonicalPromptMetadata(t *testing.T) {
 	}
 	if meta["prompt_version"] == "" {
 		t.Fatalf("prompt_version is empty")
+	}
+}
+
+func TestBuildRunMetadata_PrefersExplicitEvidenceMode(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.Default()
+	cfg.Provider = "claude"
+	cfg.Model = "sonnet"
+	cfg.EvidenceMode = "none"
+	cfg.SmartPrescribe = true
+	cfg.ProxyMode = true
+	cfg.EvidraBin = "/usr/local/bin/evidra"
+	cfg.SystemPromptFile = promptdata.MCPAgentContractPath
+
+	meta := buildRunMetadata(cfg, &agent.LoopResult{}, "/tmp/evidence")
+
+	if meta["evidence_mode"] != "none" {
+		t.Fatalf("evidence_mode = %q, want none", meta["evidence_mode"])
 	}
 }
 

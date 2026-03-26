@@ -11,7 +11,7 @@ func TestCollectVersions_UsesCanonicalPromptMetadata(t *testing.T) {
 
 	cfg := Default()
 	// Use the embedded prompt path — no filesystem dependency on parent repo.
-	cfg.SystemPromptFile = promptdata.RuntimeExperimentContractPath
+	cfg.SystemPromptFile = promptdata.MCPAgentContractPath
 
 	got := CollectVersions("dev", "test-commit", cfg)
 	if got.ContractVersion != promptdata.DefaultContractVersion {

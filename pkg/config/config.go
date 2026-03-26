@@ -39,6 +39,7 @@ type Config struct {
 	MCPServer           string // MCP server command (e.g. "evidra-mcp --signing-mode optional")
 	ProxyMode           bool   // auto-record evidence for mutations without agent involvement
 	SmartPrescribe      bool   // simplified prescribe (tool+operation, no artifact)
+	EvidenceMode        string // explicit per-run override for evidence mode
 	Parallel            int    // number of parallel workers (0 or 1 = sequential, >1 requires --database-url)
 	DatabaseURL         string // PostgreSQL connection string for River job queue (env: BENCH_DATABASE_URL)
 }
@@ -94,4 +95,50 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("config: agent-command or provider is required (use --dry-run to skip)")
 	}
 	return nil
+}
+
+// ApplyEvidenceMode returns a copy of cfg with the requested evidence mode
+// applied authoritatively. Empty mode leaves cfg unchanged.
+func ApplyEvidenceMode(cfg Config, mode string) Config {
+	if mode == "" {
+		return cfg
+	}
+
+	cfg.EvidenceMode = mode
+	switch mode {
+	case "none":
+		cfg.MCPServer = ""
+		cfg.ProxyMode = false
+		cfg.SmartPrescribe = false
+		cfg.EvidraBin = ""
+		cfg.SystemPromptFile = ""
+	case "smart":
+		cfg.MCPServer = ""
+		cfg.ProxyMode = false
+		cfg.SmartPrescribe = true
+		cfg.EvidraBin = ""
+		cfg.SystemPromptFile = ""
+	}
+	return cfg
+}
+
+// EffectiveEvidenceMode returns the explicit evidence mode when set, otherwise
+// falls back to the legacy inference used before per-run overrides existed.
+func EffectiveEvidenceMode(cfg Config) string {
+	if cfg.EvidenceMode != "" {
+		return cfg.EvidenceMode
+	}
+	if cfg.MCPServer != "" {
+		return "mcp"
+	}
+	if cfg.SmartPrescribe {
+		return "smart"
+	}
+	if cfg.ProxyMode {
+		return "proxy"
+	}
+	if cfg.ResolveEvidraBin() != "" {
+		return "direct"
+	}
+	return "none"
 }

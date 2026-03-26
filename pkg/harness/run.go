@@ -475,7 +475,8 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 
 	// Step 5b: Verify Evidra protocol compliance.
 	// Skip in proxy and smart modes — evidence format differs from evidra's native format.
-	if s.Evidra.Enabled && !req.Config.ProxyMode && !req.Config.SmartPrescribe && req.Config.MCPServer == "" {
+	evidenceMode := config.EffectiveEvidenceMode(req.Config)
+	if s.Evidra.Enabled && evidenceMode != "proxy" && evidenceMode != "smart" && evidenceMode != "mcp" {
 		// Fall back to simulated evidence if real evidence dir has no segments.
 		if s.Evidra.SimulatedEvidenceDir != "" {
 			if _, err := os.Stat(filepath.Join(evidenceDir, "segments")); err != nil {
@@ -598,17 +599,6 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		checksPassed, checksTotal := countChecks(verifyResult)
 		checksJSON, _ := json.Marshal(verifyResult)
 		metadataJSON, _ := json.Marshal(agentResult.Metadata)
-		// Determine evidence mode for the record.
-		evidenceMode := "none"
-		if req.Config.MCPServer != "" {
-			evidenceMode = "mcp"
-		} else if req.Config.SmartPrescribe {
-			evidenceMode = "smart"
-		} else if req.Config.ProxyMode {
-			evidenceMode = "proxy"
-		} else if req.Config.ResolveEvidraBin() != "" {
-			evidenceMode = "direct"
-		}
 
 		rec := store.RunRecord{
 			ID:               fmt.Sprintf("%s-%s-%s", startTime.Format("20060102-150405"), s.ID, req.Config.Adapter),
@@ -616,7 +606,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			Model:            req.Config.Model,
 			Provider:         req.Config.Provider,
 			Adapter:          req.Config.Adapter,
-			EvidenceMode:     evidenceMode,
+			EvidenceMode:     config.EffectiveEvidenceMode(req.Config),
 			ToolServer:       mcpServerName(req.Config.MCPServer),
 			Passed:           verifyResult.Passed,
 			Duration:         endTime.Sub(startTime).Seconds(),
@@ -1038,19 +1028,10 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 // buildRunMetadata creates the metadata map for a provider-path run,
 // including all version information for reproducibility.
 func buildRunMetadata(cfg config.Config, loopResult *agent.LoopResult, evidenceDir string) map[string]string {
-	evidenceMode := "direct"
-	if cfg.SmartPrescribe {
-		evidenceMode = "smart"
-	} else if cfg.ProxyMode {
-		evidenceMode = "proxy"
-	} else if cfg.ResolveEvidraBin() == "" && cfg.ResolveSystemPromptFile() == "" {
-		evidenceMode = "none"
-	}
-
 	meta := map[string]string{
 		"provider":          cfg.Provider,
 		"model":             cfg.Model,
-		"evidence_mode":     evidenceMode,
+		"evidence_mode":     config.EffectiveEvidenceMode(cfg),
 		"turns":             fmt.Sprintf("%d", loopResult.Turns),
 		"memory_window":     fmt.Sprintf("%d", loopResult.MemoryWindow),
 		"prompt_tokens":     fmt.Sprintf("%d", loopResult.TotalUsage.PromptTokens),
