@@ -1,10 +1,10 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { SCENARIOS, CATEGORY_LABELS, TRACK_LABELS, type ScenarioMeta } from "../data/catalog";
-import { MODELS } from "../data/models";
 import { CATEGORY_COLORS, DIFFICULTY_COLORS, LEVEL_COLORS } from "../data/colors";
 import { useEvidenceMode } from "../hooks/useEvidenceMode";
 import { buildBenchCommand, EVIDENCE_MODES } from "../lib/commandBuilder.mts";
 import { useBenchApi } from "../hooks/useBenchApi";
+import { useModels } from "../hooks/useModels";
 
 type Category = "all" | ScenarioMeta["category"];
 type Track = "all" | ScenarioMeta["track"];
@@ -42,7 +42,8 @@ export function Run() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<Category>("all");
   const [track, setTrack] = useState<Track>("all");
-  const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
+  const { models, loading: modelsLoading } = useModels();
+  const [selectedModel, setSelectedModel] = useState("");
   const { mode, setMode } = useEvidenceMode();
   const [copied, setCopied] = useState(false);
 
@@ -94,8 +95,17 @@ export function Run() {
     };
   }, []);
 
+  useEffect(() => {
+    if (models.length === 0) {
+      return;
+    }
+    if (!selectedModel || !models.some((model) => model.id === selectedModel)) {
+      setSelectedModel(models[0].id);
+    }
+  }, [models, selectedModel]);
+
   const handleRun = useCallback(async () => {
-    if (selectedIds.size === 0) return;
+    if (selectedIds.size === 0 || !selectedModel) return;
     setTrigger({ phase: "triggering" });
 
     try {
@@ -134,7 +144,7 @@ export function Run() {
   }, [selectedIds, selectedModel, request]);
 
   const command = useMemo(() => {
-    if (selectedIds.size === 0) return null;
+    if (selectedIds.size === 0 || !selectedModel) return null;
     return buildBenchCommand({
       scenarios: [...selectedIds],
       model: selectedModel,
@@ -310,22 +320,34 @@ export function Run() {
             <label className="text-[0.72rem] font-semibold uppercase tracking-wider text-fg-muted mb-2.5 block">
               Model
             </label>
-            <div className="grid grid-cols-2 gap-2">
-              {MODELS.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setSelectedModel(m.id)}
-                  className={`text-left px-3 py-2 rounded-md border text-[0.78rem] transition-all ${
-                    selectedModel === m.id
-                      ? "border-accent bg-accent/10 text-fg"
-                      : "border-border text-fg-muted hover:border-accent/50"
-                  }`}
-                >
-                  <div className="font-medium">{m.label}</div>
-                  <div className="text-[0.68rem] text-fg-muted">{m.cost}</div>
-                </button>
-              ))}
-            </div>
+            {modelsLoading ? (
+              <div className="text-[0.78rem] text-fg-muted">Loading models...</div>
+            ) : models.length === 0 ? (
+              <div className="text-[0.78rem] text-fg-muted">No models configured.</div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {models.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setSelectedModel(m.id)}
+                    className={`text-left px-3 py-2 rounded-md border text-[0.78rem] transition-all ${
+                      selectedModel === m.id
+                        ? "border-accent bg-accent/10 text-fg"
+                        : "border-border text-fg-muted hover:border-accent/50"
+                    }`}
+                  >
+                    <div className="font-medium">{m.display_name}</div>
+                    {m.input_cost_per_mtok > 0 ? (
+                      <div className="text-[0.68rem] text-fg-muted">
+                        ${m.input_cost_per_mtok}/${m.output_cost_per_mtok} / MTok
+                      </div>
+                    ) : (
+                      <div className="text-[0.68rem] text-fg-muted">Bundled fallback</div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Evidence mode */}
