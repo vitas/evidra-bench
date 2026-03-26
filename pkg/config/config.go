@@ -47,6 +47,9 @@ type Config struct {
 // ResolveSystemPromptFile returns the system prompt file path from flag, env, or empty.
 // Priority: flag > INFRA_BENCH_SYSTEM_PROMPT > empty (use default).
 func (c *Config) ResolveSystemPromptFile() string {
+	if c.suppressesEvidenceFallbacks() {
+		return ""
+	}
 	if c.SystemPromptFile != "" {
 		return c.SystemPromptFile
 	}
@@ -65,6 +68,9 @@ func (c *Config) ResolveDatabaseURL() string {
 // ResolveEvidraBin returns the evidra binary path from flag, env, or empty.
 // Priority: flag > EVIDRA_BIN > empty.
 func (c *Config) ResolveEvidraBin() string {
+	if c.suppressesEvidenceFallbacks() {
+		return ""
+	}
 	if c.EvidraBin != "" {
 		return c.EvidraBin
 	}
@@ -141,4 +147,13 @@ func EffectiveEvidenceMode(cfg Config) string {
 		return "direct"
 	}
 	return "none"
+}
+
+func (c *Config) suppressesEvidenceFallbacks() bool {
+	switch c.EvidenceMode {
+	case "none", "smart":
+		return true
+	default:
+		return false
+	}
 }

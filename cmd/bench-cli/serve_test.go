@@ -134,6 +134,39 @@ func TestBuildCertifyRunConfig_EvidenceModeSmartOverridesDefaults(t *testing.T) 
 	}
 }
 
+func TestBuildCertifyRunConfig_EmptyEvidenceModePreservesLegacyBehavior(t *testing.T) {
+	t.Parallel()
+
+	base := config.Default()
+	base.Provider = "claude"
+	base.MCPServer = "evidra-mcp --signing-mode optional"
+	base.ProxyMode = true
+	base.SmartPrescribe = false
+	base.EvidraBin = "/usr/local/bin/evidra"
+	base.SystemPromptFile = "/tmp/system-prompt.md"
+
+	got := buildCertifyRunConfig(base, CertifyRequest{Model: "sonnet"})
+
+	if got.EvidenceMode != "" {
+		t.Fatalf("EvidenceMode = %q, want empty", got.EvidenceMode)
+	}
+	if got.MCPServer != base.MCPServer {
+		t.Fatalf("MCPServer = %q, want %q", got.MCPServer, base.MCPServer)
+	}
+	if !got.ProxyMode {
+		t.Fatal("ProxyMode = false, want true")
+	}
+	if got.SmartPrescribe {
+		t.Fatal("SmartPrescribe = true, want false")
+	}
+	if got.EvidraBin != base.EvidraBin {
+		t.Fatalf("EvidraBin = %q, want %q", got.EvidraBin, base.EvidraBin)
+	}
+	if got.SystemPromptFile != base.SystemPromptFile {
+		t.Fatalf("SystemPromptFile = %q, want %q", got.SystemPromptFile, base.SystemPromptFile)
+	}
+}
+
 func TestEvidraReporter_SubmitBenchRunUsesExplicitEvidenceMode(t *testing.T) {
 	t.Parallel()
 
