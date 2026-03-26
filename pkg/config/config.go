@@ -39,6 +39,7 @@ type Config struct {
 	MCPServer           string // MCP server command (e.g. "evidra-mcp --signing-mode optional")
 	ProxyMode           bool   // auto-record evidence for mutations without agent involvement
 	SmartPrescribe      bool   // simplified prescribe (tool+operation, no artifact)
+	EvidenceMode        string // explicit per-run override for evidence mode
 	Parallel            int    // number of parallel workers (0 or 1 = sequential, >1 requires --database-url)
 	DatabaseURL         string // PostgreSQL connection string for River job queue (env: BENCH_DATABASE_URL)
 }
@@ -46,6 +47,9 @@ type Config struct {
 // ResolveSystemPromptFile returns the system prompt file path from flag, env, or empty.
 // Priority: flag > INFRA_BENCH_SYSTEM_PROMPT > empty (use default).
 func (c *Config) ResolveSystemPromptFile() string {
+	if c.suppressesEvidenceFallbacks() {
+		return ""
+	}
 	if c.SystemPromptFile != "" {
 		return c.SystemPromptFile
 	}
@@ -64,6 +68,9 @@ func (c *Config) ResolveDatabaseURL() string {
 // ResolveEvidraBin returns the evidra binary path from flag, env, or empty.
 // Priority: flag > EVIDRA_BIN > empty.
 func (c *Config) ResolveEvidraBin() string {
+	if c.suppressesEvidenceFallbacks() {
+		return ""
+	}
 	if c.EvidraBin != "" {
 		return c.EvidraBin
 	}
@@ -94,4 +101,68 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("config: agent-command or provider is required (use --dry-run to skip)")
 	}
 	return nil
+}
+
+// ApplyEvidenceMode returns a copy of cfg with the requested evidence mode
+// applied authoritatively. Empty mode leaves cfg unchanged.
+func ApplyEvidenceMode(cfg Config, mode string) Config {
+	if !IsSupportedEvidenceMode(mode) {
+		return cfg
+	}
+
+	cfg.EvidenceMode = mode
+	switch mode {
+	case "none":
+		cfg.MCPServer = ""
+		cfg.ProxyMode = false
+		cfg.SmartPrescribe = false
+		cfg.EvidraBin = ""
+		cfg.SystemPromptFile = ""
+		cfg.Role = ""
+		cfg.ContractVersion = ""
+	case "smart":
+		cfg.MCPServer = ""
+		cfg.ProxyMode = false
+		cfg.SmartPrescribe = true
+		cfg.EvidraBin = ""
+		cfg.SystemPromptFile = ""
+		cfg.Role = ""
+		cfg.ContractVersion = ""
+	}
+	return cfg
+}
+
+// EffectiveEvidenceMode returns the explicit evidence mode when set, otherwise
+// falls back to the legacy inference used before per-run overrides existed.
+func EffectiveEvidenceMode(cfg Config) string {
+	if IsSupportedEvidenceMode(cfg.EvidenceMode) {
+		return cfg.EvidenceMode
+	}
+	if cfg.MCPServer != "" {
+		return "mcp"
+	}
+	if cfg.SmartPrescribe {
+		return "smart"
+	}
+	if cfg.ProxyMode {
+		return "proxy"
+	}
+	if cfg.ResolveEvidraBin() != "" {
+		return "direct"
+	}
+	return "none"
+}
+
+func (c *Config) suppressesEvidenceFallbacks() bool {
+	return IsSupportedEvidenceMode(c.EvidenceMode) && (c.EvidenceMode == "none" || c.EvidenceMode == "smart")
+}
+
+// IsSupportedEvidenceMode reports whether a request/config mode is authoritative.
+func IsSupportedEvidenceMode(mode string) bool {
+	switch mode {
+	case "none", "smart":
+		return true
+	default:
+		return false
+	}
 }

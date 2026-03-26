@@ -30,6 +30,7 @@ type CertifyRequest struct {
 	Config          struct {
 		TimeoutPerScenario int    `json:"timeout_per_scenario,omitempty"`
 		Adapter            string `json:"adapter,omitempty"`
+		EvidenceMode       string `json:"evidence_mode,omitempty"`
 	} `json:"config"`
 	Callback struct {
 		ProgressURL  string `json:"progress_url"`
@@ -111,6 +112,11 @@ func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string
 			return
 		}
 
+		if req.Config.EvidenceMode != "" && !config.IsSupportedEvidenceMode(req.Config.EvidenceMode) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unsupported evidence_mode"})
+			return
+		}
+
 		if req.Model == "" || len(req.Scenarios) == 0 {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "model and scenarios required"})
 			return
@@ -149,9 +155,10 @@ func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string
 		}
 
 		reporter := &evidraReporter{
-			progressURL: progressURL,
-			evidraURL:   evidraURL,
-			authToken:   authToken,
+			progressURL:  progressURL,
+			evidraURL:    evidraURL,
+			authToken:    authToken,
+			evidenceMode: config.EffectiveEvidenceMode(runCfg),
 		}
 
 		go func() {
@@ -188,6 +195,7 @@ func buildCertifyRunConfig(baseCfg config.Config, req CertifyRequest) config.Con
 	if req.Config.TimeoutPerScenario > 0 {
 		runCfg.Timeout = time.Duration(req.Config.TimeoutPerScenario) * time.Second
 	}
+	runCfg = config.ApplyEvidenceMode(runCfg, req.Config.EvidenceMode)
 	return runCfg
 }
 
@@ -202,9 +210,10 @@ func writeJSON(w http.ResponseWriter, status int, data any) {
 // evidraReporter implements orchestrator.ProgressReporter by sending
 // progress webhooks and bench run submissions to the Evidra API.
 type evidraReporter struct {
-	progressURL string // POST progress updates here
-	evidraURL   string // POST bench runs here
-	authToken   string // Bearer token for both endpoints
+	progressURL  string // POST progress updates here
+	evidraURL    string // POST bench runs here
+	authToken    string // Bearer token for both endpoints
+	evidenceMode string // explicit evidence mode for run submissions
 }
 
 // OnScenario sends a progress webhook and (on completion) submits the bench run.
@@ -271,7 +280,7 @@ func (r *evidraReporter) submitBenchRun(ev orchestrator.ScenarioEvent) {
 		"model":            ev.Model,
 		"provider":         ev.Provider,
 		"adapter":          "bench-cli",
-		"evidence_mode":    "smart",
+		"evidence_mode":    r.evidenceMode,
 		"passed":           ev.Passed,
 		"duration_seconds": ev.Duration.Seconds(),
 		"checks_passed":    boolToInt(ev.Passed),

@@ -475,7 +475,8 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 
 	// Step 5b: Verify Evidra protocol compliance.
 	// Skip in proxy and smart modes — evidence format differs from evidra's native format.
-	if s.Evidra.Enabled && !req.Config.ProxyMode && !req.Config.SmartPrescribe && req.Config.MCPServer == "" {
+	evidenceMode := config.EffectiveEvidenceMode(req.Config)
+	if s.Evidra.Enabled && evidenceMode != "proxy" && evidenceMode != "smart" && evidenceMode != "mcp" {
 		// Fall back to simulated evidence if real evidence dir has no segments.
 		if s.Evidra.SimulatedEvidenceDir != "" {
 			if _, err := os.Stat(filepath.Join(evidenceDir, "segments")); err != nil {
@@ -598,17 +599,6 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		checksPassed, checksTotal := countChecks(verifyResult)
 		checksJSON, _ := json.Marshal(verifyResult)
 		metadataJSON, _ := json.Marshal(agentResult.Metadata)
-		// Determine evidence mode for the record.
-		evidenceMode := "none"
-		if req.Config.MCPServer != "" {
-			evidenceMode = "mcp"
-		} else if req.Config.SmartPrescribe {
-			evidenceMode = "smart"
-		} else if req.Config.ProxyMode {
-			evidenceMode = "proxy"
-		} else if req.Config.ResolveEvidraBin() != "" {
-			evidenceMode = "direct"
-		}
 
 		rec := store.RunRecord{
 			ID:               fmt.Sprintf("%s-%s-%s", startTime.Format("20060102-150405"), s.ID, req.Config.Adapter),
@@ -616,7 +606,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			Model:            req.Config.Model,
 			Provider:         req.Config.Provider,
 			Adapter:          req.Config.Adapter,
-			EvidenceMode:     evidenceMode,
+			EvidenceMode:     config.EffectiveEvidenceMode(req.Config),
 			ToolServer:       mcpServerName(req.Config.MCPServer),
 			Passed:           verifyResult.Passed,
 			Duration:         endTime.Sub(startTime).Seconds(),
@@ -921,19 +911,24 @@ func buildStepPlan(steps []scenario.BootstrapStep) *environment.BootstrapPlan {
 }
 
 func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenario.Scenario, kubeconfigPath, promptContent string, timeout time.Duration, evidenceDir string, injectChan <-chan agent.Message, memoryResetChan <-chan int) (*adapter.RunResult, error) {
-	provider, err := agent.ResolveProvider(req.Config.Provider)
+	cfg := req.Config
+	if config.IsSupportedEvidenceMode(cfg.EvidenceMode) {
+		cfg = config.ApplyEvidenceMode(cfg, cfg.EvidenceMode)
+	}
+
+	provider, err := agent.ResolveProvider(cfg.Provider)
 	if err != nil {
 		return nil, err
 	}
 
 	if evidenceDir == "" {
-		evidenceDir = providerEvidenceDir(req.Config.EvidraEvidenceDir, req.Config.RunsDir, s.ID, time.Now())
+		evidenceDir = providerEvidenceDir(cfg.EvidraEvidenceDir, cfg.RunsDir, s.ID, time.Now())
 	}
 	if err := os.MkdirAll(evidenceDir, 0755); err != nil {
 		return nil, fmt.Errorf("harness: create evidence dir: %w", err)
 	}
 
-	systemPrompt, err := buildSystemPrompt(req.Config, s)
+	systemPrompt, err := buildSystemPrompt(cfg, s)
 	if err != nil {
 		return nil, err
 	}
@@ -946,14 +941,14 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 	var mcpTools []agent.ToolDef
 	var mcpExec *agent.MCPExecutor
 
-	if req.Config.MCPServer != "" {
+	if cfg.MCPServer != "" {
 		// MCP mode: route tool calls through MCP server.
 		mcpEnv := append(req.ExtraEnv, "KUBECONFIG="+kubeconfigPath)
 		if evidenceDir != "" {
 			mcpEnv = append(mcpEnv, "EVIDRA_EVIDENCE_DIR="+evidenceDir)
 		}
 		var mcpErr error
-		mcpExec, mcpErr = agent.NewMCPExecutor(agentCtx, req.Config.MCPServer, mcpEnv)
+		mcpExec, mcpErr = agent.NewMCPExecutor(agentCtx, cfg.MCPServer, mcpEnv)
 		if mcpErr != nil {
 			return nil, fmt.Errorf("harness: mcp executor: %w", mcpErr)
 		}
@@ -966,18 +961,18 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		if toolErr != nil {
 			return nil, fmt.Errorf("harness: mcp tools: %w", toolErr)
 		}
-		log.Printf("[harness] using MCP server: %s (%d tools)", req.Config.MCPServer, len(mcpTools))
+		log.Printf("[harness] using MCP server: %s (%d tools)", cfg.MCPServer, len(mcpTools))
 	} else {
 		// Direct mode: harness executes commands.
 		executor := &agent.ToolExecutor{
 			KubeconfigPath: kubeconfigPath,
 			EvidencePath:   evidenceDir,
-			EvidraBin:      req.Config.ResolveEvidraBin(),
+			EvidraBin:      cfg.ResolveEvidraBin(),
 			ExtraEnv:       req.ExtraEnv,
 		}
 		loopExecutor = executor
 
-		if req.Config.SmartPrescribe {
+		if cfg.SmartPrescribe {
 			// Smart mode: simplified prescribe schema, no evidra binary needed.
 			evidence, evErr := proxy.NewEvidenceWriter(evidenceDir)
 			if evErr != nil {
@@ -985,7 +980,7 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 			}
 			defer func() { _ = evidence.Close() }()
 			loopExecutor = &agent.SmartToolExecutor{Base: executor, Evidence: evidence}
-		} else if req.Config.ProxyMode {
+		} else if cfg.ProxyMode {
 			// Proxy mode: auto-record, agent unaware.
 			proxyEvidence, proxyErr := proxy.NewEvidenceWriter(evidenceDir)
 			if proxyErr != nil {
@@ -999,9 +994,9 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 	loopResult, err := agent.RunLoop(agentCtx, agent.LoopConfig{
 		Provider:        provider,
 		Executor:        loopExecutor,
-		Model:           req.Config.Model,
+		Model:           cfg.Model,
 		MaxTurns:        25,
-		MemoryWindow:    req.Config.MemoryWindow,
+		MemoryWindow:    cfg.MemoryWindow,
 		SystemPrompt:    systemPrompt,
 		TaskPrompt:      promptContent,
 		Tools:           mcpTools,
@@ -1031,26 +1026,21 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		Transcript: transcript.String(),
 		Stdout:     loopResult.FinalOutput,
 		ToolCalls:  providerToolCalls(loopResult.Messages),
-		Metadata:   buildRunMetadata(req.Config, loopResult, evidenceDir),
+		Metadata:   buildRunMetadata(cfg, loopResult, evidenceDir),
 	}, nil
 }
 
 // buildRunMetadata creates the metadata map for a provider-path run,
 // including all version information for reproducibility.
 func buildRunMetadata(cfg config.Config, loopResult *agent.LoopResult, evidenceDir string) map[string]string {
-	evidenceMode := "direct"
-	if cfg.SmartPrescribe {
-		evidenceMode = "smart"
-	} else if cfg.ProxyMode {
-		evidenceMode = "proxy"
-	} else if cfg.ResolveEvidraBin() == "" && cfg.ResolveSystemPromptFile() == "" {
-		evidenceMode = "none"
+	if config.IsSupportedEvidenceMode(cfg.EvidenceMode) {
+		cfg = config.ApplyEvidenceMode(cfg, cfg.EvidenceMode)
 	}
 
 	meta := map[string]string{
 		"provider":          cfg.Provider,
 		"model":             cfg.Model,
-		"evidence_mode":     evidenceMode,
+		"evidence_mode":     config.EffectiveEvidenceMode(cfg),
 		"turns":             fmt.Sprintf("%d", loopResult.Turns),
 		"memory_window":     fmt.Sprintf("%d", loopResult.MemoryWindow),
 		"prompt_tokens":     fmt.Sprintf("%d", loopResult.TotalUsage.PromptTokens),

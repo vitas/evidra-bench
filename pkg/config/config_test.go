@@ -107,3 +107,54 @@ func TestConfig_Parallel_Default(t *testing.T) {
 		t.Errorf("default Parallel should be 0 (sequential), got %d", cfg.Parallel)
 	}
 }
+
+func TestConfig_ResolveEvidraBinAndPromptFile_SuppressEnvFallbackForAuthoritativeEvidenceMode(t *testing.T) {
+	t.Setenv("EVIDRA_BIN", "/env/evidra")
+	t.Setenv("INFRA_BENCH_SYSTEM_PROMPT", "/env/system-prompt.md")
+
+	for _, mode := range []string{"none", "smart"} {
+		cfg := ApplyEvidenceMode(Default(), mode)
+		if got := cfg.ResolveEvidraBin(); got != "" {
+			t.Fatalf("mode %q ResolveEvidraBin = %q, want empty", mode, got)
+		}
+		if got := cfg.ResolveSystemPromptFile(); got != "" {
+			t.Fatalf("mode %q ResolveSystemPromptFile = %q, want empty", mode, got)
+		}
+	}
+}
+
+func TestConfig_ResolveEnvFallback_EmptyEvidenceModePreservesLegacyBehavior(t *testing.T) {
+	t.Setenv("EVIDRA_BIN", "/env/evidra")
+	t.Setenv("INFRA_BENCH_SYSTEM_PROMPT", "/env/system-prompt.md")
+
+	cfg := Default()
+	if got := cfg.ResolveEvidraBin(); got != "/env/evidra" {
+		t.Fatalf("ResolveEvidraBin = %q, want env fallback", got)
+	}
+	if got := cfg.ResolveSystemPromptFile(); got != "/env/system-prompt.md" {
+		t.Fatalf("ResolveSystemPromptFile = %q, want env fallback", got)
+	}
+}
+
+func TestConfig_IgnoreUnsupportedEvidenceModeValues(t *testing.T) {
+	t.Setenv("EVIDRA_BIN", "/env/evidra")
+	t.Setenv("INFRA_BENCH_SYSTEM_PROMPT", "/env/system-prompt.md")
+
+	cfg := ApplyEvidenceMode(Default(), "proxy")
+	if cfg.EvidenceMode != "" {
+		t.Fatalf("EvidenceMode = %q, want empty", cfg.EvidenceMode)
+	}
+	if got := cfg.ResolveEvidraBin(); got != "/env/evidra" {
+		t.Fatalf("ResolveEvidraBin = %q, want env fallback", got)
+	}
+	if got := cfg.ResolveSystemPromptFile(); got != "/env/system-prompt.md" {
+		t.Fatalf("ResolveSystemPromptFile = %q, want env fallback", got)
+	}
+
+	cfg = Default()
+	cfg.EvidenceMode = "proxy"
+	cfg.ProxyMode = true
+	if got := EffectiveEvidenceMode(cfg); got != "proxy" {
+		t.Fatalf("EffectiveEvidenceMode = %q, want proxy", got)
+	}
+}
