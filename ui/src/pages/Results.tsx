@@ -231,13 +231,11 @@ export function Results() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-fg">Certification Results</h1>
-          <p className="text-[0.85rem] text-fg-muted mt-1">
-            {filteredRuns.length} runs across {leaderboard.length} models
-          </p>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-fg">Certification Results</h1>
+        <p className="text-[0.85rem] text-fg-muted mt-1">
+          {filteredRuns.length} runs across {leaderboard.length} models
+        </p>
       </div>
 
       {/* Filters row */}
@@ -281,48 +279,47 @@ export function Results() {
             {t === "all" ? "All time" : t}
           </button>
         ))}
-        {/* Separator */}
-        <div className="w-px h-5 bg-border hidden sm:block" />
-
-        {/* Evidence mode filter */}
-        {(
-          [
-            { key: "all" as EvidenceFilter, label: "All" },
-            { key: "none" as EvidenceFilter, label: "Baseline" },
-            { key: "evidra" as EvidenceFilter, label: "Evidra" },
-          ]
-        ).map((ef) => (
-          <button
-            key={ef.key}
-            onClick={() => setEvidenceFilter(ef.key)}
-            className={`px-2.5 py-1.5 text-[0.72rem] font-medium rounded-lg transition-colors ${
-              evidenceFilter === ef.key
-                ? "bg-accent/15 text-accent"
-                : "text-fg-muted hover:text-fg"
-            }`}
-          >
-            {ef.label}
-          </button>
-        ))}
-
         {/* Counter */}
         <span className="text-[0.72rem] text-fg-muted ml-2">
           {filteredRuns.length} runs · {new Set(filteredRuns.map(r => r.scenario_id)).size} scenarios · {new Set(filteredRuns.map(r => r.model)).size} models
         </span>
       </div>
 
-      <div className="flex gap-1 mb-6 glass-card p-1 w-fit">
-        {(["leaderboard", "runs"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-1.5 text-[0.78rem] font-medium rounded-md transition-colors ${
-              tab === t ? "bg-accent/15 text-accent" : "text-fg-muted hover:text-fg"
-            }`}
-          >
-            {t === "leaderboard" ? "Leaderboard" : "Recent Runs"}
-          </button>
-        ))}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="flex gap-1 glass-card p-1">
+          {(["leaderboard", "runs"] as Tab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-1.5 text-[0.78rem] font-medium rounded-md transition-colors ${
+                tab === t ? "bg-accent/15 text-accent" : "text-fg-muted hover:text-fg"
+              }`}
+            >
+              {t === "leaderboard" ? "Leaderboard" : "Recent Runs"}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1 glass-card p-1">
+          {(
+            [
+              { key: "all" as EvidenceFilter, label: "All" },
+              { key: "none" as EvidenceFilter, label: "Baseline" },
+              { key: "evidra" as EvidenceFilter, label: "Evidra" },
+            ]
+          ).map((ef) => (
+            <button
+              key={ef.key}
+              onClick={() => setEvidenceFilter(ef.key)}
+              className={`px-3 py-1.5 text-[0.75rem] font-medium rounded-md transition-colors ${
+                evidenceFilter === ef.key
+                  ? "bg-accent/15 text-accent"
+                  : "text-fg-muted hover:text-fg"
+              }`}
+            >
+              {ef.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading && <div className="text-center py-20 text-fg-muted">Loading results...</div>}
