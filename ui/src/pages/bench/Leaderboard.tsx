@@ -7,80 +7,32 @@ import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 /* ── Types ── */
 
-interface Run {
-  id: string;
-  scenario_id: string;
+interface LeaderboardEntry {
   model: string;
-  provider: string;
-  passed: boolean;
-  duration_seconds: number;
-  turns: number;
-  prompt_tokens: number;
-  completion_tokens: number;
-  estimated_cost_usd: number;
-  checks_json: string;
-}
-
-interface RunsResponse {
-  items: Run[];
-  total: number;
-}
-
-interface CheckEntry {
-  name: string;
-  type: string;
-  verdict: string;
-}
-
-interface ChecksPayload {
-  checks: CheckEntry[];
-}
-
-function parseProtocolCompliance(checksJson: string): { hasProtocol: boolean; infraPass: boolean; protocolPass: boolean } {
-  if (!checksJson) return { hasProtocol: false, infraPass: false, protocolPass: false };
-  try {
-    const parsed: ChecksPayload = JSON.parse(checksJson);
-    const checks = parsed.checks ?? [];
-    const infra = checks.filter((c) => c.type !== "evidra-protocol");
-    const protocol = checks.filter((c) => c.type === "evidra-protocol");
-    return {
-      hasProtocol: protocol.length > 0,
-      infraPass: infra.length === 0 || infra.every((c) => c.verdict === "pass"),
-      protocolPass: protocol.length > 0 && protocol.every((c) => c.verdict === "pass"),
-    };
-  } catch {
-    return { hasProtocol: false, infraPass: false, protocolPass: false };
-  }
-}
-
-interface ModelStats {
-  model: string;
-  runs: number;
-  passed: number;
-  failed: number;
-  rate: number;
-  infraRate: number;
-  avgTurns: number;
   scenarios: number;
-  avgDuration: number;
-  totalCost: number;
-  costPerRun: number;
-  costPerPass: number;
-  avgTokens: number;
-  totalTokens: number;
+  runs: number;
+  pass_rate: number;
+  avg_duration: number;
+  avg_cost: number;
+  total_cost: number;
+  pass_k: number;
+  pass_k_trials: number;
+  sufficient_scenarios: number;
 }
 
-type SortKey = keyof Pick<
-  ModelStats,
-  "rate" | "infraRate" | "avgTurns" | "runs" | "avgDuration" | "costPerRun" | "costPerPass" | "avgTokens" | "scenarios"
->;
+interface LeaderboardResponse {
+  models: LeaderboardEntry[];
+  evidence_mode: string;
+}
+
+type SortKey = "pass_rate" | "pass_k" | "runs" | "avg_duration" | "avg_cost" | "scenarios";
 
 const SORT_OPTIONS: { key: SortKey; label: string; desc: boolean }[] = [
-  { key: "rate", label: "Overall", desc: true },
-  { key: "infraRate", label: "Infra Fix", desc: true },
-  { key: "avgTurns", label: "Avg Turns", desc: false },
-  { key: "costPerPass", label: "Cost/Pass", desc: false },
-  { key: "avgDuration", label: "Duration", desc: false },
+  { key: "pass_rate", label: "Pass Rate", desc: true },
+  { key: "pass_k", label: "Reliability", desc: true },
+  { key: "scenarios", label: "Scenarios", desc: true },
+  { key: "avg_duration", label: "Duration", desc: false },
+  { key: "avg_cost", label: "Avg Cost", desc: false },
   { key: "runs", label: "Runs", desc: true },
 ];
 
@@ -96,21 +48,24 @@ function formatCost(usd: number): string {
   return `$${usd.toFixed(2)}`;
 }
 
-// formatTokens removed — column replaced by protocol compliance
-
 function rateColor(rate: number): string {
-  if (rate >= 90) return "text-accent";
   if (rate >= 70) return "text-accent";
   if (rate >= 50) return "text-warning";
   return "text-danger";
 }
 
 function rateBg(rate: number): string {
-  if (rate >= 90) return "bg-accent";
   if (rate >= 70) return "bg-accent";
   if (rate >= 50) return "bg-warning";
   if (rate > 0) return "bg-danger";
   return "bg-fg-muted";
+}
+
+function passKColor(k: number): string {
+  if (k >= 70) return "text-green-400";
+  if (k >= 40) return "text-accent";
+  if (k >= 20) return "text-yellow-400";
+  return "text-red-400";
 }
 
 function medalEmoji(rank: number): string {
@@ -126,106 +81,36 @@ export function Leaderboard() {
   usePageTitle("Model Leaderboard");
   const { request } = useApi();
   const { mode } = useEvidenceMode();
-  const [runs, setRuns] = useState<Run[]>([]);
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortKey, setSortKey] = useState<SortKey>("rate");
+  const [sortKey, setSortKey] = useState<SortKey>("pass_rate");
   const [sortDesc, setSortDesc] = useState(true);
 
   useEffect(() => {
-    request<RunsResponse>(`/v1/bench/runs?limit=1000${evidenceModeParam("&", mode)}`)
-      .then((res) => setRuns(res.items ?? []))
-      .catch(() => setRuns([]))
+    const modeParam = evidenceModeParam("&", mode);
+    request<LeaderboardResponse>(`/v1/bench/leaderboard?k=3${modeParam}`)
+      .then((res) => setEntries(res.models ?? []))
+      .catch(() => setEntries([]))
       .finally(() => setLoading(false));
   }, [request, mode]);
 
-  const models = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        runs: number;
-        passed: number;
-        infraPassed: number;
-        turns: number;
-        scenarios: Set<string>;
-        durations: number[];
-        cost: number;
-        tokens: number;
-      }
-    >();
-
-    for (const r of runs) {
-      if (!r.model) continue;
-      const entry = map.get(r.model) ?? {
-        runs: 0,
-        passed: 0,
-        infraPassed: 0,
-        turns: 0,
-        scenarios: new Set(),
-        durations: [],
-        cost: 0,
-        tokens: 0,
-      };
-      entry.runs += 1;
-      if (r.passed) entry.passed += 1;
-
-      const compliance = parseProtocolCompliance(r.checks_json);
-      if (compliance.infraPass) entry.infraPassed += 1;
-      entry.turns += r.turns || 0;
-
-      entry.scenarios.add(r.scenario_id);
-      entry.durations.push(r.duration_seconds);
-      entry.cost += r.estimated_cost_usd || 0;
-      entry.tokens += (r.prompt_tokens || 0) + (r.completion_tokens || 0);
-      map.set(r.model, entry);
-    }
-
-    const stats: ModelStats[] = [];
-    for (const [model, e] of map) {
-      const rate = e.runs > 0 ? (e.passed / e.runs) * 100 : 0;
-      const infraRate = e.runs > 0 ? (e.infraPassed / e.runs) * 100 : 0;
-      const avgTurns = e.runs > 0 ? e.turns / e.runs : 0;
-      const avgDuration =
-        e.durations.length > 0
-          ? e.durations.reduce((a, b) => a + b, 0) / e.durations.length
-          : 0;
-      stats.push({
-        model,
-        runs: e.runs,
-        passed: e.passed,
-        failed: e.runs - e.passed,
-        rate,
-        infraRate,
-        avgTurns,
-        scenarios: e.scenarios.size,
-        avgDuration,
-        totalCost: e.cost,
-        costPerRun: e.runs > 0 ? e.cost / e.runs : 0,
-        costPerPass: e.passed > 0 ? e.cost / e.passed : Infinity,
-        avgTokens: e.runs > 0 ? e.tokens / e.runs : 0,
-        totalTokens: e.tokens,
-      });
-    }
-
-    return stats;
-  }, [runs]);
-
   const sorted = useMemo(() => {
-    const arr = [...models];
+    const arr = [...entries];
     arr.sort((a, b) => {
-      const va = a[sortKey] ?? -1;
-      const vb = b[sortKey] ?? -1;
-      if (va === Infinity && vb === Infinity) return 0;
-      if (va === Infinity || va === -1) return 1;
-      if (vb === Infinity || vb === -1) return -1;
-      return sortDesc ? (vb as number) - (va as number) : (va as number) - (vb as number);
+      const va = a[sortKey] ?? 0;
+      const vb = b[sortKey] ?? 0;
+      return sortDesc ? vb - va : va - vb;
     });
     return arr;
-  }, [models, sortKey, sortDesc]);
+  }, [entries, sortKey, sortDesc]);
 
-  const totalRuns = runs.length;
-  const totalPassed = runs.filter((r) => r.passed).length;
-  const totalCost = runs.reduce((s, r) => s + (r.estimated_cost_usd || 0), 0);
-  const totalModels = models.length;
+  const totalRuns = entries.reduce((s, e) => s + e.runs, 0);
+  const totalCost = entries.reduce((s, e) => s + e.total_cost, 0);
+  const totalModels = entries.length;
+  const overallPassRate =
+    totalRuns > 0
+      ? entries.reduce((s, e) => s + (e.pass_rate / 100) * e.runs, 0) / totalRuns * 100
+      : 0;
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -263,7 +148,7 @@ export function Leaderboard() {
         <MiniCard label="Total Runs" value={String(totalRuns)} />
         <MiniCard
           label="Overall Pass Rate"
-          value={`${totalRuns > 0 ? ((totalPassed / totalRuns) * 100).toFixed(1) : 0}%`}
+          value={`${overallPassRate.toFixed(1)}%`}
         />
         <MiniCard label="Est. Cost*" value={`$${totalCost.toFixed(2)}`} />
       </div>
@@ -322,43 +207,46 @@ export function Leaderboard() {
                   <div className="flex items-center gap-2 mt-1">
                     <div className="flex-1 max-w-[120px] h-1.5 rounded-full bg-bg-alt/80 overflow-hidden">
                       <div
-                        className={`h-full rounded-full ${rateBg(m.rate)}`}
-                        style={{ width: `${m.rate}%` }}
+                        className={`h-full rounded-full ${rateBg(m.pass_rate)}`}
+                        style={{ width: `${m.pass_rate}%` }}
                       />
                     </div>
-                    <span className={`font-mono text-[0.7rem] font-semibold ${rateColor(m.rate)}`}>
-                      {m.passed}/{m.runs}
+                    <span className={`font-mono text-[0.7rem] font-semibold ${rateColor(m.pass_rate)}`}>
+                      {m.runs} runs
                     </span>
                   </div>
                 </td>
 
-                {/* Overall Rate */}
+                {/* Pass Rate */}
                 <td className="px-4 py-3 text-right">
-                  <span className={`font-mono text-[0.85rem] font-bold ${rateColor(m.rate)}`}>
-                    {m.rate.toFixed(1)}%
+                  <span className={`font-mono text-[0.85rem] font-bold ${rateColor(m.pass_rate)}`}>
+                    {m.pass_rate.toFixed(1)}%
                   </span>
                 </td>
 
-                {/* Infra Fix Rate */}
+                {/* Reliability (pass^k) */}
                 <td className="px-4 py-3 text-right">
-                  <span className={`font-mono text-[0.82rem] font-semibold ${rateColor(m.infraRate)}`}>
-                    {m.infraRate.toFixed(0)}%
+                  <span className={`font-mono text-[0.82rem] font-semibold ${passKColor(m.pass_k)}`}>
+                    {m.pass_k.toFixed(1)}%
                   </span>
+                  <div className="text-[0.62rem] text-fg-muted">
+                    k={m.pass_k_trials}, {m.sufficient_scenarios}/{m.scenarios}
+                  </div>
                 </td>
 
-                {/* Avg Turns */}
+                {/* Scenarios */}
                 <td className="px-4 py-3 text-right font-mono text-[0.82rem] text-fg-body">
-                  {m.avgTurns > 0 ? m.avgTurns.toFixed(1) : "\u2014"}
-                </td>
-
-                {/* Cost per Pass */}
-                <td className="px-4 py-3 text-right font-mono text-[0.78rem] text-fg-muted">
-                  {m.costPerPass === Infinity ? "\u2014" : formatCost(m.costPerPass)}
+                  {m.scenarios}
                 </td>
 
                 {/* Avg Duration */}
                 <td className="px-4 py-3 text-right font-mono text-[0.78rem] text-fg-muted">
-                  {formatDuration(m.avgDuration)}
+                  {formatDuration(m.avg_duration)}
+                </td>
+
+                {/* Avg Cost */}
+                <td className="px-4 py-3 text-right font-mono text-[0.78rem] text-fg-muted">
+                  {formatCost(m.avg_cost)}
                 </td>
 
                 {/* Total Runs */}
@@ -375,46 +263,50 @@ export function Leaderboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <InsightCard
           title="Most Reliable"
-          model={sorted[0]?.model ?? "—"}
-          stat={`${sorted[0]?.rate.toFixed(1) ?? 0}% pass rate`}
-          detail={`${sorted[0]?.passed ?? 0}/${sorted[0]?.runs ?? 0} runs passed`}
+          model={sorted[0]?.model ?? "\u2014"}
+          stat={`${sorted[0]?.pass_rate.toFixed(1) ?? 0}% pass rate`}
+          detail={`${sorted[0]?.runs ?? 0} runs across ${sorted[0]?.scenarios ?? 0} scenarios`}
           accent="accent"
         />
         <InsightCard
-          title="Best Value"
+          title="Most Consistent"
           model={(() => {
-            const viable = models.filter((m) => m.rate >= 50 && m.costPerRun > 0);
-            viable.sort((a, b) => a.costPerPass - b.costPerPass);
-            return viable[0]?.model ?? "—";
+            const viable = entries.filter((m) => m.pass_k > 0);
+            viable.sort((a, b) => b.pass_k - a.pass_k);
+            return viable[0]?.model ?? "\u2014";
           })()}
           stat={(() => {
-            const viable = models.filter((m) => m.rate >= 50 && m.costPerRun > 0);
-            viable.sort((a, b) => a.costPerPass - b.costPerPass);
-            return viable[0] ? `${formatCost(viable[0].costPerPass)} per pass` : "—";
+            const viable = entries.filter((m) => m.pass_k > 0);
+            viable.sort((a, b) => b.pass_k - a.pass_k);
+            return viable[0] ? `${viable[0].pass_k.toFixed(1)}% pass^${viable[0].pass_k_trials}` : "\u2014";
           })()}
           detail={(() => {
-            const viable = models.filter((m) => m.rate >= 50 && m.costPerRun > 0);
-            viable.sort((a, b) => a.costPerPass - b.costPerPass);
-            return viable[0] ? `${viable[0].rate.toFixed(0)}% rate, ${formatCost(viable[0].costPerRun)}/run` : "";
+            const viable = entries.filter((m) => m.pass_k > 0);
+            viable.sort((a, b) => b.pass_k - a.pass_k);
+            return viable[0]
+              ? `${viable[0].sufficient_scenarios}/${viable[0].scenarios} scenarios with ${viable[0].pass_k_trials}+ trials`
+              : "";
           })()}
           accent="info"
         />
         <InsightCard
           title="Fastest"
           model={(() => {
-            const viable = models.filter((m) => m.rate >= 50);
-            viable.sort((a, b) => a.avgDuration - b.avgDuration);
-            return viable[0]?.model ?? "—";
+            const viable = entries.filter((m) => m.pass_rate >= 50);
+            viable.sort((a, b) => a.avg_duration - b.avg_duration);
+            return viable[0]?.model ?? "\u2014";
           })()}
           stat={(() => {
-            const viable = models.filter((m) => m.rate >= 50);
-            viable.sort((a, b) => a.avgDuration - b.avgDuration);
-            return viable[0] ? formatDuration(viable[0].avgDuration) : "—";
+            const viable = entries.filter((m) => m.pass_rate >= 50);
+            viable.sort((a, b) => a.avg_duration - b.avg_duration);
+            return viable[0] ? formatDuration(viable[0].avg_duration) : "\u2014";
           })()}
           detail={(() => {
-            const viable = models.filter((m) => m.rate >= 50);
-            viable.sort((a, b) => a.avgDuration - b.avgDuration);
-            return viable[0] ? `${viable[0].rate.toFixed(0)}% rate across ${viable[0].scenarios} scenarios` : "";
+            const viable = entries.filter((m) => m.pass_rate >= 50);
+            viable.sort((a, b) => a.avg_duration - b.avg_duration);
+            return viable[0]
+              ? `${viable[0].pass_rate.toFixed(0)}% rate across ${viable[0].scenarios} scenarios`
+              : "";
           })()}
           accent="warning"
         />
