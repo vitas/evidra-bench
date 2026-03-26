@@ -21,6 +21,8 @@ COPY go.mod go.sum ./
 RUN sed -i 's|=> ../[^ ]*|=> /build/parent|' go.mod
 RUN go mod download
 COPY . .
+# Re-apply sed after COPY overwrites go.mod.
+RUN sed -i 's|=> ../[^ ]*|=> /build/parent|' go.mod
 
 ARG VERSION=dev
 ARG COMMIT=dev
