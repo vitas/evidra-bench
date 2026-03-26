@@ -42,6 +42,50 @@ MCP server. The agent manages its own prescribe/report calls via MCP:
 Regardless of path, the harness reads the evidence JSONL files after the
 agent completes and runs declarative assertions.
 
+## Bench Job Contracts
+
+When `evidra-infra-bench` is wired into the hosted Evidra platform, the
+benchmark job lifecycle is driven by the `evidra` API control plane rather than
+by this repo's local `POST /v1/certify` endpoint.
+That local certify request can override the worker's default evidence mode; the
+request value takes precedence over the default worker setting.
+
+### Direct executor path
+
+In direct executor mode, Evidra accepts:
+
+- `POST /v1/bench/trigger` with `model`, optional `provider`, required
+  `evidence_mode` (`none` or `smart`), and `scenarios[]`
+- `GET /v1/bench/trigger/{id}` for status polling
+- `POST /v1/bench/trigger/{id}/progress` for scenario-level progress updates
+
+The trigger contract is intentionally coarse. Exact-match stored subtypes such
+as `proxy`, `direct`, and `mcp` stay internal until the advanced filter story
+is documented.
+
+In this mode, the control plane starts execution immediately and this repo acts
+as the scenario runner/executor behind that trigger request.
+
+### Poll-based runner path
+
+In runner mode, Evidra persists jobs and this repo participates as a registered
+runner:
+
+- `POST /v1/runners/register` advertises runner capabilities
+- `GET /v1/runners/jobs?runner_id=...` claims the next matching job
+- claimed jobs include `job_id`, `model`, optional `provider`, `evidence_mode`,
+  `scenarios[]`, and timeout metadata
+- `POST /v1/runners/jobs/{id}/complete` reports `runner_id`, final `status`,
+  `passed`, `failed`, and an optional `message`
+
+This repo still owns the execution internals: provisioning, namespace rewrite,
+agent execution, verification, artifact capture, and benchmark result upload.
+The hosted job contract itself is normative in the sibling `evidra` repo:
+
+- `../evidra/docs/contracts/EXECUTOR_CONTRACT_V1.md`
+- `../evidra/docs/contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md`
+- `../evidra/docs/api-reference.md`
+
 ## Evidence Format
 
 The harness reads evidence entries from `<evidence-dir>/segments/*.jsonl`.
