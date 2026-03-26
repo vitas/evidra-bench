@@ -135,3 +135,26 @@ func TestConfig_ResolveEnvFallback_EmptyEvidenceModePreservesLegacyBehavior(t *t
 		t.Fatalf("ResolveSystemPromptFile = %q, want env fallback", got)
 	}
 }
+
+func TestConfig_IgnoreUnsupportedEvidenceModeValues(t *testing.T) {
+	t.Setenv("EVIDRA_BIN", "/env/evidra")
+	t.Setenv("INFRA_BENCH_SYSTEM_PROMPT", "/env/system-prompt.md")
+
+	cfg := ApplyEvidenceMode(Default(), "proxy")
+	if cfg.EvidenceMode != "" {
+		t.Fatalf("EvidenceMode = %q, want empty", cfg.EvidenceMode)
+	}
+	if got := cfg.ResolveEvidraBin(); got != "/env/evidra" {
+		t.Fatalf("ResolveEvidraBin = %q, want env fallback", got)
+	}
+	if got := cfg.ResolveSystemPromptFile(); got != "/env/system-prompt.md" {
+		t.Fatalf("ResolveSystemPromptFile = %q, want env fallback", got)
+	}
+
+	cfg = Default()
+	cfg.EvidenceMode = "proxy"
+	cfg.ProxyMode = true
+	if got := EffectiveEvidenceMode(cfg); got != "proxy" {
+		t.Fatalf("EffectiveEvidenceMode = %q, want proxy", got)
+	}
+}

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -72,6 +74,8 @@ func TestBuildCertifyRunConfig_EvidenceModeNoneClearsConflicts(t *testing.T) {
 	base.SmartPrescribe = true
 	base.EvidraBin = "/usr/local/bin/evidra"
 	base.SystemPromptFile = "/tmp/system-prompt.md"
+	base.Role = "platform-eng"
+	base.ContractVersion = "v9.9.9"
 
 	req := CertifyRequest{Model: "sonnet"}
 	req.Config.EvidenceMode = "none"
@@ -96,6 +100,12 @@ func TestBuildCertifyRunConfig_EvidenceModeNoneClearsConflicts(t *testing.T) {
 	if got.SystemPromptFile != "" {
 		t.Fatalf("SystemPromptFile = %q, want empty", got.SystemPromptFile)
 	}
+	if got.Role != "" {
+		t.Fatalf("Role = %q, want empty", got.Role)
+	}
+	if got.ContractVersion != "" {
+		t.Fatalf("ContractVersion = %q, want empty", got.ContractVersion)
+	}
 }
 
 func TestBuildCertifyRunConfig_EvidenceModeSmartOverridesDefaults(t *testing.T) {
@@ -108,6 +118,8 @@ func TestBuildCertifyRunConfig_EvidenceModeSmartOverridesDefaults(t *testing.T) 
 	base.SmartPrescribe = false
 	base.EvidraBin = "/usr/local/bin/evidra"
 	base.SystemPromptFile = "/tmp/system-prompt.md"
+	base.Role = "platform-eng"
+	base.ContractVersion = "v9.9.9"
 
 	req := CertifyRequest{Model: "sonnet"}
 	req.Config.EvidenceMode = "smart"
@@ -131,6 +143,29 @@ func TestBuildCertifyRunConfig_EvidenceModeSmartOverridesDefaults(t *testing.T) 
 	}
 	if got.SystemPromptFile != "" {
 		t.Fatalf("SystemPromptFile = %q, want empty", got.SystemPromptFile)
+	}
+	if got.Role != "" {
+		t.Fatalf("Role = %q, want empty", got.Role)
+	}
+	if got.ContractVersion != "" {
+		t.Fatalf("ContractVersion = %q, want empty", got.ContractVersion)
+	}
+}
+
+func TestHandleCertifyAPI_RejectsUnsupportedEvidenceMode(t *testing.T) {
+	t.Parallel()
+
+	handler := handleCertifyAPI(config.Default(), &noopParallelRunner{}, t.TempDir())
+	req := httptest.NewRequest(http.MethodPost, "/v1/certify", strings.NewReader(`{"config":{"evidence_mode":"proxy"}}`))
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "unsupported evidence_mode") {
+		t.Fatalf("body = %q, want unsupported evidence_mode", rec.Body.String())
 	}
 }
 
@@ -203,4 +238,13 @@ func orchestratorScenarioEventForTest() orchestrator.ScenarioEvent {
 		Duration:   5 * time.Second,
 		Passed:     true,
 	}
+}
+
+type noopParallelRunner struct {
+	called bool
+}
+
+func (r *noopParallelRunner) RunParallel(_ context.Context, _ config.Config, _ orchestrator.ProgressReporter, _ []string, _ []string, _ int, _ int, _ string) (*orchestrator.RunResult, error) {
+	r.called = true
+	return &orchestrator.RunResult{}, nil
 }

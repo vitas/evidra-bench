@@ -238,11 +238,15 @@ func TestBuildRunMetadata_PrefersExplicitEvidenceMode(t *testing.T) {
 	cfg.ProxyMode = true
 	cfg.EvidraBin = "/usr/local/bin/evidra"
 	cfg.SystemPromptFile = promptdata.MCPAgentContractPath
+	cfg.ContractVersion = "v9.9.9"
 
 	meta := buildRunMetadata(cfg, &agent.LoopResult{}, "/tmp/evidence")
 
 	if meta["evidence_mode"] != "none" {
 		t.Fatalf("evidence_mode = %q, want none", meta["evidence_mode"])
+	}
+	if _, ok := meta["contract_version"]; ok {
+		t.Fatalf("contract_version unexpectedly present: %q", meta["contract_version"])
 	}
 }
 

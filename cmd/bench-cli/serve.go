@@ -112,6 +112,11 @@ func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string
 			return
 		}
 
+		if req.Config.EvidenceMode != "" && !config.IsSupportedEvidenceMode(req.Config.EvidenceMode) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unsupported evidence_mode"})
+			return
+		}
+
 		if req.Model == "" || len(req.Scenarios) == 0 {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "model and scenarios required"})
 			return

@@ -106,7 +106,7 @@ func (c *Config) Validate() error {
 // ApplyEvidenceMode returns a copy of cfg with the requested evidence mode
 // applied authoritatively. Empty mode leaves cfg unchanged.
 func ApplyEvidenceMode(cfg Config, mode string) Config {
-	if mode == "" {
+	if !IsSupportedEvidenceMode(mode) {
 		return cfg
 	}
 
@@ -118,12 +118,16 @@ func ApplyEvidenceMode(cfg Config, mode string) Config {
 		cfg.SmartPrescribe = false
 		cfg.EvidraBin = ""
 		cfg.SystemPromptFile = ""
+		cfg.Role = ""
+		cfg.ContractVersion = ""
 	case "smart":
 		cfg.MCPServer = ""
 		cfg.ProxyMode = false
 		cfg.SmartPrescribe = true
 		cfg.EvidraBin = ""
 		cfg.SystemPromptFile = ""
+		cfg.Role = ""
+		cfg.ContractVersion = ""
 	}
 	return cfg
 }
@@ -131,7 +135,7 @@ func ApplyEvidenceMode(cfg Config, mode string) Config {
 // EffectiveEvidenceMode returns the explicit evidence mode when set, otherwise
 // falls back to the legacy inference used before per-run overrides existed.
 func EffectiveEvidenceMode(cfg Config) string {
-	if cfg.EvidenceMode != "" {
+	if IsSupportedEvidenceMode(cfg.EvidenceMode) {
 		return cfg.EvidenceMode
 	}
 	if cfg.MCPServer != "" {
@@ -150,7 +154,12 @@ func EffectiveEvidenceMode(cfg Config) string {
 }
 
 func (c *Config) suppressesEvidenceFallbacks() bool {
-	switch c.EvidenceMode {
+	return IsSupportedEvidenceMode(c.EvidenceMode) && (c.EvidenceMode == "none" || c.EvidenceMode == "smart")
+}
+
+// IsSupportedEvidenceMode reports whether a request/config mode is authoritative.
+func IsSupportedEvidenceMode(mode string) bool {
+	switch mode {
 	case "none", "smart":
 		return true
 	default:
