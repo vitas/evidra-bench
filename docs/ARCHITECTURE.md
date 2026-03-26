@@ -6,6 +6,35 @@ evidra-infra-bench is a Go harness that runs AI agents against real Kubernetes
 clusters to measure infrastructure remediation skills. It provisions clusters,
 injects faults, lets agents fix them, and verifies outcomes.
 
+## Control Plane Boundary
+
+This repo owns scenario execution, workspace isolation, namespace isolation,
+verification, and result reporting. It does not own the multi-tenant bench job
+contracts exposed by the hosted Evidra API.
+
+| Surface | Owner | Purpose |
+|---------|-------|---------|
+| `bench-cli run`, `bench-cli bench`, `bench-cli serve` | `evidra-infra-bench` | Run scenarios directly or through the local River-backed orchestrator |
+| `POST /v1/certify` | `evidra-infra-bench` | Local standalone enqueue API for the orchestrator; request-level `evidence_mode` overrides the worker default |
+| `POST /v1/bench/trigger`, `GET /v1/bench/trigger/{id}`, `POST /v1/bench/trigger/{id}/progress`, `/v1/runners/*` | sibling `evidra` repo | Hosted trigger, persisted job queue, runner registration, progress, and completion |
+
+When this harness is used inside the hosted Evidra stack, it participates in
+one of two control-plane modes:
+
+- direct executor mode: Evidra accepts `POST /v1/bench/trigger` and invokes an
+  executor implementation that runs scenarios immediately; hosted trigger
+  requests only accept the coarse `none|smart` evidence modes
+- poll-based runner mode: Evidra persists the job, a registered runner claims
+  it through `GET /v1/runners/jobs`, and the runner completes it through
+  `POST /v1/runners/jobs/{id}/complete`; claimed jobs include `evidence_mode`
+
+The authoritative HTTP contract for those hosted surfaces lives in the sibling
+`evidra` repo:
+
+- `../evidra/docs/contracts/EXECUTOR_CONTRACT_V1.md`
+- `../evidra/docs/contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md`
+- `../evidra/docs/api-reference.md`
+
 ## Module Diagram
 
 ```
@@ -148,6 +177,13 @@ serve.go → serveAPI()
 ```
 
 Same orchestrator, same lifecycle. The API just enqueues and returns.
+
+This local `POST /v1/certify` surface is separate from the hosted
+`POST /v1/bench/trigger` contract. The Run UI in this repo targets the hosted
+trigger API, not the standalone certify API.
+The local certify request can override the worker's default evidence mode; the
+request value wins over the worker default and does not change the hosted
+trigger aliasing.
 
 ## Data Flow
 
