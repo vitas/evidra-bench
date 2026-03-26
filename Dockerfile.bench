@@ -17,8 +17,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" \
 # Copy bench service source and build.
 WORKDIR /build/bench
 COPY go.mod go.sum ./
-# Rewrite replace directive to point to cloned path (matches any ../X pattern).
-RUN sed -i 's|=> \.\./[^ ]*|=> /build/parent|' go.mod
+# Rewrite replace directive to point to cloned path.
+RUN sed -i 's|=> ../[^ ]*|=> /build/parent|' go.mod
 RUN go mod download
 COPY . .
 
