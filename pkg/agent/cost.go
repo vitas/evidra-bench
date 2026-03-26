@@ -32,16 +32,24 @@ func (c CostEstimate) String() string {
 }
 
 // EstimateCost calculates the cost for a given token usage and model.
+// Cache tokens are included: creation tokens at full price, read tokens at 10% (standard cache discount).
 func EstimateCost(model string, usage Usage) CostEstimate {
 	pricing := LookupPricing(model)
-	inputCost := float64(usage.PromptTokens) / 1_000_000 * pricing.InputPerMillion
+
+	// Total input tokens: prompt + cache creation (full price) + cache read (discounted).
+	fullPriceInput := usage.PromptTokens + usage.CacheCreationInputTokens
+	inputCost := float64(fullPriceInput) / 1_000_000 * pricing.InputPerMillion
+	cacheCost := float64(usage.CacheReadInputTokens) / 1_000_000 * pricing.InputPerMillion * 0.1
+
 	outputCost := float64(usage.CompletionTokens) / 1_000_000 * pricing.OutputPerMillion
+
+	totalInput := fullPriceInput + usage.CacheReadInputTokens
 	return CostEstimate{
-		InputTokens:  usage.PromptTokens,
+		InputTokens:  totalInput,
 		OutputTokens: usage.CompletionTokens,
-		InputCost:    inputCost,
+		InputCost:    inputCost + cacheCost,
 		OutputCost:   outputCost,
-		TotalCost:    inputCost + outputCost,
+		TotalCost:    inputCost + cacheCost + outputCost,
 		Model:        model,
 		Currency:     "USD",
 	}

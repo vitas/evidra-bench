@@ -52,10 +52,12 @@ type ChatResponse struct {
 	Usage            Usage      `json:"usage"`
 }
 
-// Usage tracks token consumption.
+// Usage tracks token consumption including prompt cache tokens.
 type Usage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
+	PromptTokens             int `json:"prompt_tokens"`
+	CompletionTokens         int `json:"completion_tokens"`
+	CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
+	CacheReadInputTokens     int `json:"cache_read_input_tokens,omitempty"`
 }
 
 // Done returns true if the model is finished (no more tool calls).

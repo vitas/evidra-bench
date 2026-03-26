@@ -226,8 +226,10 @@ func parseOpenAIResponse(body []byte) (*ChatResponse, error) {
 			FinishReason string `json:"finish_reason"`
 		} `json:"choices"`
 		Usage struct {
-			PromptTokens     int `json:"prompt_tokens"`
-			CompletionTokens int `json:"completion_tokens"`
+			PromptTokens             int `json:"prompt_tokens"`
+			CompletionTokens         int `json:"completion_tokens"`
+			CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+			CacheReadInputTokens     int `json:"cache_read_input_tokens"`
 		} `json:"usage"`
 	}
 	if err := json.Unmarshal(body, &raw); err != nil {
@@ -252,8 +254,10 @@ func parseOpenAIResponse(body []byte) (*ChatResponse, error) {
 		ReasoningContent: choice.Message.ReasoningContent,
 		ToolCalls:        toolCalls,
 		Usage: Usage{
-			PromptTokens:     raw.Usage.PromptTokens,
-			CompletionTokens: raw.Usage.CompletionTokens,
+			PromptTokens:             raw.Usage.PromptTokens,
+			CompletionTokens:         raw.Usage.CompletionTokens,
+			CacheCreationInputTokens: raw.Usage.CacheCreationInputTokens,
+			CacheReadInputTokens:     raw.Usage.CacheReadInputTokens,
 		},
 	}, nil
 }
