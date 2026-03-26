@@ -46,7 +46,7 @@ ui-build: catalog
 	cd ui && npm ci && npm run build
 
 ui-docker:
-	docker build -t ghcr.io/samebits/evidra-bench-ui:latest ui/
+	docker build -t ghcr.io/vitas/bench-ui:latest ui/
 
 docker-bench:
 	docker build -f Dockerfile.bench \
