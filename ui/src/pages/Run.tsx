@@ -113,6 +113,7 @@ export function Run() {
         method: "POST",
         body: JSON.stringify({
           model: selectedModel,
+          evidence_mode: mode === "evidra" ? "smart" : "none",
           scenarios: [...selectedIds],
         }),
       });
