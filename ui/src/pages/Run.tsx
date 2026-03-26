@@ -1,12 +1,20 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { SCENARIOS, CATEGORY_LABELS, TRACK_LABELS, type ScenarioMeta } from "../data/catalog";
 import { MODELS } from "../data/models";
 import { CATEGORY_COLORS, DIFFICULTY_COLORS, LEVEL_COLORS } from "../data/colors";
 import { useEvidenceMode } from "../hooks/useEvidenceMode";
 import { buildBenchCommand, EVIDENCE_MODES } from "../lib/commandBuilder.mts";
+import { useBenchApi } from "../hooks/useBenchApi";
 
 type Category = "all" | ScenarioMeta["category"];
 type Track = "all" | ScenarioMeta["track"];
+
+type TriggerState =
+  | { phase: "idle" }
+  | { phase: "triggering" }
+  | { phase: "running"; jobId: string; completed: number; total: number; status: string }
+  | { phase: "done"; jobId: string; status: string; completed: number; total: number }
+  | { phase: "error"; message: string };
 
 const CATEGORY_PILLS: { value: Category; label: string }[] = [
   { value: "all", label: "All" },
@@ -74,6 +82,56 @@ export function Run() {
   const clearAll = useCallback(() => {
     setSelectedIds(new Set());
   }, []);
+
+  const { request } = useBenchApi();
+  const [trigger, setTrigger] = useState<TriggerState>({ phase: "idle" });
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Clean up polling on unmount.
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  const handleRun = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    setTrigger({ phase: "triggering" });
+
+    try {
+      const res = await request<{ id: string; status: string; total: string }>("/v1/bench/trigger", {
+        method: "POST",
+        body: JSON.stringify({
+          model: selectedModel,
+          scenarios: [...selectedIds],
+        }),
+      });
+
+      const jobId = res.id;
+      const total = parseInt(res.total, 10) || selectedIds.size;
+      setTrigger({ phase: "running", jobId, completed: 0, total, status: "pending" });
+
+      // Poll for progress.
+      pollRef.current = setInterval(async () => {
+        try {
+          const job = await request<{ status: string; completed: number; total: number }>(
+            `/v1/bench/trigger/${jobId}`
+          );
+          if (job.status === "completed" || job.status === "failed") {
+            if (pollRef.current) clearInterval(pollRef.current);
+            pollRef.current = null;
+            setTrigger({ phase: "done", jobId, status: job.status, completed: job.completed, total: job.total });
+          } else {
+            setTrigger({ phase: "running", jobId, completed: job.completed, total: job.total, status: job.status });
+          }
+        } catch {
+          // Ignore transient poll errors.
+        }
+      }, 3000);
+    } catch (err: any) {
+      setTrigger({ phase: "error", message: err.message || "Failed to trigger run" });
+    }
+  }, [selectedIds, selectedModel, request]);
 
   const command = useMemo(() => {
     if (selectedIds.size === 0) return null;
@@ -302,73 +360,77 @@ export function Run() {
         </div>
       </div>
 
-      {/* Section 3: Generated Command */}
+      {/* Section 3: Run */}
       <div className="glass-card overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
           <label className="text-[0.72rem] font-semibold uppercase tracking-wider text-fg-muted">
-            Generated Command
+            Run
           </label>
-          {command && (
+          <div className="flex items-center gap-2">
+            {command && (
+              <button
+                onClick={handleCopy}
+                className="inline-flex items-center gap-1.5 px-3 py-1 border border-border-subtle text-fg-muted text-[0.72rem] font-semibold rounded-md hover:border-accent/40 hover:text-fg transition-all"
+              >
+                {copied ? "Copied" : "Copy CLI"}
+              </button>
+            )}
             <button
-              onClick={handleCopy}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-accent text-white text-[0.72rem] font-semibold rounded-md hover:bg-accent/80 transition-all"
+              onClick={handleRun}
+              disabled={selectedIds.size === 0 || trigger.phase === "triggering" || trigger.phase === "running"}
+              className="inline-flex items-center gap-1.5 px-4 py-1 bg-accent text-white text-[0.72rem] font-semibold rounded-md hover:bg-accent/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {copied ? (
-                <>
-                  <svg
-                    className="w-3 h-3"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2.5}
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  Copied
-                </>
-              ) : (
-                <>
-                  <svg
-                    className="w-3 h-3"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-                  </svg>
-                  Copy
-                </>
-              )}
+              {trigger.phase === "triggering" ? "Starting..." :
+               trigger.phase === "running" ? `Running ${trigger.completed}/${trigger.total}` :
+               "Run on Server"}
             </button>
-          )}
+          </div>
         </div>
         <div className="px-4 py-3">
+          {trigger.phase === "running" && (
+            <div className="space-y-2 mb-3">
+              <div className="flex items-center justify-between text-[0.75rem]">
+                <span className="text-fg-muted">Progress</span>
+                <span className="text-fg font-medium">{trigger.completed} / {trigger.total}</span>
+              </div>
+              <div className="w-full bg-border-subtle rounded-full h-1.5">
+                <div
+                  className="bg-accent h-1.5 rounded-full transition-all duration-500"
+                  style={{ width: `${trigger.total > 0 ? (trigger.completed / trigger.total) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+          )}
+          {trigger.phase === "done" && (
+            <div className={`flex items-center justify-between px-3 py-2 rounded-md mb-3 text-[0.78rem] font-medium ${
+              trigger.status === "completed"
+                ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                : "bg-red-500/10 text-red-400 border border-red-500/20"
+            }`}>
+              <span>{trigger.status === "completed" ? "Run completed" : "Run failed"} — {trigger.completed}/{trigger.total} scenarios</span>
+              <a href="/bench" className="text-accent hover:text-accent/80 transition-colors text-[0.72rem]">
+                View results
+              </a>
+            </div>
+          )}
+          {trigger.phase === "error" && (
+            <div className="px-3 py-2 rounded-md mb-3 text-[0.78rem] bg-red-500/10 text-red-400 border border-red-500/20">
+              {trigger.message}
+            </div>
+          )}
           {command ? (
-            <pre className="text-[0.75rem] text-fg font-mono leading-relaxed whitespace-pre overflow-x-auto">
-              {command}
-            </pre>
+            <details className="text-[0.72rem] text-fg-muted">
+              <summary className="cursor-pointer hover:text-fg transition-colors">CLI command</summary>
+              <pre className="mt-2 text-[0.75rem] text-fg font-mono leading-relaxed whitespace-pre overflow-x-auto">
+                {command}
+              </pre>
+            </details>
           ) : (
             <p className="text-[0.82rem] text-fg-muted py-4 text-center">
-              Select at least one scenario to generate a command.
+              Select at least one scenario to run.
             </p>
           )}
         </div>
-        {command && (
-          <div className="px-4 pb-3">
-            <p className="text-[0.72rem] text-fg-muted">
-              Run this command locally.{" "}
-              <a
-                href="/bench"
-                className="text-accent hover:text-accent/80 transition-colors"
-              >
-                View results
-              </a>{" "}
-              after the run completes.
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );
