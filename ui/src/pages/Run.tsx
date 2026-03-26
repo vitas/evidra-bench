@@ -148,7 +148,7 @@ export function Run() {
     return buildBenchCommand({
       scenarios: [...selectedIds],
       model: selectedModel,
-      evidenceMode: mode === "smart" ? "evidra-mcp" : "baseline",
+      evidenceMode: mode === "evidra" ? "evidra-mcp" : "baseline",
     });
   }, [selectedIds, selectedModel, mode]);
 
@@ -358,12 +358,12 @@ export function Run() {
             <div className="flex gap-2">
               {EVIDENCE_MODES.map((evidenceMode) => {
                 const isSelected =
-                  (mode === "proxy" && evidenceMode.id === "baseline") ||
-                  (mode === "smart" && evidenceMode.id === "evidra-mcp");
+                  (mode === "none" && evidenceMode.id === "baseline") ||
+                  (mode === "evidra" && evidenceMode.id === "evidra-mcp");
                 return (
                   <button
                     key={evidenceMode.id}
-                    onClick={() => setMode(evidenceMode.id === "baseline" ? "proxy" : "smart")}
+                    onClick={() => setMode(evidenceMode.id === "baseline" ? "none" : "evidra")}
                     className={`flex-1 px-3 py-2 rounded-md border text-[0.78rem] font-medium transition-all ${
                       isSelected
                         ? "border-accent bg-accent/10 text-fg"

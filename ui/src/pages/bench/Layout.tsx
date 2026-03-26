@@ -23,8 +23,8 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const modeOptions: { value: EvidenceMode; label: string }[] = [
     { value: "all", label: "All" },
-    { value: "proxy", label: "Baseline" },
-    { value: "smart", label: "MCP" },
+    { value: "none", label: "Baseline" },
+    { value: "evidra", label: "Evidra" },
   ];
 
   return (
