@@ -184,6 +184,7 @@ jobs:
     needs: [test]
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    environment: hetzner-cloud-evidra-cc
     permissions:
       contents: read
       packages: write
