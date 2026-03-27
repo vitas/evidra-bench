@@ -4,6 +4,7 @@ package orchestrator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sync/atomic"
@@ -11,6 +12,7 @@ import (
 
 	"samebits.com/evidra-infra-bench/pkg/config"
 	"samebits.com/evidra-infra-bench/pkg/environment"
+	"samebits.com/evidra-infra-bench/pkg/harness"
 	"samebits.com/evidra-infra-bench/pkg/jobqueue"
 	"samebits.com/evidra-infra-bench/pkg/store"
 	"samebits.com/evidra-infra-bench/pkg/workspace"
@@ -29,12 +31,13 @@ type ScenarioEvent struct {
 	ScenarioID string        // Scenario identifier
 	Model      string        // LLM model name
 	Provider   string        // LLM provider
-	Status     string        // "running", "passed", "failed"
+	Status     string        // "running", "passed", "failed", "error"
 	RunID      string        // Unique run identifier (set on completion)
 	Completed  int           // Scenarios completed so far
 	Total      int           // Total scenarios in the job
 	Duration   time.Duration // Scenario wall-clock duration (set on completion)
 	Passed     bool          // Whether verification passed
+	ExitCode   int           // 0=passed, 1=agent-failed, -1=infra-error
 }
 
 // ProgressReporter receives scenario lifecycle events. Implementations must be
@@ -186,10 +189,19 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 		c = int(atomic.LoadInt64(&completed))
 
 		status := "passed"
+		exitCode := 0
 		if runErr != nil {
-			status = "failed"
+			var infraErr *harness.InfraError
+			if errors.As(runErr, &infraErr) {
+				status = "error"
+				exitCode = -1
+				log.Printf("[worker-%d] ERROR %s (infra): %v", args.NamespaceSlot, args.ScenarioID, runErr)
+			} else {
+				status = "failed"
+				exitCode = 1
+				log.Printf("[worker-%d] FAIL %s: %v", args.NamespaceSlot, args.ScenarioID, runErr)
+			}
 			atomic.AddInt64(&failed, 1)
-			log.Printf("[worker-%d] FAIL %s: %v", args.NamespaceSlot, args.ScenarioID, runErr)
 		} else {
 			atomic.AddInt64(&passed, 1)
 			log.Printf("[worker-%d] PASS %s", args.NamespaceSlot, args.ScenarioID)
@@ -211,6 +223,7 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 				Total:      int(total),
 				Duration:   duration,
 				Passed:     runErr == nil,
+				ExitCode:   exitCode,
 			})
 		}
 
