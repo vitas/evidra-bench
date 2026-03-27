@@ -96,11 +96,11 @@ func authMiddleware(token string, next http.HandlerFunc) http.HandlerFunc {
 }
 
 func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string) http.HandlerFunc {
-	// Load scenarios once at handler construction.
-	scenarioPathMap := make(map[string]string) // ID → Path
+	// Load scenarios once at handler construction — cache full objects for filtering.
+	scenarioMap := make(map[string]*scenario.Scenario) // ID → Scenario
 	if allScenarios, loadErr := scenario.LoadAll(baseCfg.ScenariosDir); loadErr == nil {
 		for _, s := range allScenarios {
-			scenarioPathMap[s.ID] = s.Path
+			scenarioMap[s.ID] = s
 		}
 	}
 
@@ -123,15 +123,30 @@ func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string
 			return
 		}
 
-		// Validate and resolve scenario paths.
+		// Validate, resolve, and filter incompatible scenarios.
 		var scenarioPaths []string
+		skippedCount := 0
 		for _, sid := range req.Scenarios {
-			p, ok := scenarioPathMap[sid]
+			s, ok := scenarioMap[sid]
 			if !ok {
 				writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("unknown scenario: %q", sid)})
 				return
 			}
-			scenarioPaths = append(scenarioPaths, p)
+			if !s.IsProviderCompatible(baseCfg.EnvironmentProvider) {
+				skippedCount++
+				log.Printf("[bench-service] SKIP %s — requires %v, running on %s",
+					sid, s.Environment.Providers, baseCfg.EnvironmentProvider)
+				continue
+			}
+			scenarioPaths = append(scenarioPaths, s.Path)
+		}
+
+		if len(scenarioPaths) == 0 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": fmt.Sprintf("all %d scenarios incompatible with provider %s",
+					len(req.Scenarios), baseCfg.EnvironmentProvider),
+			})
+			return
 		}
 
 		parallel := baseCfg.Parallel
@@ -173,10 +188,11 @@ func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string
 			log.Printf("[bench-service] certify job %s done: %d/%d passed", jobID, result.Passed, result.Total)
 		}()
 
-		writeJSON(w, http.StatusAccepted, map[string]string{
-			"job_id": jobID,
-			"status": "accepted",
-			"total":  fmt.Sprintf("%d", len(req.Scenarios)),
+		writeJSON(w, http.StatusAccepted, map[string]any{
+			"job_id":  jobID,
+			"status":  "accepted",
+			"total":   fmt.Sprintf("%d", len(scenarioPaths)),
+			"skipped": fmt.Sprintf("%d", skippedCount),
 		})
 	}
 }

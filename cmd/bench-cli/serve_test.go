@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -320,10 +323,121 @@ func orchestratorScenarioEventForTest() orchestrator.ScenarioEvent {
 }
 
 type noopParallelRunner struct {
-	called bool
+	called    bool
+	scenarios []string
 }
 
-func (r *noopParallelRunner) RunParallel(_ context.Context, _ config.Config, _ orchestrator.ProgressReporter, _ []string, _ []string, _ int, _ int, _ string) (*orchestrator.RunResult, error) {
+func (r *noopParallelRunner) RunParallel(_ context.Context, _ config.Config, _ orchestrator.ProgressReporter, scenarios []string, _ []string, _ int, _ int, _ string) (*orchestrator.RunResult, error) {
 	r.called = true
+	r.scenarios = scenarios
 	return &orchestrator.RunResult{}, nil
+}
+
+// writeTestScenario creates a minimal scenario YAML in dir/category/name/scenario.yaml.
+func writeTestScenario(t *testing.T, dir, category, id string, providers []string) {
+	t.Helper()
+	scenarioDir := filepath.Join(dir, category, id)
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	providerLine := ""
+	if len(providers) > 0 {
+		providerLine = fmt.Sprintf("  providers: [%s]\n", strings.Join(providers, ", "))
+	}
+	yaml := fmt.Sprintf(`id: %s
+title: Test %s
+category: %s
+prompt: prompts/task.md
+environment:
+%sbreak:
+  type: kubectl
+  command: "get pods"
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+`, id, id, category, providerLine)
+	if err := os.WriteFile(filepath.Join(scenarioDir, "scenario.yaml"), []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestHandleCertifyAPI_FiltersIncompatibleScenarios(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeTestScenario(t, dir, "kubernetes", "s-kind", []string{"kind"})
+	writeTestScenario(t, dir, "kubernetes", "s-k3d", []string{"k3d"})
+	writeTestScenario(t, dir, "kubernetes", "s-all", nil)
+
+	cfg := config.Default()
+	cfg.ScenariosDir = dir
+	cfg.EnvironmentProvider = "kind"
+
+	runner := &noopParallelRunner{}
+	handler := handleCertifyAPI(cfg, runner, t.TempDir())
+
+	body := `{"model":"sonnet","scenarios":["s-kind","s-k3d","s-all"]}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/certify", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202; body = %s", rec.Code, rec.Body.String())
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	// s-k3d should be skipped, leaving 2 scenarios.
+	if resp["total"] != "2" {
+		t.Fatalf("total = %q, want 2", resp["total"])
+	}
+	if resp["skipped"] != "1" {
+		t.Fatalf("skipped = %q, want 1", resp["skipped"])
+	}
+
+	// Wait briefly for goroutine to call runner.
+	time.Sleep(50 * time.Millisecond)
+
+	if !runner.called {
+		t.Fatal("runner was not called")
+	}
+	// Verify only compatible scenario paths were passed to runner.
+	if len(runner.scenarios) != 2 {
+		t.Fatalf("runner got %d scenarios, want 2", len(runner.scenarios))
+	}
+}
+
+func TestHandleCertifyAPI_RejectsFullyIncompatibleRequest(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeTestScenario(t, dir, "kubernetes", "s-k3d-only", []string{"k3d"})
+
+	cfg := config.Default()
+	cfg.ScenariosDir = dir
+	cfg.EnvironmentProvider = "kind"
+
+	runner := &noopParallelRunner{}
+	handler := handleCertifyAPI(cfg, runner, t.TempDir())
+
+	body := `{"model":"sonnet","scenarios":["s-k3d-only"]}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/certify", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "incompatible") {
+		t.Fatalf("body = %q, want incompatible error", rec.Body.String())
+	}
+	if runner.called {
+		t.Fatal("runner should not be called when all scenarios are incompatible")
+	}
 }
