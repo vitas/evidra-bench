@@ -119,10 +119,10 @@ export function Results() {
   useEffect(() => {
     setLoading(true);
     const modeParam = evidenceFilter !== "all" ? `&evidence_mode=${evidenceFilter}` : "";
-    fetchAPI<{ items: RunResult[] }>(`/v1/bench/runs?limit=2000${modeParam}`)
+    fetchAPI<{ runs: RunResult[] }>(`/v1/bench/runs?limit=2000${modeParam}`)
       .then((data) => {
         // Exclude dry-run/test records (0s duration or test IDs)
-        const real = (data.items || []).filter((r) =>
+        const real = (data.runs || []).filter((r) =>
           r.duration_seconds > 0 && !r.id.startsWith("cert-test-")
         );
         setRuns(real);
@@ -219,7 +219,7 @@ export function Results() {
 
     entries.sort((a, b) => b.pass_rate - a.pass_rate || a.avg_duration - b.avg_duration);
     return entries;
-  }, [runs]);
+  }, [filteredRuns]);
 
   const recentRuns = useMemo(() => {
     return [...filteredRuns].sort((a, b) =>
