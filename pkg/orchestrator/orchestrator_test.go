@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -186,5 +187,89 @@ func TestClassifyScenarioError_RegularErrorIsFailed(t *testing.T) {
 	}
 	if o.passed || o.skipped || o.infra {
 		t.Fatalf("unexpected flags: passed=%v skipped=%v infra=%v", o.passed, o.skipped, o.infra)
+	}
+}
+
+func TestValidateParallelProfiles_DefaultOnly(t *testing.T) {
+	t.Parallel()
+
+	scenarios := []*scenario.Scenario{
+		{ID: "s1", Environment: scenario.EnvironmentConfig{}},
+		{ID: "s2", Environment: scenario.EnvironmentConfig{Profile: scenario.ProfileDefault}},
+	}
+
+	if err := ValidateParallelProfiles(scenarios); err != nil {
+		t.Fatalf("expected no error for default profiles, got: %v", err)
+	}
+}
+
+func TestValidateParallelProfiles_RejectsArgocd(t *testing.T) {
+	t.Parallel()
+
+	scenarios := []*scenario.Scenario{
+		{ID: "s1", Environment: scenario.EnvironmentConfig{}},
+		{ID: "s2", Environment: scenario.EnvironmentConfig{Profile: scenario.ProfileArgocd}},
+	}
+
+	err := ValidateParallelProfiles(scenarios)
+	if err == nil {
+		t.Fatal("expected error for argocd profile")
+	}
+	if !strings.Contains(err.Error(), "argocd") {
+		t.Fatalf("error should mention argocd, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "not isolated") {
+		t.Fatalf("error should explain isolation issue, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "s2") {
+		t.Fatalf("error should mention scenario ID, got: %v", err)
+	}
+}
+
+func TestValidateParallelProfiles_RejectsAWSLocalStack(t *testing.T) {
+	t.Parallel()
+
+	scenarios := []*scenario.Scenario{
+		{ID: "s1", Environment: scenario.EnvironmentConfig{Profile: scenario.ProfileAWSLocalStack}},
+	}
+
+	err := ValidateParallelProfiles(scenarios)
+	if err == nil {
+		t.Fatal("expected error for aws-localstack profile")
+	}
+	if !strings.Contains(err.Error(), "aws-localstack") {
+		t.Fatalf("error should mention aws-localstack, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "not isolated") {
+		t.Fatalf("error should explain isolation issue, got: %v", err)
+	}
+}
+
+func TestValidateParallelProfiles_EmptyList(t *testing.T) {
+	t.Parallel()
+
+	if err := ValidateParallelProfiles(nil); err != nil {
+		t.Fatalf("expected no error for empty list, got: %v", err)
+	}
+}
+
+func TestValidateParallelProfiles_LegacyLocalStackInference(t *testing.T) {
+	t.Parallel()
+
+	scenarios := []*scenario.Scenario{
+		{
+			ID: "aws-scenario",
+			Environment: scenario.EnvironmentConfig{
+				Cloud: scenario.CloudConfig{Provider: "localstack"},
+			},
+		},
+	}
+
+	err := ValidateParallelProfiles(scenarios)
+	if err == nil {
+		t.Fatal("expected error for inferred aws-localstack profile")
+	}
+	if !strings.Contains(err.Error(), "aws-localstack") {
+		t.Fatalf("error should mention aws-localstack, got: %v", err)
 	}
 }

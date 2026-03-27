@@ -362,6 +362,66 @@ checks:
 	}
 }
 
+func TestServeCertifyParallel_RejectsNonDefaultSharedProfiles(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeTestScenario(t, dir, "kubernetes", "s-default", nil)
+	writeTestScenarioWithProfile(t, dir, "kubernetes", "s-argocd", "argocd")
+
+	cfg := config.Default()
+	cfg.ScenariosDir = dir
+	cfg.EnvironmentProvider = "kind"
+
+	runner := &noopParallelRunner{}
+	handler := handleCertifyAPI(cfg, runner, t.TempDir())
+
+	body := `{"model":"sonnet","scenarios":["s-default","s-argocd"]}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/certify", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "argocd") {
+		t.Fatalf("body = %q, want argocd rejection", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "shared-cluster parallel") {
+		t.Fatalf("body = %q, want shared-cluster parallel mention", rec.Body.String())
+	}
+	if runner.called {
+		t.Fatal("runner should not be called when profile validation fails")
+	}
+}
+
+// writeTestScenarioWithProfile creates a scenario YAML with an explicit execution profile.
+func writeTestScenarioWithProfile(t *testing.T, dir, category, id, profile string) {
+	t.Helper()
+	scenarioDir := filepath.Join(dir, category, id)
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	yaml := fmt.Sprintf(`id: %s
+title: Test %s
+category: %s
+prompt: prompts/task.md
+environment:
+  profile: %s
+break:
+  type: kubectl
+  command: "get pods"
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+`, id, id, category, profile)
+	if err := os.WriteFile(filepath.Join(scenarioDir, "scenario.yaml"), []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestHandleCertifyAPI_FiltersIncompatibleScenarios(t *testing.T) {
 	t.Parallel()
 

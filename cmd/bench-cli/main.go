@@ -1448,6 +1448,11 @@ func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*sce
 		return fmt.Errorf("--database-url required for parallel execution (or set BENCH_DATABASE_URL)")
 	}
 
+	// Shared-cluster parallel mode only supports the default profile.
+	if err := orchestrator.ValidateParallelProfiles(selected); err != nil {
+		return err
+	}
+
 	ctx := cmd.Context()
 
 	orch := orchestrator.New(cfg, makeScenarioRunFunc())

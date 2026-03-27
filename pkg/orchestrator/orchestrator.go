@@ -153,6 +153,29 @@ func classifyScenarioError(err error) scenarioOutcome {
 	return scenarioOutcome{status: "failed", exitCode: 1, failed: true}
 }
 
+// ValidateParallelProfiles checks that all scenarios use the default execution
+// profile. Shared-cluster parallel mode relies on namespace isolation, which
+// only works for the default profile. ArgoCD uses a shared namespace and
+// LocalStack state is not isolated across workers.
+func ValidateParallelProfiles(scenarios []*scenario.Scenario) error {
+	for _, s := range scenarios {
+		p := s.ResolvedProfile()
+		switch p {
+		case scenario.ProfileDefault:
+			// ok
+		case scenario.ProfileArgocd:
+			return fmt.Errorf("shared-cluster parallel mode does not support argocd profile — "+
+				"ArgoCD namespace is not isolated across workers (scenario %s)", s.ID)
+		case scenario.ProfileAWSLocalStack:
+			return fmt.Errorf("shared-cluster parallel mode does not support aws-localstack profile — "+
+				"LocalStack state is not isolated (scenario %s)", s.ID)
+		default:
+			return fmt.Errorf("shared-cluster parallel mode does not support %q profile (scenario %s)", p, s.ID)
+		}
+	}
+	return nil
+}
+
 // RunParallel enqueues and executes scenarios via River.
 // Returns after all jobs complete or ctx is cancelled.
 func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, reporter ProgressReporter, scenarios []string, models []string, repeats, parallel int, dbURL string) (*RunResult, error) {

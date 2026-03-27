@@ -149,6 +149,19 @@ func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string
 			return
 		}
 
+		// Shared-cluster parallel mode only supports the default profile.
+		// Collect the resolved scenario objects for profile validation.
+		var selectedScenarios []*scenario.Scenario
+		for _, sid := range req.Scenarios {
+			if s, ok := scenarioMap[sid]; ok && s.IsProviderCompatible(baseCfg.EnvironmentProvider) {
+				selectedScenarios = append(selectedScenarios, s)
+			}
+		}
+		if err := orchestrator.ValidateParallelProfiles(selectedScenarios); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+
 		parallel := baseCfg.Parallel
 		if parallel < 1 {
 			parallel = 1

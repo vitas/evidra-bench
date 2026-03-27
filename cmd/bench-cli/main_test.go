@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/pflag"
 	"samebits.com/evidra-infra-bench/pkg/config"
+	"samebits.com/evidra-infra-bench/pkg/orchestrator"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 	"samebits.com/evidra-infra-bench/pkg/skilldelta"
 	"samebits.com/evidra-infra-bench/pkg/tui"
@@ -671,6 +672,28 @@ func TestValidateSingleProfile_SingleScenario(t *testing.T) {
 	}
 	if err := validateSingleProfile(scenarios); err != nil {
 		t.Fatalf("expected no error for single scenario, got: %v", err)
+	}
+}
+
+func TestBenchParallel_RejectsNonDefaultSharedProfiles(t *testing.T) {
+	t.Parallel()
+
+	// executeBenchParallel calls orchestrator.ValidateParallelProfiles
+	// before provisioning. Verify that non-default profiles are rejected.
+	scenarios := []*scenario.Scenario{
+		{ID: "s1", Environment: scenario.EnvironmentConfig{}},
+		{ID: "s2", Environment: scenario.EnvironmentConfig{Profile: scenario.ProfileArgocd}},
+	}
+
+	err := orchestrator.ValidateParallelProfiles(scenarios)
+	if err == nil {
+		t.Fatal("expected error for argocd profile in parallel mode")
+	}
+	if !strings.Contains(err.Error(), "argocd") {
+		t.Fatalf("error should mention argocd, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "shared-cluster parallel") {
+		t.Fatalf("error should mention shared-cluster parallel, got: %v", err)
 	}
 }
 
