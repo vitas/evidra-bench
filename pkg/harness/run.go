@@ -48,29 +48,14 @@ func SetVersion(v, c string) {
 	commit = c
 }
 
-// ClusterHealthChecker probes cluster health and can restart degraded nodes.
-type ClusterHealthChecker interface {
-	HealthCheck(ctx context.Context, kubeconfigPath string) error
-	RestartNode(ctx context.Context, clusterName string) error
-}
-
-// ClusterRecreator can destroy and recreate a cluster from scratch.
-// Preferred over node restart — avoids IP change issues (kind#2759, kind#3989).
-type ClusterRecreator interface {
-	RecreateCluster(ctx context.Context, clusterName string) (*environment.Handle, error)
-}
-
 // Deps holds all dependencies for the harness.
 type Deps struct {
-	EnvProvider          environment.Provider
-	Bootstrapper         *environment.Bootstrapper
-	Runner               environment.CommandRunner
-	Adapter              adapter.Adapter
-	Writer               *artifact.Writer
-	Reporter             *report.Reporter
-	Store                *store.Store
-	ClusterHealthChecker ClusterHealthChecker
-	ClusterRecreator     ClusterRecreator
+	EnvProvider  environment.ClusterLifecycle
+	Bootstrapper *environment.Bootstrapper
+	Adapter      adapter.Adapter
+	Writer       *artifact.Writer
+	Reporter     *report.Reporter
+	Store        *store.Store
 }
 
 // RunRequest describes what to run.
@@ -142,13 +127,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			KubeconfigPath: req.KubeconfigPath,
 		}
 	} else {
-		// Use CreateWithConfig when the provider supports it and the scenario
-		// declares Kubernetes infrastructure requirements.
-		if kp, ok := h.deps.EnvProvider.(*environment.KindProvider); ok && (k8s.CNI != "" || len(k8s.Addons) > 0 || len(k8s.Runtimes) > 0 || len(k8s.Features) > 0) {
-			handle, err = kp.CreateWithConfig(ctx, req.Config.ClusterName, k8s)
-		} else {
-			handle, err = h.deps.EnvProvider.Create(ctx, req.Config.ClusterName)
-		}
+		handle, err = h.deps.EnvProvider.Create(ctx, req.Config.ClusterName, k8s)
 		if err != nil {
 			return nil, fmt.Errorf("harness.Run: create environment: %w", err)
 		}
@@ -168,7 +147,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			log.Printf("[harness] warning: %s", w)
 		}
 		if len(addonSteps) > 0 {
-			if err := environment.AddHelmRepos(ctx, h.deps.Runner); err != nil {
+			if err := environment.AddHelmRepos(ctx, h.deps.Bootstrapper.Runner); err != nil {
 				log.Printf("[harness] warning: helm repo setup: %v", err)
 			}
 			addonPlan := &environment.BootstrapPlan{Steps: addonSteps}
@@ -258,7 +237,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}
 	}
 	if req.Config.ReuseCluster && kubeconfigExists {
-		h.forceCleanNamespace(ctx, handle.KubeconfigPath, ns)
+		h.deps.EnvProvider.ForceDeleteNamespace(ctx, handle.KubeconfigPath, ns)
 
 		// Also clean cluster-scoped resources that scenarios may create.
 		for _, res := range []string{"pv", "storageclass", "validatingwebhookconfiguration", "mutatingwebhookconfiguration"} {
@@ -270,7 +249,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}
 		// Clean scenario-created namespaces (webhook-system, etc.)
 		for _, extraNS := range []string{"webhook-system"} {
-			h.forceCleanNamespace(ctx, handle.KubeconfigPath, extraNS)
+			_ = h.deps.EnvProvider.ForceDeleteNamespace(ctx, handle.KubeconfigPath, extraNS)
 		}
 		// Clean ArgoCD applications (if ArgoCD is installed).
 		cleanCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
@@ -282,52 +261,47 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 
 	// Step 2b: Recreate target namespace.
 	if handle.KubeconfigPath != "" {
-		createCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
-			"create", "namespace", ns)
-		if out, err := createCmd.CombinedOutput(); err != nil {
-			// Namespace may already exist if it wasn't deleted (non-reuse mode).
-			if !strings.Contains(string(out), "already exists") {
-				log.Printf("[harness] namespace create (non-fatal): %s %v", string(out), err)
-			}
+		if err := h.deps.EnvProvider.CreateNamespace(ctx, handle.KubeconfigPath, ns); err != nil {
+			log.Printf("[harness] namespace create (non-fatal): %v", err)
 		}
 	}
 
-	// Step 2c: Canary pod — verify scheduling works before committing to bootstrap.
+	// Canary pod — verify scheduling before bootstrap.
 	if req.Config.ReuseCluster && kubeconfigExists {
-		canaryErr := h.runCanaryPod(ctx, handle.KubeconfigPath, ns)
-		if canaryErr != nil {
-			log.Printf("[harness] canary pod failed: %v", canaryErr)
-			// Canary failure means the cluster is too degraded for this scenario.
-			// If we have a cluster recreator, try full recreate (safer than node restart,
-			// avoids kind IP change issues from kind#2759, kind#3989).
-			if h.deps.ClusterRecreator != nil {
-				log.Printf("[harness] recreating cluster %s", req.Config.ClusterName)
-				newHandle, recreateErr := h.deps.ClusterRecreator.RecreateCluster(ctx, req.Config.ClusterName)
-				if recreateErr != nil {
-					return nil, &InfraError{Err: fmt.Errorf("harness.Run: canary failed and cluster recreate failed: %w", recreateErr)}
+		if err := h.deps.EnvProvider.RunCanary(ctx, handle.KubeconfigPath, ns); err != nil {
+			log.Printf("[harness] canary failed: %v", err)
+			// Recreate with same KubernetesConfig so CNI/addons/runtimes are restored.
+			newHandle, recreateErr := h.deps.EnvProvider.Recreate(ctx, req.Config.ClusterName, k8s)
+			if recreateErr != nil {
+				return nil, &InfraError{Err: fmt.Errorf("harness.Run: canary failed and recreate failed: %w", recreateErr)}
+			}
+			handle = newHandle
+			// Re-install addons on the fresh cluster.
+			if k8s.CNI != "" || len(k8s.Addons) > 0 {
+				addonSteps, warnings := environment.AddonSteps(k8s.CNI, k8s.Addons)
+				for _, w := range warnings {
+					log.Printf("[harness] warning: %s", w)
 				}
-				handle = newHandle
-				// Recreate the namespace on the fresh cluster.
-				createCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
-					"create", "namespace", ns)
-				if out, err := createCmd.CombinedOutput(); err != nil {
-					if !strings.Contains(string(out), "already exists") {
-						log.Printf("[harness] namespace create after recreate (non-fatal): %s %v", string(out), err)
+				if len(addonSteps) > 0 {
+					if helmErr := environment.AddHelmRepos(ctx, h.deps.Bootstrapper.Runner); helmErr != nil {
+						log.Printf("[harness] warning: helm repo setup: %v", helmErr)
+					}
+					addonPlan := &environment.BootstrapPlan{Steps: addonSteps}
+					if addonErr := h.deps.Bootstrapper.Execute(ctx, addonPlan, handle.KubeconfigPath); addonErr != nil {
+						return nil, &InfraError{Err: fmt.Errorf("harness.Run: addon reinstall after recreate: %w", addonErr)}
 					}
 				}
-				log.Printf("[harness] cluster recreated, continuing with fresh cluster")
-			} else {
-				return nil, &InfraError{Err: fmt.Errorf("harness.Run: canary pod failed, cluster degraded: %w", canaryErr)}
 			}
+			if err := h.deps.EnvProvider.CreateNamespace(ctx, handle.KubeconfigPath, ns); err != nil {
+				log.Printf("[harness] namespace create after recreate (non-fatal): %v", err)
+			}
+			log.Printf("[harness] cluster recreated with full setup")
 		}
 	}
 
-	// Step 2d: Cluster health probe — check node conditions.
-	if h.deps.ClusterHealthChecker != nil {
-		if err := h.deps.ClusterHealthChecker.HealthCheck(ctx, handle.KubeconfigPath); err != nil {
-			log.Printf("[harness] cluster health check warning: %v", err)
-			// Health check is informational after canary — canary is the gate.
-		}
+	// Health check — informational after canary.
+	if err := h.deps.EnvProvider.HealthCheck(ctx, handle.KubeconfigPath); err != nil {
+		log.Printf("[harness] health check warning: %v", err)
 	}
 
 	// Step 2d: Bootstrap.
@@ -379,10 +353,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		chaosCtx, cancel := context.WithCancel(ctx)
 		chaosCancel = cancel
 		chaosDone = make(chan struct{})
-		runner := h.deps.Runner
-		if runner == nil {
-			runner = &environment.ExecRunner{}
-		}
+		runner := bootstrapperRunner(h.deps.Bootstrapper)
 		chaosRunner = &ChaosRunner{
 			Runner:         runner,
 			KubeconfigPath: handle.KubeconfigPath,
@@ -907,10 +878,7 @@ func (s chaosSummary) Log() string {
 }
 
 func (h *Harness) applyBreak(ctx context.Context, kubeconfigPath string, s *scenario.Scenario, extraEnv ...string) error {
-	runner := h.deps.Runner
-	if runner == nil {
-		runner = &environment.ExecRunner{}
-	}
+	runner := bootstrapperRunner(h.deps.Bootstrapper)
 	args, err := breakCommandArgs(kubeconfigPath, s)
 	if err != nil {
 		return err
@@ -1290,6 +1258,14 @@ func truncateForLog(s string, n int) string {
 	return s[:n] + "..."
 }
 
+// bootstrapperRunner returns the runner from the bootstrapper, or a default ExecRunner.
+func bootstrapperRunner(b *environment.Bootstrapper) environment.CommandRunner {
+	if b != nil && b.Runner != nil {
+		return b.Runner
+	}
+	return &environment.ExecRunner{}
+}
+
 func breakCommandArgs(kubeconfigPath string, s *scenario.Scenario) ([]string, error) {
 	switch s.Break.Type {
 	case "", "apply", "kubectl-apply":
@@ -1321,57 +1297,4 @@ func breakCommandArgs(kubeconfigPath string, s *scenario.Scenario) ([]string, er
 	default:
 		return nil, fmt.Errorf("unsupported break type: %s", s.Break.Type)
 	}
-}
-
-// runCanaryPod runs a lightweight pod to verify the cluster can schedule and pull images.
-// Uses busybox (typically cached on kind nodes) as a basic scheduling test.
-func (h *Harness) runCanaryPod(ctx context.Context, kubeconfigPath, ns string) error {
-	// Clean up any leftover canary pod from a prior failed attempt.
-	delCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
-		"delete", "pod", "bench-canary", "-n", ns, "--ignore-not-found", "--timeout=10s")
-	_, _ = delCmd.CombinedOutput()
-
-	cmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
-		"run", "bench-canary", "-n", ns,
-		"--image=busybox:1.36", "--restart=Never",
-		"--rm", "-i", "--timeout=30s", "--", "echo", "ok")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("canary pod failed: %w: %s", err, string(out))
-	}
-	return nil
-}
-
-// forceCleanNamespace force-deletes a namespace and waits for it to be fully removed.
-// This avoids the async deletion + finalizer accumulation problem (kubernetes#53327).
-func (h *Harness) forceCleanNamespace(ctx context.Context, kubeconfigPath, ns string) {
-	// Check if namespace exists.
-	getCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
-		"get", "namespace", ns, "--ignore-not-found", "-o", "name")
-	getOut, err := getCmd.CombinedOutput()
-	if err != nil || strings.TrimSpace(string(getOut)) == "" {
-		return // Namespace doesn't exist, nothing to clean.
-	}
-
-	log.Printf("[harness] force-deleting namespace %s", ns)
-
-	// Force-delete the namespace.
-	delCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
-		"delete", "namespace", ns, "--force", "--grace-period=0", "--timeout=30s")
-	if out, err := delCmd.CombinedOutput(); err != nil {
-		log.Printf("[harness] namespace force-delete %s (non-fatal): %s %v", ns, string(out), err)
-	}
-
-	// Wait for the namespace to actually disappear (up to 30s).
-	for i := 0; i < 30; i++ {
-		checkCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
-			"get", "namespace", ns, "--ignore-not-found", "-o", "name")
-		checkOut, _ := checkCmd.CombinedOutput()
-		if strings.TrimSpace(string(checkOut)) == "" {
-			log.Printf("[harness] namespace %s deleted", ns)
-			return
-		}
-		time.Sleep(1 * time.Second)
-	}
-	log.Printf("[harness] warning: namespace %s still terminating after 30s", ns)
 }
