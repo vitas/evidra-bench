@@ -527,6 +527,14 @@ func executeRun(cmd *cobra.Command, cfg config.Config) error {
 		return err
 	}
 
+	if s.Skip {
+		reason := s.SkipReason
+		if reason == "" {
+			reason = "skip: true in scenario.yaml"
+		}
+		return fmt.Errorf("scenario %s is skipped: %s", s.ID, reason)
+	}
+
 	result, err := runScenarioOnce(cmd.Context(), cfg, s)
 	if err != nil {
 		return err
