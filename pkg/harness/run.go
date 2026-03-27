@@ -26,6 +26,16 @@ import (
 	"samebits.com/evidra/pkg/proxy"
 )
 
+// InfraError wraps errors caused by infrastructure problems (cluster degraded,
+// node unreachable) as opposed to agent or verification failures.
+// Callers can use errors.As to distinguish infra errors from agent failures.
+type InfraError struct {
+	Err error
+}
+
+func (e *InfraError) Error() string { return e.Err.Error() }
+func (e *InfraError) Unwrap() error { return e.Err }
+
 // version and commit are set by the CLI at startup via SetVersion.
 var (
 	version = "dev"
@@ -38,15 +48,22 @@ func SetVersion(v, c string) {
 	commit = c
 }
 
+// ClusterHealthChecker probes cluster health and can restart degraded nodes.
+type ClusterHealthChecker interface {
+	HealthCheck(ctx context.Context, kubeconfigPath string) error
+	RestartNode(ctx context.Context, clusterName string) error
+}
+
 // Deps holds all dependencies for the harness.
 type Deps struct {
-	EnvProvider  environment.Provider
-	Bootstrapper *environment.Bootstrapper
-	Runner       environment.CommandRunner
-	Adapter      adapter.Adapter
-	Writer       *artifact.Writer
-	Reporter     *report.Reporter
-	Store        *store.Store
+	EnvProvider          environment.Provider
+	Bootstrapper         *environment.Bootstrapper
+	Runner               environment.CommandRunner
+	Adapter              adapter.Adapter
+	Writer               *artifact.Writer
+	Reporter             *report.Reporter
+	Store                *store.Store
+	ClusterHealthChecker ClusterHealthChecker
 }
 
 // RunRequest describes what to run.
@@ -283,11 +300,26 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}
 	}
 
-	// Step 2c: Bootstrap.
+	// Step 2c: Cluster health probe — detect degraded node before bootstrap.
+	if h.deps.ClusterHealthChecker != nil {
+		if err := h.deps.ClusterHealthChecker.HealthCheck(ctx, handle.KubeconfigPath); err != nil {
+			log.Printf("[harness] cluster unhealthy, attempting node restart: %v", err)
+			if restartErr := h.deps.ClusterHealthChecker.RestartNode(ctx, req.Config.ClusterName); restartErr != nil {
+				return nil, &InfraError{Err: fmt.Errorf("harness.Run: cluster unhealthy and restart failed: %w", restartErr)}
+			}
+			// Re-check after restart.
+			if err := h.deps.ClusterHealthChecker.HealthCheck(ctx, handle.KubeconfigPath); err != nil {
+				return nil, &InfraError{Err: fmt.Errorf("harness.Run: cluster still unhealthy after restart: %w", err)}
+			}
+			log.Printf("[harness] cluster recovered after restart")
+		}
+	}
+
+	// Step 2d: Bootstrap.
 	if h.deps.Bootstrapper != nil {
 		plan := buildBootstrapPlan(s, req.Config.ScenariosDir)
 		if err := h.deps.Bootstrapper.Execute(ctx, plan, handle.KubeconfigPath); err != nil {
-			return nil, fmt.Errorf("harness.Run: bootstrap: %w", err)
+			return nil, &InfraError{Err: fmt.Errorf("harness.Run: bootstrap: %w", err)}
 		}
 	}
 
