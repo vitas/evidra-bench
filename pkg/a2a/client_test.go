@@ -9,6 +9,18 @@ import (
 	"time"
 )
 
+func TestNewClient_DefaultHTTPClientHasNoTimeout(t *testing.T) {
+	t.Parallel()
+
+	client := NewClient("https://agent.example", nil)
+	if client.HTTPClient == nil {
+		t.Fatal("HTTPClient = nil")
+	}
+	if client.HTTPClient.Timeout != 0 {
+		t.Fatalf("HTTPClient.Timeout = %v, want 0 to rely on request context", client.HTTPClient.Timeout)
+	}
+}
+
 func TestClient_RunTextTask_UsesAgentCardURL(t *testing.T) {
 	t.Parallel()
 

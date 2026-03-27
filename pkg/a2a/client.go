@@ -99,7 +99,7 @@ type part struct {
 // NewClient creates a client with sane defaults.
 func NewClient(baseURL string, httpClient *http.Client) *Client {
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 30 * time.Second}
+		httpClient = &http.Client{}
 	}
 	return &Client{
 		BaseURL:      strings.TrimRight(baseURL, "/"),
