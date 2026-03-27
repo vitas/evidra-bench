@@ -14,7 +14,7 @@ track: release-ops
 level: L3
 tags: [argocd, health, degraded]
 prompt: prompts/task.md
-timeout: "5m"
+timeout: "10m"
 bootstrap:
   - name: ensure-argocd-namespace
     type: kubectl-apply

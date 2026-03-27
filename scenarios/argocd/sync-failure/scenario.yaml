@@ -13,7 +13,7 @@ track: release-ops
 level: L2
 tags: [argocd, sync, manifest]
 prompt: prompts/task.md
-timeout: "5m"
+timeout: "10m"
 bootstrap:
   - name: ensure-argocd-namespace
     type: kubectl-apply
