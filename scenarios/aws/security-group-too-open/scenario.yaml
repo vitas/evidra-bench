@@ -12,6 +12,7 @@ prompt: prompts/task.md
 timeout: "5m"
 tools: [aws, jq]
 environment:
+  profile: aws-localstack
   cloud:
     provider: localstack
     services: [ec2]

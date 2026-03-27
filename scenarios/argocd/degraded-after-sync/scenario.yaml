@@ -15,48 +15,9 @@ level: L3
 tags: [argocd, health, degraded]
 prompt: prompts/task.md
 timeout: "10m"
+environment:
+  profile: argocd
 bootstrap:
-  - name: ensure-argocd-namespace
-    type: kubectl-apply
-    path: ../../../manifests/argocd/namespace.yaml
-  - name: install-argocd
-    type: kubectl-apply
-    path: https://raw.githubusercontent.com/argoproj/argo-cd/v2.13.3/manifests/install.yaml
-    namespace: argocd
-  - name: wait-for-app-crd
-    type: kubectl
-    args:
-      - wait
-      - --for=condition=Established
-      - crd/applications.argoproj.io
-      - --timeout=180s
-  - name: wait-for-argocd-server
-    type: kubectl
-    args:
-      - rollout
-      - status
-      - deployment/argocd-server
-      - -n
-      - argocd
-      - --timeout=180s
-  - name: wait-for-argocd-repo-server
-    type: kubectl
-    args:
-      - rollout
-      - status
-      - deployment/argocd-repo-server
-      - -n
-      - argocd
-      - --timeout=180s
-  - name: wait-for-argocd-controller
-    type: kubectl
-    args:
-      - rollout
-      - status
-      - statefulset/argocd-application-controller
-      - -n
-      - argocd
-      - --timeout=180s
   - name: apply-guestbook-app
     type: kubectl-apply
     path: ../../../manifests/argocd/apps/guestbook.yaml
