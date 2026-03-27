@@ -15,6 +15,48 @@ type Addon struct {
 
 // AddonRegistry maps addon names to their installation steps.
 var AddonRegistry = map[string]Addon{
+	"argocd": {
+		Name: "argocd",
+		Steps: []BootstrapStep{
+			{
+				Name:    "create-argocd-namespace",
+				Type:    StepKubectl,
+				Feature: "addon-argocd",
+				Args:    []string{"create", "namespace", "argocd", "--dry-run=client", "-o", "yaml", "|", "kubectl", "apply", "-f", "-"},
+			},
+			{
+				Name:      "install-argocd",
+				Type:      StepKubectlApply,
+				Path:      "https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml",
+				Feature:   "addon-argocd",
+				Namespace: "argocd",
+			},
+			{
+				Name:    "wait-argocd-crds",
+				Type:    StepKubectl,
+				Feature: "addon-argocd",
+				Args:    []string{"wait", "--for=condition=Established", "crd", "applications.argoproj.io", "--timeout=60s"},
+			},
+			{
+				Name:    "wait-argocd-server",
+				Type:    StepKubectl,
+				Feature: "addon-argocd",
+				Args:    []string{"-n", "argocd", "rollout", "status", "deployment/argocd-server", "--timeout=120s"},
+			},
+			{
+				Name:    "wait-argocd-repo-server",
+				Type:    StepKubectl,
+				Feature: "addon-argocd",
+				Args:    []string{"-n", "argocd", "rollout", "status", "deployment/argocd-repo-server", "--timeout=120s"},
+			},
+			{
+				Name:    "wait-argocd-application-controller",
+				Type:    StepKubectl,
+				Feature: "addon-argocd",
+				Args:    []string{"-n", "argocd", "rollout", "status", "statefulset/argocd-application-controller", "--timeout=120s"},
+			},
+		},
+	},
 	"falco": {
 		Name: "falco",
 		Steps: []BootstrapStep{
