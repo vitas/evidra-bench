@@ -132,7 +132,6 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 	if o.cluster == nil {
 		return nil, fmt.Errorf("orchestrator: cluster not provisioned — call Provision first")
 	}
-	kubeconfigPath := o.cluster.KubeconfigPath
 
 	// Open shared results store.
 	sharedStore, err := store.Open(runCfg.RunsDir)
@@ -188,31 +187,17 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 			})
 		}
 
-		// Proactive cluster recreate after consecutive infra failures.
-		// Serialized: only one worker recreates at a time; others wait and pick up the new kubeconfig.
-		if o.provider != nil && atomic.LoadInt64(&consecutiveInfraFailures) >= infraFailureThreshold {
-			recreateMu.Lock()
-			// Re-check under lock — another worker may have already recreated.
-			if atomic.LoadInt64(&consecutiveInfraFailures) >= infraFailureThreshold {
-				log.Printf("[worker-%d] %d consecutive infra failures — recreating cluster",
-					args.NamespaceSlot, atomic.LoadInt64(&consecutiveInfraFailures))
-				newHandle, err := o.provider.Recreate(jobCtx, o.cluster.ClusterName, scenario.KubernetesConfig{})
-				if err != nil {
-					log.Printf("[worker-%d] cluster recreate failed: %v", args.NamespaceSlot, err)
-				} else {
-					o.cluster = newHandle
-					atomic.StoreInt64(&consecutiveInfraFailures, 0)
-					log.Printf("[worker-%d] cluster recreated", args.NamespaceSlot)
-				}
-			}
-			// Read kubeconfig while holding lock — o.cluster may have been swapped.
-			kubeconfigPath = o.cluster.KubeconfigPath
-			recreateMu.Unlock()
-		}
+		workerKubeconfigPath := o.selectWorkerKubeconfigPath(
+			jobCtx,
+			args.NamespaceSlot,
+			&consecutiveInfraFailures,
+			infraFailureThreshold,
+			&recreateMu,
+		)
 
 		scenarioPath := args.ScenarioID
 		startTime := time.Now()
-		runErr := runFn(jobCtx, workerCfg, scenarioPath, ns, kubeconfigPath, sharedStore, o.provider)
+		runErr := runFn(jobCtx, workerCfg, scenarioPath, ns, workerKubeconfigPath, sharedStore, o.provider)
 		duration := time.Since(startTime)
 		atomic.AddInt64(&completed, 1)
 		c = int(atomic.LoadInt64(&completed))
@@ -320,4 +305,34 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 		Passed:    atomic.LoadInt64(&passed),
 		Failed:    atomic.LoadInt64(&failed),
 	}, nil
+}
+
+func (o *Orchestrator) selectWorkerKubeconfigPath(
+	ctx context.Context,
+	namespaceSlot int,
+	consecutiveInfraFailures *int64,
+	infraFailureThreshold int64,
+	recreateMu *sync.Mutex,
+) string {
+	if o.provider == nil {
+		return o.cluster.KubeconfigPath
+	}
+
+	recreateMu.Lock()
+	defer recreateMu.Unlock()
+
+	if atomic.LoadInt64(consecutiveInfraFailures) >= infraFailureThreshold {
+		log.Printf("[worker-%d] %d consecutive infra failures — recreating cluster",
+			namespaceSlot, atomic.LoadInt64(consecutiveInfraFailures))
+		newHandle, err := o.provider.Recreate(ctx, o.cluster.ClusterName, scenario.KubernetesConfig{})
+		if err != nil {
+			log.Printf("[worker-%d] cluster recreate failed: %v", namespaceSlot, err)
+		} else {
+			o.cluster = newHandle
+			atomic.StoreInt64(consecutiveInfraFailures, 0)
+			log.Printf("[worker-%d] cluster recreated", namespaceSlot)
+		}
+	}
+
+	return o.cluster.KubeconfigPath
 }

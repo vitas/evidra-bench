@@ -89,8 +89,8 @@ func (p *K3dProvider) Create(ctx context.Context, clusterName string, k8s scenar
 func (p *K3dProvider) Recreate(ctx context.Context, clusterName string, k8s scenario.KubernetesConfig) (*Handle, error) {
 	log.Printf("[k3d] recreating cluster %s", clusterName)
 	delCmd := p.deleteCommand(clusterName)
-	if _, err := p.Runner.Run(ctx, delCmd); err != nil {
-		log.Printf("[k3d] delete during recreate (non-fatal): %v", err)
+	if out, err := p.Runner.Run(ctx, delCmd); err != nil {
+		return nil, fmt.Errorf("environment.K3dProvider.Recreate: delete existing cluster: %w: %s", err, string(out))
 	}
 	return p.Create(ctx, clusterName, k8s)
 }
