@@ -122,6 +122,18 @@ func fakeDeps() (Deps, *fakeProvider, *fakeAdapter) {
 	}, fp, fa
 }
 
+// fakeKubeconfig creates a temporary kubeconfig file and returns its path.
+// The file must exist on disk for the harness to pass its stat check.
+func fakeKubeconfig(t *testing.T) string {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "kubeconfig-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	return f.Name()
+}
+
 func TestExecuteSingleAgent_A2APrecedesProvider(t *testing.T) {
 	t.Parallel()
 
@@ -341,8 +353,27 @@ func TestHarness_DryRun(t *testing.T) {
 	}
 }
 
-func TestHarness_RunSequence(t *testing.T) {
+func TestHarness_Run_RequiresKubeconfigWhenNotDryRun(t *testing.T) {
 	t.Parallel()
+
+	h := New(Deps{EnvProvider: &fakeProvider{}})
+	_, err := h.Run(context.Background(), RunRequest{
+		Config:   config.Config{},
+		Scenario: &scenario.Scenario{ID: "test/missing-kubeconfig"},
+		// KubeconfigPath intentionally empty.
+	})
+	if err == nil {
+		t.Fatal("expected error when KubeconfigPath is empty and not dry-run")
+	}
+	if !strings.Contains(err.Error(), "kubeconfig path is required") {
+		t.Fatalf("unexpected error message: %v", err)
+	}
+}
+
+func TestHarness_Run_DoesNotCreateOrDestroyEnvironmentWhenLeaseProvided(t *testing.T) {
+	t.Parallel()
+
+	kubeconfig := fakeKubeconfig(t)
 	deps, fp, fa := fakeDeps()
 	h := New(deps)
 	cfg := config.Default()
@@ -350,7 +381,8 @@ func TestHarness_RunSequence(t *testing.T) {
 	cfg.Timeout = 10 * time.Second
 
 	result, err := h.Run(context.Background(), RunRequest{
-		Config: cfg,
+		Config:         cfg,
+		KubeconfigPath: kubeconfig,
 		Scenario: &scenario.Scenario{
 			ID:       "broken-deployment",
 			Title:    "Fix broken deployment",
@@ -361,43 +393,17 @@ func TestHarness_RunSequence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run failed: %v", err)
 	}
-	if !fp.created {
-		t.Fatal("environment should be created")
+	if fp.created {
+		t.Fatal("Create must not be called when a leased kubeconfig is provided")
 	}
-	if !fp.destroyed {
-		t.Fatal("environment should be destroyed")
+	if fp.destroyed {
+		t.Fatal("Destroy must not be called when a leased kubeconfig is provided")
 	}
 	if !fa.called {
 		t.Fatal("adapter should be called")
 	}
 	if result.ScenarioID != "broken-deployment" {
 		t.Fatalf("unexpected scenario: %s", result.ScenarioID)
-	}
-}
-
-func TestHarness_ReuseCluster_NoDestroy(t *testing.T) {
-	t.Parallel()
-	deps, fp, _ := fakeDeps()
-	h := New(deps)
-	cfg := config.Default()
-	cfg.Scenario = "broken-deployment"
-	cfg.ReuseCluster = true
-	cfg.Timeout = 10 * time.Second
-
-	_, err := h.Run(context.Background(), RunRequest{
-		Config: cfg,
-		Scenario: &scenario.Scenario{
-			ID:       "broken-deployment",
-			Title:    "Fix broken deployment",
-			Category: "kubernetes",
-			Checks:   []scenario.Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
-		},
-	})
-	if err != nil {
-		t.Fatalf("run failed: %v", err)
-	}
-	if fp.destroyed {
-		t.Fatal("environment should not be destroyed when reuse-cluster is set")
 	}
 }
 
@@ -486,7 +492,8 @@ func TestHarness_StoreUsesExplicitEvidenceMode(t *testing.T) {
 	cfg.SystemPromptFile = promptdata.MCPAgentContractPath
 
 	if _, err := h.Run(context.Background(), RunRequest{
-		Config: cfg,
+		Config:         cfg,
+		KubeconfigPath: fakeKubeconfig(t),
 		Scenario: &scenario.Scenario{
 			ID:       "broken-deployment",
 			Title:    "Fix broken deployment",
@@ -583,7 +590,8 @@ func TestHarness_CreatesRunsDirBeforeAgent(t *testing.T) {
 	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
 
 	if _, err := h.Run(context.Background(), RunRequest{
-		Config: cfg,
+		Config:         cfg,
+		KubeconfigPath: fakeKubeconfig(t),
 		Scenario: &scenario.Scenario{
 			ID:       "broken-deployment",
 			Title:    "Fix broken deployment",
@@ -612,8 +620,10 @@ func TestHarness_RunExecutesAfterBreakSteps(t *testing.T) {
 	cfg.Scenario = "crashloop-backoff"
 	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
 
+	kubeconfig := fakeKubeconfig(t)
 	_, err := h.Run(context.Background(), RunRequest{
-		Config: cfg,
+		Config:         cfg,
+		KubeconfigPath: kubeconfig,
 		Scenario: &scenario.Scenario{
 			ID:       "crashloop-backoff",
 			Title:    "Fix a pod stuck in CrashLoopBackOff",
@@ -720,8 +730,10 @@ func TestHarness_RunExecutesChaosStepsDuringAgent(t *testing.T) {
 	cfg.Scenario = "pod-kill-during-repair"
 	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
 
+	kubeconfig := fakeKubeconfig(t)
 	_, err := h.Run(context.Background(), RunRequest{
-		Config: cfg,
+		Config:         cfg,
+		KubeconfigPath: kubeconfig,
 		Scenario: &scenario.Scenario{
 			ID:       "pod-kill-during-repair",
 			Title:    "Pod kill during repair",
@@ -746,7 +758,7 @@ func TestHarness_RunExecutesChaosStepsDuringAgent(t *testing.T) {
 	// Find the chaos delete command among recorded commands (bootstrap commands may precede it).
 	found := false
 	for _, cmd := range runner.commands {
-		if strings.Contains(cmd, "kubectl --kubeconfig /tmp/fake-kubeconfig delete pod -n bench web-0") {
+		if strings.Contains(cmd, "kubectl --kubeconfig "+kubeconfig+" delete pod -n bench web-0") {
 			found = true
 			break
 		}
@@ -772,7 +784,8 @@ func TestHarness_ChaosStopsWhenAgentDone(t *testing.T) {
 	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
 
 	_, err := h.Run(context.Background(), RunRequest{
-		Config: cfg,
+		Config:         cfg,
+		KubeconfigPath: fakeKubeconfig(t),
 		Scenario: &scenario.Scenario{
 			ID:       "pod-kill-during-repair",
 			Title:    "Pod kill during repair",
@@ -829,7 +842,8 @@ func TestHarness_ChaosRepeatModeReplaysSteps(t *testing.T) {
 	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
 
 	_, err := h.Run(context.Background(), RunRequest{
-		Config: cfg,
+		Config:         cfg,
+		KubeconfigPath: fakeKubeconfig(t),
 		Scenario: &scenario.Scenario{
 			ID:       "pod-kill-during-repair",
 			Title:    "Pod kill during repair",
@@ -875,7 +889,8 @@ func TestHarness_RunWritesChaosArtifacts(t *testing.T) {
 	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
 
 	result, err := h.Run(context.Background(), RunRequest{
-		Config: cfg,
+		Config:         cfg,
+		KubeconfigPath: fakeKubeconfig(t),
 		Scenario: &scenario.Scenario{
 			ID:       "pod-kill-during-repair",
 			Title:    "Pod kill during repair",

@@ -88,15 +88,14 @@ func New(deps Deps) *Harness {
 	return &Harness{deps: deps}
 }
 
-// Run executes the full benchmark lifecycle:
-// 1. Create environment (or reuse)
-// 2. Bootstrap baseline + argocd
+// Run executes the full benchmark lifecycle on a pre-acquired cluster lease:
+// 1. Validate kubeconfig (caller must provide a leased cluster)
+// 2. Clean namespace + bootstrap baseline
 // 3. Inject break
 // 4. Execute agent
 // 5. Verify outcome
 // 6. Write artifacts
 // 7. Optionally report to Evidra
-// 8. Teardown environment
 func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	startTime := time.Now()
 	s := req.Scenario
@@ -107,7 +106,8 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		ns = config.DefaultNamespace
 	}
 
-	// Step 1: Create or reuse environment.
+	// Step 1: Require a pre-acquired cluster lease (kubeconfig path).
+	// Cluster creation and destruction are the caller's responsibility.
 	var handle *environment.Handle
 	var err error
 	if req.Config.DryRun {
@@ -119,43 +119,13 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}, nil
 	}
 
-	k8s := s.Environment.Kubernetes
-
-	if req.KubeconfigPath != "" {
-		// Pre-provisioned cluster (parallel mode) — skip create/destroy.
-		handle = &environment.Handle{
-			ClusterName:    req.Config.ClusterName,
-			KubeconfigPath: req.KubeconfigPath,
-		}
-	} else {
-		handle, err = h.deps.EnvProvider.Create(ctx, req.Config.ClusterName, k8s)
-		if err != nil {
-			return nil, fmt.Errorf("harness.Run: create environment: %w", err)
-		}
-		defer func() {
-			if !req.Config.ReuseCluster {
-				if destroyErr := h.deps.EnvProvider.Destroy(ctx, handle); destroyErr != nil {
-					log.Printf("[harness] warning: destroy failed: %v", destroyErr)
-				}
-			}
-		}()
+	if req.KubeconfigPath == "" {
+		return nil, fmt.Errorf("harness.Run: kubeconfig path is required — caller must acquire a cluster lease")
 	}
 
-	// Step 1c: Install addons declared in the scenario's kubernetes config.
-	if k8s.CNI != "" || len(k8s.Addons) > 0 {
-		addonSteps, warnings := environment.AddonSteps(k8s.CNI, k8s.Addons)
-		for _, w := range warnings {
-			log.Printf("[harness] warning: %s", w)
-		}
-		if len(addonSteps) > 0 {
-			if err := environment.AddHelmRepos(ctx, h.deps.Bootstrapper.Runner); err != nil {
-				log.Printf("[harness] warning: helm repo setup: %v", err)
-			}
-			addonPlan := &environment.BootstrapPlan{Steps: addonSteps}
-			if err := h.deps.Bootstrapper.Execute(ctx, addonPlan, handle.KubeconfigPath); err != nil {
-				return nil, fmt.Errorf("harness.Run: install addons: %w", err)
-			}
-		}
+	handle = &environment.Handle{
+		ClusterName:    req.Config.ClusterName,
+		KubeconfigPath: req.KubeconfigPath,
 	}
 
 	// Step 1b: Start LocalStack if scenario requires cloud resources.
@@ -237,7 +207,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			kubeconfigExists = false
 		}
 	}
-	if req.Config.ReuseCluster && kubeconfigExists && h.deps.EnvProvider != nil {
+	if kubeconfigExists && h.deps.EnvProvider != nil {
 		if err := h.deps.EnvProvider.ForceDeleteNamespace(ctx, handle.KubeconfigPath, ns); err != nil {
 			log.Printf("[harness] namespace cleanup %s (non-fatal): %v", ns, err)
 		}
@@ -270,35 +240,9 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	}
 
 	// Canary pod — verify scheduling before bootstrap.
-	if req.Config.ReuseCluster && kubeconfigExists && h.deps.EnvProvider != nil {
+	if kubeconfigExists && h.deps.EnvProvider != nil {
 		if err := h.deps.EnvProvider.RunCanary(ctx, handle.KubeconfigPath, ns); err != nil {
-			log.Printf("[harness] canary failed: %v", err)
-			// Recreate with same KubernetesConfig so CNI/addons/runtimes are restored.
-			newHandle, recreateErr := h.deps.EnvProvider.Recreate(ctx, req.Config.ClusterName, k8s)
-			if recreateErr != nil {
-				return nil, &InfraError{Err: fmt.Errorf("harness.Run: canary failed and recreate failed: %w", recreateErr)}
-			}
-			handle = newHandle
-			// Re-install addons on the fresh cluster.
-			if k8s.CNI != "" || len(k8s.Addons) > 0 {
-				addonSteps, warnings := environment.AddonSteps(k8s.CNI, k8s.Addons)
-				for _, w := range warnings {
-					log.Printf("[harness] warning: %s", w)
-				}
-				if len(addonSteps) > 0 {
-					if helmErr := environment.AddHelmRepos(ctx, h.deps.Bootstrapper.Runner); helmErr != nil {
-						log.Printf("[harness] warning: helm repo setup: %v", helmErr)
-					}
-					addonPlan := &environment.BootstrapPlan{Steps: addonSteps}
-					if addonErr := h.deps.Bootstrapper.Execute(ctx, addonPlan, handle.KubeconfigPath); addonErr != nil {
-						return nil, &InfraError{Err: fmt.Errorf("harness.Run: addon reinstall after recreate: %w", addonErr)}
-					}
-				}
-			}
-			if err := h.deps.EnvProvider.CreateNamespace(ctx, handle.KubeconfigPath, ns); err != nil {
-				log.Printf("[harness] namespace create after recreate (non-fatal): %v", err)
-			}
-			log.Printf("[harness] cluster recreated with full setup")
+			return nil, &InfraError{Err: fmt.Errorf("harness.Run: canary failed on leased cluster: %w", err)}
 		}
 	}
 
