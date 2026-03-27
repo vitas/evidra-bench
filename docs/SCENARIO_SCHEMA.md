@@ -281,15 +281,56 @@ environment:
 | `argocd` | Cluster with ArgoCD pre-installed (namespace, CRDs, server, repo-server, application-controller). |
 | `aws-localstack` | Cluster plus a running LocalStack instance with AWS environment variables. |
 
+Each profile is realized by checked-in assets under `profiles/<profile>/`:
+- `install.sh` — installs the profile (ArgoCD manifests, starts LocalStack, etc.)
+- `healthcheck.sh` — waits for readiness (optional)
+- `cleanup.sh` — tears down profile resources on lease release (optional)
+
+The `default` profile has no hooks. Non-default profiles require `install.sh`.
+
+Cluster configs live under `clusters/<provider>/<profile>.yaml` (e.g.
+`clusters/kind/argocd.yaml`). The `AssetResolver` locates these files at
+provision time.
+
 **Resolution order** (when `profile` is omitted):
 1. If `environment.cloud.provider == "localstack"`, resolves to `aws-localstack`.
 2. Otherwise resolves to `default`.
 
 Unknown profiles fail at load time.
 
-The `cloud` and `kubernetes` fields remain as profile-specific payload and legacy fields
-during migration. They carry scenario-specific details (service list, setup scripts, CNI,
-addons) that the provisioner or harness consumes after profile-based setup.
+**Hook environment variables:**
+
+Profile hooks receive these env vars:
+
+| Variable | Description |
+|---|---|
+| `KUBECONFIG` | Path to the cluster kubeconfig |
+| `EVIDRA_PROFILE` | Profile name (e.g. `argocd`, `aws-localstack`) |
+| `EVIDRA_PROVIDER` | Cluster provider (e.g. `kind`, `k3d`) |
+| `EVIDRA_CLUSTER_NAME` | Cluster name |
+| `EVIDRA_WORK_DIR` | Temporary work directory for this profile run |
+| `EVIDRA_ASSETS_DIR` | Path to the profile assets directory |
+
+**`lease.env` contract:**
+
+If `install.sh` writes a file named `lease.env` to `$EVIDRA_WORK_DIR`, the
+profile runner parses it as newline-delimited `KEY=VALUE` pairs and returns
+them as `Lease.ExtraEnv`. The harness propagates these vars to cloud setup
+scripts, agent subprocesses, and verifier checks.
+
+Example `lease.env` (written by `profiles/aws-localstack/install.sh`):
+```
+AWS_ENDPOINT_URL=http://localhost:4566
+AWS_ACCESS_KEY_ID=test
+AWS_SECRET_ACCESS_KEY=test
+AWS_DEFAULT_REGION=us-east-1
+PATH=/tmp/evidra-work/bin:/usr/local/bin:/usr/bin:/bin
+```
+
+The `cloud` and `kubernetes` fields remain as scenario-specific payload.
+`cloud.setup` runs after the profile is installed and receives `ExtraEnv`
+from the lease. `cloud.teardown` and `kubernetes` fields carry scenario-specific
+details (service list, CNI, addons) consumed by the provisioner or harness.
 
 ### Cloud and Kubernetes Configuration
 

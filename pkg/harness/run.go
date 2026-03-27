@@ -63,7 +63,7 @@ type Deps struct {
 type RunRequest struct {
 	Config          config.Config
 	Scenario        *scenario.Scenario
-	ExtraEnv        []string // Additional env vars for the agent executor (e.g., AWS_ENDPOINT_URL)
+	ExtraEnv        []string // Env vars from the profile lease (e.g., AWS_ENDPOINT_URL from aws-localstack)
 	TargetNamespace string   // Override namespace (default: "bench")
 	KubeconfigPath  string   // Pre-provisioned kubeconfig — skip cluster create/destroy if set
 }
@@ -129,8 +129,9 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	}
 
 	// Step 1b: Run cloud setup script if the scenario provides one.
-	// LocalStack lifecycle is now managed by the provisioner — ExtraEnv already
-	// contains AWS_ENDPOINT_URL, credentials, and the wrapper PATH.
+	// The profile provisioner (profiles/<profile>/install.sh) already ran and
+	// wrote lease.env. ExtraEnv carries the resulting vars (AWS_ENDPOINT_URL,
+	// credentials, wrapper PATH) from the lease into the harness process.
 	if s.Environment.Cloud.Setup != "" {
 		setupCmd := exec.CommandContext(ctx, "bash", s.Environment.Cloud.Setup)
 		setupCmd.Env = append(os.Environ(), req.ExtraEnv...)
@@ -139,8 +140,8 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}
 	}
 
-	// Set AWS env vars on the process so verifier checks can inherit them.
-	// This is safe: these are test credentials for a local LocalStack container.
+	// Propagate lease env vars to the process so verifier checks and agent
+	// subprocesses can inherit them (e.g. AWS credentials from a profile hook).
 	for _, kv := range req.ExtraEnv {
 		if parts := strings.SplitN(kv, "=", 2); len(parts) == 2 {
 			if err := os.Setenv(parts[0], parts[1]); err != nil {

@@ -99,6 +99,7 @@ The authoritative HTTP contract for those hosted surfaces lives in the sibling
 │                                                                     │
 │  pkg/environment/    ClusterLifecycle, LocalProvisioner, Lease     │
 │  pkg/environment/    KindProvider, K3dProvider, Bootstrapper       │
+│  pkg/environment/    AssetResolver, ProfileRunner (asset-driven)  │
 │  pkg/scenario/       Load, LoadAll, Resolve (YAML schema)         │
 │  pkg/agent/          Bifrost/Claude providers, tool-use loop       │
 │  pkg/agent/          MCPExecutor (MCP server stdio transport)      │
@@ -235,7 +236,9 @@ cmd/bench-cli
   │     ├── K3dProvider      ← k3d cluster lifecycle
   │     ├── kubectlOps       ← shared namespace/canary/health ops
   │     ├── Bootstrapper     ← step executor
-  │     └── AddonRegistry    ← argocd, falco, gatekeeper steps
+  │     ├── AssetResolver    ← clusters/ + profiles/ lookup
+  │     ├── ProfileRunner    ← install/healthcheck/cleanup hooks
+  │     └── AddonRegistry    ← falco, gatekeeper, calico, cilium steps
   ├── pkg/orchestrator  ← parallel lifecycle
   │     ├── pkg/jobqueue     ← River workers
   │     ├── pkg/workspace    ← copy + namespace rewrite
@@ -279,6 +282,41 @@ Lease lifetime varies by execution mode:
 - Sequential bench with --reuse-cluster: one batch lease for all scenarios (must share profile)
 - Parallel mode: restricted to `default` profile (shared state not isolated)
 
+### Profile Realization Layer (`clusters/` and `profiles/`)
+
+Profile setup is realized through checked-in shell scripts and config files, not
+hardcoded Go logic. The `localstack.go` provisioner was removed; LocalStack
+lifecycle now lives in `profiles/aws-localstack/install.sh`.
+
+```
+clusters/
+  kind/default.yaml          cluster config per provider + profile
+  kind/argocd.yaml
+  kind/aws-localstack.yaml
+  k3d/default.yaml
+  ...
+profiles/
+  default/README.md          no hooks — plain cluster
+  argocd/install.sh          install ArgoCD from manifests/
+  argocd/healthcheck.sh      wait for CRDs and pods
+  argocd/cleanup.sh          delete Application objects
+  aws-localstack/install.sh  start LocalStack, write lease.env
+  aws-localstack/healthcheck.sh
+  aws-localstack/cleanup.sh
+```
+
+The provisioning flow is:
+
+1. `AssetResolver.Resolve(provider, profile)` locates the cluster config and
+   profile directory from the checked-in asset tree.
+2. `ProfileRunner.Prepare(...)` executes `install.sh`, then `healthcheck.sh`,
+   inside a temporary work dir with well-known env vars (`KUBECONFIG`,
+   `EVIDRA_PROFILE`, `EVIDRA_PROVIDER`, `EVIDRA_CLUSTER_NAME`,
+   `EVIDRA_WORK_DIR`, `EVIDRA_ASSETS_DIR`).
+3. If the install script writes a `lease.env` file to `$EVIDRA_WORK_DIR`, the
+   runner parses it and returns the key-value pairs as `Lease.ExtraEnv`.
+4. On release, `cleanup.sh` runs (best-effort) before the cluster is destroyed.
+
 ### Provider Compatibility
 Scenarios declare supported providers via `environment.providers: [kind, k3d]`.
 The executor filters incompatible scenarios at every enforcement point (CLI run,
@@ -287,9 +325,9 @@ as `skipped`, not `failed`.
 
 ### Pre-provisioned Cluster
 When `--kubeconfig` is set, the provisioner skips cluster create/destroy but still
-runs profile-specific setup (ArgoCD addon install, LocalStack start). The
-orchestrator provisions once, shares the kubeconfig with all workers, and tears
-down once after all workers complete.
+runs profile hooks (e.g. `profiles/argocd/install.sh`). The orchestrator
+provisions once, shares the kubeconfig with all workers, and tears down once
+after all workers complete.
 
 ### River Job Queue
 PostgreSQL-backed job queue provides persistence (crash recovery), retries,

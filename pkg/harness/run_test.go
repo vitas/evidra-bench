@@ -522,6 +522,74 @@ func TestHarness_StoreUsesExplicitEvidenceMode(t *testing.T) {
 	}
 }
 
+// TestHarness_Run_LeaseEnvIsAvailableToCloudSetup verifies that ExtraEnv vars
+// (e.g. AWS credentials from a profile lease) are propagated to the scenario's
+// cloud.setup script. This protects the aws-localstack workflow where the
+// provisioner writes lease.env and the harness forwards it to scenario scripts.
+func TestHarness_Run_LeaseEnvIsAvailableToCloudSetup(t *testing.T) {
+	t.Parallel()
+
+	// Create a setup script that writes received env vars to a marker file.
+	tmpDir := t.TempDir()
+	markerFile := filepath.Join(tmpDir, "env-marker.txt")
+	setupScript := filepath.Join(tmpDir, "setup.sh")
+	if err := os.WriteFile(setupScript, []byte(
+		"#!/bin/sh\nset -eu\necho \"AWS_ENDPOINT_URL=$AWS_ENDPOINT_URL\" > "+markerFile+"\n"+
+			"echo \"AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID\" >> "+markerFile+"\n",
+	), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	fp := &fakeProvider{}
+	fa := &fakeAdapter{}
+	h := New(Deps{
+		EnvProvider: fp,
+		Adapter:     fa,
+	})
+
+	cfg := config.Default()
+	cfg.Scenario = "aws/s3-bucket-policy"
+	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
+
+	_, err := h.Run(context.Background(), RunRequest{
+		Config:         cfg,
+		KubeconfigPath: fakeKubeconfig(t),
+		ExtraEnv: []string{
+			"AWS_ENDPOINT_URL=http://localhost:4566",
+			"AWS_ACCESS_KEY_ID=test-key",
+		},
+		Scenario: &scenario.Scenario{
+			ID:       "s3-bucket-policy",
+			Title:    "Fix S3 bucket policy",
+			Category: "aws",
+			Environment: scenario.EnvironmentConfig{
+				Cloud: scenario.CloudConfig{
+					Provider: "localstack",
+					Services: []string{"s3", "iam"},
+					Setup:    setupScript,
+				},
+			},
+			Checks: []scenario.Check{{Type: "command-succeeds", Name: "verify", Condition: "true"}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	// Verify the setup script received the lease env vars.
+	data, readErr := os.ReadFile(markerFile)
+	if readErr != nil {
+		t.Fatalf("setup script did not write marker file: %v", readErr)
+	}
+	content := string(data)
+	if !strings.Contains(content, "AWS_ENDPOINT_URL=http://localhost:4566") {
+		t.Fatalf("AWS_ENDPOINT_URL not propagated to cloud setup script; marker:\n%s", content)
+	}
+	if !strings.Contains(content, "AWS_ACCESS_KEY_ID=test-key") {
+		t.Fatalf("AWS_ACCESS_KEY_ID not propagated to cloud setup script; marker:\n%s", content)
+	}
+}
+
 func TestBreakCommandArgs_HelmUpgrade(t *testing.T) {
 	t.Parallel()
 	s := &scenario.Scenario{
