@@ -205,9 +205,9 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 					log.Printf("[worker-%d] cluster recreated", args.NamespaceSlot)
 				}
 			}
-			recreateMu.Unlock()
-			// All workers pick up the latest kubeconfig after the lock.
+			// Read kubeconfig while holding lock — o.cluster may have been swapped.
 			kubeconfigPath = o.cluster.KubeconfigPath
+			recreateMu.Unlock()
 		}
 
 		scenarioPath := args.ScenarioID

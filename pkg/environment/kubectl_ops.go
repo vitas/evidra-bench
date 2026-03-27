@@ -99,6 +99,11 @@ func (k *kubectlOps) ForceDeleteNamespace(ctx context.Context, kubeconfigPath, n
 	}
 
 	for i := 0; i < 30; i++ {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("namespace %s: context cancelled during termination wait: %w", ns, ctx.Err())
+		case <-time.After(1 * time.Second):
+		}
 		checkCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
 			"get", "namespace", ns, "--ignore-not-found", "-o", "name")
 		checkOut, _ := k.Runner.Run(ctx, checkCmd)
@@ -106,7 +111,6 @@ func (k *kubectlOps) ForceDeleteNamespace(ctx context.Context, kubeconfigPath, n
 			log.Printf("[cluster] namespace %s deleted", ns)
 			return nil
 		}
-		time.Sleep(1 * time.Second)
 	}
 	return fmt.Errorf("namespace %s still terminating after 30s", ns)
 }
