@@ -55,6 +55,13 @@ func (p *K3dProvider) Create(ctx context.Context, clusterName string, k8s scenar
 		return nil, fmt.Errorf("environment.K3dProvider.Create: check existing cluster: %w", err)
 	}
 	if !exists || !p.ReuseExisting {
+		if exists {
+			// Delete first — k3d can't create over an existing cluster.
+			delCmd := p.deleteCommand(clusterName)
+			if _, err := p.Runner.Run(ctx, delCmd); err != nil {
+				log.Printf("[k3d] delete before create (non-fatal): %v", err)
+			}
+		}
 		cmd := p.createCommand(clusterName)
 		if _, err := p.Runner.Run(ctx, cmd); err != nil {
 			return nil, fmt.Errorf("environment.K3dProvider.Create: %w", err)
