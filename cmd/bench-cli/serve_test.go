@@ -99,6 +99,23 @@ func TestBuildCertifyRunConfig_A2ADoesNotDefaultProvider(t *testing.T) {
 	}
 }
 
+func TestBuildCertifyRunConfig_A2ARequestURLOverridesBase(t *testing.T) {
+	t.Parallel()
+
+	base := config.Default()
+	base.Adapter = "cli"
+	base.A2AAgentURL = "https://base-agent.example"
+
+	req := CertifyRequest{Model: "sonnet"}
+	req.Config.Adapter = "a2a"
+	req.Config.A2AAgentURL = "https://request-agent.example"
+
+	got := buildCertifyRunConfig(base, req)
+	if got.A2AAgentURL != "https://request-agent.example" {
+		t.Fatalf("A2AAgentURL = %q, want request override", got.A2AAgentURL)
+	}
+}
+
 func TestBuildCertifyRunConfig_EvidenceModeNoneClearsConflicts(t *testing.T) {
 	t.Parallel()
 

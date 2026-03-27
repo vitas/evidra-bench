@@ -259,6 +259,17 @@ func TestRunWithA2A_WrapsTransportErrorsAsInfraErrors(t *testing.T) {
 	}
 }
 
+func TestShouldUseProviderEvidenceDir_SkipsA2A(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.Default()
+	cfg.Adapter = "a2a"
+	cfg.Provider = "bifrost"
+	if shouldUseProviderEvidenceDir(cfg) {
+		t.Fatal("shouldUseProviderEvidenceDir() = true, want false for a2a")
+	}
+}
+
 func newA2ATestServer(t *testing.T, result func(method string, params map[string]any) map[string]any) *httptest.Server {
 	t.Helper()
 

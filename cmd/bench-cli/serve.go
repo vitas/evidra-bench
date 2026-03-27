@@ -30,6 +30,7 @@ type CertifyRequest struct {
 	Config          struct {
 		TimeoutPerScenario int    `json:"timeout_per_scenario,omitempty"`
 		Adapter            string `json:"adapter,omitempty"`
+		A2AAgentURL        string `json:"a2a_agent_url,omitempty"`
 		EvidenceMode       string `json:"evidence_mode,omitempty"`
 	} `json:"config"`
 	Callback struct {
@@ -184,6 +185,9 @@ func buildCertifyRunConfig(baseCfg config.Config, req CertifyRequest) config.Con
 	runCfg := baseCfg
 	if req.Provider != "" {
 		runCfg.Provider = req.Provider
+	}
+	if req.Config.A2AAgentURL != "" {
+		runCfg.A2AAgentURL = req.Config.A2AAgentURL
 	}
 	if req.Config.Adapter == "a2a" {
 		runCfg.Adapter = "a2a"

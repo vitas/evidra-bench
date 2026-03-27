@@ -252,27 +252,55 @@ func (c *Client) call(ctx context.Context, rpcURL, version, requestID, method st
 }
 
 func (c *Client) parseSendResult(agentName, rpcURL string, raw json.RawMessage) (*TaskResult, error) {
+	var parseNotes []string
+
 	var envelope sendResultEnvelope
 	if err := json.Unmarshal(raw, &envelope); err == nil {
 		switch {
 		case envelope.Task != nil:
-			return taskToResult(agentName, rpcURL, envelope.Task), nil
+			if err := validateSendTask(envelope.Task); err == nil {
+				return taskToResult(agentName, rpcURL, envelope.Task), nil
+			} else {
+				parseNotes = append(parseNotes, "envelope.task: "+err.Error())
+			}
 		case envelope.Message != nil:
-			return messageToResult(agentName, rpcURL, envelope.Message), nil
+			if err := validateSendMessage(envelope.Message); err == nil {
+				return messageToResult(agentName, rpcURL, envelope.Message), nil
+			} else {
+				parseNotes = append(parseNotes, "envelope.message: "+err.Error())
+			}
 		}
+	} else {
+		parseNotes = append(parseNotes, "envelope: "+err.Error())
 	}
 
 	var t task
-	if err := json.Unmarshal(raw, &t); err == nil && (t.ID != "" || t.Status.State != "" || len(t.Artifacts) > 0) {
-		return taskToResult(agentName, rpcURL, &t), nil
+	if err := json.Unmarshal(raw, &t); err == nil {
+		if hasTaskShape(&t) {
+			if err := validateSendTask(&t); err == nil {
+				return taskToResult(agentName, rpcURL, &t), nil
+			} else {
+				parseNotes = append(parseNotes, "task: "+err.Error())
+			}
+		}
+	} else {
+		parseNotes = append(parseNotes, "task: "+err.Error())
 	}
 
 	var msg message
-	if err := json.Unmarshal(raw, &msg); err == nil && len(msg.Parts) > 0 {
-		return messageToResult(agentName, rpcURL, &msg), nil
+	if err := json.Unmarshal(raw, &msg); err == nil {
+		if hasMessageShape(&msg) {
+			if err := validateSendMessage(&msg); err == nil {
+				return messageToResult(agentName, rpcURL, &msg), nil
+			} else {
+				parseNotes = append(parseNotes, "message: "+err.Error())
+			}
+		}
+	} else {
+		parseNotes = append(parseNotes, "message: "+err.Error())
 	}
 
-	return nil, fmt.Errorf("a2a: unrecognized send result")
+	return nil, fmt.Errorf("a2a: unrecognized send result (%s): %s", strings.Join(parseNotes, "; "), strings.TrimSpace(string(raw)))
 }
 
 func (c *Client) parseTaskResult(agentName, rpcURL string, raw json.RawMessage) (*TaskResult, error) {
@@ -341,6 +369,34 @@ func messageToResult(agentName, rpcURL string, msg *message) *TaskResult {
 		Output:    collectParts(msg.Parts),
 		Completed: true,
 	}
+}
+
+func hasTaskShape(t *task) bool {
+	return t != nil && (t.ID != "" || t.ContextID != "" || t.Status.State != "" || len(t.Artifacts) > 0 || t.Status.Message != nil)
+}
+
+func hasMessageShape(msg *message) bool {
+	return msg != nil && (msg.MessageID != "" || msg.Role != "" || len(msg.Parts) > 0)
+}
+
+func validateSendTask(t *task) error {
+	if t == nil {
+		return fmt.Errorf("missing task")
+	}
+	if t.Status.State == "" {
+		return fmt.Errorf("missing task status.state")
+	}
+	return nil
+}
+
+func validateSendMessage(msg *message) error {
+	if msg == nil {
+		return fmt.Errorf("missing message")
+	}
+	if len(msg.Parts) == 0 {
+		return fmt.Errorf("missing message parts")
+	}
+	return nil
 }
 
 func collectTaskOutput(t *task) string {

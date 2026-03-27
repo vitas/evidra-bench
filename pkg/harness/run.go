@@ -383,7 +383,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		memoryResetChan = make(chan int, 1)
 	}
 
-	if isMultiStage && req.Config.Provider != "" && req.Config.Adapter != "a2a" {
+	if isMultiStage && shouldUseProviderEvidenceDir(req.Config) {
 		providerEvDir = providerEvidenceDir(req.Config.EvidraEvidenceDir, req.Config.RunsDir, s.ID, startTime)
 
 		// Multi-stage: run agent and stages concurrently.
@@ -415,7 +415,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			agentResult = &adapter.RunResult{ExitCode: 1}
 		}
 	} else {
-		if req.Config.Provider != "" {
+		if shouldUseProviderEvidenceDir(req.Config) {
 			providerEvDir = providerEvidenceDir(req.Config.EvidraEvidenceDir, req.Config.RunsDir, s.ID, startTime)
 		}
 		agentResult, err = h.executeSingleAgent(ctx, req, s, handle.KubeconfigPath, promptContent, timeout, providerEvDir)
@@ -667,6 +667,10 @@ func (h *Harness) executeSingleAgent(ctx context.Context, req RunRequest, s *sce
 		AgentCommand:   req.Config.AgentCommand,
 		Model:          req.Config.Model,
 	})
+}
+
+func shouldUseProviderEvidenceDir(cfg config.Config) bool {
+	return cfg.Provider != "" && cfg.Adapter != "a2a"
 }
 
 func (h *Harness) runWithA2A(ctx context.Context, req RunRequest, s *scenario.Scenario, taskPrompt string, timeout time.Duration) (*adapter.RunResult, error) {

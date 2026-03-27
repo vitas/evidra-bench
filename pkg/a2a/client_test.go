@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -244,10 +245,91 @@ func TestClient_RunTextTask_PropagatesRPCError(t *testing.T) {
 	}
 }
 
+func TestClient_ParseSendResult_AcceptsDirectMessage(t *testing.T) {
+	t.Parallel()
+
+	client := NewClient("https://agent.example", nil)
+	got, err := client.parseSendResult("demo-agent", "https://agent.example/rpc", json.RawMessage(`{
+		"messageId":"msg-1",
+		"role":"agent",
+		"parts":[{"kind":"text","text":"done"}]
+	}`))
+	if err != nil {
+		t.Fatalf("parseSendResult() error = %v", err)
+	}
+	if !got.Completed {
+		t.Fatal("Completed = false, want true")
+	}
+	if got.Output != "done" {
+		t.Fatalf("Output = %q, want done", got.Output)
+	}
+}
+
+func TestClient_ParseSendResult_RejectsTaskWithoutState(t *testing.T) {
+	t.Parallel()
+
+	client := NewClient("https://agent.example", nil)
+	_, err := client.parseSendResult("demo-agent", "https://agent.example/rpc", json.RawMessage(`{"id":"task-1"}`))
+	if err == nil {
+		t.Fatal("parseSendResult() error = nil, want validation error")
+	}
+	if got := err.Error(); !containsAll(got, "unrecognized send result", `{"id":"task-1"}`) {
+		t.Fatalf("parseSendResult() error = %q, want raw payload context", got)
+	}
+}
+
+func TestEndpointForCard_PrefersSupportedInterfacesJSONRPC(t *testing.T) {
+	t.Parallel()
+
+	card := &AgentCard{
+		URL: "https://agent.example/card-url",
+		SupportedInterfaces: []AgentInterface{
+			{URL: "https://agent.example/http", ProtocolBinding: "HTTP"},
+			{URL: "https://agent.example/rpc", ProtocolBinding: "JSON-RPC", ProtocolVersion: "0.5"},
+		},
+	}
+
+	rpcURL, version, err := endpointForCard("https://agent.example/base", card)
+	if err != nil {
+		t.Fatalf("endpointForCard() error = %v", err)
+	}
+	if rpcURL != "https://agent.example/rpc" {
+		t.Fatalf("rpcURL = %q, want supported interface URL", rpcURL)
+	}
+	if version != "0.5" {
+		t.Fatalf("version = %q, want 0.5", version)
+	}
+}
+
+func TestEndpointForCard_FallsBackToBaseURL(t *testing.T) {
+	t.Parallel()
+
+	card := &AgentCard{}
+	rpcURL, version, err := endpointForCard("https://agent.example/base", card)
+	if err != nil {
+		t.Fatalf("endpointForCard() error = %v", err)
+	}
+	if rpcURL != "https://agent.example/base" {
+		t.Fatalf("rpcURL = %q, want base URL", rpcURL)
+	}
+	if version != defaultProtocolVersion {
+		t.Fatalf("version = %q, want default protocol version", version)
+	}
+}
+
 func writeJSON(t *testing.T, w http.ResponseWriter, v any) {
 	t.Helper()
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(v); err != nil {
 		t.Fatalf("encode response: %v", err)
 	}
+}
+
+func containsAll(s string, subs ...string) bool {
+	for _, sub := range subs {
+		if !strings.Contains(s, sub) {
+			return false
+		}
+	}
+	return true
 }
