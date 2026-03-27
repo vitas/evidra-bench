@@ -1187,6 +1187,10 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 	}
 
 	runnable, skipped := filterRunnableScenarios(selected, cfg.EnvironmentProvider, cmd.OutOrStdout())
+	if len(runnable) == 0 {
+		writef(cmd.OutOrStdout(), "No compatible scenarios to run. Skipped: %d\n", skipped)
+		return nil
+	}
 
 	// Parallel execution via River job queue.
 	if cfg.Parallel > 1 {
@@ -1261,6 +1265,32 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 				writef(cmd.OutOrStdout(), "%s ...\n", label)
 
 				runResult, runErr := runScenarioOnceWithLease(cmd.Context(), runCfg, s, batchLease)
+
+				// On infra error with a batch lease, try to reacquire the lease
+				// (recreate the cluster) and retry once.
+				var infraErr *harness.InfraError
+				if runErr != nil && batchLease != nil && stderrors.As(runErr, &infraErr) {
+					log.Printf("[bench] infra error on reused cluster, reacquiring lease: %v", runErr)
+					if releaseErr := batchLease.Release(cmd.Context()); releaseErr != nil {
+						log.Printf("[bench] warning: release failed lease: %v", releaseErr)
+					}
+					provisioner := newLocalProvisioner(runCfg)
+					newLease, acqErr := provisioner.Acquire(cmd.Context(), environment.ProvisionRequest{
+						Scenario:           s,
+						Profile:            s.ResolvedProfile(),
+						ProviderName:       runCfg.EnvironmentProvider,
+						ClusterName:        runCfg.ClusterName,
+						ReuseCluster:       true,
+						ExistingKubeconfig: runCfg.KubeconfigPath,
+						Shared:             true,
+					})
+					if acqErr != nil {
+						log.Printf("[bench] reacquire failed: %v", acqErr)
+					} else {
+						batchLease = newLease
+						runResult, runErr = runScenarioOnceWithLease(cmd.Context(), runCfg, s, batchLease)
+					}
+				}
 
 				r := result{
 					Scenario: s.ID,

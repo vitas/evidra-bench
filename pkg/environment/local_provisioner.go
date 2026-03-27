@@ -38,17 +38,22 @@ func NewLocalProvisioner(providers map[string]ClusterLifecycle, runner CommandRu
 // Acquire provisions an environment matching the requested profile and returns
 // a lease. The caller must call Lease.Release when done.
 func (p *LocalProvisioner) Acquire(ctx context.Context, req ProvisionRequest) (*Lease, error) {
-	// External kubeconfig: return a lease with the existing path, no create/destroy.
-	if req.ExistingKubeconfig != "" {
-		return &Lease{
-			Profile:        req.Profile,
-			KubeconfigPath: req.ExistingKubeconfig,
-			Shared:         req.Shared,
-		}, nil
-	}
+	// Resolve provider — nil is valid for external kubeconfig with default profile.
+	provider := p.Providers[req.ProviderName]
 
-	provider, ok := p.Providers[req.ProviderName]
-	if !ok {
+	// External kubeconfig: skip cluster create/destroy but still run profile-specific setup.
+	if req.ExistingKubeconfig != "" {
+		if req.Profile == scenario.ProfileDefault {
+			return &Lease{
+				Profile:        req.Profile,
+				KubeconfigPath: req.ExistingKubeconfig,
+				Provider:       provider,
+				Shared:         req.Shared,
+			}, nil
+		}
+		// Non-default profiles still need setup (ArgoCD addon, LocalStack, etc.)
+		// Fall through to profile switch with the external kubeconfig.
+	} else if provider == nil {
 		return nil, fmt.Errorf("environment.LocalProvisioner.Acquire: unknown provider %q", req.ProviderName)
 	}
 
@@ -84,9 +89,15 @@ func (p *LocalProvisioner) acquireDefault(ctx context.Context, req ProvisionRequ
 
 // acquireArgocd creates a cluster and installs the ArgoCD addon.
 func (p *LocalProvisioner) acquireArgocd(ctx context.Context, req ProvisionRequest, provider ClusterLifecycle) (*Lease, error) {
-	handle, err := p.createCluster(ctx, req, provider)
-	if err != nil {
-		return nil, err
+	var handle *Handle
+	var err error
+	if req.ExistingKubeconfig != "" {
+		handle = &Handle{ClusterName: req.ClusterName, KubeconfigPath: req.ExistingKubeconfig}
+	} else {
+		handle, err = p.createCluster(ctx, req, provider)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Install ArgoCD via addon registry.
@@ -121,9 +132,15 @@ func (p *LocalProvisioner) acquireArgocd(ctx context.Context, req ProvisionReque
 // acquireAWSLocalStack creates a cluster, starts a LocalStack container, and
 // builds AWS environment variables including a wrapper script for the aws CLI.
 func (p *LocalProvisioner) acquireAWSLocalStack(ctx context.Context, req ProvisionRequest, provider ClusterLifecycle) (*Lease, error) {
-	handle, err := p.createCluster(ctx, req, provider)
-	if err != nil {
-		return nil, err
+	var handle *Handle
+	var err error
+	if req.ExistingKubeconfig != "" {
+		handle = &Handle{ClusterName: req.ClusterName, KubeconfigPath: req.ExistingKubeconfig}
+	} else {
+		handle, err = p.createCluster(ctx, req, provider)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Determine which services to start.
