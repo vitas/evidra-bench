@@ -46,6 +46,11 @@ type ProgressReporter interface {
 	OnScenario(ctx context.Context, event ScenarioEvent)
 }
 
+// NodeRestarter can restart a degraded cluster node.
+type NodeRestarter interface {
+	RestartNode(ctx context.Context, clusterName string) error
+}
+
 // Orchestrator coordinates provisioning, parallel execution, and teardown.
 type Orchestrator struct {
 	cfg         config.Config
@@ -140,9 +145,17 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 	}
 
 	var completed, passed, failed int64
+	var consecutiveInfraFailures int64 // shared counter for proactive node restart
+	const infraFailureThreshold = 2    // restart node after this many consecutive infra errors
 	total := int64(len(scenarios) * len(models) * repeats)
 	cfg := runCfg
 	runFn := o.runFn
+
+	// Resolve node restarter from provider (if it supports it).
+	var restarter NodeRestarter
+	if nr, ok := o.provider.(NodeRestarter); ok {
+		restarter = nr
+	}
 
 	// Build River worker function.
 	workerFn := func(jobCtx context.Context, args jobqueue.BenchJobArgs, ns string) error {
@@ -181,6 +194,18 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 			})
 		}
 
+		// Proactive node restart after consecutive infra failures.
+		if restarter != nil && atomic.LoadInt64(&consecutiveInfraFailures) >= infraFailureThreshold {
+			log.Printf("[worker-%d] %d consecutive infra failures — proactive node restart",
+				args.NamespaceSlot, atomic.LoadInt64(&consecutiveInfraFailures))
+			if err := restarter.RestartNode(jobCtx, o.cluster.ClusterName); err != nil {
+				log.Printf("[worker-%d] proactive restart failed: %v", args.NamespaceSlot, err)
+			} else {
+				atomic.StoreInt64(&consecutiveInfraFailures, 0)
+				log.Printf("[worker-%d] proactive restart succeeded", args.NamespaceSlot)
+			}
+		}
+
 		scenarioPath := args.ScenarioID
 		startTime := time.Now()
 		runErr := runFn(jobCtx, workerCfg, scenarioPath, ns, kubeconfigPath, sharedStore)
@@ -195,14 +220,19 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 			if errors.As(runErr, &infraErr) {
 				status = "error"
 				exitCode = -1
-				log.Printf("[worker-%d] ERROR %s (infra): %v", args.NamespaceSlot, args.ScenarioID, runErr)
+				atomic.AddInt64(&consecutiveInfraFailures, 1)
+				log.Printf("[worker-%d] ERROR %s (infra, consecutive=%d): %v",
+					args.NamespaceSlot, args.ScenarioID,
+					atomic.LoadInt64(&consecutiveInfraFailures), runErr)
 			} else {
 				status = "failed"
 				exitCode = 1
+				atomic.StoreInt64(&consecutiveInfraFailures, 0)
 				log.Printf("[worker-%d] FAIL %s: %v", args.NamespaceSlot, args.ScenarioID, runErr)
 			}
 			atomic.AddInt64(&failed, 1)
 		} else {
+			atomic.StoreInt64(&consecutiveInfraFailures, 0)
 			atomic.AddInt64(&passed, 1)
 			log.Printf("[worker-%d] PASS %s", args.NamespaceSlot, args.ScenarioID)
 		}
