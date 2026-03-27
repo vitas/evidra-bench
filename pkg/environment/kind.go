@@ -2,7 +2,6 @@ package environment
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -28,13 +27,16 @@ func (r *ExecRunner) Run(ctx context.Context, cmd *exec.Cmd) ([]byte, error) {
 
 // KindProvider manages kind cluster lifecycles.
 type KindProvider struct {
-	Runner        CommandRunner
+	kubectlOps
 	ReuseExisting bool
 }
 
 // NewKindProvider returns a KindProvider with the default command runner.
 func NewKindProvider() *KindProvider {
-	return &KindProvider{Runner: &ExecRunner{}}
+	runner := &ExecRunner{}
+	return &KindProvider{
+		kubectlOps: kubectlOps{Runner: runner},
+	}
 }
 
 func (p *KindProvider) createCommand(clusterName string) *exec.Cmd {
@@ -88,14 +90,9 @@ func (p *KindProvider) kubeconfigCommand(clusterName string) *exec.Cmd {
 	return exec.Command("kind", "get", "kubeconfig", "--name", clusterName)
 }
 
-// Create provisions a new kind cluster and writes a kubeconfig file.
-func (p *KindProvider) Create(ctx context.Context, clusterName string) (*Handle, error) {
-	return p.CreateWithConfig(ctx, clusterName, scenario.KubernetesConfig{})
-}
-
-// CreateWithConfig provisions a kind cluster with Kubernetes infrastructure
-// requirements applied. When k8s is zero-valued, behaves like Create.
-func (p *KindProvider) CreateWithConfig(ctx context.Context, clusterName string, k8s scenario.KubernetesConfig) (*Handle, error) {
+// Create provisions a kind cluster with Kubernetes infrastructure
+// requirements applied. When k8s is zero-valued, creates a plain cluster.
+func (p *KindProvider) Create(ctx context.Context, clusterName string, k8s scenario.KubernetesConfig) (*Handle, error) {
 	exists, err := p.clusterExists(ctx, clusterName)
 	if err != nil {
 		return nil, fmt.Errorf("environment.KindProvider.Create: check existing cluster: %w", err)
@@ -152,122 +149,14 @@ func (p *KindProvider) Destroy(ctx context.Context, handle *Handle) error {
 	return nil
 }
 
-// HealthCheck verifies the cluster node is not under resource pressure.
-// Checks node conditions (MemoryPressure, DiskPressure, PIDPressure) and
-// verifies no pods are stuck pending from prior scenarios.
-func (p *KindProvider) HealthCheck(ctx context.Context, kubeconfigPath string) error {
-	// Check node conditions via JSON output.
-	cmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
-		"get", "nodes", "-o", "json")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("health check: get nodes: %w: %s", err, string(out))
-	}
-
-	var nodeList struct {
-		Items []struct {
-			Metadata struct {
-				Name string `json:"name"`
-			} `json:"metadata"`
-			Status struct {
-				Conditions []struct {
-					Type   string `json:"type"`
-					Status string `json:"status"`
-				} `json:"conditions"`
-			} `json:"status"`
-		} `json:"items"`
-	}
-	if err := json.Unmarshal(out, &nodeList); err != nil {
-		return fmt.Errorf("health check: parse nodes: %w", err)
-	}
-
-	pressureConditions := map[string]bool{
-		"MemoryPressure": true,
-		"DiskPressure":   true,
-		"PIDPressure":    true,
-	}
-	for _, node := range nodeList.Items {
-		for _, cond := range node.Status.Conditions {
-			if pressureConditions[cond.Type] && cond.Status == "True" {
-				return fmt.Errorf("health check: node %s has %s", node.Metadata.Name, cond.Type)
-			}
-			if cond.Type == "Ready" && cond.Status != "True" {
-				return fmt.Errorf("health check: node %s not Ready (status=%s)", node.Metadata.Name, cond.Status)
-			}
-		}
-	}
-
-	// Check for stuck pending pods across all namespaces (leftover from prior runs).
-	pendingCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
-		"get", "pods", "--all-namespaces", "--field-selector=status.phase=Pending",
-		"-o", "jsonpath={.items[*].metadata.name}")
-	pendingOut, err := pendingCmd.CombinedOutput()
-	if err != nil {
-		log.Printf("[health] pending pod check failed (non-fatal): %v", err)
-		return nil // Don't fail on this — node conditions are the primary signal.
-	}
-	pending := strings.TrimSpace(string(pendingOut))
-	if pending != "" {
-		return fmt.Errorf("health check: stuck pending pods: %s", pending)
-	}
-
-	return nil
-}
-
-// RestartNode restarts the Kind cluster's Docker container and waits for readiness.
-func (p *KindProvider) RestartNode(ctx context.Context, clusterName string) error {
-	containerName := clusterName + "-control-plane"
-	log.Printf("[kind] restarting node %s", containerName)
-	cmd := exec.CommandContext(ctx, "docker", "restart", containerName)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("node restart failed: %w: %s", err, string(out))
-	}
-	// Wait for API server to come back.
-	log.Printf("[kind] waiting for API server after restart")
-	kubeconfigPath := filepath.Join(os.TempDir(), fmt.Sprintf("bench-cli-%s-kubeconfig", clusterName))
-	waitCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
-		"wait", "--for=condition=Ready", "node", containerName, "--timeout=60s")
-	if waitOut, waitErr := waitCmd.CombinedOutput(); waitErr != nil {
-		return fmt.Errorf("node not ready after restart: %w: %s", waitErr, string(waitOut))
-	}
-	log.Printf("[kind] node %s restarted and ready", containerName)
-	return nil
-}
-
-// RecreateCluster destroys and recreates a kind cluster from scratch.
-// This is safer than RestartNode which can cause IP changes (kind#2759, kind#3989).
-func (p *KindProvider) RecreateCluster(ctx context.Context, clusterName string) (*Handle, error) {
+// Recreate destroys and recreates a kind cluster from scratch.
+func (p *KindProvider) Recreate(ctx context.Context, clusterName string, k8s scenario.KubernetesConfig) (*Handle, error) {
 	log.Printf("[kind] recreating cluster %s (delete + create)", clusterName)
-
-	// Delete the existing cluster.
 	delCmd := p.deleteCommand(clusterName)
 	if _, err := p.Runner.Run(ctx, delCmd); err != nil {
 		log.Printf("[kind] delete during recreate (non-fatal): %v", err)
 	}
-
-	// Recreate with default config.
-	createCmd := p.createCommand(clusterName)
-	if _, err := p.Runner.Run(ctx, createCmd); err != nil {
-		return nil, fmt.Errorf("kind.RecreateCluster: create: %w", err)
-	}
-
-	// Write kubeconfig.
-	kcCmd := p.kubeconfigCommand(clusterName)
-	out, err := p.Runner.Run(ctx, kcCmd)
-	if err != nil {
-		return nil, fmt.Errorf("kind.RecreateCluster: get kubeconfig: %w", err)
-	}
-	kubeconfigPath := filepath.Join(os.TempDir(), fmt.Sprintf("bench-cli-%s-kubeconfig", clusterName))
-	if err := os.WriteFile(kubeconfigPath, out, 0600); err != nil {
-		return nil, fmt.Errorf("kind.RecreateCluster: write kubeconfig: %w", err)
-	}
-
-	log.Printf("[kind] cluster %s recreated", clusterName)
-	return &Handle{
-		ClusterName:    clusterName,
-		KubeconfigPath: kubeconfigPath,
-	}, nil
+	return p.Create(ctx, clusterName, k8s)
 }
 
 // BuildKindConfig generates a kind cluster config YAML from KubernetesConfig.
