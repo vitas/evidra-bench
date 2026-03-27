@@ -154,13 +154,13 @@ func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string
 			evidraURL = baseCfg.EvidraURL
 		}
 
-			reporter := &evidraReporter{
-				progressURL:  progressURL,
-				evidraURL:    evidraURL,
-				authToken:    authToken,
-				evidenceMode: config.EffectiveEvidenceMode(runCfg),
-				adapter:      runCfg.Adapter,
-			}
+		reporter := &evidraReporter{
+			progressURL:  progressURL,
+			evidraURL:    evidraURL,
+			authToken:    authToken,
+			evidenceMode: config.EffectiveEvidenceMode(runCfg),
+			adapter:      runCfg.Adapter,
+		}
 
 		go func() {
 			runCtx := context.Background()
