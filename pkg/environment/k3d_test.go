@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"samebits.com/evidra-infra-bench/pkg/scenario"
 )
 
 func TestK3dProvider_CreateCommand(t *testing.T) {
@@ -44,7 +46,7 @@ func TestK3dProvider_KubeconfigCommand(t *testing.T) {
 
 func TestK3dProvider_ImplementsProvider(t *testing.T) {
 	t.Parallel()
-	var _ Provider = (*K3dProvider)(nil)
+	var _ ClusterLifecycle = (*K3dProvider)(nil)
 }
 
 func TestK3dProvider_Create_ReusesExistingCluster(t *testing.T) {
@@ -56,9 +58,12 @@ func TestK3dProvider_Create_ReusesExistingCluster(t *testing.T) {
 			"k3d kubeconfig get bench-cli":  []byte("apiVersion: v1\nkind: Config\n"),
 		},
 	}
-	p := &K3dProvider{Runner: runner, ReuseExisting: true}
+	p := &K3dProvider{
+		kubectlOps:    kubectlOps{Runner: runner},
+		ReuseExisting: true,
+	}
 
-	handle, err := p.Create(context.Background(), "bench-cli")
+	handle, err := p.Create(context.Background(), "bench-cli", scenario.KubernetesConfig{})
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}

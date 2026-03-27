@@ -3,21 +3,27 @@ package environment
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"samebits.com/evidra-infra-bench/pkg/scenario"
 )
 
 // K3dProvider manages k3d cluster lifecycles.
 type K3dProvider struct {
-	Runner        CommandRunner
+	kubectlOps
 	ReuseExisting bool
 }
 
 // NewK3dProvider returns a K3dProvider with the default command runner.
 func NewK3dProvider() *K3dProvider {
-	return &K3dProvider{Runner: &ExecRunner{}}
+	runner := &ExecRunner{}
+	return &K3dProvider{
+		kubectlOps: kubectlOps{Runner: runner},
+	}
 }
 
 func (p *K3dProvider) createCommand(clusterName string) *exec.Cmd {
@@ -40,7 +46,10 @@ func (p *K3dProvider) kubeconfigCommand(clusterName string) *exec.Cmd {
 }
 
 // Create provisions a new k3d cluster and writes a kubeconfig file.
-func (p *K3dProvider) Create(ctx context.Context, clusterName string) (*Handle, error) {
+func (p *K3dProvider) Create(ctx context.Context, clusterName string, k8s scenario.KubernetesConfig) (*Handle, error) {
+	if k8s.CNI != "" || len(k8s.Addons) > 0 || len(k8s.Runtimes) > 0 || len(k8s.Features) > 0 {
+		log.Printf("[k3d] warning: KubernetesConfig options not supported by k3d provider")
+	}
 	exists, err := p.clusterExists(ctx, clusterName)
 	if err != nil {
 		return nil, fmt.Errorf("environment.K3dProvider.Create: check existing cluster: %w", err)
@@ -67,6 +76,16 @@ func (p *K3dProvider) Create(ctx context.Context, clusterName string) (*Handle, 
 		ClusterName:    clusterName,
 		KubeconfigPath: kubeconfigPath,
 	}, nil
+}
+
+// Recreate tears down and re-creates the k3d cluster.
+func (p *K3dProvider) Recreate(ctx context.Context, clusterName string, k8s scenario.KubernetesConfig) (*Handle, error) {
+	log.Printf("[k3d] recreating cluster %s", clusterName)
+	delCmd := p.deleteCommand(clusterName)
+	if _, err := p.Runner.Run(ctx, delCmd); err != nil {
+		log.Printf("[k3d] delete during recreate (non-fatal): %v", err)
+	}
+	return p.Create(ctx, clusterName, k8s)
 }
 
 func (p *K3dProvider) clusterExists(ctx context.Context, clusterName string) (bool, error) {

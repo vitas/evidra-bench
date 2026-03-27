@@ -73,9 +73,12 @@ func TestKindProvider_Create_ReusesExistingCluster(t *testing.T) {
 			"kind get kubeconfig --name bench-cli": []byte("apiVersion: v1\nkind: Config\n"),
 		},
 	}
-	p := &KindProvider{Runner: runner, ReuseExisting: true}
+	p := &KindProvider{
+		kubectlOps:    kubectlOps{Runner: runner},
+		ReuseExisting: true,
+	}
 
-	handle, err := p.Create(context.Background(), "bench-cli")
+	handle, err := p.Create(context.Background(), "bench-cli", scenario.KubernetesConfig{})
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
