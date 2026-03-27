@@ -125,7 +125,9 @@ func (c *Client) Discover(ctx context.Context) (*AgentCard, error) {
 	if err != nil {
 		return nil, fmt.Errorf("a2a: discover agent card: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
@@ -227,7 +229,9 @@ func (c *Client) call(ctx context.Context, rpcURL, version, requestID, method st
 	if err != nil {
 		return nil, fmt.Errorf("a2a: send %s: %w", method, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

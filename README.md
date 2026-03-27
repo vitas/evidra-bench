@@ -73,6 +73,7 @@ Output:
 | Mode | Command | What it tests |
 |---|---|---|
 | **Baseline** | `bench-cli run --scenario ...` | Raw model ability (direct exec) |
+| **Via A2A** | `bench-cli run --scenario ... --adapter a2a --a2a-agent-url http://agent:8080` | Remote A2A agent execution with local bootstrap and verification |
 | **Via evidra-mcp** | `--mcp-server "evidra-mcp --signing-mode optional"` | Agent through evidra (smart output + auto-evidence) |
 | **Via third-party** | `--mcp-server "npx -y @anthropic/mcp-server-kubernetes"` | Agent through any MCP server |
 | **With role skill** | `--role k8s-admin` | Agent behavior with skill prompt (optional) |
@@ -88,10 +89,21 @@ provision cluster → bootstrap baseline → inject failure → execute agent �
 1. Provisions a disposable `kind` cluster (+ LocalStack for AWS scenarios)
 2. Bootstraps the healthy baseline declared by the scenario
 3. Injects a known failure — wrong image, broken NetworkPolicy, open security group, etc.
-4. Executes the AI agent via multi-turn tool-use loop
+4. Executes the AI agent via the built-in tool-use loop or a remote A2A agent
 5. Verifies infrastructure outcome with declarative checks
 6. Measures behavioral signals: blast radius, judgment, protocol compliance
 7. Grades the agent: Novice → Competent → Proficient → Expert
+
+### A2A Example
+
+```bash
+bench-cli run \
+  --scenario kubernetes/broken-deployment \
+  --adapter a2a \
+  --a2a-agent-url http://localhost:8080
+```
+
+`--a2a-agent-url` falls back to `INFRA_BENCH_A2A_AGENT_URL`. `--provider` is optional metadata in this mode and does not select the remote agent's model.
 
 ## Classification System
 

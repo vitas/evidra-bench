@@ -107,6 +107,7 @@ The authoritative HTTP contract for those hosted surfaces lives in the sibling
 │  pkg/store/          SQLite + JSONL backup                         │
 │  pkg/config/         Config struct, version collection             │
 │  pkg/adapter/        Legacy CLI/MCP adapter interface              │
+│  pkg/a2a/            Generic A2A discovery + JSON-RPC task client │
 │  pkg/tui/            Bubble Tea interactive lab                    │
 │  pkg/skilldelta/     Paired with/without skill benchmarks          │
 │  pkg/signalaudit/    Signal expectation auditing                   │
@@ -114,6 +115,18 @@ The authoritative HTTP contract for those hosted surfaces lives in the sibling
 ```
 
 ## Execution Modes
+
+### Agent Dispatch Order
+
+For each scenario run, the harness resolves agent execution in this order:
+
+```text
+adapter=a2a      -> bench-cli bootstraps and verifies locally, remote A2A agent executes the task
+provider!=empty  -> bench-cli runs its built-in tool-use loop locally
+adapter=cli/mcp  -> legacy local-process adapter path
+```
+
+`adapter=a2a` is intentionally separate from provider mode. The provider field is metadata for that path, not a local loop selector.
 
 ### Sequential (default)
 
