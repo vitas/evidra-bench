@@ -236,8 +236,10 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			kubeconfigExists = false
 		}
 	}
-	if req.Config.ReuseCluster && kubeconfigExists {
-		h.deps.EnvProvider.ForceDeleteNamespace(ctx, handle.KubeconfigPath, ns)
+	if req.Config.ReuseCluster && kubeconfigExists && h.deps.EnvProvider != nil {
+		if err := h.deps.EnvProvider.ForceDeleteNamespace(ctx, handle.KubeconfigPath, ns); err != nil {
+			log.Printf("[harness] namespace cleanup %s (non-fatal): %v", ns, err)
+		}
 
 		// Also clean cluster-scoped resources that scenarios may create.
 		for _, res := range []string{"pv", "storageclass", "validatingwebhookconfiguration", "mutatingwebhookconfiguration"} {
@@ -260,14 +262,14 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	}
 
 	// Step 2b: Recreate target namespace.
-	if handle.KubeconfigPath != "" {
+	if handle.KubeconfigPath != "" && h.deps.EnvProvider != nil {
 		if err := h.deps.EnvProvider.CreateNamespace(ctx, handle.KubeconfigPath, ns); err != nil {
 			log.Printf("[harness] namespace create (non-fatal): %v", err)
 		}
 	}
 
 	// Canary pod — verify scheduling before bootstrap.
-	if req.Config.ReuseCluster && kubeconfigExists {
+	if req.Config.ReuseCluster && kubeconfigExists && h.deps.EnvProvider != nil {
 		if err := h.deps.EnvProvider.RunCanary(ctx, handle.KubeconfigPath, ns); err != nil {
 			log.Printf("[harness] canary failed: %v", err)
 			// Recreate with same KubernetesConfig so CNI/addons/runtimes are restored.
@@ -300,8 +302,10 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	}
 
 	// Health check — informational after canary.
-	if err := h.deps.EnvProvider.HealthCheck(ctx, handle.KubeconfigPath); err != nil {
-		log.Printf("[harness] health check warning: %v", err)
+	if h.deps.EnvProvider != nil {
+		if err := h.deps.EnvProvider.HealthCheck(ctx, handle.KubeconfigPath); err != nil {
+			log.Printf("[harness] health check warning: %v", err)
+		}
 	}
 
 	// Step 2d: Bootstrap.

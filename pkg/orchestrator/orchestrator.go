@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -143,8 +144,9 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 	}
 
 	var completed, passed, failed int64
-	var consecutiveInfraFailures int64 // shared counter for proactive node restart
-	const infraFailureThreshold = 2    // restart node after this many consecutive infra errors
+	var consecutiveInfraFailures int64 // shared counter for proactive cluster recreate
+	const infraFailureThreshold = 2    // recreate cluster after this many consecutive infra errors
+	var recreateMu sync.Mutex          // serialize cluster recreate across workers
 	total := int64(len(scenarios) * len(models) * repeats)
 	cfg := runCfg
 	runFn := o.runFn
@@ -187,18 +189,25 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 		}
 
 		// Proactive cluster recreate after consecutive infra failures.
+		// Serialized: only one worker recreates at a time; others wait and pick up the new kubeconfig.
 		if o.provider != nil && atomic.LoadInt64(&consecutiveInfraFailures) >= infraFailureThreshold {
-			log.Printf("[worker-%d] %d consecutive infra failures — recreating cluster",
-				args.NamespaceSlot, atomic.LoadInt64(&consecutiveInfraFailures))
-			newHandle, err := o.provider.Recreate(jobCtx, o.cluster.ClusterName, scenario.KubernetesConfig{})
-			if err != nil {
-				log.Printf("[worker-%d] cluster recreate failed: %v", args.NamespaceSlot, err)
-			} else {
-				o.cluster = newHandle
-				kubeconfigPath = newHandle.KubeconfigPath
-				atomic.StoreInt64(&consecutiveInfraFailures, 0)
-				log.Printf("[worker-%d] cluster recreated", args.NamespaceSlot)
+			recreateMu.Lock()
+			// Re-check under lock — another worker may have already recreated.
+			if atomic.LoadInt64(&consecutiveInfraFailures) >= infraFailureThreshold {
+				log.Printf("[worker-%d] %d consecutive infra failures — recreating cluster",
+					args.NamespaceSlot, atomic.LoadInt64(&consecutiveInfraFailures))
+				newHandle, err := o.provider.Recreate(jobCtx, o.cluster.ClusterName, scenario.KubernetesConfig{})
+				if err != nil {
+					log.Printf("[worker-%d] cluster recreate failed: %v", args.NamespaceSlot, err)
+				} else {
+					o.cluster = newHandle
+					atomic.StoreInt64(&consecutiveInfraFailures, 0)
+					log.Printf("[worker-%d] cluster recreated", args.NamespaceSlot)
+				}
 			}
+			recreateMu.Unlock()
+			// All workers pick up the latest kubeconfig after the lock.
+			kubeconfigPath = o.cluster.KubeconfigPath
 		}
 
 		scenarioPath := args.ScenarioID
