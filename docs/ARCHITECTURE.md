@@ -261,3 +261,51 @@ worker goroutines, and tracked via atomic counters.
 Parallel workers write to a shared SQLite store (opened by the orchestrator)
 rather than workspace-local stores. This ensures results survive workspace
 cleanup and are available even if the Evidra API is unreachable.
+
+## Docker Images
+
+Two separate images serve different purposes.
+
+### Lab UI (`ui/Dockerfile`)
+
+Static React SPA served by nginx. Talks to `api.evidra.cc` — no cluster access needed.
+
+```bash
+docker build --build-arg VITE_EVIDRA_API_KEY=$VITE_EVIDRA_API_KEY \
+  -t ghcr.io/vitas/bench-ui:latest ui/
+```
+
+Deployable anywhere (CDN, edge, any container host). ~30MB image.
+
+### Bench Runner (`Dockerfile.bench`)
+
+Remote certification runner. Packages `bench-cli serve` with kubectl, kind,
+evidra-mcp, and all scenarios.
+
+```bash
+docker build -f Dockerfile.bench \
+  --build-arg VERSION=v0.3.2 \
+  --build-arg COMMIT=$(git rev-parse --short HEAD) \
+  --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+  -t ghcr.io/vitas/bench-runner:latest .
+```
+
+**Host requirements:**
+
+- **Docker socket** — must be mounted into the container (`-v /var/run/docker.sock:/var/run/docker.sock`)
+- **Kind node image** — pulled by kind at runtime (e.g. `kindest/node:v1.32.0`); the host Docker daemon stores it
+- **PostgreSQL** — required for the River job queue when using `bench-cli serve`
+
+```bash
+docker run -d \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -e DATABASE_URL=postgres://... \
+  -e EVIDRA_URL=https://api.evidra.cc \
+  -e EVIDRA_API_KEY=$EVIDRA_API_KEY \
+  -p 8090:8090 \
+  ghcr.io/vitas/bench-runner:latest
+```
+
+The container creates sibling containers (kind clusters) on the host Docker
+daemon via the mounted socket — not Docker-in-Docker. The host machine needs
+enough resources to run kind clusters (4+ CPU, 8+ GB RAM recommended).
