@@ -2,6 +2,7 @@
 package scenario
 
 import (
+	"fmt"
 	"strings"
 	"time"
 )
@@ -162,8 +163,54 @@ type EvidraExpectations struct {
 
 // EnvironmentConfig describes additional infrastructure for a scenario.
 type EnvironmentConfig struct {
+	Providers  []string         `yaml:"providers,omitempty"` // supported cluster providers; empty = all
 	Cloud      CloudConfig      `yaml:"cloud,omitempty"`
 	Kubernetes KubernetesConfig `yaml:"kubernetes,omitempty"`
+}
+
+// supportedEnvironmentProviders is the set of valid values for EnvironmentConfig.Providers.
+var supportedEnvironmentProviders = map[string]bool{
+	"kind": true,
+	"k3d":  true,
+}
+
+// IsProviderCompatible returns true if the scenario supports the given provider.
+// Empty providers list means all providers are supported.
+func (s *Scenario) IsProviderCompatible(provider string) bool {
+	if len(s.Environment.Providers) == 0 {
+		return true
+	}
+	for _, p := range s.Environment.Providers {
+		if p == provider {
+			return true
+		}
+	}
+	return false
+}
+
+// IncompatibleProviderError is returned when a scenario does not support the running provider.
+type IncompatibleProviderError struct {
+	ScenarioID string
+	Required   []string
+	Running    string
+}
+
+func (e *IncompatibleProviderError) Error() string {
+	return fmt.Sprintf("scenario %s requires %v provider, running on %s",
+		e.ScenarioID, e.Required, e.Running)
+}
+
+// ProviderCompatibilityError returns an *IncompatibleProviderError if the scenario
+// does not support the given provider, or nil if it does.
+func (s *Scenario) ProviderCompatibilityError(provider string) error {
+	if s.IsProviderCompatible(provider) {
+		return nil
+	}
+	return &IncompatibleProviderError{
+		ScenarioID: s.ID,
+		Required:   s.Environment.Providers,
+		Running:    provider,
+	}
 }
 
 // CloudConfig describes cloud resources provisioned via LocalStack.

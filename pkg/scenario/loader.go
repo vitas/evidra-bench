@@ -202,8 +202,20 @@ func validate(s *Scenario) error {
 		return fmt.Errorf("scenario %s: at least one check is required", s.ID)
 	}
 
+	if err := validateEnvironmentProviders(s); err != nil {
+		return err
+	}
 	if err := validateChaos(s); err != nil {
 		return err
+	}
+	return nil
+}
+
+func validateEnvironmentProviders(s *Scenario) error {
+	for _, p := range s.Environment.Providers {
+		if !supportedEnvironmentProviders[p] {
+			return fmt.Errorf("scenario %s: unsupported environment provider %q (valid: kind, k3d)", s.ID, p)
+		}
 	}
 	return nil
 }

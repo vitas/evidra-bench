@@ -425,6 +425,38 @@ func TestValidate_StagesWithTopLevelChecksOnly(t *testing.T) {
 	}
 }
 
+func TestLoad_InvalidEnvironmentProviderFails(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	data := `id: test
+title: test
+category: kubernetes
+prompt: prompts/task.md
+environment:
+  providers: [kind, docker-desktop]
+break:
+  type: apply
+  path: fixtures/broken.yaml
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+`
+	if err := os.MkdirAll(filepath.Join(dir, "prompts"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "scenario.yaml"), []byte(data), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "prompts", "task.md"), []byte("Fix it."), 0644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Load(dir)
+	if err == nil {
+		t.Fatal("expected error for invalid environment provider 'docker-desktop'")
+	}
+}
+
 func TestValidate_MissingBreakAndStages(t *testing.T) {
 	t.Parallel()
 	s := &Scenario{
