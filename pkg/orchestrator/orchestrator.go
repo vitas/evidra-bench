@@ -124,6 +124,33 @@ type RunResult struct {
 	Completed int64
 	Passed    int64
 	Failed    int64
+	Skipped   int64
+}
+
+// scenarioOutcome describes the classification of a scenario run result.
+type scenarioOutcome struct {
+	status   string // "passed", "failed", "error", "skipped"
+	exitCode int    // 0=passed/skipped, 1=agent-failed, -1=infra-error
+	passed   bool
+	failed   bool
+	skipped  bool
+	infra    bool
+}
+
+// classifyScenarioError inspects a scenario run error and returns the outcome.
+func classifyScenarioError(err error) scenarioOutcome {
+	if err == nil {
+		return scenarioOutcome{status: "passed", exitCode: 0, passed: true}
+	}
+	var incompatErr *scenario.IncompatibleProviderError
+	if errors.As(err, &incompatErr) {
+		return scenarioOutcome{status: "skipped", exitCode: 0, skipped: true}
+	}
+	var infraErr *harness.InfraError
+	if errors.As(err, &infraErr) {
+		return scenarioOutcome{status: "error", exitCode: -1, failed: true, infra: true}
+	}
+	return scenarioOutcome{status: "failed", exitCode: 1, failed: true}
 }
 
 // RunParallel enqueues and executes scenarios via River.
@@ -142,7 +169,7 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 		defer func() { _ = sharedStore.Close() }()
 	}
 
-	var completed, passed, failed int64
+	var completed, passed, failed, skipped int64
 	var consecutiveInfraFailures int64 // shared counter for proactive cluster recreate
 	const infraFailureThreshold = 2    // recreate cluster after this many consecutive infra errors
 	var recreateMu sync.Mutex          // serialize cluster recreate across workers
@@ -202,28 +229,26 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 		atomic.AddInt64(&completed, 1)
 		c = int(atomic.LoadInt64(&completed))
 
-		status := "passed"
-		exitCode := 0
-		if runErr != nil {
-			var infraErr *harness.InfraError
-			if errors.As(runErr, &infraErr) {
-				status = "error"
-				exitCode = -1
-				atomic.AddInt64(&consecutiveInfraFailures, 1)
-				log.Printf("[worker-%d] ERROR %s (infra, consecutive=%d): %v",
-					args.NamespaceSlot, args.ScenarioID,
-					atomic.LoadInt64(&consecutiveInfraFailures), runErr)
-			} else {
-				status = "failed"
-				exitCode = 1
-				atomic.StoreInt64(&consecutiveInfraFailures, 0)
-				log.Printf("[worker-%d] FAIL %s: %v", args.NamespaceSlot, args.ScenarioID, runErr)
-			}
-			atomic.AddInt64(&failed, 1)
-		} else {
+		outcome := classifyScenarioError(runErr)
+		switch {
+		case outcome.passed:
 			atomic.StoreInt64(&consecutiveInfraFailures, 0)
 			atomic.AddInt64(&passed, 1)
 			log.Printf("[worker-%d] PASS %s", args.NamespaceSlot, args.ScenarioID)
+		case outcome.skipped:
+			atomic.StoreInt64(&consecutiveInfraFailures, 0)
+			atomic.AddInt64(&skipped, 1)
+			log.Printf("[worker-%d] SKIP %s: %v", args.NamespaceSlot, args.ScenarioID, runErr)
+		case outcome.infra:
+			atomic.AddInt64(&consecutiveInfraFailures, 1)
+			atomic.AddInt64(&failed, 1)
+			log.Printf("[worker-%d] ERROR %s (infra, consecutive=%d): %v",
+				args.NamespaceSlot, args.ScenarioID,
+				atomic.LoadInt64(&consecutiveInfraFailures), runErr)
+		default:
+			atomic.StoreInt64(&consecutiveInfraFailures, 0)
+			atomic.AddInt64(&failed, 1)
+			log.Printf("[worker-%d] FAIL %s: %v", args.NamespaceSlot, args.ScenarioID, runErr)
 		}
 
 		// Report scenario completed.
@@ -236,13 +261,13 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 				ScenarioID: args.ScenarioID,
 				Model:      args.Model,
 				Provider:   args.Provider,
-				Status:     status,
+				Status:     outcome.status,
 				RunID:      runID,
 				Completed:  c,
 				Total:      int(total),
 				Duration:   duration,
-				Passed:     runErr == nil,
-				ExitCode:   exitCode,
+				Passed:     outcome.passed,
+				ExitCode:   outcome.exitCode,
 			})
 		}
 
@@ -291,7 +316,8 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 		case <-ticker.C:
 			p := atomic.LoadInt64(&passed)
 			f := atomic.LoadInt64(&failed)
-			log.Printf("[orchestrator] progress: %d/%d (pass=%d fail=%d)", c, total, p, f)
+			s := atomic.LoadInt64(&skipped)
+			log.Printf("[orchestrator] progress: %d/%d (pass=%d fail=%d skip=%d)", c, total, p, f, s)
 		}
 	}
 
@@ -304,6 +330,7 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 		Completed: atomic.LoadInt64(&completed),
 		Passed:    atomic.LoadInt64(&passed),
 		Failed:    atomic.LoadInt64(&failed),
+		Skipped:   atomic.LoadInt64(&skipped),
 	}, nil
 }
 

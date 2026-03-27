@@ -2,12 +2,14 @@ package orchestrator
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
 
 	"samebits.com/evidra-infra-bench/pkg/config"
 	"samebits.com/evidra-infra-bench/pkg/environment"
+	"samebits.com/evidra-infra-bench/pkg/harness"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 )
 
@@ -106,5 +108,83 @@ func TestSelectWorkerKubeconfigPath_RecreateUpdatesClusterHandle(t *testing.T) {
 	}
 	if gotFailures := atomic.LoadInt64(&consecutiveInfraFailures); gotFailures != 0 {
 		t.Fatalf("consecutiveInfraFailures = %d, want 0 after successful recreate", gotFailures)
+	}
+}
+
+func TestClassifyScenarioError_NilIsPassed(t *testing.T) {
+	t.Parallel()
+	o := classifyScenarioError(nil)
+	if o.status != "passed" {
+		t.Fatalf("status = %q, want passed", o.status)
+	}
+	if o.exitCode != 0 {
+		t.Fatalf("exitCode = %d, want 0", o.exitCode)
+	}
+	if !o.passed {
+		t.Fatal("passed = false, want true")
+	}
+	if o.failed || o.skipped || o.infra {
+		t.Fatalf("unexpected flags: failed=%v skipped=%v infra=%v", o.failed, o.skipped, o.infra)
+	}
+}
+
+func TestClassifyScenarioError_IncompatibleProviderIsSkipped(t *testing.T) {
+	t.Parallel()
+	err := &scenario.IncompatibleProviderError{
+		ScenarioID: "kubernetes/broken-deployment",
+		Required:   []string{"k3d"},
+		Running:    "kind",
+	}
+	o := classifyScenarioError(err)
+	if o.status != "skipped" {
+		t.Fatalf("status = %q, want skipped", o.status)
+	}
+	if o.exitCode != 0 {
+		t.Fatalf("exitCode = %d, want 0", o.exitCode)
+	}
+	if !o.skipped {
+		t.Fatal("skipped = false, want true")
+	}
+	if o.passed || o.failed || o.infra {
+		t.Fatalf("unexpected flags: passed=%v failed=%v infra=%v", o.passed, o.failed, o.infra)
+	}
+}
+
+func TestClassifyScenarioError_InfraErrorIsError(t *testing.T) {
+	t.Parallel()
+	err := &harness.InfraError{Err: fmt.Errorf("cluster degraded")}
+	o := classifyScenarioError(err)
+	if o.status != "error" {
+		t.Fatalf("status = %q, want error", o.status)
+	}
+	if o.exitCode != -1 {
+		t.Fatalf("exitCode = %d, want -1", o.exitCode)
+	}
+	if !o.failed {
+		t.Fatal("failed = false, want true")
+	}
+	if !o.infra {
+		t.Fatal("infra = false, want true")
+	}
+	if o.passed || o.skipped {
+		t.Fatalf("unexpected flags: passed=%v skipped=%v", o.passed, o.skipped)
+	}
+}
+
+func TestClassifyScenarioError_RegularErrorIsFailed(t *testing.T) {
+	t.Parallel()
+	err := fmt.Errorf("agent verification failed")
+	o := classifyScenarioError(err)
+	if o.status != "failed" {
+		t.Fatalf("status = %q, want failed", o.status)
+	}
+	if o.exitCode != 1 {
+		t.Fatalf("exitCode = %d, want 1", o.exitCode)
+	}
+	if !o.failed {
+		t.Fatal("failed = false, want true")
+	}
+	if o.passed || o.skipped || o.infra {
+		t.Fatalf("unexpected flags: passed=%v skipped=%v infra=%v", o.passed, o.skipped, o.infra)
 	}
 }
