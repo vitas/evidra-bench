@@ -4,35 +4,29 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 )
 
-// LocalStackStartFunc starts a LocalStack container and returns a handle.
-type LocalStackStartFunc func(ctx context.Context, name string, services []string) (*LocalStackHandle, error)
-
-// LocalStackStopFunc stops a running LocalStack container.
-type LocalStackStopFunc func(ctx context.Context, handle *LocalStackHandle) error
-
 // LocalProvisioner creates cluster leases using local ClusterLifecycle providers
-// and installs profile-specific addons via the bootstrapper.
+// and runs profile hooks (install, healthcheck, cleanup) from checked-in assets.
 type LocalProvisioner struct {
-	Providers       map[string]ClusterLifecycle
-	Runner          CommandRunner
-	StartLocalStack LocalStackStartFunc // defaults to StartLocalStack
-	StopLocalStack  LocalStackStopFunc  // defaults to StopLocalStack
+	Providers map[string]ClusterLifecycle
+	Runner    CommandRunner
+	Assets    AssetResolver
+	Profiles  *ProfileRunner
 }
 
-// NewLocalProvisioner returns a LocalProvisioner with the given providers and runner.
-func NewLocalProvisioner(providers map[string]ClusterLifecycle, runner CommandRunner) *LocalProvisioner {
+// NewLocalProvisioner returns a LocalProvisioner with the given providers, runner,
+// and asset root directory. The assetsRoot is the repository root containing the
+// clusters/ and profiles/ directories.
+func NewLocalProvisioner(providers map[string]ClusterLifecycle, runner CommandRunner, assetsRoot string) *LocalProvisioner {
 	return &LocalProvisioner{
-		Providers:       providers,
-		Runner:          runner,
-		StartLocalStack: StartLocalStack,
-		StopLocalStack:  StopLocalStack,
+		Providers: providers,
+		Runner:    runner,
+		Assets:    AssetResolver{RootDir: assetsRoot},
+		Profiles:  &ProfileRunner{},
 	}
 }
 
@@ -83,7 +77,12 @@ func (p *LocalProvisioner) acquire(ctx context.Context, req ProvisionRequest, re
 
 // acquireDefault creates a plain cluster with no extra addons.
 func (p *LocalProvisioner) acquireDefault(ctx context.Context, req ProvisionRequest, provider ClusterLifecycle, recreate bool) (*Lease, error) {
-	handle, err := p.provisionCluster(ctx, req, provider, recreate)
+	assets, err := p.Assets.Resolve(req.ProviderName, req.Profile)
+	if err != nil {
+		return nil, fmt.Errorf("environment.LocalProvisioner.acquireDefault: %w", err)
+	}
+
+	handle, err := p.provisionCluster(ctx, req, provider, assets, recreate)
 	if err != nil {
 		return nil, err
 	}
@@ -99,155 +98,107 @@ func (p *LocalProvisioner) acquireDefault(ctx context.Context, req ProvisionRequ
 	}, nil
 }
 
-// acquireArgocd creates a cluster and installs the ArgoCD addon.
+// acquireArgocd creates a cluster and runs the argocd profile hooks.
 func (p *LocalProvisioner) acquireArgocd(ctx context.Context, req ProvisionRequest, provider ClusterLifecycle, recreate bool) (*Lease, error) {
-	handle, err := p.provisionCluster(ctx, req, provider, recreate)
+	assets, err := p.Assets.Resolve(req.ProviderName, req.Profile)
+	if err != nil {
+		return nil, fmt.Errorf("environment.LocalProvisioner.acquireArgocd: %w", err)
+	}
+
+	handle, err := p.provisionCluster(ctx, req, provider, assets, recreate)
 	if err != nil {
 		return nil, err
 	}
 
-	// Install ArgoCD via addon registry.
-	addon, ok := AddonRegistry["argocd"]
-	if !ok {
-		return nil, fmt.Errorf("environment.LocalProvisioner.Acquire: argocd addon not found in registry")
-	}
-
-	// Copy and resolve relative paths against cwd (bench-cli runs from repo root).
-	steps := make([]BootstrapStep, len(addon.Steps))
-	copy(steps, addon.Steps)
-	for i := range steps {
-		if steps[i].Path != "" && !filepath.IsAbs(steps[i].Path) && !strings.HasPrefix(steps[i].Path, "http") {
-			abs, err := filepath.Abs(steps[i].Path)
-			if err == nil {
-				steps[i].Path = abs
-			}
-		}
-	}
-	plan := &BootstrapPlan{Steps: steps}
-	bootstrapper := NewBootstrapper(p.Runner)
-	if err := bootstrapper.Execute(ctx, plan, handle.KubeconfigPath); err != nil {
-		// Best-effort cleanup on failure.
-		if p.ownsCluster(req) && !req.ReuseCluster {
-			_ = provider.Destroy(ctx, handle)
-		}
-		return nil, fmt.Errorf("environment.LocalProvisioner.Acquire: install argocd: %w", err)
-	}
-
-	log.Printf("[provisioner] argocd addon installed on cluster %s", handle.ClusterName)
-
-	release := p.releaseFunc(req, provider, handle)
-
-	return &Lease{
-		Profile:        req.Profile,
-		KubeconfigPath: handle.KubeconfigPath,
-		Provider:       provider,
-		Shared:         req.Shared,
-		release:        release,
-	}, nil
-}
-
-// acquireAWSLocalStack creates a cluster, starts a LocalStack container, and
-// builds AWS environment variables including a wrapper script for the aws CLI.
-func (p *LocalProvisioner) acquireAWSLocalStack(ctx context.Context, req ProvisionRequest, provider ClusterLifecycle, recreate bool) (*Lease, error) {
-	handle, err := p.provisionCluster(ctx, req, provider, recreate)
-	if err != nil {
-		return nil, err
-	}
-
-	// Determine which services to start.
-	var services []string
-	if req.Scenario != nil {
-		services = req.Scenario.Environment.Cloud.Services
-	}
-
-	startLS := p.StartLocalStack
-	if startLS == nil {
-		startLS = StartLocalStack
-	}
-	stopLS := p.StopLocalStack
-	if stopLS == nil {
-		stopLS = StopLocalStack
-	}
-
-	lsHandle, err := startLS(ctx, req.ClusterName, services)
+	// Run profile hooks (install.sh, healthcheck.sh).
+	profileResult, err := p.Profiles.Prepare(ctx, ProfileRunRequest{
+		Assets:      assets,
+		Profile:     req.Profile,
+		Provider:    req.ProviderName,
+		ClusterName: handle.ClusterName,
+		Kubeconfig:  handle.KubeconfigPath,
+	})
 	if err != nil {
 		if p.ownsCluster(req) && !req.ReuseCluster {
 			_ = provider.Destroy(ctx, handle)
 		}
-		return nil, fmt.Errorf("environment.LocalProvisioner.Acquire: start localstack: %w", err)
+		return nil, fmt.Errorf("environment.LocalProvisioner.acquireArgocd: %w", err)
 	}
 
-	// Build AWS env vars.
-	awsEnv := map[string]string{
-		"AWS_ENDPOINT_URL":      lsHandle.EndpointURL,
-		"AWS_ACCESS_KEY_ID":     "test",
-		"AWS_SECRET_ACCESS_KEY": "test",
-		"AWS_DEFAULT_REGION":    "us-east-1",
-	}
+	log.Printf("[provisioner] argocd profile installed on cluster %s", handle.ClusterName)
 
-	// Create a wrapper script for `aws` that injects --endpoint-url.
-	// This works with all AWS CLI versions (env var requires 2.13+).
-	awsBinDir, err := os.MkdirTemp("", "evidra-aws-bin-*")
-	if err != nil {
-		_ = stopLS(ctx, lsHandle)
-		if p.ownsCluster(req) && !req.ReuseCluster {
-			_ = provider.Destroy(ctx, handle)
-		}
-		return nil, fmt.Errorf("environment.LocalProvisioner.Acquire: create aws wrapper dir: %w", err)
-	}
-
-	awsWrapper := filepath.Join(awsBinDir, "aws")
-	if err := os.WriteFile(awsWrapper, []byte(fmt.Sprintf(
-		"#!/bin/sh\nexec /usr/local/bin/aws --endpoint-url %s \"$@\"\n", lsHandle.EndpointURL,
-	)), 0755); err != nil {
-		_ = os.RemoveAll(awsBinDir)
-		_ = stopLS(ctx, lsHandle)
-		if p.ownsCluster(req) && !req.ReuseCluster {
-			_ = provider.Destroy(ctx, handle)
-		}
-		return nil, fmt.Errorf("environment.LocalProvisioner.Acquire: write aws wrapper: %w", err)
-	}
-
-	awsEnv["PATH"] = awsBinDir + ":" + os.Getenv("PATH")
-
-	// Convert to slice for ExtraEnv.
-	var extraEnv []string
-	for k, v := range awsEnv {
-		extraEnv = append(extraEnv, fmt.Sprintf("%s=%s", k, v))
-	}
-
-	log.Printf("[provisioner] localstack started for cluster %s (services: %v)", handle.ClusterName, services)
-
-	// Release stops LocalStack and removes the wrapper directory, then
-	// optionally destroys the cluster.
+	// Compose release: profile cleanup first, then cluster destroy.
 	clusterRelease := p.releaseFunc(req, provider, handle)
-	release := func(ctx context.Context) error {
-		_ = os.RemoveAll(awsBinDir)
-		if stopErr := stopLS(ctx, lsHandle); stopErr != nil {
-			log.Printf("[provisioner] warning: stop localstack: %v", stopErr)
-		}
-		if clusterRelease != nil {
-			return clusterRelease(ctx)
-		}
-		return nil
-	}
+	release := p.composeRelease(profileResult.Release, clusterRelease)
 
 	return &Lease{
 		Profile:        req.Profile,
 		KubeconfigPath: handle.KubeconfigPath,
-		ExtraEnv:       extraEnv,
 		Provider:       provider,
 		Shared:         req.Shared,
 		release:        release,
 	}, nil
 }
 
-func (p *LocalProvisioner) provisionCluster(ctx context.Context, req ProvisionRequest, provider ClusterLifecycle, recreate bool) (*Handle, error) {
+// acquireAWSLocalStack creates a cluster and runs the aws-localstack profile
+// hooks, which start LocalStack and produce lease.env with AWS credentials.
+func (p *LocalProvisioner) acquireAWSLocalStack(ctx context.Context, req ProvisionRequest, provider ClusterLifecycle, recreate bool) (*Lease, error) {
+	assets, err := p.Assets.Resolve(req.ProviderName, req.Profile)
+	if err != nil {
+		return nil, fmt.Errorf("environment.LocalProvisioner.acquireAWSLocalStack: %w", err)
+	}
+
+	handle, err := p.provisionCluster(ctx, req, provider, assets, recreate)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build extra env for the profile hooks.
+	extraEnv := make(map[string]string)
+	if req.Scenario != nil && len(req.Scenario.Environment.Cloud.Services) > 0 {
+		extraEnv["EVIDRA_LOCALSTACK_SERVICES"] = strings.Join(req.Scenario.Environment.Cloud.Services, ",")
+	}
+
+	// Run profile hooks (install.sh starts LocalStack, writes lease.env).
+	profileResult, err := p.Profiles.Prepare(ctx, ProfileRunRequest{
+		Assets:      assets,
+		Profile:     req.Profile,
+		Provider:    req.ProviderName,
+		ClusterName: handle.ClusterName,
+		Kubeconfig:  handle.KubeconfigPath,
+		ExtraEnv:    extraEnv,
+	})
+	if err != nil {
+		if p.ownsCluster(req) && !req.ReuseCluster {
+			_ = provider.Destroy(ctx, handle)
+		}
+		return nil, fmt.Errorf("environment.LocalProvisioner.acquireAWSLocalStack: %w", err)
+	}
+
+	log.Printf("[provisioner] aws-localstack profile installed on cluster %s", handle.ClusterName)
+
+	// Compose release: profile cleanup first, then cluster destroy.
+	clusterRelease := p.releaseFunc(req, provider, handle)
+	release := p.composeRelease(profileResult.Release, clusterRelease)
+
+	return &Lease{
+		Profile:        req.Profile,
+		KubeconfigPath: handle.KubeconfigPath,
+		ExtraEnv:       profileResult.ExtraEnv,
+		Provider:       provider,
+		Shared:         req.Shared,
+		release:        release,
+	}, nil
+}
+
+func (p *LocalProvisioner) provisionCluster(ctx context.Context, req ProvisionRequest, provider ClusterLifecycle, assets ProfileAssets, recreate bool) (*Handle, error) {
 	if !p.ownsCluster(req) {
 		return &Handle{ClusterName: req.ClusterName, KubeconfigPath: req.ExistingKubeconfig}, nil
 	}
 
-	spec := ClusterSpec{}
+	spec := ClusterSpec{
+		ConfigPath: assets.ClusterConfigPath,
+	}
 	if req.Scenario != nil {
 		spec.LegacyKubernetes = req.Scenario.Environment.Kubernetes
 	}
@@ -283,5 +234,24 @@ func (p *LocalProvisioner) releaseFunc(req ProvisionRequest, provider ClusterLif
 	}
 	return func(ctx context.Context) error {
 		return provider.Destroy(ctx, handle)
+	}
+}
+
+// composeRelease returns a function that runs profileRelease first, then
+// clusterRelease. Either may be nil.
+func (p *LocalProvisioner) composeRelease(profileRelease, clusterRelease func(context.Context) error) func(context.Context) error {
+	if profileRelease == nil && clusterRelease == nil {
+		return nil
+	}
+	return func(ctx context.Context) error {
+		if profileRelease != nil {
+			if err := profileRelease(ctx); err != nil {
+				log.Printf("[provisioner] warning: profile cleanup: %v", err)
+			}
+		}
+		if clusterRelease != nil {
+			return clusterRelease(ctx)
+		}
+		return nil
 	}
 }

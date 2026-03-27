@@ -14,49 +14,9 @@ type Addon struct {
 }
 
 // AddonRegistry maps addon names to their installation steps.
+// Profile-based addons (argocd, aws-localstack) are realized through
+// checked-in profile hooks in profiles/<name>/*.sh, not through this registry.
 var AddonRegistry = map[string]Addon{
-	"argocd": {
-		Name: "argocd",
-		Steps: []BootstrapStep{
-			{
-				Name:    "create-argocd-namespace",
-				Type:    StepKubectlApply,
-				Path:    "manifests/argocd/namespace.yaml",
-				Feature: "addon-argocd",
-			},
-			{
-				Name:      "install-argocd",
-				Type:      StepKubectlApply,
-				Path:      "https://raw.githubusercontent.com/argoproj/argo-cd/v2.13.3/manifests/install.yaml",
-				Feature:   "addon-argocd",
-				Namespace: "argocd",
-			},
-			{
-				Name:    "wait-argocd-crds",
-				Type:    StepKubectl,
-				Feature: "addon-argocd",
-				Args:    []string{"wait", "--for=condition=Established", "crd/applications.argoproj.io", "--timeout=180s"},
-			},
-			{
-				Name:    "wait-argocd-server",
-				Type:    StepKubectl,
-				Feature: "addon-argocd",
-				Args:    []string{"-n", "argocd", "rollout", "status", "deployment/argocd-server", "--timeout=300s"},
-			},
-			{
-				Name:    "wait-argocd-repo-server",
-				Type:    StepKubectl,
-				Feature: "addon-argocd",
-				Args:    []string{"-n", "argocd", "rollout", "status", "deployment/argocd-repo-server", "--timeout=300s"},
-			},
-			{
-				Name:    "wait-argocd-application-controller",
-				Type:    StepKubectl,
-				Feature: "addon-argocd",
-				Args:    []string{"-n", "argocd", "rollout", "status", "statefulset/argocd-application-controller", "--timeout=300s"},
-			},
-		},
-	},
 	"falco": {
 		Name: "falco",
 		Steps: []BootstrapStep{

@@ -7,8 +7,8 @@ import (
 )
 
 // Lease represents an acquired environment ready for scenario execution.
-// Call Release when done to clean up the underlying resources (destroy cluster,
-// stop LocalStack, etc.).
+// Call Release when done to clean up the underlying resources (run profile
+// cleanup hooks, destroy cluster, etc.).
 type Lease struct {
 	Profile        scenario.ExecutionProfile
 	KubeconfigPath string

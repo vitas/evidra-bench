@@ -680,12 +680,14 @@ func runScenarioOnceWithLease(ctx context.Context, cfg config.Config, s *scenari
 }
 
 // newLocalProvisioner builds a LocalProvisioner from the current config.
+// The asset root is derived from the absolute ScenariosDir parent (repo root).
 func newLocalProvisioner(cfg config.Config) *environment.LocalProvisioner {
 	providers := map[string]environment.ClusterLifecycle{
 		"kind": newKindProvider(cfg),
 		"k3d":  newK3dProvider(cfg),
 	}
-	return environment.NewLocalProvisioner(providers, &environment.ExecRunner{})
+	assetsRoot := filepath.Dir(cfg.ScenariosDir)
+	return environment.NewLocalProvisioner(providers, &environment.ExecRunner{}, assetsRoot)
 }
 
 func newKindProvider(cfg config.Config) *environment.KindProvider {

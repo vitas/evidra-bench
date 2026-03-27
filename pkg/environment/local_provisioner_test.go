@@ -3,6 +3,7 @@ package environment
 import (
 	"context"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -47,6 +48,7 @@ type fakeProvider struct {
 	created   bool
 	destroyed bool
 	handle    *Handle
+	lastSpec  ClusterSpec
 }
 
 func newFakeProvider(runner CommandRunner) *fakeProvider {
@@ -59,8 +61,9 @@ func newFakeProvider(runner CommandRunner) *fakeProvider {
 	}
 }
 
-func (f *fakeProvider) Create(_ context.Context, _ string, _ ClusterSpec) (*Handle, error) {
+func (f *fakeProvider) Create(_ context.Context, _ string, spec ClusterSpec) (*Handle, error) {
 	f.created = true
+	f.lastSpec = spec
 	return f.handle, nil
 }
 
@@ -74,14 +77,29 @@ func (f *fakeProvider) Recreate(ctx context.Context, name string, spec ClusterSp
 	return f.Create(ctx, name, spec)
 }
 
+// provisionerAssetsRoot returns the path to the test asset tree.
+func provisionerAssetsRoot(t *testing.T) string {
+	t.Helper()
+	return filepath.Join(testdataDir(t), "provisioner-assets")
+}
+
+// newTestProvisioner creates a LocalProvisioner with test assets.
+func newTestProvisioner(t *testing.T, runner *fakeRunner, provider *fakeProvider) *LocalProvisioner {
+	t.Helper()
+	root := provisionerAssetsRoot(t)
+	return &LocalProvisioner{
+		Providers: map[string]ClusterLifecycle{"kind": provider},
+		Runner:    runner,
+		Assets:    AssetResolver{RootDir: root},
+		Profiles:  &ProfileRunner{},
+	}
+}
+
 func TestLocalProvisioner_AcquireDefault(t *testing.T) {
 	t.Parallel()
 	runner := newFakeRunner()
 	provider := newFakeProvider(runner)
-	p := &LocalProvisioner{
-		Providers: map[string]ClusterLifecycle{"kind": provider},
-		Runner:    runner,
-	}
+	p := newTestProvisioner(t, runner, provider)
 
 	lease, err := p.Acquire(context.Background(), ProvisionRequest{
 		Profile:      scenario.ProfileDefault,
@@ -105,16 +123,17 @@ func TestLocalProvisioner_AcquireDefault(t *testing.T) {
 	if len(lease.ExtraEnv) != 0 {
 		t.Fatalf("expected no extra env, got %v", lease.ExtraEnv)
 	}
+	// Verify config path was passed to provider.
+	if !strings.HasSuffix(provider.lastSpec.ConfigPath, "clusters/kind/default.yaml") {
+		t.Fatalf("expected config path to end with clusters/kind/default.yaml, got %q", provider.lastSpec.ConfigPath)
+	}
 }
 
-func TestLocalProvisioner_AcquireArgocd_InstallsAddon(t *testing.T) {
+func TestLocalProvisioner_AcquireArgocd_UsesProfileAssets(t *testing.T) {
 	t.Parallel()
 	runner := newFakeRunner()
 	provider := newFakeProvider(runner)
-	p := &LocalProvisioner{
-		Providers: map[string]ClusterLifecycle{"kind": provider},
-		Runner:    runner,
-	}
+	p := newTestProvisioner(t, runner, provider)
 
 	lease, err := p.Acquire(context.Background(), ProvisionRequest{
 		Profile:      scenario.ProfileArgocd,
@@ -133,34 +152,21 @@ func TestLocalProvisioner_AcquireArgocd_InstallsAddon(t *testing.T) {
 		t.Fatalf("expected profile argocd, got %q", lease.Profile)
 	}
 
-	// Verify ArgoCD addon steps were executed via the bootstrapper.
-	if !runner.hasCommandContaining("argocd") {
-		t.Fatal("expected argocd addon steps to be executed")
+	// Verify config path was resolved from assets.
+	if !strings.HasSuffix(provider.lastSpec.ConfigPath, "clusters/kind/argocd.yaml") {
+		t.Fatalf("expected config path to end with clusters/kind/argocd.yaml, got %q", provider.lastSpec.ConfigPath)
 	}
+
+	// The old test checked for argocd commands via bootstrapper.
+	// Now we verify that profile hooks ran instead (no bootstrapper commands needed).
+	// The install.sh in testdata writes a marker; if Prepare succeeded, hooks ran.
 }
 
-func TestLocalProvisioner_AcquireAWSLocalStack_SetsExtraEnv(t *testing.T) {
+func TestLocalProvisioner_AcquireAWSLocalStack_UsesLeaseEnvFromProfileHooks(t *testing.T) {
 	t.Parallel()
-
 	runner := newFakeRunner()
 	provider := newFakeProvider(runner)
-
-	started := false
-	stopped := false
-	fakeEndpoint := "http://localhost:4566"
-
-	p := &LocalProvisioner{
-		Providers: map[string]ClusterLifecycle{"kind": provider},
-		Runner:    runner,
-		StartLocalStack: func(_ context.Context, _ string, _ []string) (*LocalStackHandle, error) {
-			started = true
-			return &LocalStackHandle{ContainerID: "fake-container", EndpointURL: fakeEndpoint}, nil
-		},
-		StopLocalStack: func(_ context.Context, _ *LocalStackHandle) error {
-			stopped = true
-			return nil
-		},
-	}
+	p := newTestProvisioner(t, runner, provider)
 
 	lease, err := p.Acquire(context.Background(), ProvisionRequest{
 		Profile:      scenario.ProfileAWSLocalStack,
@@ -178,12 +184,9 @@ func TestLocalProvisioner_AcquireAWSLocalStack_SetsExtraEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	defer func() { _ = lease.Release(context.Background()) }()
 
-	if !started {
-		t.Fatal("expected StartLocalStack to be called")
-	}
-
-	// Verify AWS env vars are present.
+	// Verify AWS env vars come from profile hooks' lease.env.
 	envMap := make(map[string]string)
 	for _, kv := range lease.ExtraEnv {
 		parts := strings.SplitN(kv, "=", 2)
@@ -192,14 +195,14 @@ func TestLocalProvisioner_AcquireAWSLocalStack_SetsExtraEnv(t *testing.T) {
 		}
 	}
 
-	for _, key := range []string{"AWS_ENDPOINT_URL", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_DEFAULT_REGION", "PATH"} {
+	for _, key := range []string{"AWS_ENDPOINT_URL", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_DEFAULT_REGION"} {
 		if _, ok := envMap[key]; !ok {
 			t.Errorf("expected ExtraEnv to contain %s", key)
 		}
 	}
 
-	if envMap["AWS_ENDPOINT_URL"] != fakeEndpoint {
-		t.Errorf("expected AWS_ENDPOINT_URL=%s, got %q", fakeEndpoint, envMap["AWS_ENDPOINT_URL"])
+	if envMap["AWS_ENDPOINT_URL"] != "http://localhost:4566" {
+		t.Errorf("expected AWS_ENDPOINT_URL=http://localhost:4566, got %q", envMap["AWS_ENDPOINT_URL"])
 	}
 	if envMap["AWS_ACCESS_KEY_ID"] != "test" {
 		t.Errorf("expected AWS_ACCESS_KEY_ID=test, got %q", envMap["AWS_ACCESS_KEY_ID"])
@@ -214,13 +217,30 @@ func TestLocalProvisioner_AcquireAWSLocalStack_SetsExtraEnv(t *testing.T) {
 	if lease.Profile != scenario.ProfileAWSLocalStack {
 		t.Fatalf("expected profile aws-localstack, got %q", lease.Profile)
 	}
+}
 
-	// Release should stop LocalStack.
+func TestLocalProvisioner_Release_RunsProfileCleanupBeforeDestroy(t *testing.T) {
+	t.Parallel()
+	runner := newFakeRunner()
+	provider := newFakeProvider(runner)
+	p := newTestProvisioner(t, runner, provider)
+
+	lease, err := p.Acquire(context.Background(), ProvisionRequest{
+		Profile:      scenario.ProfileArgocd,
+		ProviderName: "kind",
+		ClusterName:  "test-release",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Release should run profile cleanup, then destroy cluster.
 	if err := lease.Release(context.Background()); err != nil {
 		t.Fatalf("unexpected release error: %v", err)
 	}
-	if !stopped {
-		t.Fatal("expected StopLocalStack to be called on release")
+
+	if !provider.destroyed {
+		t.Fatal("expected provider.Destroy to be called on release")
 	}
 }
 
@@ -228,10 +248,7 @@ func TestLocalProvisioner_AcquireExistingKubeconfig_SkipsCreate(t *testing.T) {
 	t.Parallel()
 	runner := newFakeRunner()
 	provider := newFakeProvider(runner)
-	p := &LocalProvisioner{
-		Providers: map[string]ClusterLifecycle{"kind": provider},
-		Runner:    runner,
-	}
+	p := newTestProvisioner(t, runner, provider)
 
 	lease, err := p.Acquire(context.Background(), ProvisionRequest{
 		Profile:            scenario.ProfileDefault,
@@ -252,14 +269,37 @@ func TestLocalProvisioner_AcquireExistingKubeconfig_SkipsCreate(t *testing.T) {
 	}
 }
 
+func TestLocalProvisioner_AcquireExistingKubeconfig_ProfileLeaseIsNonOwning(t *testing.T) {
+	t.Parallel()
+	runner := newFakeRunner()
+	provider := newFakeProvider(runner)
+	p := newTestProvisioner(t, runner, provider)
+
+	lease, err := p.Acquire(context.Background(), ProvisionRequest{
+		Profile:            scenario.ProfileArgocd,
+		ProviderName:       "kind",
+		ClusterName:        "test",
+		ExistingKubeconfig: "/home/user/.kube/config",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if err := lease.Release(context.Background()); err != nil {
+		t.Fatalf("unexpected release error: %v", err)
+	}
+
+	// External kubeconfig: cluster should NOT be destroyed.
+	if provider.destroyed {
+		t.Fatal("expected no destroy for external kubeconfig")
+	}
+}
+
 func TestLocalProvisioner_AcquireDefault_ReleaseDestroysCluster(t *testing.T) {
 	t.Parallel()
 	runner := newFakeRunner()
 	provider := newFakeProvider(runner)
-	p := &LocalProvisioner{
-		Providers: map[string]ClusterLifecycle{"kind": provider},
-		Runner:    runner,
-	}
+	p := newTestProvisioner(t, runner, provider)
 
 	lease, err := p.Acquire(context.Background(), ProvisionRequest{
 		Profile:      scenario.ProfileDefault,
@@ -282,10 +322,7 @@ func TestLocalProvisioner_AcquireDefault_ReuseCluster_ReleaseSkipsDestroy(t *tes
 	t.Parallel()
 	runner := newFakeRunner()
 	provider := newFakeProvider(runner)
-	p := &LocalProvisioner{
-		Providers: map[string]ClusterLifecycle{"kind": provider},
-		Runner:    runner,
-	}
+	p := newTestProvisioner(t, runner, provider)
 
 	lease, err := p.Acquire(context.Background(), ProvisionRequest{
 		Profile:      scenario.ProfileDefault,
@@ -309,10 +346,7 @@ func TestLocalProvisioner_AcquireExistingKubeconfig_ReleaseIsNoop(t *testing.T) 
 	t.Parallel()
 	runner := newFakeRunner()
 	provider := newFakeProvider(runner)
-	p := &LocalProvisioner{
-		Providers: map[string]ClusterLifecycle{"kind": provider},
-		Runner:    runner,
-	}
+	p := newTestProvisioner(t, runner, provider)
 
 	lease, err := p.Acquire(context.Background(), ProvisionRequest{
 		Profile:            scenario.ProfileDefault,
@@ -333,9 +367,12 @@ func TestLocalProvisioner_AcquireExistingKubeconfig_ReleaseIsNoop(t *testing.T) 
 
 func TestLocalProvisioner_UnknownProvider_ReturnsError(t *testing.T) {
 	t.Parallel()
+	root := provisionerAssetsRoot(t)
 	p := &LocalProvisioner{
 		Providers: map[string]ClusterLifecycle{},
 		Runner:    newFakeRunner(),
+		Assets:    AssetResolver{RootDir: root},
+		Profiles:  &ProfileRunner{},
 	}
 
 	_, err := p.Acquire(context.Background(), ProvisionRequest{
@@ -346,6 +383,8 @@ func TestLocalProvisioner_UnknownProvider_ReturnsError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unknown provider")
 	}
+	// The error could be from the asset resolver (no clusters/docker-desktop/default.yaml)
+	// or from the provider lookup. Either is acceptable.
 	if !strings.Contains(err.Error(), "docker-desktop") {
 		t.Fatalf("expected error to mention provider name, got: %v", err)
 	}

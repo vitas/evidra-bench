@@ -52,54 +52,19 @@ func TestAddonSteps_CNIFirst(t *testing.T) {
 	}
 }
 
-func TestAddonSteps_Argocd(t *testing.T) {
+func TestAddonSteps_ArgocdRemovedFromRegistry(t *testing.T) {
 	t.Parallel()
-	addon, ok := AddonRegistry["argocd"]
-	if !ok {
-		t.Fatal("argocd addon not found in registry")
-	}
-	if addon.Name != "argocd" {
-		t.Fatalf("expected addon name argocd, got %q", addon.Name)
-	}
-	if len(addon.Steps) < 4 {
-		t.Fatalf("expected at least 4 argocd steps (namespace, install, crd-wait, server-wait), got %d", len(addon.Steps))
-	}
-
-	// Verify all steps have the addon-argocd feature.
-	for _, step := range addon.Steps {
-		if step.Feature != "addon-argocd" {
-			t.Fatalf("expected feature addon-argocd on step %q, got %q", step.Name, step.Feature)
-		}
-	}
-
-	// Verify key steps are present.
-	stepNames := make(map[string]bool)
-	for _, step := range addon.Steps {
-		stepNames[step.Name] = true
-	}
-	required := []string{
-		"create-argocd-namespace",
-		"install-argocd",
-		"wait-argocd-crds",
-		"wait-argocd-server",
-		"wait-argocd-repo-server",
-		"wait-argocd-application-controller",
-	}
-	for _, name := range required {
-		if !stepNames[name] {
-			t.Fatalf("missing required argocd step: %s", name)
-		}
+	_, ok := AddonRegistry["argocd"]
+	if ok {
+		t.Fatal("argocd should not be in AddonRegistry — it is realized through profile hooks")
 	}
 }
 
-func TestAddonSteps_ArgocdViaAddonSteps(t *testing.T) {
+func TestAddonSteps_ArgocdViaAddonSteps_ReturnsWarning(t *testing.T) {
 	t.Parallel()
-	steps, warnings := AddonSteps("", []string{"argocd"})
-	if len(warnings) > 0 {
-		t.Fatalf("unexpected warnings: %v", warnings)
-	}
-	if len(steps) < 4 {
-		t.Fatalf("expected at least 4 argocd steps, got %d", len(steps))
+	_, warnings := AddonSteps("", []string{"argocd"})
+	if len(warnings) != 1 {
+		t.Fatalf("expected 1 warning for removed argocd addon, got %d", len(warnings))
 	}
 }
 
