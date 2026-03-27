@@ -54,7 +54,7 @@ type Orchestrator struct {
 	cfg         config.Config
 	runFn       RunFunc
 	cluster     *environment.Handle
-	provider    environment.Provider
+	provider    environment.ClusterLifecycle
 	ownsCluster bool
 }
 

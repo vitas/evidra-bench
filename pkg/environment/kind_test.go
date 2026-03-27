@@ -45,9 +45,9 @@ func TestKindProvider_KubeconfigCommand(t *testing.T) {
 	}
 }
 
-func TestKindProvider_ImplementsProvider(t *testing.T) {
+func TestKindProvider_ImplementsClusterLifecycle(t *testing.T) {
 	t.Parallel()
-	var _ Provider = (*KindProvider)(nil)
+	var _ ClusterLifecycle = (*KindProvider)(nil)
 }
 
 type stubRunner struct {

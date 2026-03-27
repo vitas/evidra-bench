@@ -568,7 +568,7 @@ func runScenarioOnce(ctx context.Context, cfg config.Config, s *scenario.Scenari
 		return nil, fmt.Errorf("unknown adapter: %s", cfg.Adapter)
 	}
 
-	var envProvider environment.Provider
+	var envProvider environment.ClusterLifecycle
 	switch cfg.EnvironmentProvider {
 	case "k3d":
 		p := environment.NewK3dProvider()

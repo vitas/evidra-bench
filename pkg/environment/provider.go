@@ -32,7 +32,3 @@ type ClusterLifecycle interface {
 	// Scheduling verification
 	RunCanary(ctx context.Context, kubeconfigPath, ns string) error
 }
-
-// Provider is the legacy alias for backward compatibility during migration.
-// Deprecated: Use ClusterLifecycle instead.
-type Provider = ClusterLifecycle
