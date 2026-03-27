@@ -15,6 +15,7 @@ import (
 	"strconv"
 
 	"samebits.com/evidra-infra-bench/pkg/adapter"
+	"samebits.com/evidra-infra-bench/pkg/a2a"
 	"samebits.com/evidra-infra-bench/pkg/agent"
 	"samebits.com/evidra-infra-bench/pkg/artifact"
 	"samebits.com/evidra-infra-bench/pkg/config"
@@ -382,51 +383,42 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		memoryResetChan = make(chan int, 1)
 	}
 
-	if req.Config.Provider != "" {
+	if isMultiStage && req.Config.Provider != "" && req.Config.Adapter != "a2a" {
 		providerEvDir = providerEvidenceDir(req.Config.EvidraEvidenceDir, req.Config.RunsDir, s.ID, startTime)
 
-		if isMultiStage {
-			// Multi-stage: run agent and stages concurrently.
-			agentCtx, agentCancel := context.WithCancel(ctx)
-			agentDone := make(chan struct{})
-			var agentErr error
+		// Multi-stage: run agent and stages concurrently.
+		agentCtx, agentCancel := context.WithCancel(ctx)
+		agentDone := make(chan struct{})
+		var agentErr error
 
-			go func() {
-				defer close(agentDone)
-				agentResult, agentErr = h.runWithProvider(agentCtx, req, s, handle.KubeconfigPath, promptContent, timeout, providerEvDir, injectChan, memoryResetChan)
-			}()
+		go func() {
+			defer close(agentDone)
+			agentResult, agentErr = h.runWithProvider(agentCtx, req, s, handle.KubeconfigPath, promptContent, timeout, providerEvDir, injectChan, memoryResetChan)
+		}()
 
-			// Stage loop runs concurrently — injects breaks, sends goals, polls checks.
-			stageErr := h.runMultiStage(ctx, s, handle.KubeconfigPath, injectChan, memoryResetChan, &stageResults)
-			// After stages complete, cancel agent context so it finishes.
-			agentCancel()
-			<-agentDone
-			close(injectChan)
-			close(memoryResetChan)
+		// Stage loop runs concurrently — injects breaks, sends goals, polls checks.
+		stageErr := h.runMultiStage(ctx, s, handle.KubeconfigPath, injectChan, memoryResetChan, &stageResults)
+		// After stages complete, cancel agent context so it finishes.
+		agentCancel()
+		<-agentDone
+		close(injectChan)
+		close(memoryResetChan)
 
-			if stageErr != nil {
-				return nil, fmt.Errorf("harness.Run: multi-stage: %w", stageErr)
-			}
-			if agentErr != nil && agentResult == nil {
-				return nil, fmt.Errorf("harness.Run: execute agent: %w", agentErr)
-			}
-			// Agent context cancellation is expected — not an error.
-			if agentResult == nil {
-				agentResult = &adapter.RunResult{ExitCode: 1}
-			}
-		} else {
-			agentResult, err = h.runWithProvider(ctx, req, s, handle.KubeconfigPath, promptContent, timeout, providerEvDir, nil, nil)
+		if stageErr != nil {
+			return nil, fmt.Errorf("harness.Run: multi-stage: %w", stageErr)
+		}
+		if agentErr != nil && agentResult == nil {
+			return nil, fmt.Errorf("harness.Run: execute agent: %w", agentErr)
+		}
+		// Agent context cancellation is expected — not an error.
+		if agentResult == nil {
+			agentResult = &adapter.RunResult{ExitCode: 1}
 		}
 	} else {
-		agentResult, err = h.deps.Adapter.Run(ctx, adapter.RunInput{
-			ScenarioID:     s.ID,
-			PromptPath:     s.Prompt,
-			WorkspaceDir:   req.Config.RunsDir,
-			KubeconfigPath: handle.KubeconfigPath,
-			Timeout:        timeout,
-			AgentCommand:   req.Config.AgentCommand,
-			Model:          req.Config.Model,
-		})
+		if req.Config.Provider != "" {
+			providerEvDir = providerEvidenceDir(req.Config.EvidraEvidenceDir, req.Config.RunsDir, s.ID, startTime)
+		}
+		agentResult, err = h.executeSingleAgent(ctx, req, s, handle.KubeconfigPath, promptContent, timeout, providerEvDir)
 	}
 	if err != nil {
 		if chaosCancel != nil && shouldCancelChaosOnAgentDone(s.Chaos) {
@@ -653,6 +645,60 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	}
 
 	return result, nil
+}
+
+func (h *Harness) executeSingleAgent(ctx context.Context, req RunRequest, s *scenario.Scenario, kubeconfigPath, promptContent string, timeout time.Duration, evidenceDir string) (*adapter.RunResult, error) {
+	if req.Config.Adapter == "a2a" {
+		return h.runWithA2A(ctx, req, s, promptContent, timeout)
+	}
+	if req.Config.Provider != "" {
+		return h.runWithProvider(ctx, req, s, kubeconfigPath, promptContent, timeout, evidenceDir, nil, nil)
+	}
+	if h.deps.Adapter == nil {
+		return nil, fmt.Errorf("harness: local adapter dependency is nil for adapter=%s", req.Config.Adapter)
+	}
+
+	return h.deps.Adapter.Run(ctx, adapter.RunInput{
+		ScenarioID:     s.ID,
+		PromptPath:     s.Prompt,
+		WorkspaceDir:   req.Config.RunsDir,
+		KubeconfigPath: kubeconfigPath,
+		Timeout:        timeout,
+		AgentCommand:   req.Config.AgentCommand,
+		Model:          req.Config.Model,
+	})
+}
+
+func (h *Harness) runWithA2A(ctx context.Context, req RunRequest, s *scenario.Scenario, taskPrompt string, timeout time.Duration) (*adapter.RunResult, error) {
+	client := a2a.NewClient(req.Config.ResolveA2AAgentURL(), nil)
+
+	agentCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	result, err := client.RunTextTask(agentCtx, fmt.Sprintf("bench-%s-%d", s.ID, time.Now().UnixMilli()), taskPrompt)
+	if err != nil {
+		return nil, &InfraError{Err: fmt.Errorf("harness.Run: a2a: %w", err)}
+	}
+
+	exitCode := 0
+	if !result.Completed {
+		exitCode = 1
+	}
+
+	return &adapter.RunResult{
+		ExitCode:   exitCode,
+		Stdout:     result.Output,
+		Transcript: result.Output,
+		Metadata: map[string]string{
+			"adapter":        "a2a",
+			"a2a_agent_name": result.AgentName,
+			"a2a_agent_url":  req.Config.ResolveA2AAgentURL(),
+			"a2a_rpc_url":    result.RPCURL,
+			"a2a_task_id":    result.TaskID,
+			"a2a_context_id": result.ContextID,
+			"a2a_state":      result.State,
+		},
+	}, nil
 }
 
 func countChecks(vr *verifier.VerifyResult) (passed, total int) {
