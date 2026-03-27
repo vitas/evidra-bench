@@ -49,10 +49,11 @@ The authoritative HTTP contract for those hosted surfaces lives in the sibling
 ┌───────────────────────┐   ┌─────────────────────────────────────────┐
 │  Direct Execution     │   │  pkg/orchestrator                       │
 │                       │   │                                         │
-│  runScenarioOnce()    │   │  Orchestrator.Provision()  ← cluster   │
-│    ↓                  │   │  Orchestrator.RunParallel() ← River    │
-│  harness.Run()        │   │  Orchestrator.Teardown()   ← cleanup   │
-│                       │   └──────────┬──────────────────────────────┘
+│  provisioner.Acquire()│   │  Orchestrator.Provision()  ← cluster   │
+│    ↓ lease            │   │  Orchestrator.RunParallel() ← River    │
+│  harness.Run(lease)   │   │  Orchestrator.Teardown()   ← cleanup   │
+│    ↓                  │   └──────────┬──────────────────────────────┘
+│  lease.Release()      │              │
 └───────────┬───────────┘              │
             │                          ▼
             │              ┌───────────────────────┐
@@ -78,25 +79,25 @@ The authoritative HTTP contract for those hosted surfaces lives in the sibling
 ┌─────────────────────────────────────────────────────────────────────┐
 │  pkg/harness                                                        │
 │                                                                     │
-│  Harness.Run(RunRequest)                                           │
-│    1. Provision cluster (or skip if KubeconfigPath set)            │
-│    2. Create namespace                                              │
-│    3. Bootstrap (baseline manifests, ArgoCD, addons)               │
-│    4. Start LocalStack (if AWS scenario)                           │
+│  Harness.Run(RunRequest)  — receives a lease, never provisions     │
+│    1. Namespace cleanup + recreate                                  │
+│    2. Canary pod check (scheduling verification)                   │
+│    3. Health check (node conditions)                                │
+│    4. Scenario bootstrap (baseline manifests, app-specific setup)  │
 │    5. Inject break (fault)                                          │
-│    6. Execute agent (provider loop or MCP)                         │
+│    6. Execute agent (A2A, provider loop, or MCP)                   │
 │    7. Wait for rollouts                                             │
 │    8. Verify outcome (checks)                                      │
 │    9. Write artifacts                                               │
 │   10. Report to Evidra API                                         │
 │   11. Store results (SQLite + JSONL)                               │
-│   12. Teardown (or skip if --reuse-cluster)                        │
 └───────────┬─────────────────────────────────────────────────────────┘
             │ uses
             ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Supporting Packages                                                │
 │                                                                     │
+│  pkg/environment/    ClusterLifecycle, LocalProvisioner, Lease     │
 │  pkg/environment/    KindProvider, K3dProvider, Bootstrapper       │
 │  pkg/scenario/       Load, LoadAll, Resolve (YAML schema)         │
 │  pkg/agent/          Bifrost/Claude providers, tool-use loop       │
@@ -229,21 +230,28 @@ Scenario YAML                Agent LLM
 
 ```
 cmd/bench-cli
+  ├── pkg/environment   ← LocalProvisioner, Lease, ClusterLifecycle
+  │     ├── KindProvider     ← kind cluster lifecycle
+  │     ├── K3dProvider      ← k3d cluster lifecycle
+  │     ├── kubectlOps       ← shared namespace/canary/health ops
+  │     ├── Bootstrapper     ← step executor
+  │     └── AddonRegistry    ← argocd, falco, gatekeeper steps
   ├── pkg/orchestrator  ← parallel lifecycle
   │     ├── pkg/jobqueue     ← River workers
   │     ├── pkg/workspace    ← copy + namespace rewrite
-  │     ├── pkg/environment  ← cluster provisioning
+  │     ├── pkg/environment  ← shared cluster lease
   │     ├── pkg/config       ← constants, settings
   │     └── pkg/store        ← shared results
-  ├── pkg/harness       ← single scenario lifecycle
-  │     ├── pkg/environment  ← bootstrap, cluster
+  ├── pkg/harness       ← single scenario execution (no provisioning)
+  │     ├── pkg/environment  ← namespace/canary/health via lease
   │     ├── pkg/agent        ← LLM providers, MCP
+  │     ├── pkg/a2a          ← A2A remote agent client
   │     ├── pkg/verifier     ← outcome checks
   │     ├── pkg/artifact     ← run bundles
   │     ├── pkg/report       ← Evidra reporting
   │     ├── pkg/store        ← SQLite + JSONL
   │     └── pkg/config       ← settings, versions
-  ├── pkg/scenario      ← YAML loading
+  ├── pkg/scenario      ← YAML loading, profiles, provider compat
   ├── pkg/tui           ← interactive lab
   └── pkg/skilldelta    ← skill benchmarks
 ```
@@ -260,10 +268,28 @@ Each worker gets its own Kubernetes namespace (`bench-w0`, `bench-w1`, etc.)
 via text-based rewriting of YAML and shell files. The harness creates the
 namespace before bootstrap and passes it to all kubectl commands.
 
+### Execution Profiles and Leases
+Scenarios declare an `environment.profile` (`default`, `argocd`, `aws-localstack`)
+that determines what infrastructure the provisioner sets up. The `LocalProvisioner`
+returns a `Lease` containing kubeconfig, provider reference, and extra env vars.
+The harness never creates or destroys clusters — it receives a lease from its caller.
+
+Lease lifetime varies by execution mode:
+- Single run: one dedicated lease per invocation
+- Sequential bench with --reuse-cluster: one batch lease for all scenarios (must share profile)
+- Parallel mode: restricted to `default` profile (shared state not isolated)
+
+### Provider Compatibility
+Scenarios declare supported providers via `environment.providers: [kind, k3d]`.
+The executor filters incompatible scenarios at every enforcement point (CLI run,
+bench, certify, serve API, orchestrator worker). Incompatible scenarios are counted
+as `skipped`, not `failed`.
+
 ### Pre-provisioned Cluster
-When `RunRequest.KubeconfigPath` is set, the harness skips cluster create/destroy.
-The orchestrator provisions once, shares the kubeconfig with all workers, and
-tears down once after all workers complete.
+When `--kubeconfig` is set, the provisioner skips cluster create/destroy but still
+runs profile-specific setup (ArgoCD addon install, LocalStack start). The
+orchestrator provisions once, shares the kubeconfig with all workers, and tears
+down once after all workers complete.
 
 ### River Job Queue
 PostgreSQL-backed job queue provides persistence (crash recovery), retries,
