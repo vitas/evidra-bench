@@ -26,6 +26,7 @@ type CertResult struct {
 	LevelMax    string                 `json:"level_max"`
 	Total       int                    `json:"total"`
 	Passed      int                    `json:"passed"`
+	Skipped     int                    `json:"skipped"`
 	ByLevel     map[string]LevelResult `json:"by_level"`
 	Duration    time.Duration          `json:"duration"`
 	CertifiedAt time.Time              `json:"certified_at"`
@@ -246,14 +247,19 @@ func runCertifySingle(ctx context.Context, cfg config.Config, track, model strin
 		return nil, fmt.Errorf("load scenarios: %w", err)
 	}
 
-	var selected []*scenario.Scenario
+	var trackScenarios []*scenario.Scenario
 	for _, s := range allScenarios {
-		if s.Track == track && !s.Skip {
-			selected = append(selected, s)
+		if s.Track == track {
+			trackScenarios = append(trackScenarios, s)
 		}
 	}
-	if len(selected) == 0 {
+	if len(trackScenarios) == 0 {
 		return nil, fmt.Errorf("no scenarios for track %q", track)
+	}
+
+	selected, skippedCount := filterRunnableScenarios(trackScenarios, cfg.EnvironmentProvider, io.Discard)
+	if len(selected) == 0 {
+		return nil, fmt.Errorf("no compatible scenarios for track %q on provider %s", track, cfg.EnvironmentProvider)
 	}
 
 	levelOrder := map[string]int{"L1": 0, "L2": 1, "L3": 2, "L4": 3}
@@ -327,6 +333,7 @@ func runCertifySingle(ctx context.Context, cfg config.Config, track, model strin
 		LevelMax:    levelMax,
 		Total:       totalCount,
 		Passed:      passedCount,
+		Skipped:     skippedCount,
 		ByLevel:     levelResults,
 		Duration:    time.Since(startTime),
 		CertifiedAt: time.Now().UTC(),
@@ -370,15 +377,20 @@ func executeCertifySingle(cmd *cobra.Command, cfg config.Config, track, model st
 		return fmt.Errorf("load scenarios: %w", err)
 	}
 
-	// 2. Filter by track
-	var selected []*scenario.Scenario
+	// 2. Filter by track, then by skip + provider compatibility.
+	var trackScenarios []*scenario.Scenario
 	for _, s := range allScenarios {
-		if s.Track == track && !s.Skip {
-			selected = append(selected, s)
+		if s.Track == track {
+			trackScenarios = append(trackScenarios, s)
 		}
 	}
-	if len(selected) == 0 {
+	if len(trackScenarios) == 0 {
 		return fmt.Errorf("certify: no scenarios found for track %q", track)
+	}
+
+	selected, skippedCount := filterRunnableScenarios(trackScenarios, cfg.EnvironmentProvider, cmd.OutOrStdout())
+	if len(selected) == 0 {
+		return fmt.Errorf("certify: no compatible scenarios for track %q on provider %s", track, cfg.EnvironmentProvider)
 	}
 
 	// 3. Sort by level (L1 first, L4 last)
@@ -480,6 +492,7 @@ func executeCertifySingle(cmd *cobra.Command, cfg config.Config, track, model st
 		LevelMax:    levelMax,
 		Total:       totalCount,
 		Passed:      passedCount,
+		Skipped:     skippedCount,
 		ByLevel:     levelResults,
 		Duration:    totalDuration,
 		CertifiedAt: time.Now().UTC(),
