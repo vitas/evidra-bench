@@ -225,7 +225,7 @@ func (r *evidraReporter) OnScenario(_ context.Context, ev orchestrator.ScenarioE
 	r.sendProgress(ev)
 
 	// Submit bench run on terminal status.
-	if ev.Status == "passed" || ev.Status == "failed" {
+	if ev.Status == "passed" || ev.Status == "failed" || ev.Status == "error" {
 		r.submitBenchRun(ev)
 	}
 }
@@ -282,6 +282,7 @@ func (r *evidraReporter) submitBenchRun(ev orchestrator.ScenarioEvent) {
 		"adapter":          "bench-cli",
 		"evidence_mode":    r.evidenceMode,
 		"passed":           ev.Passed,
+		"exit_code":        ev.ExitCode,
 		"duration_seconds": ev.Duration.Seconds(),
 		"checks_passed":    boolToInt(ev.Passed),
 		"checks_total":     1,
