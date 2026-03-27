@@ -534,6 +534,10 @@ func executeRun(cmd *cobra.Command, cfg config.Config) error {
 		}
 		return fmt.Errorf("scenario %s is skipped: %s", s.ID, reason)
 	}
+	if !s.IsProviderCompatible(cfg.EnvironmentProvider) {
+		return fmt.Errorf("scenario %s requires %v provider, running on %s",
+			s.ID, s.Environment.Providers, cfg.EnvironmentProvider)
+	}
 
 	result, err := runScenarioOnce(cmd.Context(), cfg, s)
 	if err != nil {

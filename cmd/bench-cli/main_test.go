@@ -372,3 +372,87 @@ func TestSkillDeltaReportCommand_PrintsRemovalNotice(t *testing.T) {
 		t.Fatalf("expected removal notice, got: %s", buf.String())
 	}
 }
+
+func TestRunCommand_RejectsIncompatibleProvider(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	scenarioDir := filepath.Join(dir, "kubernetes", "k3d-only")
+	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	yamlContent := `id: k3d-only
+title: K3d-only scenario
+category: kubernetes
+prompt: prompts/task.md
+environment:
+  providers: [k3d]
+break:
+  type: kubectl
+  command: "get pods"
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "scenario.yaml"), []byte(yamlContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newRootCommand()
+	cmd.SetArgs([]string{
+		"run",
+		"--scenario", "kubernetes/k3d-only",
+		"--scenarios-dir", dir,
+		"--dry-run",
+	})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for incompatible provider")
+	}
+	if !strings.Contains(err.Error(), "requires") || !strings.Contains(err.Error(), "k3d") {
+		t.Fatalf("unexpected error message: %v", err)
+	}
+}
+
+func TestRunCommand_AcceptsCompatibleProvider(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	scenarioDir := filepath.Join(dir, "kubernetes", "kind-ok")
+	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	yamlContent := `id: kind-ok
+title: Kind-compatible scenario
+category: kubernetes
+prompt: prompts/task.md
+environment:
+  providers: [kind]
+break:
+  type: kubectl
+  command: "get pods"
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "scenario.yaml"), []byte(yamlContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	var buf strings.Builder
+	cmd := newRootCommand()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{
+		"run",
+		"--scenario", "kubernetes/kind-ok",
+		"--scenarios-dir", dir,
+		"--dry-run",
+	})
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("expected no error for compatible provider, got: %v", err)
+	}
+}
