@@ -1,0 +1,6 @@
+# ArgoCD installation manifests are fetched directly from upstream by install.sh.
+# URL: https://raw.githubusercontent.com/argoproj/argo-cd/v2.13.3/manifests/install.yaml
+#
+# This file is a placeholder. The install script applies manifests from the
+# upstream URL to ensure we always get the exact release artifacts without
+# needing to vendor a large YAML file.
