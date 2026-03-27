@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/pflag"
 	"samebits.com/evidra-infra-bench/pkg/config"
+	"samebits.com/evidra-infra-bench/pkg/scenario"
 	"samebits.com/evidra-infra-bench/pkg/skilldelta"
 	"samebits.com/evidra-infra-bench/pkg/tui"
 )
@@ -454,5 +455,124 @@ checks:
 	err := cmd.Execute()
 	if err != nil {
 		t.Fatalf("expected no error for compatible provider, got: %v", err)
+	}
+}
+
+func TestFilterRunnableScenarios(t *testing.T) {
+	t.Parallel()
+
+	scenarios := []*scenario.Scenario{
+		{ID: "a", Skip: false, Environment: scenario.EnvironmentConfig{}},
+		{ID: "b", Skip: true, SkipReason: "not ready"},
+		{ID: "c", Skip: false, Environment: scenario.EnvironmentConfig{Providers: []string{"k3d"}}},
+		{ID: "d", Skip: false, Environment: scenario.EnvironmentConfig{Providers: []string{"kind"}}},
+		{ID: "e", Skip: true, Environment: scenario.EnvironmentConfig{Providers: []string{"k3d"}}},
+	}
+
+	var buf bytes.Buffer
+	runnable, skipped := filterRunnableScenarios(scenarios, "kind", &buf)
+
+	if len(runnable) != 2 {
+		t.Fatalf("expected 2 runnable, got %d", len(runnable))
+	}
+	if runnable[0].ID != "a" || runnable[1].ID != "d" {
+		t.Fatalf("unexpected runnable IDs: %v, %v", runnable[0].ID, runnable[1].ID)
+	}
+	if skipped != 3 {
+		t.Fatalf("expected 3 skipped, got %d", skipped)
+	}
+	output := buf.String()
+	if !strings.Contains(output, "SKIP b") {
+		t.Fatalf("expected skip message for b, got: %s", output)
+	}
+	if !strings.Contains(output, "SKIP c") {
+		t.Fatalf("expected skip message for c, got: %s", output)
+	}
+}
+
+func TestFilterRunnableScenarios_EmptyProviders(t *testing.T) {
+	t.Parallel()
+
+	scenarios := []*scenario.Scenario{
+		{ID: "a", Environment: scenario.EnvironmentConfig{}},
+		{ID: "b", Environment: scenario.EnvironmentConfig{Providers: []string{"kind", "k3d"}}},
+	}
+
+	var buf bytes.Buffer
+	runnable, skipped := filterRunnableScenarios(scenarios, "kind", &buf)
+
+	if len(runnable) != 2 {
+		t.Fatalf("expected 2 runnable, got %d", len(runnable))
+	}
+	if skipped != 0 {
+		t.Fatalf("expected 0 skipped, got %d", skipped)
+	}
+}
+
+func TestBenchCommand_SkipsIncompatibleProvider(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	// Create two scenarios: one kind-compatible, one k3d-only.
+	for _, sc := range []struct {
+		name    string
+		content string
+	}{
+		{"kind-ok", `id: kind-ok
+title: Kind scenario
+category: kubernetes
+prompt: prompts/task.md
+environment:
+  providers: [kind]
+break:
+  type: kubectl
+  command: "get pods"
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+`},
+		{"k3d-only", `id: k3d-only
+title: K3d scenario
+category: kubernetes
+prompt: prompts/task.md
+environment:
+  providers: [k3d]
+break:
+  type: kubectl
+  command: "get pods"
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+`},
+	} {
+		scenarioDir := filepath.Join(dir, "kubernetes", sc.name)
+		if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(scenarioDir, "scenario.yaml"), []byte(sc.content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var buf strings.Builder
+	cmd := newRootCommand()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{
+		"bench",
+		"--scenarios-dir", dir,
+		"--dry-run",
+	})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("bench failed: %v", err)
+	}
+	output := buf.String()
+	if !strings.Contains(output, "SKIP k3d-only") {
+		t.Fatalf("expected k3d-only to be skipped, got: %s", output)
+	}
+	if !strings.Contains(output, "kind-ok") {
+		t.Fatalf("expected kind-ok to be present, got: %s", output)
 	}
 }

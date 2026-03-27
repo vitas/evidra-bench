@@ -1054,6 +1054,33 @@ func sortedKeys(values map[string]struct{}) []string {
 	return out
 }
 
+// filterRunnableScenarios returns scenarios that are not skipped and compatible
+// with the given provider. It writes SKIP lines to w and returns the count of
+// skipped scenarios.
+func filterRunnableScenarios(scenarios []*scenario.Scenario, provider string, w io.Writer) ([]*scenario.Scenario, int) {
+	var runnable []*scenario.Scenario
+	skipped := 0
+	for _, s := range scenarios {
+		if s.Skip {
+			skipped++
+			reason := s.SkipReason
+			if reason == "" {
+				reason = "skip: true in scenario.yaml"
+			}
+			writef(w, "SKIP %s — %s\n", s.ID, reason)
+			continue
+		}
+		if !s.IsProviderCompatible(provider) {
+			skipped++
+			writef(w, "SKIP %s — requires %v provider, running on %s\n",
+				s.ID, s.Environment.Providers, provider)
+			continue
+		}
+		runnable = append(runnable, s)
+	}
+	return runnable, skipped
+}
+
 func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models []string, repeats int) error {
 	scenariosDir, err := filepath.Abs(cfg.ScenariosDir)
 	if err != nil {
@@ -1101,9 +1128,11 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 		return fmt.Errorf("no scenarios matched filters")
 	}
 
+	runnable, skipped := filterRunnableScenarios(selected, cfg.EnvironmentProvider, cmd.OutOrStdout())
+
 	// Parallel execution via River job queue.
 	if cfg.Parallel > 1 {
-		return executeBenchParallel(cmd, cfg, selected, models, repeats)
+		return executeBenchParallel(cmd, cfg, runnable, skipped, models, repeats)
 	}
 
 	stamp := time.Now().UTC().Format("20060102-150405")
@@ -1124,17 +1153,7 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 	var results []result
 	total, passed, failed, errors := 0, 0, 0, 0
 
-	skipped := 0
-	for _, s := range selected {
-		if s.Skip {
-			skipped++
-			reason := s.SkipReason
-			if reason == "" {
-				reason = "skip: true in scenario.yaml"
-			}
-			writef(cmd.OutOrStdout(), "SKIP %s — %s\n", s.ID, reason)
-			continue
-		}
+	for _, s := range runnable {
 		for _, model := range models {
 			for rep := 1; rep <= repeats; rep++ {
 				total++
@@ -1153,7 +1172,7 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 				runCfg.RunsDir = runDir
 				runCfg.EvidraEvidenceDir = evidenceDir
 
-				label := fmt.Sprintf("[%d/%d] %s model=%s repeat=%d", total, len(selected)*len(models)*repeats, s.ID, model, rep)
+				label := fmt.Sprintf("[%d/%d] %s model=%s repeat=%d", total, len(runnable)*len(models)*repeats, s.ID, model, rep)
 				writef(cmd.OutOrStdout(), "%s ...\n", label)
 
 				runResult, runErr := runScenarioOnce(cmd.Context(), runCfg, s)
@@ -1208,7 +1227,7 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 		"pass_rate":    fmt.Sprintf("%.0f%%", float64(passed)/float64(max(total, 1))*100),
 		"models":       models,
 		"repeats":      repeats,
-		"scenarios":    len(selected),
+		"scenarios":    len(runnable),
 		"results":      results,
 	}
 	summaryJSON, _ := json.MarshalIndent(summary, "", "  ")
@@ -1319,7 +1338,7 @@ func cleanBenchNamespace(ctx context.Context, clusterName string, s *scenario.Sc
 	}
 }
 
-func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*scenario.Scenario, models []string, repeats int) error {
+func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*scenario.Scenario, skipped int, models []string, repeats int) error {
 	dbURL := cfg.ResolveDatabaseURL()
 	if dbURL == "" {
 		return fmt.Errorf("--database-url required for parallel execution (or set BENCH_DATABASE_URL)")
@@ -1337,9 +1356,7 @@ func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*sce
 
 	var scenarioIDs []string
 	for _, s := range selected {
-		if !s.Skip {
-			scenarioIDs = append(scenarioIDs, s.Path)
-		}
+		scenarioIDs = append(scenarioIDs, s.Path)
 	}
 
 	result, err := orch.RunParallel(ctx, cfg, nil, scenarioIDs, models, repeats, cfg.Parallel, dbURL)
