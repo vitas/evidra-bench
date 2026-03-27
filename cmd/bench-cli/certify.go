@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"samebits.com/evidra-infra-bench/pkg/config"
+	"samebits.com/evidra-infra-bench/pkg/environment"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 )
 
@@ -278,6 +280,32 @@ func runCertifySingle(ctx context.Context, cfg config.Config, track, model strin
 		return nil, fmt.Errorf("create certify output dir: %w", err)
 	}
 
+	// Acquire a batch lease when reusing cluster.
+	var batchLease *environment.Lease
+	if cfg.ReuseCluster && !cfg.DryRun {
+		if err := validateSingleProfile(selected); err != nil {
+			return nil, err
+		}
+		provisioner := newLocalProvisioner(cfg)
+		batchLease, err = provisioner.Acquire(ctx, environment.ProvisionRequest{
+			Scenario:           selected[0],
+			Profile:            selected[0].ResolvedProfile(),
+			ProviderName:       cfg.EnvironmentProvider,
+			ClusterName:        cfg.ClusterName,
+			ReuseCluster:       cfg.ReuseCluster,
+			ExistingKubeconfig: cfg.KubeconfigPath,
+			Shared:             true,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("certify: acquire batch lease: %w", err)
+		}
+		defer func() {
+			if releaseErr := batchLease.Release(ctx); releaseErr != nil {
+				log.Printf("[certify] warning: release batch lease: %v", releaseErr)
+			}
+		}()
+	}
+
 	startTime := time.Now()
 	byLevel := map[string]*LevelResult{}
 	totalCount, passedCount := 0, 0
@@ -302,11 +330,11 @@ func runCertifySingle(ctx context.Context, cfg config.Config, track, model strin
 		runCfg.RunsDir = runDir
 		runCfg.EvidraEvidenceDir = evidenceDir
 
-		if cfg.ReuseCluster {
+		if cfg.ReuseCluster && batchLease != nil {
 			cleanBenchNamespace(ctx, cfg.ClusterName, s)
 		}
 
-		runResult, runErr := runScenarioOnce(ctx, runCfg, s)
+		runResult, runErr := runScenarioOnceWithLease(ctx, runCfg, s, batchLease)
 
 		passed := false
 		if runErr == nil {
@@ -410,6 +438,32 @@ func executeCertifySingle(cmd *cobra.Command, cfg config.Config, track, model st
 		return fmt.Errorf("create output dir: %w", err)
 	}
 
+	// Acquire a batch lease when reusing cluster.
+	var batchLease *environment.Lease
+	if cfg.ReuseCluster && !cfg.DryRun {
+		if err := validateSingleProfile(selected); err != nil {
+			return err
+		}
+		provisioner := newLocalProvisioner(cfg)
+		batchLease, err = provisioner.Acquire(cmd.Context(), environment.ProvisionRequest{
+			Scenario:           selected[0],
+			Profile:            selected[0].ResolvedProfile(),
+			ProviderName:       cfg.EnvironmentProvider,
+			ClusterName:        cfg.ClusterName,
+			ReuseCluster:       cfg.ReuseCluster,
+			ExistingKubeconfig: cfg.KubeconfigPath,
+			Shared:             true,
+		})
+		if err != nil {
+			return fmt.Errorf("certify: acquire batch lease: %w", err)
+		}
+		defer func() {
+			if releaseErr := batchLease.Release(cmd.Context()); releaseErr != nil {
+				log.Printf("[certify] warning: release batch lease: %v", releaseErr)
+			}
+		}()
+	}
+
 	// 4. Run each scenario
 	startTime := time.Now()
 	byLevel := map[string]*LevelResult{}
@@ -440,11 +494,11 @@ func executeCertifySingle(cmd *cobra.Command, cfg config.Config, track, model st
 		writef(cmd.OutOrStdout(), "%s ...\n", label)
 
 		// Clean namespace between scenarios when reusing cluster.
-		if cfg.ReuseCluster {
+		if cfg.ReuseCluster && batchLease != nil {
 			cleanBenchNamespace(cmd.Context(), cfg.ClusterName, s)
 		}
 
-		runResult, runErr := runScenarioOnce(cmd.Context(), runCfg, s)
+		runResult, runErr := runScenarioOnceWithLease(cmd.Context(), runCfg, s, batchLease)
 
 		passed := false
 		dur := ""

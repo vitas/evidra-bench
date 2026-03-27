@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"io"
+	"strings"
 	"testing"
 
 	"samebits.com/evidra-infra-bench/pkg/config"
@@ -50,6 +51,50 @@ func TestCertifyFiltering_ExcludesIncompatibleAndSkipped(t *testing.T) {
 	}
 	if skipped != 2 {
 		t.Fatalf("expected 2 skipped, got %d", skipped)
+	}
+}
+
+func TestCertifySequential_ReuseClusterMixedProfiles_FailsFast(t *testing.T) {
+	t.Parallel()
+
+	scenarios := []*scenario.Scenario{
+		{
+			ID:    "s1",
+			Track: "workloads",
+			Level: "L1",
+			Environment: scenario.EnvironmentConfig{
+				Profile: scenario.ProfileDefault,
+			},
+		},
+		{
+			ID:    "s2",
+			Track: "workloads",
+			Level: "L2",
+			Environment: scenario.EnvironmentConfig{
+				Profile: scenario.ProfileArgocd,
+			},
+		},
+	}
+
+	err := validateSingleProfile(scenarios)
+	if err == nil {
+		t.Fatal("expected error for mixed profiles in certify")
+	}
+	if !strings.Contains(err.Error(), "--reuse-cluster") {
+		t.Fatalf("error should mention --reuse-cluster, got: %v", err)
+	}
+}
+
+func TestCertifySequential_ReuseClusterSingleProfile_Passes(t *testing.T) {
+	t.Parallel()
+
+	scenarios := []*scenario.Scenario{
+		{ID: "s1", Track: "workloads", Level: "L1", Environment: scenario.EnvironmentConfig{}},
+		{ID: "s2", Track: "workloads", Level: "L2", Environment: scenario.EnvironmentConfig{}},
+	}
+
+	if err := validateSingleProfile(scenarios); err != nil {
+		t.Fatalf("expected no error for same profile, got: %v", err)
 	}
 }
 

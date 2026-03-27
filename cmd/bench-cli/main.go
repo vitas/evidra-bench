@@ -586,6 +586,13 @@ func resolveLocalAdapter(name string) (adapter.Adapter, error) {
 }
 
 func runScenarioOnce(ctx context.Context, cfg config.Config, s *scenario.Scenario) (*harness.RunResult, error) {
+	return runScenarioOnceWithLease(ctx, cfg, s, nil)
+}
+
+// runScenarioOnceWithLease runs a single scenario. When lease is non-nil the
+// caller owns the lease lifetime; when nil a dedicated lease is acquired and
+// released within this call.
+func runScenarioOnceWithLease(ctx context.Context, cfg config.Config, s *scenario.Scenario, lease *environment.Lease) (*harness.RunResult, error) {
 	if err := s.ProviderCompatibilityError(cfg.EnvironmentProvider); err != nil {
 		return nil, err
 	}
@@ -599,17 +606,37 @@ func runScenarioOnce(ctx context.Context, cfg config.Config, s *scenario.Scenari
 		}
 	}
 
-	var envProvider environment.ClusterLifecycle
-	switch cfg.EnvironmentProvider {
-	case "k3d":
-		p := environment.NewK3dProvider()
-		p.ReuseExisting = cfg.ReuseCluster
-		envProvider = p
-	default:
-		p := environment.NewKindProvider()
-		p.ReuseExisting = cfg.ReuseCluster
-		envProvider = p
+	// Acquire a dedicated lease when the caller did not provide one.
+	if lease == nil && !cfg.DryRun {
+		provisioner := newLocalProvisioner(cfg)
+		acquired, acquireErr := provisioner.Acquire(ctx, environment.ProvisionRequest{
+			Scenario:           s,
+			Profile:            s.ResolvedProfile(),
+			ProviderName:       cfg.EnvironmentProvider,
+			ClusterName:        cfg.ClusterName,
+			ReuseCluster:       cfg.ReuseCluster,
+			ExistingKubeconfig: cfg.KubeconfigPath,
+		})
+		if acquireErr != nil {
+			return nil, fmt.Errorf("runScenarioOnce: acquire lease: %w", acquireErr)
+		}
+		defer func() {
+			if releaseErr := acquired.Release(ctx); releaseErr != nil {
+				log.Printf("[run] warning: release lease: %v", releaseErr)
+			}
+		}()
+		lease = acquired
 	}
+
+	var envProvider environment.ClusterLifecycle
+	var kubeconfigPath string
+	var extraEnv []string
+	if lease != nil {
+		envProvider = lease.Provider
+		kubeconfigPath = lease.KubeconfigPath
+		extraEnv = lease.ExtraEnv
+	}
+
 	runner := &environment.ExecRunner{}
 	bootstrapper := environment.NewBootstrapper(runner)
 	writer := artifact.NewWriter(cfg.RunsDir)
@@ -641,13 +668,36 @@ func runScenarioOnce(ctx context.Context, cfg config.Config, s *scenario.Scenari
 	h := harness.New(deps)
 
 	result, err := h.Run(ctx, harness.RunRequest{
-		Config:   cfg,
-		Scenario: s,
+		Config:         cfg,
+		Scenario:       s,
+		KubeconfigPath: kubeconfigPath,
+		ExtraEnv:       extraEnv,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return result, nil
+}
+
+// newLocalProvisioner builds a LocalProvisioner from the current config.
+func newLocalProvisioner(cfg config.Config) *environment.LocalProvisioner {
+	providers := map[string]environment.ClusterLifecycle{
+		"kind": newKindProvider(cfg),
+		"k3d":  newK3dProvider(cfg),
+	}
+	return environment.NewLocalProvisioner(providers, &environment.ExecRunner{})
+}
+
+func newKindProvider(cfg config.Config) *environment.KindProvider {
+	p := environment.NewKindProvider()
+	p.ReuseExisting = cfg.ReuseCluster
+	return p
+}
+
+func newK3dProvider(cfg config.Config) *environment.K3dProvider {
+	p := environment.NewK3dProvider()
+	p.ReuseExisting = cfg.ReuseCluster
+	return p
 }
 
 // ParallelRunOpts configures a parallel worker run.
@@ -1143,6 +1193,33 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 		return executeBenchParallel(cmd, cfg, runnable, skipped, models, repeats)
 	}
 
+	// When reusing a cluster, acquire one batch lease — but only if all
+	// selected scenarios share the same execution profile.
+	var batchLease *environment.Lease
+	if cfg.ReuseCluster && !cfg.DryRun {
+		if err := validateSingleProfile(runnable); err != nil {
+			return err
+		}
+		provisioner := newLocalProvisioner(cfg)
+		batchLease, err = provisioner.Acquire(cmd.Context(), environment.ProvisionRequest{
+			Scenario:           runnable[0],
+			Profile:            runnable[0].ResolvedProfile(),
+			ProviderName:       cfg.EnvironmentProvider,
+			ClusterName:        cfg.ClusterName,
+			ReuseCluster:       cfg.ReuseCluster,
+			ExistingKubeconfig: cfg.KubeconfigPath,
+			Shared:             true,
+		})
+		if err != nil {
+			return fmt.Errorf("bench: acquire batch lease: %w", err)
+		}
+		defer func() {
+			if releaseErr := batchLease.Release(cmd.Context()); releaseErr != nil {
+				log.Printf("[bench] warning: release batch lease: %v", releaseErr)
+			}
+		}()
+	}
+
 	stamp := time.Now().UTC().Format("20060102-150405")
 	outDir := filepath.Join(cfg.RunsDir, "bench", stamp)
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
@@ -1167,7 +1244,7 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 				total++
 
 				// Clean namespace between scenarios to avoid stale state.
-				if cfg.ReuseCluster {
+				if cfg.ReuseCluster && batchLease != nil {
 					cleanBenchNamespace(cmd.Context(), cfg.ClusterName, s)
 				}
 
@@ -1183,7 +1260,7 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 				label := fmt.Sprintf("[%d/%d] %s model=%s repeat=%d", total, len(runnable)*len(models)*repeats, s.ID, model, rep)
 				writef(cmd.OutOrStdout(), "%s ...\n", label)
 
-				runResult, runErr := runScenarioOnce(cmd.Context(), runCfg, s)
+				runResult, runErr := runScenarioOnceWithLease(cmd.Context(), runCfg, s, batchLease)
 
 				r := result{
 					Scenario: s.ID,
@@ -1291,6 +1368,25 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 
 	if failed > 0 || errors > 0 {
 		return fmt.Errorf("bench: %d failed, %d errors out of %d", failed, errors, total)
+	}
+	return nil
+}
+
+// validateSingleProfile checks that all scenarios resolve to the same execution
+// profile. It returns an error with a clear message when mixed profiles are
+// found — this prevents --reuse-cluster from silently mixing incompatible
+// environment setups.
+func validateSingleProfile(scenarios []*scenario.Scenario) error {
+	if len(scenarios) == 0 {
+		return nil
+	}
+	first := scenarios[0].ResolvedProfile()
+	for _, s := range scenarios[1:] {
+		if p := s.ResolvedProfile(); p != first {
+			return fmt.Errorf("--reuse-cluster requires all scenarios to share the same execution profile, "+
+				"but found %q (%s) and %q (%s); run profiles separately or remove --reuse-cluster",
+				first, scenarios[0].ID, p, s.ID)
+		}
 	}
 	return nil
 }

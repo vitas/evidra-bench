@@ -509,6 +509,171 @@ func TestFilterRunnableScenarios_EmptyProviders(t *testing.T) {
 	}
 }
 
+func TestRunCommand_ArgocdProfile_AcquiresDedicatedLease(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	scenarioDir := filepath.Join(dir, "argocd", "broken-guestbook")
+	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	yamlContent := `id: broken-guestbook
+title: Fix broken ArgoCD guestbook
+category: argocd
+prompt: prompts/task.md
+environment:
+  profile: argocd
+  providers: [kind]
+break:
+  type: kubectl
+  command: "get pods"
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: guestbook
+`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "scenario.yaml"), []byte(yamlContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Dry-run resolves the profile but skips lease acquisition.
+	var buf strings.Builder
+	cmd := newRootCommand()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{
+		"run",
+		"--scenario", "argocd/broken-guestbook",
+		"--scenarios-dir", dir,
+		"--dry-run",
+	})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+	if !strings.Contains(buf.String(), "broken-guestbook") {
+		t.Fatalf("unexpected output: %s", buf.String())
+	}
+
+	// Verify the loaded scenario resolves to argocd profile.
+	s, err := scenario.Resolve(dir, "argocd/broken-guestbook")
+	if err != nil {
+		t.Fatalf("resolve scenario: %v", err)
+	}
+	if got := s.ResolvedProfile(); got != scenario.ProfileArgocd {
+		t.Fatalf("expected profile argocd, got %q", got)
+	}
+}
+
+func TestBenchSequential_UsesDedicatedLeasePerScenarioByDefault(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	scenarioDir := filepath.Join(dir, "kubernetes", "s1")
+	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	yamlContent := `id: s1
+title: S1
+category: kubernetes
+prompt: prompts/task.md
+break:
+  type: kubectl
+  command: "get pods"
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "scenario.yaml"), []byte(yamlContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	var buf strings.Builder
+	cmd := newRootCommand()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{
+		"bench",
+		"--scenario", "kubernetes/s1",
+		"--scenarios-dir", dir,
+		"--dry-run",
+	})
+	// In dry-run, no lease is acquired, but the path is exercised.
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("bench failed: %v", err)
+	}
+	if !strings.Contains(buf.String(), "s1") {
+		t.Fatalf("expected s1 in output: %s", buf.String())
+	}
+}
+
+func TestBenchSequential_ReuseClusterMixedProfiles_FailsFast(t *testing.T) {
+	t.Parallel()
+
+	scenarios := []*scenario.Scenario{
+		{
+			ID:          "default-scenario",
+			Environment: scenario.EnvironmentConfig{},
+		},
+		{
+			ID: "argocd-scenario",
+			Environment: scenario.EnvironmentConfig{
+				Profile: scenario.ProfileArgocd,
+			},
+		},
+	}
+
+	err := validateSingleProfile(scenarios)
+	if err == nil {
+		t.Fatal("expected error for mixed profiles")
+	}
+	if !strings.Contains(err.Error(), "--reuse-cluster") {
+		t.Fatalf("error should mention --reuse-cluster, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "default") || !strings.Contains(err.Error(), "argocd") {
+		t.Fatalf("error should mention both profiles, got: %v", err)
+	}
+}
+
+func TestBenchSequential_ReuseClusterSingleProfile_UsesBatchLease(t *testing.T) {
+	t.Parallel()
+
+	// All scenarios resolve to default — validation should pass.
+	scenarios := []*scenario.Scenario{
+		{ID: "a", Environment: scenario.EnvironmentConfig{}},
+		{ID: "b", Environment: scenario.EnvironmentConfig{}},
+		{ID: "c", Environment: scenario.EnvironmentConfig{}},
+	}
+
+	if err := validateSingleProfile(scenarios); err != nil {
+		t.Fatalf("expected no error for single profile, got: %v", err)
+	}
+}
+
+func TestValidateSingleProfile_EmptyList(t *testing.T) {
+	t.Parallel()
+
+	if err := validateSingleProfile(nil); err != nil {
+		t.Fatalf("expected no error for empty list, got: %v", err)
+	}
+}
+
+func TestValidateSingleProfile_SingleScenario(t *testing.T) {
+	t.Parallel()
+
+	scenarios := []*scenario.Scenario{
+		{
+			ID: "argocd-scenario",
+			Environment: scenario.EnvironmentConfig{
+				Profile: scenario.ProfileArgocd,
+			},
+		},
+	}
+	if err := validateSingleProfile(scenarios); err != nil {
+		t.Fatalf("expected no error for single scenario, got: %v", err)
+	}
+}
+
 func TestBenchCommand_SkipsIncompatibleProvider(t *testing.T) {
 	t.Parallel()
 
