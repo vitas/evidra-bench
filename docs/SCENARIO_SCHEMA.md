@@ -259,8 +259,43 @@ Same as bootstrap steps plus:
 
 Additional infrastructure requirements beyond the default kind cluster.
 
+### Execution Profile
+
+The `profile` field is the primary execution contract. The provisioner uses it to select
+the correct cluster setup, addons, and cloud services. Category, tags, and bootstrap
+contents are never used for provisioning decisions.
+
 ```yaml
 environment:
+  profile: argocd                        # Optional. Execution profile.
+                                         # Values: default, argocd, aws-localstack
+                                         # Default: resolved automatically (see below).
+  providers: [kind, k3d]                 # Optional. Supported cluster providers; empty = all.
+```
+
+**Phase-1 profiles:**
+
+| Profile | What the provisioner provides |
+|---|---|
+| `default` | Standard kind/k3d cluster with no extra addons. |
+| `argocd` | Cluster with ArgoCD pre-installed (namespace, CRDs, server, repo-server, application-controller). |
+| `aws-localstack` | Cluster plus a running LocalStack instance with AWS environment variables. |
+
+**Resolution order** (when `profile` is omitted):
+1. If `environment.cloud.provider == "localstack"`, resolves to `aws-localstack`.
+2. Otherwise resolves to `default`.
+
+Unknown profiles fail at load time.
+
+The `cloud` and `kubernetes` fields remain as profile-specific payload and legacy fields
+during migration. They carry scenario-specific details (service list, setup scripts, CNI,
+addons) that the provisioner or harness consumes after profile-based setup.
+
+### Cloud and Kubernetes Configuration
+
+```yaml
+environment:
+  profile: aws-localstack                # Explicit profile (recommended).
   cloud:
     provider: localstack                 # Cloud provider emulator.
     services: [s3, iam]                  # AWS services to provision.

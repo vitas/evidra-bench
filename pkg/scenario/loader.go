@@ -202,11 +202,21 @@ func validate(s *Scenario) error {
 		return fmt.Errorf("scenario %s: at least one check is required", s.ID)
 	}
 
+	if err := validateExecutionProfile(s); err != nil {
+		return err
+	}
 	if err := validateEnvironmentProviders(s); err != nil {
 		return err
 	}
 	if err := validateChaos(s); err != nil {
 		return err
+	}
+	return nil
+}
+
+func validateExecutionProfile(s *Scenario) error {
+	if s.Environment.Profile != "" && !IsSupportedExecutionProfile(s.Environment.Profile) {
+		return fmt.Errorf("scenario %s: unsupported execution profile %q (valid: default, argocd, aws-localstack)", s.ID, s.Environment.Profile)
 	}
 	return nil
 }
