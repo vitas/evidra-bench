@@ -241,8 +241,9 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}
 	}
 
-	// Step 2: Clean bench namespace before bootstrap (prevent leftover resources from prior runs).
-	// Delete all resources inside the namespace, not the namespace itself (avoids terminating race).
+	// Step 2: Force-clean stale namespace before bootstrap.
+	// Namespace deletion is async and can leave finalizers hanging (kubernetes#53327),
+	// so we force-delete the namespace entirely and wait for actual removal before recreating.
 	kubeconfigExists := handle.KubeconfigPath != ""
 	if kubeconfigExists {
 		if _, statErr := os.Stat(handle.KubeconfigPath); statErr != nil {
@@ -250,14 +251,9 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}
 	}
 	if req.Config.ReuseCluster && kubeconfigExists {
-		for _, res := range []string{"all", "pvc", "configmap", "secret", "ingress", "networkpolicy"} {
-			cleanCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
-				"delete", res, "--all", "-n", ns, "--ignore-not-found", "--timeout=15s")
-			if out, err := cleanCmd.CombinedOutput(); err != nil {
-				log.Printf("[harness] bench cleanup %s (non-fatal): %s %v", res, string(out), err)
-			}
-		}
-		// Also clean cluster-scoped resources that scenarios may create
+		h.forceCleanNamespace(ctx, handle.KubeconfigPath, ns)
+
+		// Also clean cluster-scoped resources that scenarios may create.
 		for _, res := range []string{"pv", "storageclass", "validatingwebhookconfiguration", "mutatingwebhookconfiguration"} {
 			cleanCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
 				"delete", res, "--all", "--ignore-not-found", "--timeout=10s")
@@ -266,14 +262,10 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 			}
 		}
 		// Clean scenario-created namespaces (webhook-system, etc.)
-		for _, ns := range []string{"webhook-system"} {
-			cleanCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
-				"delete", "namespace", ns, "--ignore-not-found", "--timeout=15s")
-			if out, err := cleanCmd.CombinedOutput(); err != nil {
-				log.Printf("[harness] namespace cleanup %s (non-fatal): %s %v", ns, string(out), err)
-			}
+		for _, extraNS := range []string{"webhook-system"} {
+			h.forceCleanNamespace(ctx, handle.KubeconfigPath, extraNS)
 		}
-		// Clean ArgoCD applications (if ArgoCD is installed)
+		// Clean ArgoCD applications (if ArgoCD is installed).
 		cleanCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
 			"delete", "application", "--all", "-n", "argocd", "--ignore-not-found", "--timeout=15s")
 		if out, err := cleanCmd.CombinedOutput(); err != nil {
@@ -281,21 +273,14 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}
 	}
 
-	// Step 2b: Ensure target namespace exists (parallel workers use non-default namespaces).
+	// Step 2b: Recreate target namespace.
 	if handle.KubeconfigPath != "" {
-		nsCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
-			"create", "namespace", ns, "--dry-run=client", "-o", "yaml")
-		nsApply := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath, "apply", "-f", "-")
-		pipe, _ := nsCmd.StdoutPipe()
-		nsApply.Stdin = pipe
-		if err := nsCmd.Start(); err == nil {
-			if err := nsApply.Start(); err == nil {
-				if err := nsCmd.Wait(); err != nil {
-					log.Printf("[harness] namespace create command failed (non-fatal): %v", err)
-				}
-				if err := nsApply.Wait(); err != nil {
-					log.Printf("[harness] namespace apply command failed (non-fatal): %v", err)
-				}
+		createCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
+			"create", "namespace", ns)
+		if out, err := createCmd.CombinedOutput(); err != nil {
+			// Namespace may already exist if it wasn't deleted (non-reuse mode).
+			if !strings.Contains(string(out), "already exists") {
+				log.Printf("[harness] namespace create (non-fatal): %s %v", string(out), err)
 			}
 		}
 	}
@@ -1306,4 +1291,38 @@ func breakCommandArgs(kubeconfigPath string, s *scenario.Scenario) ([]string, er
 	default:
 		return nil, fmt.Errorf("unsupported break type: %s", s.Break.Type)
 	}
+}
+
+// forceCleanNamespace force-deletes a namespace and waits for it to be fully removed.
+// This avoids the async deletion + finalizer accumulation problem (kubernetes#53327).
+func (h *Harness) forceCleanNamespace(ctx context.Context, kubeconfigPath, ns string) {
+	// Check if namespace exists.
+	getCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
+		"get", "namespace", ns, "--ignore-not-found", "-o", "name")
+	getOut, err := getCmd.CombinedOutput()
+	if err != nil || strings.TrimSpace(string(getOut)) == "" {
+		return // Namespace doesn't exist, nothing to clean.
+	}
+
+	log.Printf("[harness] force-deleting namespace %s", ns)
+
+	// Force-delete the namespace.
+	delCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
+		"delete", "namespace", ns, "--force", "--grace-period=0", "--timeout=30s")
+	if out, err := delCmd.CombinedOutput(); err != nil {
+		log.Printf("[harness] namespace force-delete %s (non-fatal): %s %v", ns, string(out), err)
+	}
+
+	// Wait for the namespace to actually disappear (up to 30s).
+	for i := 0; i < 30; i++ {
+		checkCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
+			"get", "namespace", ns, "--ignore-not-found", "-o", "name")
+		checkOut, _ := checkCmd.CombinedOutput()
+		if strings.TrimSpace(string(checkOut)) == "" {
+			log.Printf("[harness] namespace %s deleted", ns)
+			return
+		}
+		time.Sleep(1 * time.Second)
+	}
+	log.Printf("[harness] warning: namespace %s still terminating after 30s", ns)
 }
