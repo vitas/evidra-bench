@@ -33,15 +33,6 @@ func (f *fakeRunner) Run(_ context.Context, cmd *exec.Cmd) ([]byte, error) {
 	return []byte("ok"), nil
 }
 
-func (f *fakeRunner) hasCommandContaining(sub string) bool {
-	for _, c := range f.commands {
-		if strings.Contains(c, sub) {
-			return true
-		}
-	}
-	return false
-}
-
 // fakeProvider is a minimal ClusterLifecycle for testing.
 type fakeProvider struct {
 	kubectlOps

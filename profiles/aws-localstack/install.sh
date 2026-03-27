@@ -61,20 +61,26 @@ fi
 
 echo "LocalStack is ready at ${LOCALSTACK_ENDPOINT}"
 
-# Create the AWS CLI wrapper that points to LocalStack.
+# Find the real aws binary before we prepend our wrapper dir to PATH.
+REAL_AWS="$(command -v aws 2>/dev/null || echo /usr/local/bin/aws)"
+
+# Create the AWS CLI wrapper that delegates to the real binary.
 cat > "${BIN_DIR}/aws" <<WRAPPER
 #!/bin/sh
-exec aws --endpoint-url "${LOCALSTACK_ENDPOINT}" "\$@"
+exec "${REAL_AWS}" --endpoint-url "${LOCALSTACK_ENDPOINT}" "\$@"
 WRAPPER
 chmod +x "${BIN_DIR}/aws"
 
-# Write lease.env with concrete values (no shell variable placeholders).
+# Build the concrete PATH with our wrapper dir prepended.
+CONCRETE_PATH="${BIN_DIR}:${PATH}"
+
+# Write lease.env with concrete values only — no shell variable placeholders.
 cat > "${EVIDRA_WORK_DIR}/lease.env" <<EOF
 AWS_ENDPOINT_URL=${LOCALSTACK_ENDPOINT}
 AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
 AWS_DEFAULT_REGION=us-east-1
-PATH=${BIN_DIR}:\${PATH}
+PATH=${CONCRETE_PATH}
 LOCALSTACK_CONTAINER=${CONTAINER_NAME}
 EOF
 

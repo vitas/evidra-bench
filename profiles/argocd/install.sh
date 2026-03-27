@@ -30,11 +30,16 @@ echo "Waiting for ArgoCD CRDs..."
 kubectl --kubeconfig="${KUBECONFIG}" wait --for=condition=Established \
   crd/applications.argoproj.io --timeout=60s
 
-# Wait for core deployments to be available.
-for deploy in argocd-server argocd-repo-server argocd-application-controller; do
-  echo "Waiting for ${deploy}..."
+# Wait for core components to be available.
+for deploy in argocd-server argocd-repo-server; do
+  echo "Waiting for deployment/${deploy}..."
   kubectl --kubeconfig="${KUBECONFIG}" -n "${ARGOCD_NAMESPACE}" \
-    rollout status deployment/"${deploy}" --timeout=120s
+    rollout status deployment/"${deploy}" --timeout=300s
 done
+
+# application-controller is a StatefulSet, not a Deployment.
+echo "Waiting for statefulset/argocd-application-controller..."
+kubectl --kubeconfig="${KUBECONFIG}" -n "${ARGOCD_NAMESPACE}" \
+  rollout status statefulset/argocd-application-controller --timeout=300s
 
 echo "ArgoCD ${ARGOCD_VERSION} installed successfully."

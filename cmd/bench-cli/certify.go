@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"samebits.com/evidra-infra-bench/pkg/config"
 	"samebits.com/evidra-infra-bench/pkg/environment"
+	"samebits.com/evidra-infra-bench/pkg/harness"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 )
 
@@ -334,7 +335,19 @@ func runCertifySingle(ctx context.Context, cfg config.Config, track, model strin
 			cleanBenchNamespace(ctx, cfg.ClusterName, s)
 		}
 
-		runResult, runErr := runScenarioOnceWithLease(ctx, runCfg, s, batchLease)
+		var prov batchLeaseProvisioner
+		if batchLease != nil {
+			prov = newLocalProvisioner(runCfg)
+		}
+		var runResult *harness.RunResult
+		var runErr error
+		runResult, batchLease, runErr = runWithBatchLeaseRecovery(
+			ctx, runCfg, s, batchLease, prov,
+			func(l *environment.Lease) (*harness.RunResult, error) {
+				return runScenarioOnceWithLease(ctx, runCfg, s, l)
+			},
+			"certify",
+		)
 
 		passed := false
 		if runErr == nil {
@@ -498,7 +511,19 @@ func executeCertifySingle(cmd *cobra.Command, cfg config.Config, track, model st
 			cleanBenchNamespace(cmd.Context(), cfg.ClusterName, s)
 		}
 
-		runResult, runErr := runScenarioOnceWithLease(cmd.Context(), runCfg, s, batchLease)
+		var prov batchLeaseProvisioner
+		if batchLease != nil {
+			prov = newLocalProvisioner(runCfg)
+		}
+		var runResult *harness.RunResult
+		var runErr error
+		runResult, batchLease, runErr = runWithBatchLeaseRecovery(
+			cmd.Context(), runCfg, s, batchLease, prov,
+			func(l *environment.Lease) (*harness.RunResult, error) {
+				return runScenarioOnceWithLease(cmd.Context(), runCfg, s, l)
+			},
+			"certify",
+		)
 
 		passed := false
 		dur := ""
