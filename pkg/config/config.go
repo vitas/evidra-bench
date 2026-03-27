@@ -19,6 +19,7 @@ type Config struct {
 	Scenario            string
 	ScenariosDir        string
 	Adapter             string
+	A2AAgentURL         string
 	AgentCommand        string
 	RunsDir             string
 	KubeconfigPath      string
@@ -65,6 +66,15 @@ func (c *Config) ResolveDatabaseURL() string {
 	return os.Getenv("BENCH_DATABASE_URL")
 }
 
+// ResolveA2AAgentURL returns the A2A agent URL from flag, env, or empty.
+// Priority: flag > INFRA_BENCH_A2A_AGENT_URL > empty.
+func (c *Config) ResolveA2AAgentURL() string {
+	if c.A2AAgentURL != "" {
+		return c.A2AAgentURL
+	}
+	return os.Getenv("INFRA_BENCH_A2A_AGENT_URL")
+}
+
 // ResolveEvidraBin returns the evidra binary path from flag, env, or empty.
 // Priority: flag > EVIDRA_BIN > empty.
 func (c *Config) ResolveEvidraBin() string {
@@ -97,7 +107,16 @@ func (c *Config) Validate() error {
 	if c.Scenario == "" {
 		return fmt.Errorf("config: scenario is required")
 	}
-	if !c.DryRun && c.AgentCommand == "" && c.Provider == "" {
+	if c.DryRun {
+		return nil
+	}
+	if c.Adapter == "a2a" {
+		if c.ResolveA2AAgentURL() == "" {
+			return fmt.Errorf("config: INFRA_BENCH_A2A_AGENT_URL is required for adapter=a2a")
+		}
+		return nil
+	}
+	if c.AgentCommand == "" && c.Provider == "" {
 		return fmt.Errorf("config: agent-command or provider is required (use --dry-run to skip)")
 	}
 	return nil

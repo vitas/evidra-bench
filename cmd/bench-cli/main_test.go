@@ -197,6 +197,26 @@ func TestBuildVersionString_UsesBuildMetadata(t *testing.T) {
 	}
 }
 
+func TestResolveLocalAdapter_CLI(t *testing.T) {
+	t.Parallel()
+
+	got, err := resolveLocalAdapter("cli")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected CLI adapter")
+	}
+}
+
+func TestResolveLocalAdapter_UnknownFails(t *testing.T) {
+	t.Parallel()
+
+	if _, err := resolveLocalAdapter("wat"); err == nil {
+		t.Fatal("expected error for unknown adapter")
+	}
+}
+
 func TestSkillDeltaRunCommand_DryRunWritesPairJSON(t *testing.T) {
 	dir := t.TempDir()
 	scenarioDir := filepath.Join(dir, "kubernetes", "broken-deployment")

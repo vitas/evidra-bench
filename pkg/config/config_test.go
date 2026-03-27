@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -69,6 +70,41 @@ func TestValidate_ValidConfig(t *testing.T) {
 	cfg := Default()
 	cfg.Scenario = "kubernetes/broken-deployment"
 	cfg.AgentCommand = "my-agent"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestConfig_ResolveA2AAgentURL_FlagWins(t *testing.T) {
+	t.Setenv("INFRA_BENCH_A2A_AGENT_URL", "http://env-agent.example")
+
+	cfg := Default()
+	cfg.A2AAgentURL = "http://flag-agent.example"
+
+	if got := cfg.ResolveA2AAgentURL(); got != "http://flag-agent.example" {
+		t.Fatalf("ResolveA2AAgentURL = %q, want flag value", got)
+	}
+}
+
+func TestValidate_A2ARequiresAgentURL(t *testing.T) {
+	t.Setenv("INFRA_BENCH_A2A_AGENT_URL", "")
+
+	cfg := Default()
+	cfg.Scenario = "kubernetes/broken-deployment"
+	cfg.Adapter = "a2a"
+
+	err := cfg.Validate()
+	if err == nil || !strings.Contains(err.Error(), "INFRA_BENCH_A2A_AGENT_URL") {
+		t.Fatalf("expected missing A2A agent URL error, got %v", err)
+	}
+}
+
+func TestValidate_A2AAllowsNoAgentCommandOrProvider(t *testing.T) {
+	cfg := Default()
+	cfg.Scenario = "kubernetes/broken-deployment"
+	cfg.Adapter = "a2a"
+	cfg.A2AAgentURL = "http://agent.example"
+
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

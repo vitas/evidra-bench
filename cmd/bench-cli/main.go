@@ -112,7 +112,8 @@ with optional Evidra reporting for behavioral analysis.`,
 	f := runCmd.Flags()
 	f.StringVar(&cfg.EnvironmentProvider, "environment", cfg.EnvironmentProvider, "environment provider (kind, k3d)")
 	f.StringVar(&cfg.Scenario, "scenario", cfg.Scenario, "scenario path relative to scenarios dir")
-	f.StringVar(&cfg.Adapter, "adapter", cfg.Adapter, "agent adapter type (cli, mcp)")
+	f.StringVar(&cfg.Adapter, "adapter", cfg.Adapter, "agent adapter type (cli, mcp, a2a)")
+	f.StringVar(&cfg.A2AAgentURL, "a2a-agent-url", cfg.A2AAgentURL, "A2A agent URL (env: INFRA_BENCH_A2A_AGENT_URL)")
 	f.StringVar(&cfg.AgentCommand, "agent-command", cfg.AgentCommand, "command to invoke the agent")
 	f.StringVar(&cfg.ScenariosDir, "scenarios-dir", cfg.ScenariosDir, "base directory for scenarios")
 	f.StringVar(&cfg.RunsDir, "runs-dir", cfg.RunsDir, "output directory for run artifacts")
@@ -159,7 +160,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	lf := labCmd.Flags()
 	lf.StringVar(&cfg.ScenariosDir, "scenarios-dir", cfg.ScenariosDir, "base directory for scenarios")
 	lf.StringVar(&cfg.RunsDir, "runs-dir", cfg.RunsDir, "output directory for run artifacts")
-	lf.StringVar(&cfg.Adapter, "adapter", cfg.Adapter, "agent adapter type (cli, mcp)")
+	lf.StringVar(&cfg.Adapter, "adapter", cfg.Adapter, "agent adapter type (cli, mcp, a2a)")
 	lf.StringVar(&cfg.Provider, "provider", cfg.Provider, "LLM provider for tool-use agent loop (bifrost, claude)")
 	lf.StringVar(&cfg.AgentCommand, "agent-command", cfg.AgentCommand, "command to invoke the agent")
 	lf.StringVar(&cfg.Model, "model", cfg.Model, "model for agent (e.g. sonnet, opus, haiku)")
@@ -332,7 +333,8 @@ with optional Evidra reporting for behavioral analysis.`,
 	sdrf.StringVar(&skillDeltaCfg.EnvironmentProvider, "environment", skillDeltaCfg.EnvironmentProvider, "environment provider (kind, k3d)")
 	sdrf.StringVar(&skillDeltaCfg.ScenariosDir, "scenarios-dir", skillDeltaCfg.ScenariosDir, "base directory for scenarios")
 	sdrf.StringVar(&skillDeltaCfg.RunsDir, "runs-dir", skillDeltaCfg.RunsDir, "base directory for benchmark runs")
-	sdrf.StringVar(&skillDeltaCfg.Adapter, "adapter", skillDeltaCfg.Adapter, "agent adapter type (cli, mcp)")
+	sdrf.StringVar(&skillDeltaCfg.Adapter, "adapter", skillDeltaCfg.Adapter, "agent adapter type (cli, mcp, a2a)")
+	sdrf.StringVar(&skillDeltaCfg.A2AAgentURL, "a2a-agent-url", skillDeltaCfg.A2AAgentURL, "A2A agent URL (env: INFRA_BENCH_A2A_AGENT_URL)")
 	sdrf.StringVar(&skillDeltaCfg.AgentCommand, "agent-command", skillDeltaCfg.AgentCommand, "command to invoke the agent")
 	sdrf.DurationVar(&skillDeltaCfg.Timeout, "timeout", skillDeltaCfg.Timeout, "agent execution timeout")
 	sdrf.BoolVar(&skillDeltaCfg.ReuseCluster, "reuse-cluster", skillDeltaCfg.ReuseCluster, "reuse existing kind cluster")
@@ -382,7 +384,8 @@ with optional Evidra reporting for behavioral analysis.`,
 	cf.StringVar(&certifyModel, "model", "", "model name (e.g. sonnet, opus)")
 	cf.StringVar(&certifyCfg.EnvironmentProvider, "environment", certifyCfg.EnvironmentProvider, "environment provider (kind, k3d)")
 	cf.StringVar(&certifyCfg.Provider, "provider", certifyCfg.Provider, "LLM provider")
-	cf.StringVar(&certifyCfg.Adapter, "adapter", certifyCfg.Adapter, "agent adapter type (cli, mcp)")
+	cf.StringVar(&certifyCfg.Adapter, "adapter", certifyCfg.Adapter, "agent adapter type (cli, mcp, a2a)")
+	cf.StringVar(&certifyCfg.A2AAgentURL, "a2a-agent-url", certifyCfg.A2AAgentURL, "A2A agent URL (env: INFRA_BENCH_A2A_AGENT_URL)")
 	cf.StringVar(&certifyCfg.AgentCommand, "agent-command", certifyCfg.AgentCommand, "command to invoke the agent")
 	cf.StringVar(&certifyCfg.ScenariosDir, "scenarios-dir", certifyCfg.ScenariosDir, "scenarios directory")
 	cf.StringVar(&certifyCfg.RunsDir, "runs-dir", certifyCfg.RunsDir, "runs directory")
@@ -421,6 +424,8 @@ with optional Evidra reporting for behavioral analysis.`,
 	bf.StringVar(&benchCfg.EnvironmentProvider, "environment", benchCfg.EnvironmentProvider, "environment provider (kind, k3d)")
 	bf.StringVar(&benchCfg.ScenariosDir, "scenarios-dir", benchCfg.ScenariosDir, "scenarios directory")
 	bf.StringVar(&benchCfg.RunsDir, "runs-dir", benchCfg.RunsDir, "runs directory")
+	bf.StringVar(&benchCfg.Adapter, "adapter", benchCfg.Adapter, "agent adapter type (cli, mcp, a2a)")
+	bf.StringVar(&benchCfg.A2AAgentURL, "a2a-agent-url", benchCfg.A2AAgentURL, "A2A agent URL (env: INFRA_BENCH_A2A_AGENT_URL)")
 	bf.StringVar(&benchCfg.Provider, "provider", benchCfg.Provider, "LLM provider")
 	bf.StringVar(&benchCfg.EvidraBin, "evidra-bin", benchCfg.EvidraBin, "evidra binary path")
 	bf.StringVar(&benchCfg.SystemPromptFile, "system-prompt-file", benchCfg.SystemPromptFile, "system prompt file")
@@ -557,15 +562,25 @@ func resolveScenarioConfig(cfg config.Config) (config.Config, *scenario.Scenario
 	return cfg, s, nil
 }
 
+func resolveLocalAdapter(name string) (adapter.Adapter, error) {
+	switch name {
+	case "cli":
+		return adapter.NewCLIAdapter(), nil
+	case "mcp":
+		return adapter.NewMCPAdapter(), nil
+	default:
+		return nil, fmt.Errorf("unknown adapter: %s", name)
+	}
+}
+
 func runScenarioOnce(ctx context.Context, cfg config.Config, s *scenario.Scenario) (*harness.RunResult, error) {
 	var agentAdapter adapter.Adapter
-	switch cfg.Adapter {
-	case "cli":
-		agentAdapter = adapter.NewCLIAdapter()
-	case "mcp":
-		agentAdapter = adapter.NewMCPAdapter()
-	default:
-		return nil, fmt.Errorf("unknown adapter: %s", cfg.Adapter)
+	var err error
+	if cfg.Adapter != "a2a" {
+		agentAdapter, err = resolveLocalAdapter(cfg.Adapter)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var envProvider environment.ClusterLifecycle
@@ -632,13 +647,12 @@ func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *sce
 	targetNS, kubeconfigPath string, sharedStore *store.Store,
 	provider environment.ClusterLifecycle) (*harness.RunResult, error) {
 	var agentAdapter adapter.Adapter
-	switch cfg.Adapter {
-	case "cli":
-		agentAdapter = adapter.NewCLIAdapter()
-	case "mcp":
-		agentAdapter = adapter.NewMCPAdapter()
-	default:
-		return nil, fmt.Errorf("unknown adapter: %s", cfg.Adapter)
+	var err error
+	if cfg.Adapter != "a2a" {
+		agentAdapter, err = resolveLocalAdapter(cfg.Adapter)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// No environment provider needed — cluster is pre-provisioned.
