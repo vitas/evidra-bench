@@ -21,13 +21,13 @@ import (
 	promptdata "samebits.com/evidra/prompts"
 )
 
-// fakeProvider is a test double for environment.Provider.
+// fakeProvider is a test double for environment.ClusterLifecycle.
 type fakeProvider struct {
 	created   bool
 	destroyed bool
 }
 
-func (f *fakeProvider) Create(_ context.Context, clusterName string) (*environment.Handle, error) {
+func (f *fakeProvider) Create(_ context.Context, clusterName string, _ scenario.KubernetesConfig) (*environment.Handle, error) {
 	f.created = true
 	return &environment.Handle{
 		ClusterName:    clusterName,
@@ -39,6 +39,18 @@ func (f *fakeProvider) Destroy(_ context.Context, _ *environment.Handle) error {
 	f.destroyed = true
 	return nil
 }
+
+func (f *fakeProvider) Recreate(_ context.Context, clusterName string, _ scenario.KubernetesConfig) (*environment.Handle, error) {
+	return &environment.Handle{ClusterName: clusterName, KubeconfigPath: "/tmp/fake-kubeconfig"}, nil
+}
+
+func (f *fakeProvider) HealthCheck(_ context.Context, _ string) error { return nil }
+
+func (f *fakeProvider) ForceDeleteNamespace(_ context.Context, _, _ string) error { return nil }
+
+func (f *fakeProvider) CreateNamespace(_ context.Context, _, _ string) error { return nil }
+
+func (f *fakeProvider) RunCanary(_ context.Context, _, _ string) error { return nil }
 
 // fakeAdapter is a test double for adapter.Adapter.
 type fakeAdapter struct {
@@ -344,7 +356,7 @@ func TestHarness_ApplyBreak_AllowsExpectedFailure(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{
-		Runner: &fakeRunner{err: errors.New("helm upgrade failed")},
+		Bootstrapper: environment.NewBootstrapper(&fakeRunner{err: errors.New("helm upgrade failed")}),
 	})
 
 	err := h.applyBreak(context.Background(), "/tmp/kubeconfig", &scenario.Scenario{
@@ -401,7 +413,6 @@ func TestHarness_RunExecutesAfterBreakSteps(t *testing.T) {
 	h := New(Deps{
 		EnvProvider:  fp,
 		Bootstrapper: environment.NewBootstrapper(runner),
-		Runner:       runner,
 		Adapter:      &fakeAdapter{},
 	})
 
@@ -508,9 +519,9 @@ func TestHarness_RunExecutesChaosStepsDuringAgent(t *testing.T) {
 	fp := &fakeProvider{}
 	runner := &recordingRunner{}
 	h := New(Deps{
-		EnvProvider: fp,
-		Runner:      runner,
-		Adapter:     &sleepingAdapter{delay: 40 * time.Millisecond},
+		EnvProvider:  fp,
+		Bootstrapper: environment.NewBootstrapper(runner),
+		Adapter:      &sleepingAdapter{delay: 40 * time.Millisecond},
 	})
 
 	cfg := config.Default()
@@ -540,11 +551,16 @@ func TestHarness_RunExecutesChaosStepsDuringAgent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run failed: %v", err)
 	}
-	if len(runner.commands) != 1 {
-		t.Fatalf("expected 1 chaos command, got %v", runner.commands)
+	// Find the chaos delete command among recorded commands (bootstrap commands may precede it).
+	found := false
+	for _, cmd := range runner.commands {
+		if strings.Contains(cmd, "kubectl --kubeconfig /tmp/fake-kubeconfig delete pod -n bench web-0") {
+			found = true
+			break
+		}
 	}
-	if !strings.Contains(runner.commands[0], "kubectl --kubeconfig /tmp/fake-kubeconfig delete pod -n bench web-0") {
-		t.Fatalf("unexpected chaos command: %v", runner.commands)
+	if !found {
+		t.Fatalf("chaos delete command not found in: %v", runner.commands)
 	}
 }
 
@@ -554,9 +570,9 @@ func TestHarness_ChaosStopsWhenAgentDone(t *testing.T) {
 	fp := &fakeProvider{}
 	runner := &recordingRunner{}
 	h := New(Deps{
-		EnvProvider: fp,
-		Runner:      runner,
-		Adapter:     &sleepingAdapter{delay: 20 * time.Millisecond},
+		EnvProvider:  fp,
+		Bootstrapper: environment.NewBootstrapper(runner),
+		Adapter:      &sleepingAdapter{delay: 20 * time.Millisecond},
 	})
 
 	cfg := config.Default()
@@ -592,8 +608,16 @@ func TestHarness_ChaosStopsWhenAgentDone(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run failed: %v", err)
 	}
-	if len(runner.commands) != 1 {
-		t.Fatalf("expected pending chaos to be canceled, got %v", runner.commands)
+	// Count chaos delete commands — only the first (at 5ms) should execute;
+	// the second (at 60ms) should be canceled because the agent finishes at 20ms.
+	chaosCount := 0
+	for _, cmd := range runner.commands {
+		if strings.Contains(cmd, "delete pod") {
+			chaosCount++
+		}
+	}
+	if chaosCount != 1 {
+		t.Fatalf("expected 1 chaos command (second should be canceled), got %d: %v", chaosCount, runner.commands)
 	}
 }
 
@@ -603,9 +627,9 @@ func TestHarness_ChaosRepeatModeReplaysSteps(t *testing.T) {
 	fp := &fakeProvider{}
 	runner := &recordingRunner{}
 	h := New(Deps{
-		EnvProvider: fp,
-		Runner:      runner,
-		Adapter:     &sleepingAdapter{delay: 35 * time.Millisecond},
+		EnvProvider:  fp,
+		Bootstrapper: environment.NewBootstrapper(runner),
+		Adapter:      &sleepingAdapter{delay: 35 * time.Millisecond},
 	})
 
 	cfg := config.Default()
@@ -648,10 +672,10 @@ func TestHarness_RunWritesChaosArtifacts(t *testing.T) {
 	runner := &recordingRunner{}
 	writer := artifact.NewWriter(t.TempDir())
 	h := New(Deps{
-		EnvProvider: fp,
-		Runner:      runner,
-		Adapter:     &sleepingAdapter{delay: 25 * time.Millisecond},
-		Writer:      writer,
+		EnvProvider:  fp,
+		Bootstrapper: environment.NewBootstrapper(runner),
+		Adapter:      &sleepingAdapter{delay: 25 * time.Millisecond},
+		Writer:       writer,
 	})
 
 	cfg := config.Default()

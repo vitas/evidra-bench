@@ -607,10 +607,6 @@ func runScenarioOnce(ctx context.Context, cfg config.Config, s *scenario.Scenari
 		Reporter:     reporter,
 		Store:        resultsStore,
 	}
-	if kp, ok := envProvider.(*environment.KindProvider); ok {
-		deps.ClusterHealthChecker = kp
-		deps.ClusterRecreator = kp
-	}
 	h := harness.New(deps)
 
 	result, err := h.Run(ctx, harness.RunRequest{
@@ -632,7 +628,9 @@ type ParallelRunOpts struct {
 
 // runScenarioOnceWithNamespace runs a scenario with a specific target namespace.
 // Used by parallel workers where each worker has its own namespace and pre-provisioned cluster.
-func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *scenario.Scenario, targetNS, kubeconfigPath string, sharedStore *store.Store) (*harness.RunResult, error) {
+func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *scenario.Scenario,
+	targetNS, kubeconfigPath string, sharedStore *store.Store,
+	provider environment.ClusterLifecycle) (*harness.RunResult, error) {
 	var agentAdapter adapter.Adapter
 	switch cfg.Adapter {
 	case "cli":
@@ -672,15 +670,13 @@ func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *sce
 		}
 	}
 
-	kindHealthChecker := environment.NewKindProvider()
 	h := harness.New(harness.Deps{
-		Bootstrapper:         bootstrapper,
-		Adapter:              agentAdapter,
-		Writer:               writer,
-		Reporter:             reporter,
-		Store:                resultsStore,
-		ClusterHealthChecker: kindHealthChecker,
-		ClusterRecreator:     kindHealthChecker,
+		EnvProvider:  provider,
+		Bootstrapper: bootstrapper,
+		Adapter:      agentAdapter,
+		Writer:       writer,
+		Reporter:     reporter,
+		Store:        resultsStore,
 	})
 
 	result, runErr := h.Run(ctx, harness.RunRequest{
@@ -1333,12 +1329,13 @@ func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*sce
 // makeScenarioRunFunc creates the function that executes a single scenario.
 // This is the core run logic shared across all execution modes.
 func makeScenarioRunFunc() orchestrator.RunFunc {
-	return func(ctx context.Context, cfg config.Config, scenarioPath, targetNS, kubeconfigPath string, sharedStore *store.Store) error {
+	return func(ctx context.Context, cfg config.Config, scenarioPath, targetNS, kubeconfigPath string,
+		sharedStore *store.Store, provider environment.ClusterLifecycle) error {
 		s, loadErr := scenario.Load(filepath.Join(cfg.ScenariosDir, scenarioPath))
 		if loadErr != nil {
 			return fmt.Errorf("load scenario: %w", loadErr)
 		}
-		_, runErr := runScenarioOnceWithNamespace(ctx, cfg, s, targetNS, kubeconfigPath, sharedStore)
+		_, runErr := runScenarioOnceWithNamespace(ctx, cfg, s, targetNS, kubeconfigPath, sharedStore, provider)
 		return runErr
 	}
 }

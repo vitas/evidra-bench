@@ -14,6 +14,7 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/environment"
 	"samebits.com/evidra-infra-bench/pkg/harness"
 	"samebits.com/evidra-infra-bench/pkg/jobqueue"
+	"samebits.com/evidra-infra-bench/pkg/scenario"
 	"samebits.com/evidra-infra-bench/pkg/store"
 	"samebits.com/evidra-infra-bench/pkg/workspace"
 )
@@ -23,7 +24,9 @@ import (
 // kubeconfigPath points to the pre-provisioned cluster.
 // targetNS is the worker's isolated namespace.
 // sharedStore persists results beyond workspace cleanup.
-type RunFunc func(ctx context.Context, cfg config.Config, scenarioPath, targetNS, kubeconfigPath string, sharedStore *store.Store) error
+// provider is the cluster lifecycle (nil when using external kubeconfig).
+type RunFunc func(ctx context.Context, cfg config.Config, scenarioPath, targetNS, kubeconfigPath string,
+	sharedStore *store.Store, provider environment.ClusterLifecycle) error
 
 // ScenarioEvent describes a scenario lifecycle transition for external reporting.
 type ScenarioEvent struct {
@@ -44,11 +47,6 @@ type ScenarioEvent struct {
 // safe for concurrent use when parallel > 1.
 type ProgressReporter interface {
 	OnScenario(ctx context.Context, event ScenarioEvent)
-}
-
-// ClusterRecreator can destroy and recreate a cluster from scratch.
-type ClusterRecreator interface {
-	RecreateCluster(ctx context.Context, clusterName string) (*environment.Handle, error)
 }
 
 // Orchestrator coordinates provisioning, parallel execution, and teardown.
@@ -90,7 +88,7 @@ func (o *Orchestrator) Provision(ctx context.Context) (string, error) {
 		o.provider = p
 	}
 
-	handle, err := o.provider.Create(ctx, o.cfg.ClusterName)
+	handle, err := o.provider.Create(ctx, o.cfg.ClusterName, scenario.KubernetesConfig{})
 	if err != nil {
 		return "", fmt.Errorf("orchestrator: provision: %w", err)
 	}
@@ -151,12 +149,6 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 	cfg := runCfg
 	runFn := o.runFn
 
-	// Resolve cluster recreator from provider (if it supports it).
-	var recreator ClusterRecreator
-	if cr, ok := o.provider.(ClusterRecreator); ok {
-		recreator = cr
-	}
-
 	// Build River worker function.
 	workerFn := func(jobCtx context.Context, args jobqueue.BenchJobArgs, ns string) error {
 		ws, wsErr := workspace.New(
@@ -195,23 +187,23 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 		}
 
 		// Proactive cluster recreate after consecutive infra failures.
-		if recreator != nil && atomic.LoadInt64(&consecutiveInfraFailures) >= infraFailureThreshold {
+		if o.provider != nil && atomic.LoadInt64(&consecutiveInfraFailures) >= infraFailureThreshold {
 			log.Printf("[worker-%d] %d consecutive infra failures — recreating cluster",
 				args.NamespaceSlot, atomic.LoadInt64(&consecutiveInfraFailures))
-			newHandle, err := recreator.RecreateCluster(jobCtx, o.cluster.ClusterName)
+			newHandle, err := o.provider.Recreate(jobCtx, o.cluster.ClusterName, scenario.KubernetesConfig{})
 			if err != nil {
 				log.Printf("[worker-%d] cluster recreate failed: %v", args.NamespaceSlot, err)
 			} else {
 				o.cluster = newHandle
 				kubeconfigPath = newHandle.KubeconfigPath
 				atomic.StoreInt64(&consecutiveInfraFailures, 0)
-				log.Printf("[worker-%d] cluster recreated, new kubeconfig: %s", args.NamespaceSlot, kubeconfigPath)
+				log.Printf("[worker-%d] cluster recreated", args.NamespaceSlot)
 			}
 		}
 
 		scenarioPath := args.ScenarioID
 		startTime := time.Now()
-		runErr := runFn(jobCtx, workerCfg, scenarioPath, ns, kubeconfigPath, sharedStore)
+		runErr := runFn(jobCtx, workerCfg, scenarioPath, ns, kubeconfigPath, sharedStore, o.provider)
 		duration := time.Since(startTime)
 		atomic.AddInt64(&completed, 1)
 		c = int(atomic.LoadInt64(&completed))
