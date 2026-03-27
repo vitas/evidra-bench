@@ -12,6 +12,16 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 )
 
+// createCommandWithExplicitConfig builds a kind create command that uses a
+// checked-in config file directly, without generating a temp file.
+func (p *KindProvider) createCommandWithExplicitConfig(clusterName, configPath string) *exec.Cmd {
+	return exec.Command("kind", "create", "cluster",
+		"--name", clusterName,
+		"--config", configPath,
+		"--wait", "60s",
+	)
+}
+
 // CommandRunner executes shell commands. Extracted for testing.
 type CommandRunner interface {
 	Run(ctx context.Context, cmd *exec.Cmd) ([]byte, error)
@@ -44,6 +54,16 @@ func (p *KindProvider) createCommand(clusterName string) *exec.Cmd {
 		"--name", clusterName,
 		"--wait", "60s",
 	)
+}
+
+// buildCreateCommand selects the right kind create command based on the
+// ClusterSpec. Explicit config path wins, then legacy generated config,
+// then plain cluster.
+func (p *KindProvider) buildCreateCommand(clusterName string, spec ClusterSpec) (*exec.Cmd, func(), error) {
+	if spec.ConfigPath != "" {
+		return p.createCommandWithExplicitConfig(clusterName, spec.ConfigPath), func() {}, nil
+	}
+	return p.createCommandWithConfig(clusterName, spec.LegacyKubernetes)
 }
 
 // createCommandWithConfig builds a kind create command that uses a config file
@@ -90,15 +110,16 @@ func (p *KindProvider) kubeconfigCommand(clusterName string) *exec.Cmd {
 	return exec.Command("kind", "get", "kubeconfig", "--name", clusterName)
 }
 
-// Create provisions a kind cluster with Kubernetes infrastructure
-// requirements applied. When k8s is zero-valued, creates a plain cluster.
-func (p *KindProvider) Create(ctx context.Context, clusterName string, k8s scenario.KubernetesConfig) (*Handle, error) {
+// Create provisions a kind cluster. When spec.ConfigPath is set, the
+// checked-in config file is used directly. Otherwise, falls back to
+// generating a config from spec.LegacyKubernetes.
+func (p *KindProvider) Create(ctx context.Context, clusterName string, spec ClusterSpec) (*Handle, error) {
 	exists, err := p.clusterExists(ctx, clusterName)
 	if err != nil {
 		return nil, fmt.Errorf("environment.KindProvider.Create: check existing cluster: %w", err)
 	}
 	if !exists || !p.ReuseExisting {
-		cmd, cleanup, err := p.createCommandWithConfig(clusterName, k8s)
+		cmd, cleanup, err := p.buildCreateCommand(clusterName, spec)
 		if err != nil {
 			return nil, fmt.Errorf("environment.KindProvider.Create: %w", err)
 		}
@@ -150,13 +171,13 @@ func (p *KindProvider) Destroy(ctx context.Context, handle *Handle) error {
 }
 
 // Recreate destroys and recreates a kind cluster from scratch.
-func (p *KindProvider) Recreate(ctx context.Context, clusterName string, k8s scenario.KubernetesConfig) (*Handle, error) {
+func (p *KindProvider) Recreate(ctx context.Context, clusterName string, spec ClusterSpec) (*Handle, error) {
 	log.Printf("[kind] recreating cluster %s (delete + create)", clusterName)
 	delCmd := p.deleteCommand(clusterName)
 	if _, err := p.Runner.Run(ctx, delCmd); err != nil {
 		log.Printf("[kind] delete during recreate (non-fatal): %v", err)
 	}
-	return p.Create(ctx, clusterName, k8s)
+	return p.Create(ctx, clusterName, spec)
 }
 
 // BuildKindConfig generates a kind cluster config YAML from KubernetesConfig.

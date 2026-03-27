@@ -59,7 +59,7 @@ func newFakeProvider(runner CommandRunner) *fakeProvider {
 	}
 }
 
-func (f *fakeProvider) Create(_ context.Context, _ string, _ scenario.KubernetesConfig) (*Handle, error) {
+func (f *fakeProvider) Create(_ context.Context, _ string, _ ClusterSpec) (*Handle, error) {
 	f.created = true
 	return f.handle, nil
 }
@@ -69,9 +69,9 @@ func (f *fakeProvider) Destroy(_ context.Context, _ *Handle) error {
 	return nil
 }
 
-func (f *fakeProvider) Recreate(ctx context.Context, name string, k8s scenario.KubernetesConfig) (*Handle, error) {
+func (f *fakeProvider) Recreate(ctx context.Context, name string, spec ClusterSpec) (*Handle, error) {
 	f.destroyed = true
-	return f.Create(ctx, name, k8s)
+	return f.Create(ctx, name, spec)
 }
 
 func TestLocalProvisioner_AcquireDefault(t *testing.T) {

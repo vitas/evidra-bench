@@ -21,7 +21,7 @@ type fakeProvider struct {
 	recreateErr    error
 }
 
-func (f *fakeProvider) Create(_ context.Context, clusterName string, _ scenario.KubernetesConfig) (*environment.Handle, error) {
+func (f *fakeProvider) Create(_ context.Context, clusterName string, _ environment.ClusterSpec) (*environment.Handle, error) {
 	return &environment.Handle{ClusterName: clusterName, KubeconfigPath: "/tmp/fake-kubeconfig"}, nil
 }
 
@@ -30,7 +30,7 @@ func (f *fakeProvider) Destroy(_ context.Context, _ *environment.Handle) error {
 	return nil
 }
 
-func (f *fakeProvider) Recreate(_ context.Context, clusterName string, _ scenario.KubernetesConfig) (*environment.Handle, error) {
+func (f *fakeProvider) Recreate(_ context.Context, clusterName string, _ environment.ClusterSpec) (*environment.Handle, error) {
 	f.recreateCalls++
 	if f.recreateErr != nil {
 		return nil, f.recreateErr

@@ -8,8 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"samebits.com/evidra-infra-bench/pkg/scenario"
 )
 
 // K3dProvider manages k3d cluster lifecycles.
@@ -33,6 +31,14 @@ func (p *K3dProvider) createCommand(clusterName string) *exec.Cmd {
 	)
 }
 
+// createCommandWithExplicitConfig builds a k3d create command that uses a
+// checked-in config file directly.
+func (p *K3dProvider) createCommandWithExplicitConfig(clusterName, configPath string) *exec.Cmd {
+	return exec.Command("k3d", "cluster", "create", clusterName,
+		"--config", configPath,
+	)
+}
+
 func (p *K3dProvider) deleteCommand(clusterName string) *exec.Cmd {
 	return exec.Command("k3d", "cluster", "delete", clusterName)
 }
@@ -46,8 +52,12 @@ func (p *K3dProvider) kubeconfigCommand(clusterName string) *exec.Cmd {
 }
 
 // Create provisions a new k3d cluster and writes a kubeconfig file.
-func (p *K3dProvider) Create(ctx context.Context, clusterName string, k8s scenario.KubernetesConfig) (*Handle, error) {
-	if k8s.CNI != "" || len(k8s.Addons) > 0 || len(k8s.Runtimes) > 0 || len(k8s.Features) > 0 {
+// When spec.ConfigPath is set, uses the checked-in config file.
+// Otherwise, creates a plain cluster (LegacyKubernetes options are not
+// supported by k3d and are logged as warnings).
+func (p *K3dProvider) Create(ctx context.Context, clusterName string, spec ClusterSpec) (*Handle, error) {
+	k8s := spec.LegacyKubernetes
+	if spec.ConfigPath == "" && (k8s.CNI != "" || len(k8s.Addons) > 0 || len(k8s.Runtimes) > 0 || len(k8s.Features) > 0) {
 		log.Printf("[k3d] warning: KubernetesConfig options not supported by k3d provider")
 	}
 	exists, err := p.clusterExists(ctx, clusterName)
@@ -62,7 +72,12 @@ func (p *K3dProvider) Create(ctx context.Context, clusterName string, k8s scenar
 				return nil, fmt.Errorf("environment.K3dProvider.Create: delete existing cluster: %w: %s", err, string(out))
 			}
 		}
-		cmd := p.createCommand(clusterName)
+		var cmd *exec.Cmd
+		if spec.ConfigPath != "" {
+			cmd = p.createCommandWithExplicitConfig(clusterName, spec.ConfigPath)
+		} else {
+			cmd = p.createCommand(clusterName)
+		}
 		if _, err := p.Runner.Run(ctx, cmd); err != nil {
 			return nil, fmt.Errorf("environment.K3dProvider.Create: %w", err)
 		}
@@ -86,13 +101,13 @@ func (p *K3dProvider) Create(ctx context.Context, clusterName string, k8s scenar
 }
 
 // Recreate tears down and re-creates the k3d cluster.
-func (p *K3dProvider) Recreate(ctx context.Context, clusterName string, k8s scenario.KubernetesConfig) (*Handle, error) {
+func (p *K3dProvider) Recreate(ctx context.Context, clusterName string, spec ClusterSpec) (*Handle, error) {
 	log.Printf("[k3d] recreating cluster %s", clusterName)
 	delCmd := p.deleteCommand(clusterName)
 	if out, err := p.Runner.Run(ctx, delCmd); err != nil {
 		return nil, fmt.Errorf("environment.K3dProvider.Recreate: delete existing cluster: %w: %s", err, string(out))
 	}
-	return p.Create(ctx, clusterName, k8s)
+	return p.Create(ctx, clusterName, spec)
 }
 
 func (p *K3dProvider) clusterExists(ctx context.Context, clusterName string) (bool, error) {

@@ -78,7 +78,7 @@ func TestKindProvider_Create_ReusesExistingCluster(t *testing.T) {
 		ReuseExisting: true,
 	}
 
-	handle, err := p.Create(context.Background(), "bench-cli", scenario.KubernetesConfig{})
+	handle, err := p.Create(context.Background(), "bench-cli", ClusterSpec{})
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -145,5 +145,71 @@ func TestBuildKindConfig_AuditLogging(t *testing.T) {
 	}
 	if !strings.Contains(cfg, "audit-policy-file") {
 		t.Fatalf("expected audit-policy-file config, got:\n%s", cfg)
+	}
+}
+
+func TestKindProvider_Create_UsesExplicitConfigPath(t *testing.T) {
+	t.Parallel()
+
+	runner := &stubRunner{
+		outputs: map[string][]byte{
+			"kind get clusters": []byte(""),
+			"kind create cluster --name bench-cli --config /repo/clusters/kind/argocd.yaml --wait 60s": []byte(""),
+			"kind get kubeconfig --name bench-cli":                                                     []byte("apiVersion: v1\nkind: Config\n"),
+		},
+	}
+	p := &KindProvider{
+		kubectlOps: kubectlOps{Runner: runner},
+	}
+
+	spec := ClusterSpec{ConfigPath: "/repo/clusters/kind/argocd.yaml"}
+	handle, err := p.Create(context.Background(), "bench-cli", spec)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if handle.ClusterName != "bench-cli" {
+		t.Fatalf("unexpected cluster: %s", handle.ClusterName)
+	}
+
+	found := false
+	for _, cmd := range runner.seen {
+		if strings.Contains(cmd, "--config /repo/clusters/kind/argocd.yaml") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected --config flag with explicit path, got commands: %v", runner.seen)
+	}
+}
+
+func TestKindProvider_Create_FallsBackToLegacyKubernetesConfig(t *testing.T) {
+	t.Parallel()
+
+	runner := &stubRunner{
+		outputs: map[string][]byte{
+			"kind get clusters": []byte(""),
+		},
+	}
+	p := &KindProvider{
+		kubectlOps: kubectlOps{Runner: runner},
+	}
+
+	spec := ClusterSpec{
+		LegacyKubernetes: scenario.KubernetesConfig{CNI: "cilium"},
+	}
+	// This will fail because the stub doesn't have the right create command,
+	// but we can verify the command was built correctly.
+	_, _ = p.Create(context.Background(), "bench-cli", spec)
+
+	// The provider should have attempted a create with a --config flag
+	// (temp file from BuildKindConfig) since cilium needs disableDefaultCNI.
+	found := false
+	for _, cmd := range runner.seen {
+		if strings.Contains(cmd, "kind create cluster") && strings.Contains(cmd, "--config") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected kind create with --config for legacy cilium config, got commands: %v", runner.seen)
 	}
 }

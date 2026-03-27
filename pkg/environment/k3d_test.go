@@ -6,8 +6,6 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
-
-	"samebits.com/evidra-infra-bench/pkg/scenario"
 )
 
 func TestK3dProvider_CreateCommand(t *testing.T) {
@@ -65,7 +63,7 @@ func TestK3dProvider_Create_ReusesExistingCluster(t *testing.T) {
 		ReuseExisting: true,
 	}
 
-	handle, err := p.Create(context.Background(), "bench-cli", scenario.KubernetesConfig{})
+	handle, err := p.Create(context.Background(), "bench-cli", ClusterSpec{})
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -96,6 +94,69 @@ func (r *k3dRunner) Run(_ context.Context, cmd *exec.Cmd) ([]byte, error) {
 	return nil, nil
 }
 
+func TestK3dProvider_Create_UsesExplicitConfigPath(t *testing.T) {
+	t.Parallel()
+
+	runner := &stubRunner{
+		outputs: map[string][]byte{
+			"k3d cluster list --no-headers":                                        []byte(""),
+			"k3d cluster create bench-cli --config /repo/clusters/k3d/argocd.yaml": []byte(""),
+			"k3d kubeconfig get bench-cli":                                         []byte("apiVersion: v1\nkind: Config\n"),
+		},
+	}
+	p := &K3dProvider{
+		kubectlOps: kubectlOps{Runner: runner},
+	}
+
+	spec := ClusterSpec{ConfigPath: "/repo/clusters/k3d/argocd.yaml"}
+	handle, err := p.Create(context.Background(), "bench-cli", spec)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if handle.ClusterName != "bench-cli" {
+		t.Fatalf("unexpected cluster: %s", handle.ClusterName)
+	}
+
+	found := false
+	for _, cmd := range runner.seen {
+		if strings.Contains(cmd, "--config /repo/clusters/k3d/argocd.yaml") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected --config flag with explicit path, got commands: %v", runner.seen)
+	}
+}
+
+func TestK3dProvider_Create_FallsBackToPlainClusterWhenSpecEmpty(t *testing.T) {
+	t.Parallel()
+
+	runner := &stubRunner{
+		outputs: map[string][]byte{
+			"k3d cluster list --no-headers":               []byte(""),
+			"k3d cluster create bench-cli --no-lb --wait": []byte(""),
+			"k3d kubeconfig get bench-cli":                []byte("apiVersion: v1\nkind: Config\n"),
+		},
+	}
+	p := &K3dProvider{
+		kubectlOps: kubectlOps{Runner: runner},
+	}
+
+	handle, err := p.Create(context.Background(), "bench-cli", ClusterSpec{})
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if handle.ClusterName != "bench-cli" {
+		t.Fatalf("unexpected cluster: %s", handle.ClusterName)
+	}
+
+	for _, cmd := range runner.seen {
+		if strings.Contains(cmd, "--config") {
+			t.Fatalf("unexpected --config flag for empty spec: %s", cmd)
+		}
+	}
+}
+
 func TestK3dProvider_Recreate_DeleteFailureIsFatal(t *testing.T) {
 	t.Parallel()
 
@@ -115,7 +176,7 @@ func TestK3dProvider_Recreate_DeleteFailureIsFatal(t *testing.T) {
 		ReuseExisting: true,
 	}
 
-	_, err := p.Recreate(context.Background(), "bench-cli", scenario.KubernetesConfig{})
+	_, err := p.Recreate(context.Background(), "bench-cli", ClusterSpec{})
 	if err == nil {
 		t.Fatal("Recreate() error = nil, want delete failure")
 	}

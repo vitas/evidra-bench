@@ -247,9 +247,9 @@ func (p *LocalProvisioner) provisionCluster(ctx context.Context, req ProvisionRe
 		return &Handle{ClusterName: req.ClusterName, KubeconfigPath: req.ExistingKubeconfig}, nil
 	}
 
-	var k8s scenario.KubernetesConfig
+	spec := ClusterSpec{}
 	if req.Scenario != nil {
-		k8s = req.Scenario.Environment.Kubernetes
+		spec.LegacyKubernetes = req.Scenario.Environment.Kubernetes
 	}
 
 	var (
@@ -257,14 +257,14 @@ func (p *LocalProvisioner) provisionCluster(ctx context.Context, req ProvisionRe
 		err    error
 	)
 	if recreate {
-		handle, err = provider.Recreate(ctx, req.ClusterName, k8s)
+		handle, err = provider.Recreate(ctx, req.ClusterName, spec)
 		if err != nil {
 			return nil, fmt.Errorf("environment.LocalProvisioner.Recreate: recreate cluster: %w", err)
 		}
 		return handle, nil
 	}
 
-	handle, err = provider.Create(ctx, req.ClusterName, k8s)
+	handle, err = provider.Create(ctx, req.ClusterName, spec)
 	if err != nil {
 		return nil, fmt.Errorf("environment.LocalProvisioner.Acquire: create cluster: %w", err)
 	}

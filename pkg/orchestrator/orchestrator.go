@@ -89,7 +89,7 @@ func (o *Orchestrator) Provision(ctx context.Context) (string, error) {
 		o.provider = p
 	}
 
-	handle, err := o.provider.Create(ctx, o.cfg.ClusterName, scenario.KubernetesConfig{})
+	handle, err := o.provider.Create(ctx, o.cfg.ClusterName, environment.ClusterSpec{})
 	if err != nil {
 		return "", fmt.Errorf("orchestrator: provision: %w", err)
 	}
@@ -374,7 +374,7 @@ func (o *Orchestrator) selectWorkerKubeconfigPath(
 	if atomic.LoadInt64(consecutiveInfraFailures) >= infraFailureThreshold {
 		log.Printf("[worker-%d] %d consecutive infra failures — recreating cluster",
 			namespaceSlot, atomic.LoadInt64(consecutiveInfraFailures))
-		newHandle, err := o.provider.Recreate(ctx, o.cluster.ClusterName, scenario.KubernetesConfig{})
+		newHandle, err := o.provider.Recreate(ctx, o.cluster.ClusterName, environment.ClusterSpec{})
 		if err != nil {
 			log.Printf("[worker-%d] cluster recreate failed: %v", namespaceSlot, err)
 		} else {
