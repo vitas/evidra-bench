@@ -14,7 +14,7 @@ set -eu
 
 ARGOCD_VERSION="v2.13.3"
 ARGOCD_NAMESPACE="argocd"
-ARGOCD_MANIFEST_URL="https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml"
+ARGOCD_MANIFEST="${EVIDRA_ASSETS_DIR}/manifests/install.yaml"
 
 echo "Installing ArgoCD ${ARGOCD_VERSION} into cluster ${EVIDRA_CLUSTER_NAME:-unknown}..."
 
@@ -22,8 +22,8 @@ echo "Installing ArgoCD ${ARGOCD_VERSION} into cluster ${EVIDRA_CLUSTER_NAME:-un
 kubectl --kubeconfig="${KUBECONFIG}" create namespace "${ARGOCD_NAMESPACE}" --dry-run=client -o yaml \
   | kubectl --kubeconfig="${KUBECONFIG}" apply -f -
 
-# Apply ArgoCD manifests from upstream.
-kubectl --kubeconfig="${KUBECONFIG}" apply -n "${ARGOCD_NAMESPACE}" -f "${ARGOCD_MANIFEST_URL}"
+# Apply vendored ArgoCD manifests.
+kubectl --kubeconfig="${KUBECONFIG}" apply -n "${ARGOCD_NAMESPACE}" -f "${ARGOCD_MANIFEST}"
 
 # Wait for the ArgoCD CRDs to be established.
 echo "Waiting for ArgoCD CRDs..."
