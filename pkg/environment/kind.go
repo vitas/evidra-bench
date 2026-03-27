@@ -235,6 +235,41 @@ func (p *KindProvider) RestartNode(ctx context.Context, clusterName string) erro
 	return nil
 }
 
+// RecreateCluster destroys and recreates a kind cluster from scratch.
+// This is safer than RestartNode which can cause IP changes (kind#2759, kind#3989).
+func (p *KindProvider) RecreateCluster(ctx context.Context, clusterName string) (*Handle, error) {
+	log.Printf("[kind] recreating cluster %s (delete + create)", clusterName)
+
+	// Delete the existing cluster.
+	delCmd := p.deleteCommand(clusterName)
+	if _, err := p.Runner.Run(ctx, delCmd); err != nil {
+		log.Printf("[kind] delete during recreate (non-fatal): %v", err)
+	}
+
+	// Recreate with default config.
+	createCmd := p.createCommand(clusterName)
+	if _, err := p.Runner.Run(ctx, createCmd); err != nil {
+		return nil, fmt.Errorf("kind.RecreateCluster: create: %w", err)
+	}
+
+	// Write kubeconfig.
+	kcCmd := p.kubeconfigCommand(clusterName)
+	out, err := p.Runner.Run(ctx, kcCmd)
+	if err != nil {
+		return nil, fmt.Errorf("kind.RecreateCluster: get kubeconfig: %w", err)
+	}
+	kubeconfigPath := filepath.Join(os.TempDir(), fmt.Sprintf("bench-cli-%s-kubeconfig", clusterName))
+	if err := os.WriteFile(kubeconfigPath, out, 0600); err != nil {
+		return nil, fmt.Errorf("kind.RecreateCluster: write kubeconfig: %w", err)
+	}
+
+	log.Printf("[kind] cluster %s recreated", clusterName)
+	return &Handle{
+		ClusterName:    clusterName,
+		KubeconfigPath: kubeconfigPath,
+	}, nil
+}
+
 // BuildKindConfig generates a kind cluster config YAML from KubernetesConfig.
 // Returns empty string when no special configuration is needed.
 func BuildKindConfig(k8s scenario.KubernetesConfig) string {

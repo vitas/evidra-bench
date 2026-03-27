@@ -609,6 +609,7 @@ func runScenarioOnce(ctx context.Context, cfg config.Config, s *scenario.Scenari
 	}
 	if kp, ok := envProvider.(*environment.KindProvider); ok {
 		deps.ClusterHealthChecker = kp
+		deps.ClusterRecreator = kp
 	}
 	h := harness.New(deps)
 
@@ -671,13 +672,15 @@ func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *sce
 		}
 	}
 
+	kindHealthChecker := environment.NewKindProvider()
 	h := harness.New(harness.Deps{
 		Bootstrapper:         bootstrapper,
 		Adapter:              agentAdapter,
 		Writer:               writer,
 		Reporter:             reporter,
 		Store:                resultsStore,
-		ClusterHealthChecker: environment.NewKindProvider(),
+		ClusterHealthChecker: kindHealthChecker,
+		ClusterRecreator:     kindHealthChecker,
 	})
 
 	result, runErr := h.Run(ctx, harness.RunRequest{

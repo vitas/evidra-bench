@@ -46,9 +46,9 @@ type ProgressReporter interface {
 	OnScenario(ctx context.Context, event ScenarioEvent)
 }
 
-// NodeRestarter can restart a degraded cluster node.
-type NodeRestarter interface {
-	RestartNode(ctx context.Context, clusterName string) error
+// ClusterRecreator can destroy and recreate a cluster from scratch.
+type ClusterRecreator interface {
+	RecreateCluster(ctx context.Context, clusterName string) (*environment.Handle, error)
 }
 
 // Orchestrator coordinates provisioning, parallel execution, and teardown.
@@ -151,10 +151,10 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 	cfg := runCfg
 	runFn := o.runFn
 
-	// Resolve node restarter from provider (if it supports it).
-	var restarter NodeRestarter
-	if nr, ok := o.provider.(NodeRestarter); ok {
-		restarter = nr
+	// Resolve cluster recreator from provider (if it supports it).
+	var recreator ClusterRecreator
+	if cr, ok := o.provider.(ClusterRecreator); ok {
+		recreator = cr
 	}
 
 	// Build River worker function.
@@ -194,15 +194,18 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 			})
 		}
 
-		// Proactive node restart after consecutive infra failures.
-		if restarter != nil && atomic.LoadInt64(&consecutiveInfraFailures) >= infraFailureThreshold {
-			log.Printf("[worker-%d] %d consecutive infra failures — proactive node restart",
+		// Proactive cluster recreate after consecutive infra failures.
+		if recreator != nil && atomic.LoadInt64(&consecutiveInfraFailures) >= infraFailureThreshold {
+			log.Printf("[worker-%d] %d consecutive infra failures — recreating cluster",
 				args.NamespaceSlot, atomic.LoadInt64(&consecutiveInfraFailures))
-			if err := restarter.RestartNode(jobCtx, o.cluster.ClusterName); err != nil {
-				log.Printf("[worker-%d] proactive restart failed: %v", args.NamespaceSlot, err)
+			newHandle, err := recreator.RecreateCluster(jobCtx, o.cluster.ClusterName)
+			if err != nil {
+				log.Printf("[worker-%d] cluster recreate failed: %v", args.NamespaceSlot, err)
 			} else {
+				o.cluster = newHandle
+				kubeconfigPath = newHandle.KubeconfigPath
 				atomic.StoreInt64(&consecutiveInfraFailures, 0)
-				log.Printf("[worker-%d] proactive restart succeeded", args.NamespaceSlot)
+				log.Printf("[worker-%d] cluster recreated, new kubeconfig: %s", args.NamespaceSlot, kubeconfigPath)
 			}
 		}
 

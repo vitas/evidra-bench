@@ -54,6 +54,12 @@ type ClusterHealthChecker interface {
 	RestartNode(ctx context.Context, clusterName string) error
 }
 
+// ClusterRecreator can destroy and recreate a cluster from scratch.
+// Preferred over node restart — avoids IP change issues (kind#2759, kind#3989).
+type ClusterRecreator interface {
+	RecreateCluster(ctx context.Context, clusterName string) (*environment.Handle, error)
+}
+
 // Deps holds all dependencies for the harness.
 type Deps struct {
 	EnvProvider          environment.Provider
@@ -64,6 +70,7 @@ type Deps struct {
 	Reporter             *report.Reporter
 	Store                *store.Store
 	ClusterHealthChecker ClusterHealthChecker
+	ClusterRecreator     ClusterRecreator
 }
 
 // RunRequest describes what to run.
@@ -285,18 +292,41 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}
 	}
 
-	// Step 2c: Cluster health probe — detect degraded node before bootstrap.
+	// Step 2c: Canary pod — verify scheduling works before committing to bootstrap.
+	if req.Config.ReuseCluster && kubeconfigExists {
+		canaryErr := h.runCanaryPod(ctx, handle.KubeconfigPath, ns)
+		if canaryErr != nil {
+			log.Printf("[harness] canary pod failed: %v", canaryErr)
+			// Canary failure means the cluster is too degraded for this scenario.
+			// If we have a cluster recreator, try full recreate (safer than node restart,
+			// avoids kind IP change issues from kind#2759, kind#3989).
+			if h.deps.ClusterRecreator != nil {
+				log.Printf("[harness] recreating cluster %s", req.Config.ClusterName)
+				newHandle, recreateErr := h.deps.ClusterRecreator.RecreateCluster(ctx, req.Config.ClusterName)
+				if recreateErr != nil {
+					return nil, &InfraError{Err: fmt.Errorf("harness.Run: canary failed and cluster recreate failed: %w", recreateErr)}
+				}
+				handle = newHandle
+				// Recreate the namespace on the fresh cluster.
+				createCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", handle.KubeconfigPath,
+					"create", "namespace", ns)
+				if out, err := createCmd.CombinedOutput(); err != nil {
+					if !strings.Contains(string(out), "already exists") {
+						log.Printf("[harness] namespace create after recreate (non-fatal): %s %v", string(out), err)
+					}
+				}
+				log.Printf("[harness] cluster recreated, continuing with fresh cluster")
+			} else {
+				return nil, &InfraError{Err: fmt.Errorf("harness.Run: canary pod failed, cluster degraded: %w", canaryErr)}
+			}
+		}
+	}
+
+	// Step 2d: Cluster health probe — check node conditions.
 	if h.deps.ClusterHealthChecker != nil {
 		if err := h.deps.ClusterHealthChecker.HealthCheck(ctx, handle.KubeconfigPath); err != nil {
-			log.Printf("[harness] cluster unhealthy, attempting node restart: %v", err)
-			if restartErr := h.deps.ClusterHealthChecker.RestartNode(ctx, req.Config.ClusterName); restartErr != nil {
-				return nil, &InfraError{Err: fmt.Errorf("harness.Run: cluster unhealthy and restart failed: %w", restartErr)}
-			}
-			// Re-check after restart.
-			if err := h.deps.ClusterHealthChecker.HealthCheck(ctx, handle.KubeconfigPath); err != nil {
-				return nil, &InfraError{Err: fmt.Errorf("harness.Run: cluster still unhealthy after restart: %w", err)}
-			}
-			log.Printf("[harness] cluster recovered after restart")
+			log.Printf("[harness] cluster health check warning: %v", err)
+			// Health check is informational after canary — canary is the gate.
 		}
 	}
 
@@ -1291,6 +1321,25 @@ func breakCommandArgs(kubeconfigPath string, s *scenario.Scenario) ([]string, er
 	default:
 		return nil, fmt.Errorf("unsupported break type: %s", s.Break.Type)
 	}
+}
+
+// runCanaryPod runs a lightweight pod to verify the cluster can schedule and pull images.
+// Uses busybox (typically cached on kind nodes) as a basic scheduling test.
+func (h *Harness) runCanaryPod(ctx context.Context, kubeconfigPath, ns string) error {
+	// Clean up any leftover canary pod from a prior failed attempt.
+	delCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
+		"delete", "pod", "bench-canary", "-n", ns, "--ignore-not-found", "--timeout=10s")
+	_, _ = delCmd.CombinedOutput()
+
+	cmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
+		"run", "bench-canary", "-n", ns,
+		"--image=busybox:1.36", "--restart=Never",
+		"--rm", "-i", "--timeout=30s", "--", "echo", "ok")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("canary pod failed: %w: %s", err, string(out))
+	}
+	return nil
 }
 
 // forceCleanNamespace force-deletes a namespace and waits for it to be fully removed.
