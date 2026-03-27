@@ -3,6 +3,7 @@ package environment
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -147,6 +148,40 @@ func (p *KindProvider) Destroy(ctx context.Context, handle *Handle) error {
 		return fmt.Errorf("environment.KindProvider.Destroy: %w", err)
 	}
 	_ = os.Remove(handle.KubeconfigPath)
+	return nil
+}
+
+// HealthCheck verifies the cluster can schedule a pod.
+// Returns nil if healthy, error if the node is degraded.
+func (p *KindProvider) HealthCheck(ctx context.Context, kubeconfigPath string) error {
+	cmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
+		"run", "health-probe", "--image=busybox:1.36", "--restart=Never",
+		"--rm", "-i", "--timeout=30s", "--", "echo", "ok")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("cluster health check failed: %w: %s", err, string(out))
+	}
+	return nil
+}
+
+// RestartNode restarts the Kind cluster's Docker container and waits for readiness.
+func (p *KindProvider) RestartNode(ctx context.Context, clusterName string) error {
+	containerName := clusterName + "-control-plane"
+	log.Printf("[kind] restarting node %s", containerName)
+	cmd := exec.CommandContext(ctx, "docker", "restart", containerName)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("node restart failed: %w: %s", err, string(out))
+	}
+	// Wait for API server to come back.
+	log.Printf("[kind] waiting for API server after restart")
+	kubeconfigPath := filepath.Join(os.TempDir(), fmt.Sprintf("bench-cli-%s-kubeconfig", clusterName))
+	waitCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
+		"wait", "--for=condition=Ready", "node", containerName, "--timeout=60s")
+	if waitOut, waitErr := waitCmd.CombinedOutput(); waitErr != nil {
+		return fmt.Errorf("node not ready after restart: %w: %s", waitErr, string(waitOut))
+	}
+	log.Printf("[kind] node %s restarted and ready", containerName)
 	return nil
 }
 
