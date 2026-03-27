@@ -586,6 +586,10 @@ func resolveLocalAdapter(name string) (adapter.Adapter, error) {
 }
 
 func runScenarioOnce(ctx context.Context, cfg config.Config, s *scenario.Scenario) (*harness.RunResult, error) {
+	if err := s.ProviderCompatibilityError(cfg.EnvironmentProvider); err != nil {
+		return nil, err
+	}
+
 	var agentAdapter adapter.Adapter
 	var err error
 	if cfg.Adapter != "a2a" {
@@ -658,6 +662,10 @@ type ParallelRunOpts struct {
 func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *scenario.Scenario,
 	targetNS, kubeconfigPath string, sharedStore *store.Store,
 	provider environment.ClusterLifecycle) (*harness.RunResult, error) {
+	if err := s.ProviderCompatibilityError(cfg.EnvironmentProvider); err != nil {
+		return nil, err
+	}
+
 	var agentAdapter adapter.Adapter
 	var err error
 	if cfg.Adapter != "a2a" {
@@ -1364,8 +1372,12 @@ func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*sce
 		return err
 	}
 
-	writef(cmd.OutOrStdout(), "\nCompleted: %d total, %d passed, %d failed\n",
+	writef(cmd.OutOrStdout(), "\nCompleted: %d total, %d passed, %d failed",
 		result.Total, result.Passed, result.Failed)
+	if skipped > 0 || result.Skipped > 0 {
+		writef(cmd.OutOrStdout(), ", Skipped: %d", int64(skipped)+result.Skipped)
+	}
+	writef(cmd.OutOrStdout(), "\n")
 	return nil
 }
 

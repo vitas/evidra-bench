@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"io"
 	"testing"
 
@@ -8,13 +9,12 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 )
 
-func TestRunCertifySingle_ExcludesIncompatibleScenariosFromTotals(t *testing.T) {
+func TestCertifyFiltering_ExcludesIncompatibleAndSkipped(t *testing.T) {
 	t.Parallel()
 
-	// runCertifySingle loads from disk, so we need real scenario files.
-	// Instead, we test the filtering logic directly: given a set of scenarios
-	// with mixed provider compatibility, verify that filterRunnableScenarios
-	// (used by runCertifySingle) produces correct totals and skipped count.
+	// Tests the filtering logic used by runCertifySingle and executeCertifySingle.
+	// Full integration test of runCertifySingle would require real scenario files
+	// on disk; the provider guard in runScenarioOnce is the backstop.
 
 	scenarios := []*scenario.Scenario{
 		{
@@ -51,16 +51,31 @@ func TestRunCertifySingle_ExcludesIncompatibleScenariosFromTotals(t *testing.T) 
 	if skipped != 2 {
 		t.Fatalf("expected 2 skipped, got %d", skipped)
 	}
+}
 
-	// Verify the Skipped field would be set correctly in CertResult.
-	cert := CertResult{
-		Total:   len(runnable),
-		Skipped: skipped,
+func TestProviderGuardInSharedRunPaths(t *testing.T) {
+	t.Parallel()
+
+	// Verify that runScenarioOnce rejects incompatible scenarios directly,
+	// not just through the caller-level filter. This is the backstop that
+	// catches callers (like skill-delta run) that bypass filterRunnableScenarios.
+
+	s := &scenario.Scenario{
+		ID:          "k3d-only-scenario",
+		Environment: scenario.EnvironmentConfig{Providers: []string{"k3d"}},
 	}
-	if cert.Total != 2 {
-		t.Fatalf("Total = %d, want 2", cert.Total)
+
+	cfg := config.Default()
+	cfg.EnvironmentProvider = "kind"
+	cfg.DryRun = true
+
+	_, err := runScenarioOnce(t.Context(), cfg, s)
+	if err == nil {
+		t.Fatal("expected provider incompatibility error")
 	}
-	if cert.Skipped != 2 {
-		t.Fatalf("Skipped = %d, want 2", cert.Skipped)
+
+	var incompatible *scenario.IncompatibleProviderError
+	if !errors.As(err, &incompatible) {
+		t.Fatalf("expected IncompatibleProviderError, got: %T: %v", err, err)
 	}
 }
