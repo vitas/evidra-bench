@@ -58,17 +58,26 @@ func (k *kubectlOps) HealthCheck(ctx context.Context, kubeconfigPath string) err
 		}
 	}
 
+	// Check for stuck pending pods outside system namespaces.
+	// System pods (coredns, local-path-provisioner) are briefly Pending after cluster create — that's normal.
 	pendingCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
 		"get", "pods", "--all-namespaces", "--field-selector=status.phase=Pending",
-		"-o", "jsonpath={.items[*].metadata.name}")
+		"-o", "jsonpath={range .items[*]}{.metadata.namespace}/{.metadata.name} {end}")
 	pendingOut, err := k.Runner.Run(ctx, pendingCmd)
 	if err != nil {
 		log.Printf("[health] pending pod check failed (non-fatal): %v", err)
 		return nil
 	}
-	pending := strings.TrimSpace(string(pendingOut))
-	if pending != "" {
-		return fmt.Errorf("health check: stuck pending pods: %s", pending)
+	systemNS := map[string]bool{"kube-system": true, "local-path-storage": true, "kube-node-lease": true}
+	var stuckPods []string
+	for _, pod := range strings.Fields(string(pendingOut)) {
+		parts := strings.SplitN(pod, "/", 2)
+		if len(parts) == 2 && !systemNS[parts[0]] {
+			stuckPods = append(stuckPods, pod)
+		}
+	}
+	if len(stuckPods) > 0 {
+		return fmt.Errorf("health check: stuck pending pods: %s", strings.Join(stuckPods, ", "))
 	}
 	return nil
 }
