@@ -139,25 +139,88 @@ func TestLocalProvisioner_AcquireArgocd_InstallsAddon(t *testing.T) {
 	}
 }
 
-func TestLocalProvisioner_AcquireAWSLocalStack_NotYetImplemented(t *testing.T) {
+func TestLocalProvisioner_AcquireAWSLocalStack_SetsExtraEnv(t *testing.T) {
 	t.Parallel()
+
 	runner := newFakeRunner()
 	provider := newFakeProvider(runner)
+
+	started := false
+	stopped := false
+	fakeEndpoint := "http://localhost:4566"
+
 	p := &LocalProvisioner{
 		Providers: map[string]ClusterLifecycle{"kind": provider},
 		Runner:    runner,
+		StartLocalStack: func(_ context.Context, _ string, _ []string) (*LocalStackHandle, error) {
+			started = true
+			return &LocalStackHandle{ContainerID: "fake-container", EndpointURL: fakeEndpoint}, nil
+		},
+		StopLocalStack: func(_ context.Context, _ *LocalStackHandle) error {
+			stopped = true
+			return nil
+		},
 	}
 
-	_, err := p.Acquire(context.Background(), ProvisionRequest{
+	lease, err := p.Acquire(context.Background(), ProvisionRequest{
 		Profile:      scenario.ProfileAWSLocalStack,
 		ProviderName: "kind",
 		ClusterName:  "test-aws",
+		Scenario: &scenario.Scenario{
+			Environment: scenario.EnvironmentConfig{
+				Cloud: scenario.CloudConfig{
+					Provider: "localstack",
+					Services: []string{"s3"},
+				},
+			},
+		},
 	})
-	if err == nil {
-		t.Fatal("expected error for aws-localstack profile")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(err.Error(), "not yet implemented") {
-		t.Fatalf("expected 'not yet implemented' error, got: %v", err)
+
+	if !started {
+		t.Fatal("expected StartLocalStack to be called")
+	}
+
+	// Verify AWS env vars are present.
+	envMap := make(map[string]string)
+	for _, kv := range lease.ExtraEnv {
+		parts := strings.SplitN(kv, "=", 2)
+		if len(parts) == 2 {
+			envMap[parts[0]] = parts[1]
+		}
+	}
+
+	for _, key := range []string{"AWS_ENDPOINT_URL", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_DEFAULT_REGION", "PATH"} {
+		if _, ok := envMap[key]; !ok {
+			t.Errorf("expected ExtraEnv to contain %s", key)
+		}
+	}
+
+	if envMap["AWS_ENDPOINT_URL"] != fakeEndpoint {
+		t.Errorf("expected AWS_ENDPOINT_URL=%s, got %q", fakeEndpoint, envMap["AWS_ENDPOINT_URL"])
+	}
+	if envMap["AWS_ACCESS_KEY_ID"] != "test" {
+		t.Errorf("expected AWS_ACCESS_KEY_ID=test, got %q", envMap["AWS_ACCESS_KEY_ID"])
+	}
+	if envMap["AWS_DEFAULT_REGION"] != "us-east-1" {
+		t.Errorf("expected AWS_DEFAULT_REGION=us-east-1, got %q", envMap["AWS_DEFAULT_REGION"])
+	}
+
+	if !provider.created {
+		t.Fatal("expected provider.Create to be called")
+	}
+	if lease.Profile != scenario.ProfileAWSLocalStack {
+		t.Fatalf("expected profile aws-localstack, got %q", lease.Profile)
+	}
+
+	// Release should stop LocalStack.
+	if err := lease.Release(context.Background()); err != nil {
+		t.Fatalf("unexpected release error: %v", err)
+	}
+	if !stopped {
+		t.Fatal("expected StopLocalStack to be called on release")
 	}
 }
 

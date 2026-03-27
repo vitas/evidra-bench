@@ -128,75 +128,33 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		KubeconfigPath: req.KubeconfigPath,
 	}
 
-	// Step 1b: Start LocalStack if scenario requires cloud resources.
-	var localstackHandle *environment.LocalStackHandle
-	if s.Environment.Cloud.Provider == "localstack" {
-		lsHandle, lsErr := environment.StartLocalStack(ctx, req.Config.ClusterName, s.Environment.Cloud.Services)
-		if lsErr != nil {
-			return nil, fmt.Errorf("harness.Run: start localstack: %w", lsErr)
+	// Step 1b: Run cloud setup script if the scenario provides one.
+	// LocalStack lifecycle is now managed by the provisioner — ExtraEnv already
+	// contains AWS_ENDPOINT_URL, credentials, and the wrapper PATH.
+	if s.Environment.Cloud.Setup != "" {
+		setupCmd := exec.CommandContext(ctx, "bash", s.Environment.Cloud.Setup)
+		setupCmd.Env = append(os.Environ(), req.ExtraEnv...)
+		if out, setupErr := setupCmd.CombinedOutput(); setupErr != nil {
+			return nil, fmt.Errorf("harness.Run: cloud setup: %s: %w", string(out), setupErr)
 		}
-		localstackHandle = lsHandle
-		defer func() {
-			if !req.Config.ReuseCluster {
-				if err := environment.StopLocalStack(ctx, localstackHandle); err != nil {
-					log.Printf("[harness] warning: stop localstack: %v", err)
-				}
-			}
-		}()
+	}
 
-		awsEnv := map[string]string{
-			"AWS_ENDPOINT_URL":      lsHandle.EndpointURL,
-			"AWS_ACCESS_KEY_ID":     "test",
-			"AWS_SECRET_ACCESS_KEY": "test",
-			"AWS_DEFAULT_REGION":    "us-east-1",
-		}
-
-		// Create a wrapper script for `aws` that injects --endpoint-url.
-		// This works with all AWS CLI versions (env var requires 2.13+).
-		awsBinDir, err := os.MkdirTemp("", "evidra-aws-bin-*")
-		if err != nil {
-			return nil, fmt.Errorf("harness.Run: create aws wrapper dir: %w", err)
-		}
-		awsWrapper := filepath.Join(awsBinDir, "aws")
-		if err := os.WriteFile(awsWrapper, []byte(fmt.Sprintf(
-			"#!/bin/sh\nexec /usr/local/bin/aws --endpoint-url %s \"$@\"\n", lsHandle.EndpointURL,
-		)), 0755); err != nil {
-			return nil, fmt.Errorf("harness.Run: write aws wrapper: %w", err)
-		}
-		defer func() { _ = os.RemoveAll(awsBinDir) }()
-
-		// Prepend wrapper dir to PATH so `aws` resolves to our wrapper.
-		awsEnv["PATH"] = awsBinDir + ":" + os.Getenv("PATH")
-
-		// Set AWS env vars on the process so verifier checks can inherit them.
-		// This is safe: these are test credentials for a local LocalStack container.
-		for k, v := range awsEnv {
-			if err := os.Setenv(k, v); err != nil {
-				return nil, fmt.Errorf("harness.Run: set %s: %w", k, err)
-			}
-		}
-		defer func() {
-			for k := range awsEnv {
-				_ = os.Unsetenv(k)
-			}
-		}()
-
-		// Build AWS env vars for subprocess injection (not process-global).
-		var awsEnvSlice []string
-		for k, v := range awsEnv {
-			awsEnvSlice = append(awsEnvSlice, fmt.Sprintf("%s=%s", k, v))
-		}
-		req.ExtraEnv = append(req.ExtraEnv, awsEnvSlice...)
-
-		// Run cloud setup script if specified.
-		if s.Environment.Cloud.Setup != "" {
-			setupCmd := exec.CommandContext(ctx, "bash", s.Environment.Cloud.Setup)
-			setupCmd.Env = append(os.Environ(), awsEnvSlice...)
-			if out, setupErr := setupCmd.CombinedOutput(); setupErr != nil {
-				return nil, fmt.Errorf("harness.Run: cloud setup: %s: %w", string(out), setupErr)
+	// Set AWS env vars on the process so verifier checks can inherit them.
+	// This is safe: these are test credentials for a local LocalStack container.
+	for _, kv := range req.ExtraEnv {
+		if parts := strings.SplitN(kv, "=", 2); len(parts) == 2 {
+			if err := os.Setenv(parts[0], parts[1]); err != nil {
+				return nil, fmt.Errorf("harness.Run: set %s: %w", parts[0], err)
 			}
 		}
 	}
+	defer func() {
+		for _, kv := range req.ExtraEnv {
+			if parts := strings.SplitN(kv, "=", 2); len(parts) == 2 {
+				_ = os.Unsetenv(parts[0])
+			}
+		}
+	}()
 
 	// Step 2: Force-clean stale namespace before bootstrap.
 	// Namespace deletion is async and can leave finalizers hanging (kubernetes#53327),
