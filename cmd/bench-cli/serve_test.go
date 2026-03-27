@@ -64,6 +64,41 @@ func TestBuildCertifyRunConfig_UsesFallbacksWhenRequestOmitted(t *testing.T) {
 	}
 }
 
+func TestBuildCertifyRunConfig_A2APreservesAdapter(t *testing.T) {
+	t.Parallel()
+
+	base := config.Default()
+	base.Provider = "claude"
+	base.Adapter = "cli"
+
+	req := CertifyRequest{Model: "sonnet"}
+	req.Config.Adapter = "a2a"
+
+	got := buildCertifyRunConfig(base, req)
+	if got.Adapter != "a2a" {
+		t.Fatalf("Adapter = %q, want a2a", got.Adapter)
+	}
+}
+
+func TestBuildCertifyRunConfig_A2ADoesNotDefaultProvider(t *testing.T) {
+	t.Parallel()
+
+	base := config.Default()
+	base.Provider = ""
+	base.Adapter = "cli"
+
+	req := CertifyRequest{Model: "sonnet"}
+	req.Config.Adapter = "a2a"
+
+	got := buildCertifyRunConfig(base, req)
+	if got.Provider != "" {
+		t.Fatalf("Provider = %q, want empty", got.Provider)
+	}
+	if got.Adapter != "a2a" {
+		t.Fatalf("Adapter = %q, want a2a", got.Adapter)
+	}
+}
+
 func TestBuildCertifyRunConfig_EvidenceModeNoneClearsConflicts(t *testing.T) {
 	t.Parallel()
 
@@ -225,6 +260,33 @@ func TestEvidraReporter_SubmitBenchRunUsesExplicitEvidenceMode(t *testing.T) {
 
 	if got["evidence_mode"] != "none" {
 		t.Fatalf("evidence_mode = %v, want none", got["evidence_mode"])
+	}
+}
+
+func TestEvidraReporter_SubmitBenchRunUsesA2AAdapter(t *testing.T) {
+	t.Parallel()
+
+	var got map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/bench/runs" {
+			t.Fatalf("path = %q, want /v1/bench/runs", r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		w.WriteHeader(http.StatusCreated)
+	}))
+	t.Cleanup(server.Close)
+
+	reporter := &evidraReporter{
+		evidraURL:    server.URL,
+		evidenceMode: "none",
+		adapter:      "a2a",
+	}
+	reporter.submitBenchRun(orchestratorScenarioEventForTest())
+
+	if got["adapter"] != "a2a" {
+		t.Fatalf("adapter = %v, want a2a", got["adapter"])
 	}
 }
 

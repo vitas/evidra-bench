@@ -154,12 +154,13 @@ func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string
 			evidraURL = baseCfg.EvidraURL
 		}
 
-		reporter := &evidraReporter{
-			progressURL:  progressURL,
-			evidraURL:    evidraURL,
-			authToken:    authToken,
-			evidenceMode: config.EffectiveEvidenceMode(runCfg),
-		}
+			reporter := &evidraReporter{
+				progressURL:  progressURL,
+				evidraURL:    evidraURL,
+				authToken:    authToken,
+				evidenceMode: config.EffectiveEvidenceMode(runCfg),
+				adapter:      runCfg.Adapter,
+			}
 
 		go func() {
 			runCtx := context.Background()
@@ -184,13 +185,10 @@ func buildCertifyRunConfig(baseCfg config.Config, req CertifyRequest) config.Con
 	if req.Provider != "" {
 		runCfg.Provider = req.Provider
 	}
-	if runCfg.Provider == "" {
+	if req.Config.Adapter == "a2a" {
+		runCfg.Adapter = "a2a"
+	} else if runCfg.Provider == "" {
 		runCfg.Provider = "bifrost"
-	}
-	// Only override adapter if provider mode is not active.
-	// Provider mode uses its own agent loop, not CLI/MCP adapters.
-	if req.Config.Adapter != "" && runCfg.Provider == "" {
-		runCfg.Adapter = req.Config.Adapter
 	}
 	if req.Config.TimeoutPerScenario > 0 {
 		runCfg.Timeout = time.Duration(req.Config.TimeoutPerScenario) * time.Second
@@ -214,6 +212,7 @@ type evidraReporter struct {
 	evidraURL    string // POST bench runs here
 	authToken    string // Bearer token for both endpoints
 	evidenceMode string // explicit evidence mode for run submissions
+	adapter      string // configured bench execution mode
 }
 
 // OnScenario sends a progress webhook and (on completion) submits the bench run.
@@ -274,12 +273,16 @@ func (r *evidraReporter) submitBenchRun(ev orchestrator.ScenarioEvent) {
 	if r.evidraURL == "" {
 		return
 	}
+	adapterName := "bench-cli"
+	if r.adapter == "a2a" {
+		adapterName = "a2a"
+	}
 	run := map[string]any{
 		"id":               ev.RunID,
 		"scenario_id":      ev.ScenarioID,
 		"model":            ev.Model,
 		"provider":         ev.Provider,
-		"adapter":          "bench-cli",
+		"adapter":          adapterName,
 		"evidence_mode":    r.evidenceMode,
 		"passed":           ev.Passed,
 		"exit_code":        ev.ExitCode,
