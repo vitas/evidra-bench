@@ -13,6 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"samebits.com/evidra-infra-bench/pkg/config"
+	"samebits.com/evidra-infra-bench/pkg/environment"
 	"samebits.com/evidra-infra-bench/pkg/harness"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 )
@@ -340,10 +341,40 @@ func (a *App) runScenario() tea.Cmd {
 			return RunFinishedMsg{Err: fmt.Errorf("agent command not set — press 'e' to configure")}
 		}
 
-		h := harness.New(a.harnessDeps)
-		result, err := h.Run(context.Background(), harness.RunRequest{
-			Config:   cfg,
-			Scenario: s,
+		ctx := context.Background()
+
+		// Acquire a lease from the provisioner.
+		cfg.EnvironmentProvider = a.cfg.EnvironmentProvider
+		if cfg.EnvironmentProvider == "" {
+			cfg.EnvironmentProvider = "kind"
+		}
+		providerName := cfg.EnvironmentProvider
+		providers := map[string]environment.ClusterLifecycle{
+			"kind": environment.NewKindProvider(),
+			"k3d":  environment.NewK3dProvider(),
+		}
+		assetsRoot := filepath.Dir(a.scenariosDir)
+		provisioner := environment.NewLocalProvisioner(providers, &environment.ExecRunner{}, assetsRoot)
+		lease, err := provisioner.Acquire(ctx, environment.ProvisionRequest{
+			Scenario:     s,
+			Profile:      s.ResolvedProfile(),
+			ProviderName: providerName,
+			ClusterName:  cfg.ClusterName,
+			ReuseCluster: cfg.ReuseCluster,
+		})
+		if err != nil {
+			return RunFinishedMsg{Err: fmt.Errorf("acquire lease: %w", err)}
+		}
+		defer func() { _ = lease.Release(ctx) }()
+
+		deps := a.harnessDeps
+		deps.EnvProvider = lease.Provider
+		h := harness.New(deps)
+		result, err := h.Run(ctx, harness.RunRequest{
+			Config:         cfg,
+			Scenario:       s,
+			KubeconfigPath: lease.KubeconfigPath,
+			ExtraEnv:       lease.ExtraEnv,
 		})
 		return RunFinishedMsg{Result: result, Err: err}
 	}
