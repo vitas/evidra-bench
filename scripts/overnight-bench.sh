@@ -1,5 +1,5 @@
 #!/bin/sh
-set -eu
+set -u
 
 # Overnight benchmark — seeds the evidra.cc dashboard with real data.
 #
