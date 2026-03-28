@@ -210,7 +210,7 @@ func TestBuildCertifyRunConfig_EvidenceModeSmartOverridesDefaults(t *testing.T) 
 func TestHandleCertifyAPI_RejectsUnsupportedEvidenceMode(t *testing.T) {
 	t.Parallel()
 
-	handler := handleCertifyAPI(config.Default(), &noopParallelRunner{}, t.TempDir())
+	handler := handleCertifyAPI(config.Default(), newNoopParallelRunner(), t.TempDir())
 	req := httptest.NewRequest(http.MethodPost, "/v1/certify", strings.NewReader(`{"config":{"evidence_mode":"proxy"}}`))
 	rec := httptest.NewRecorder()
 
@@ -323,14 +323,27 @@ func orchestratorScenarioEventForTest() orchestrator.ScenarioEvent {
 }
 
 type noopParallelRunner struct {
-	called    bool
+	done      chan struct{}
 	scenarios []string
 }
 
+func newNoopParallelRunner() *noopParallelRunner {
+	return &noopParallelRunner{done: make(chan struct{}, 1)}
+}
+
 func (r *noopParallelRunner) RunParallel(_ context.Context, _ config.Config, _ orchestrator.ProgressReporter, scenarios []string, _ []string, _ int, _ int, _ string) (*orchestrator.RunResult, error) {
-	r.called = true
 	r.scenarios = scenarios
+	r.done <- struct{}{}
 	return &orchestrator.RunResult{}, nil
+}
+
+func (r *noopParallelRunner) waitCalled(t *testing.T) {
+	t.Helper()
+	select {
+	case <-r.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("runner was not called within timeout")
+	}
 }
 
 // writeTestScenario creates a minimal scenario YAML in dir/category/name/scenario.yaml.
@@ -373,7 +386,7 @@ func TestServeCertifyParallel_RejectsNonDefaultSharedProfiles(t *testing.T) {
 	cfg.ScenariosDir = dir
 	cfg.EnvironmentProvider = "kind"
 
-	runner := &noopParallelRunner{}
+	runner := newNoopParallelRunner()
 	handler := handleCertifyAPI(cfg, runner, t.TempDir())
 
 	body := `{"model":"sonnet","scenarios":["s-default","s-argocd"]}`
@@ -391,8 +404,12 @@ func TestServeCertifyParallel_RejectsNonDefaultSharedProfiles(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), "shared-cluster parallel") {
 		t.Fatalf("body = %q, want shared-cluster parallel mention", rec.Body.String())
 	}
-	if runner.called {
+	// Runner should not be called — give a short window to confirm.
+	select {
+	case <-runner.done:
 		t.Fatal("runner should not be called when profile validation fails")
+	case <-time.After(100 * time.Millisecond):
+		// expected
 	}
 }
 
@@ -434,7 +451,7 @@ func TestHandleCertifyAPI_FiltersIncompatibleScenarios(t *testing.T) {
 	cfg.ScenariosDir = dir
 	cfg.EnvironmentProvider = "kind"
 
-	runner := &noopParallelRunner{}
+	runner := newNoopParallelRunner()
 	handler := handleCertifyAPI(cfg, runner, t.TempDir())
 
 	body := `{"model":"sonnet","scenarios":["s-kind","s-k3d","s-all"]}`
@@ -460,10 +477,9 @@ func TestHandleCertifyAPI_FiltersIncompatibleScenarios(t *testing.T) {
 		t.Fatalf("skipped = %q, want 1", resp["skipped"])
 	}
 
-	// Wait briefly for goroutine to call runner.
-	time.Sleep(50 * time.Millisecond)
+	runner.waitCalled(t)
 
-	if !runner.called {
+	if len(runner.scenarios) == 0 {
 		t.Fatal("runner was not called")
 	}
 	// Verify only compatible scenario paths were passed to runner.
@@ -482,7 +498,7 @@ func TestHandleCertifyAPI_RejectsFullyIncompatibleRequest(t *testing.T) {
 	cfg.ScenariosDir = dir
 	cfg.EnvironmentProvider = "kind"
 
-	runner := &noopParallelRunner{}
+	runner := newNoopParallelRunner()
 	handler := handleCertifyAPI(cfg, runner, t.TempDir())
 
 	body := `{"model":"sonnet","scenarios":["s-k3d-only"]}`
@@ -497,7 +513,10 @@ func TestHandleCertifyAPI_RejectsFullyIncompatibleRequest(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), "incompatible") {
 		t.Fatalf("body = %q, want incompatible error", rec.Body.String())
 	}
-	if runner.called {
+	select {
+	case <-runner.done:
 		t.Fatal("runner should not be called when all scenarios are incompatible")
+	case <-time.After(100 * time.Millisecond):
+		// expected
 	}
 }
