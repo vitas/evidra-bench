@@ -3,9 +3,8 @@ import type { StackData } from "./nodes/StackNode";
 import type { BreakData } from "./nodes/BreakNode";
 import type { VerifyData } from "./nodes/VerifyNode";
 import type { TrapData } from "./nodes/TrapNode";
-import type { InfraData } from "./nodes/InfraNode";
 
-export type NodeData = StackData | BreakData | VerifyData | TrapData | InfraData;
+export type NodeData = StackData | BreakData | VerifyData | TrapData;
 
 export interface PuzzleMetadata {
   name: string;
@@ -277,45 +276,18 @@ export function generateScenario(
   lines.push("prompt: prompts/task.md");
   lines.push(`timeout: ${toYamlString(metadata.timeLimit)}`);
 
-  // Environment block: profile, providers, kubernetes infra, and/or cloud config.
-  const infraNodes = nodes.filter(
-    (n) => (n.data as NodeData).kind === "infra",
-  );
-  if (infraNodes.length > 1) {
-    warnings.push("Multiple Infra blocks found. Only the first one will be used.");
-  }
-  const infraData = infraNodes[0]?.data as InfraData | undefined;
-  const hasInfra = infraData && (infraData.cni || infraData.addons.length > 0 || infraData.runtimes.length > 0 || infraData.features.length > 0);
+  // Environment block: profile, providers, and/or cloud config.
   const isAws = metadata.category === "aws";
   const hasProfile = metadata.profile !== "default";
   const hasProviders = metadata.providers.length > 0;
 
-  if (hasInfra || isAws || hasProfile || hasProviders) {
+  if (isAws || hasProfile || hasProviders) {
     lines.push("environment:");
     if (hasProfile) {
       lines.push(`  profile: ${metadata.profile}`);
     }
     if (hasProviders) {
       lines.push(`  providers: [${metadata.providers.join(", ")}]`);
-    }
-    if (hasInfra) {
-      lines.push("  kubernetes:");
-      if (infraData.cni) {
-        lines.push(`    cni: ${infraData.cni}`);
-      }
-      if (infraData.addons.length > 0) {
-        lines.push(`    addons: [${infraData.addons.join(", ")}]`);
-      }
-      if (infraData.runtimes.length > 0) {
-        lines.push("    runtimes:");
-        for (const rt of infraData.runtimes) {
-          lines.push(`      - name: ${rt}`);
-          if (rt === "gvisor") lines.push("        handler: runsc");
-        }
-      }
-      if (infraData.features.length > 0) {
-        lines.push(`    features: [${infraData.features.join(", ")}]`);
-      }
     }
     if (isAws) {
       lines.push("  cloud:");

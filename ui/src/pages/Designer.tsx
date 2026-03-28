@@ -36,7 +36,6 @@ import { StackNode, type StackData } from "../components/designer/nodes/StackNod
 import { BreakNode, type BreakData } from "../components/designer/nodes/BreakNode";
 import { VerifyNode, type VerifyData } from "../components/designer/nodes/VerifyNode";
 import { TrapNode, type TrapData } from "../components/designer/nodes/TrapNode";
-import { InfraNode, type InfraData } from "../components/designer/nodes/InfraNode";
 import type { PuzzleMetadata, NodeData } from "../components/designer/yaml-generator";
 import { PublishButton } from "../components/designer/PublishButton";
 
@@ -45,19 +44,10 @@ const nodeTypes: NodeTypes = {
   break: BreakNode,
   verify: VerifyNode,
   trap: TrapNode,
-  infra: InfraNode,
 };
 
 function makeDefaultData(kind: string): NodeData {
   switch (kind) {
-    case "infra":
-      return {
-        kind: "infra",
-        cni: "",
-        addons: [],
-        runtimes: [],
-        features: [],
-      } as InfraData;
     case "stack":
       return { kind: "stack", stackType: "web-app", namespace: "bench" } as StackData;
     case "break":

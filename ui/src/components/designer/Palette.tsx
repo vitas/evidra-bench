@@ -1,7 +1,7 @@
 import { type DragEvent, useCallback, useState } from "react";
 
 interface PaletteItem {
-  type: "stack" | "break" | "verify" | "trap" | "infra";
+  type: "stack" | "break" | "verify" | "trap";
   label: string;
   description: string;
   color: string;
@@ -9,13 +9,6 @@ interface PaletteItem {
 }
 
 const ITEMS: PaletteItem[] = [
-  {
-    type: "infra",
-    label: "Infra",
-    description: "Cluster infra requirements",
-    color: "border-l-purple-500",
-    icon: "\u2699\uFE0F",
-  },
   {
     type: "stack",
     label: "Stack",
