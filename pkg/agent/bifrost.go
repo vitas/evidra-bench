@@ -33,7 +33,7 @@ func NewBifrostProvider() *BifrostProvider {
 		baseURL = os.Getenv("EVIDRA_BIFROST_BASE_URL")
 	}
 	if baseURL == "" {
-		baseURL = "http://localhost:8080/openai"
+		baseURL = "http://localhost:8080/v1"
 	}
 
 	var minInterval time.Duration

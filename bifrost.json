@@ -1,0 +1,94 @@
+{
+  "providers": {
+    "openai": {
+      "keys": [
+        {
+          "name": "openai-key",
+          "value": "env.OPENAI_API_KEY",
+          "models": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    "anthropic": {
+      "keys": [
+        {
+          "name": "anthropic-key",
+          "value": "env.ANTHROPIC_API_KEY",
+          "models": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    "google": {
+      "keys": [
+        {
+          "name": "google-key",
+          "value": "env.GEMINI_API_KEY",
+          "models": [],
+          "weight": 1.0
+        }
+      ],
+      "network_config": {
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai"
+      },
+      "custom_provider_config": {
+        "base_provider_type": "openai",
+        "allowed_requests": {
+          "chat_completion": true,
+          "chat_completion_stream": true
+        }
+      }
+    },
+    "deepseek": {
+      "keys": [
+        {
+          "name": "deepseek-key",
+          "value": "env.DEEPSEEK_API_KEY",
+          "models": [],
+          "weight": 1.0
+        }
+      ],
+      "network_config": {
+        "base_url": "https://api.deepseek.com/v1"
+      },
+      "custom_provider_config": {
+        "base_provider_type": "openai",
+        "allowed_requests": {
+          "chat_completion": true,
+          "chat_completion_stream": true
+        }
+      }
+    },
+    "qwen": {
+      "keys": [
+        {
+          "name": "qwen-key",
+          "value": "env.DASHSCOPE_API_KEY",
+          "models": [],
+          "weight": 1.0
+        }
+      ],
+      "network_config": {
+        "base_url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+      },
+      "custom_provider_config": {
+        "base_provider_type": "openai",
+        "allowed_requests": {
+          "chat_completion": true,
+          "chat_completion_stream": true
+        }
+      }
+    },
+    "groq": {
+      "keys": [
+        {
+          "name": "groq-key",
+          "value": "env.GROQ_API_KEY",
+          "models": [],
+          "weight": 1.0
+        }
+      ]
+    }
+  }
+}
