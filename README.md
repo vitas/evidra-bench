@@ -80,13 +80,31 @@ Output:
 
 Baseline is mandatory for every scenario. MCP server mode tests the real product experience.
 
+## Provider Setup
+
+Route model requests directly or through a unified Bifrost gateway:
+
+```bash
+# Option A: Direct (swap env vars per provider)
+export EVIDRA_BIFROST_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+export EVIDRA_BIFROST_AUTH_BEARER=$GEMINI_API_KEY
+bench-cli run --provider bifrost --model gemini-2.5-flash ...
+
+# Option B: Bifrost gateway (one endpoint, all providers)
+source .env && ./scripts/bifrost-start.sh
+export EVIDRA_BIFROST_BASE_URL=http://localhost:9090/v1
+bench-cli run --provider bifrost --model google/gemini-2.5-flash ...
+bench-cli run --provider bifrost --model deepseek/deepseek-chat ...
+bench-cli run --provider bifrost --model openai/gpt-4.1 ...
+```
+
 ## How It Works
 
 ```
-provision cluster → bootstrap baseline → inject failure → execute agent → verify outcome → grade
+acquire lease → provision cluster → bootstrap baseline → inject failure → execute agent → verify outcome → grade
 ```
 
-1. Provisions a disposable `kind` cluster (+ LocalStack for AWS scenarios)
+1. Acquires a lease from the provisioner (cluster + profile-specific setup)
 2. Bootstraps the healthy baseline declared by the scenario
 3. Injects a known failure — wrong image, broken NetworkPolicy, open security group, etc.
 4. Executes the AI agent via the built-in tool-use loop or a remote A2A agent
