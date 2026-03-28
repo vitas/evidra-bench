@@ -57,4 +57,24 @@ echo "=== Test: dry-run argocd/out-of-sync ==="
   --dry-run
 
 echo ""
+echo "=== Test: dry-run aws/s3-bucket-public-access ==="
+"$BINARY" run \
+  --scenario aws/s3-bucket-public-access \
+  --scenarios-dir "${ROOT_DIR}/scenarios" \
+  --dry-run
+
+echo ""
+echo "=== Test: dry-run terraform/state-drift ==="
+"$BINARY" run \
+  --scenario terraform/state-drift \
+  --scenarios-dir "${ROOT_DIR}/scenarios" \
+  --dry-run
+
+echo ""
+echo "=== Test: dry-run all non-skipped scenarios ==="
+"$BINARY" bench \
+  --scenarios-dir "${ROOT_DIR}/scenarios" \
+  --dry-run 2>&1 | tail -5
+
+echo ""
 echo "=== All smoke tests passed ==="

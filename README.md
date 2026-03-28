@@ -116,7 +116,7 @@ Aligned with CKA/CKS exam domains:
 | `workloads` | CKA: Workloads & Scheduling (15%) | 14 | Deployments, pods, scheduling, resources |
 | `troubleshooting` | CKA: Troubleshooting (30%) | 14 | Diagnosis, judgment, cascading failures |
 | `networking` | CKA: Services & Networking (20%) | 7 | Services, DNS, ingress, network policies |
-| `storage` | CKA: Storage (10%) | 4 | PVC, StorageClass, volume expansion |
+| `storage` | CKA: Storage (10%) | 5 | PVC, StorageClass, volume expansion |
 | `pod-security` | CKS: Minimize Vulns (20%) | 16 | RBAC, capabilities, PSA, CSR, AWS SG/S3 |
 | `runtime-security` | CKS: Monitoring (20%) | 4 | Chaos resilience, runtime disruptions |
 | `release-ops` | Custom | 8 | Helm, Argo CD, rollbacks, GitOps |

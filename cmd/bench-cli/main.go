@@ -164,6 +164,7 @@ with optional Evidra reporting for behavioral analysis.`,
 	lf.StringVar(&cfg.Provider, "provider", cfg.Provider, "LLM provider for tool-use agent loop (bifrost, claude)")
 	lf.StringVar(&cfg.AgentCommand, "agent-command", cfg.AgentCommand, "command to invoke the agent")
 	lf.StringVar(&cfg.Model, "model", cfg.Model, "model for agent (e.g. sonnet, opus, haiku)")
+	lf.StringVar(&cfg.EnvironmentProvider, "environment", cfg.EnvironmentProvider, "environment provider (kind, k3d)")
 	lf.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "start in dry-run mode")
 
 	dbCmd := &cobra.Command{
@@ -518,6 +519,9 @@ func applyLabFlagOverrides(labCfg *tui.LabConfig, cfg config.Config, flags *pfla
 	}
 	if flags.Changed("reuse-cluster") {
 		labCfg.ReuseCluster = cfg.ReuseCluster
+	}
+	if flags.Changed("environment") {
+		labCfg.EnvironmentProvider = cfg.EnvironmentProvider
 	}
 }
 

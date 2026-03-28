@@ -146,6 +146,60 @@ func TestValidateCommand_BlockedInteractive(t *testing.T) {
 	}
 }
 
+func TestValidateCommand_BlockedWatch(t *testing.T) {
+	t.Parallel()
+
+	blocked := []string{
+		"kubectl get pods -w",
+		"kubectl get pods --watch",
+		"kubectl get pods -n bench -w",
+		"kubectl get pods -n bench --watch",
+		"kubectl get deployments -w -o wide",
+	}
+
+	for _, cmd := range blocked {
+		if err := validateCommand(cmd); err == nil {
+			t.Errorf("expected %q to be blocked (watch mode)", cmd)
+		}
+	}
+
+	allowed := []string{
+		"kubectl get pods -o wide",
+		"kubectl get pods",
+		"kubectl get pods -n bench",
+	}
+
+	for _, cmd := range allowed {
+		if err := validateCommand(cmd); err != nil {
+			t.Errorf("expected %q to be allowed, got: %v", cmd, err)
+		}
+	}
+}
+
+func TestContainsFlag(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		cmd  string
+		flag string
+		want bool
+	}{
+		{"kubectl get pods -w", "-w", true},
+		{"kubectl get pods --watch", "--watch", true},
+		{"kubectl get pods -n bench -w", "-w", true},
+		{"kubectl get pods -o wide", "-w", false},
+		{"kubectl get pods", "-w", false},
+		{"kubectl get pods -o wide", "--watch", false},
+	}
+
+	for _, tt := range tests {
+		got := containsFlag(tt.cmd, tt.flag)
+		if got != tt.want {
+			t.Errorf("containsFlag(%q, %q) = %v, want %v", tt.cmd, tt.flag, got, tt.want)
+		}
+	}
+}
+
 func TestBuildReportCommandArgs_DeclinedOmitsExitCode(t *testing.T) {
 	t.Parallel()
 

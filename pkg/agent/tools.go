@@ -186,6 +186,11 @@ func validateSegment(seg string) error {
 		}
 	}
 
+	// Block watch mode — these never exit and cause timeouts.
+	if strings.HasPrefix(seg, "kubectl ") && (containsFlag(seg, "-w") || containsFlag(seg, "--watch")) {
+		return fmt.Errorf("command %q is blocked (watch mode never exits)", truncate(seg, 60))
+	}
+
 	// Check main allowlist.
 	for _, prefix := range allowedCommandPrefixes {
 		if seg == prefix || strings.HasPrefix(seg, prefix+" ") {
@@ -201,6 +206,12 @@ func validateSegment(seg string) error {
 	}
 
 	return fmt.Errorf("command %q not in allowlist (allowed: %v)", truncate(seg, 50), allowedCommandPrefixes)
+}
+
+// containsFlag checks whether flag appears as a standalone word in cmd.
+func containsFlag(cmd, flag string) bool {
+	padded := " " + cmd + " "
+	return strings.Contains(padded, " "+flag+" ") || strings.HasSuffix(" "+cmd, " "+flag)
 }
 
 func (e *ToolExecutor) runCommand(ctx context.Context, argsJSON string) string {
