@@ -384,13 +384,21 @@ export function Dashboard() {
               <table className="w-full text-[0.82rem]">
                 <thead>
                   <tr className="border-b border-border bg-bg-alt/80">
-                    {["Status", "Scenario", "Model", "Duration", "Cost", "Date"].map(
+                    {([
+                      { label: "Status", tip: "PASS if all verification checks succeeded, FAIL otherwise" },
+                      { label: "Scenario", tip: "The infrastructure scenario the agent was tested against" },
+                      { label: "Model", tip: "LLM model used for the benchmark run" },
+                      { label: "Duration", tip: "Wall-clock time from agent start to verification complete" },
+                      { label: "Cost", tip: "Estimated API cost for this run in USD" },
+                      { label: "Date", tip: "When this run was executed" },
+                    ] as const).map(
                       (h) => (
                         <th
-                          key={h}
+                          key={h.label}
                           className="text-left text-[0.7rem] font-semibold uppercase tracking-wide text-fg-muted px-4 py-2"
+                          title={h.tip}
                         >
-                          {h}
+                          {h.label}
                         </th>
                       ),
                     )}

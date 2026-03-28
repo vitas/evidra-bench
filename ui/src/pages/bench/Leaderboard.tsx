@@ -27,13 +27,13 @@ interface LeaderboardResponse {
 
 type SortKey = "pass_rate" | "pass_k" | "runs" | "avg_duration" | "avg_cost" | "scenarios";
 
-const SORT_OPTIONS: { key: SortKey; label: string; desc: boolean }[] = [
-  { key: "pass_rate", label: "Pass Rate", desc: true },
-  { key: "pass_k", label: "Reliability", desc: true },
-  { key: "scenarios", label: "Scenarios", desc: true },
-  { key: "avg_duration", label: "Duration", desc: false },
-  { key: "avg_cost", label: "Avg Cost", desc: false },
-  { key: "runs", label: "Runs", desc: true },
+const SORT_OPTIONS: { key: SortKey; label: string; desc: boolean; tip?: string }[] = [
+  { key: "pass_rate", label: "Pass Rate", desc: true, tip: "Percentage of runs where the agent passed all verification checks" },
+  { key: "pass_k", label: "Reliability", desc: true, tip: "pass^k — probability the model passes all k unique scenarios at least once. Penalizes models that pass some scenarios but fail others inconsistently" },
+  { key: "scenarios", label: "Scenarios", desc: true, tip: "Number of unique scenarios attempted by this model" },
+  { key: "avg_duration", label: "Duration", desc: false, tip: "Average wall-clock time per scenario run (lower is better)" },
+  { key: "avg_cost", label: "Avg Cost", desc: false, tip: "Average API cost per run in USD (lower is better)" },
+  { key: "runs", label: "Runs", desc: true, tip: "Total number of benchmark runs for this model" },
 ];
 
 function formatDuration(s: number): string {
@@ -169,6 +169,7 @@ export function Leaderboard() {
                   key={opt.key}
                   className="text-right text-[0.7rem] font-semibold uppercase tracking-wide text-fg-muted px-4 py-2.5 cursor-pointer hover:text-accent transition-colors whitespace-nowrap"
                   onClick={() => handleSort(opt.key)}
+                  title={opt.tip}
                 >
                   {opt.label}{" "}
                   {sortKey === opt.key ? (

@@ -413,13 +413,22 @@ export function Benchmarks() {
               <table className="w-full text-[0.82rem]">
                 <thead>
                   <tr className="border-b border-border-subtle">
-                    {["Category", "Total", "Passed", "Failed", "Pass Rate", "Avg Duration", "Avg Cost"].map(
+                    {([
+                      { label: "Category", tip: "Scenario category (kubernetes, argocd, helm, terraform, aws)" },
+                      { label: "Total", tip: "Total number of runs in this category" },
+                      { label: "Passed", tip: "Runs where all verification checks passed" },
+                      { label: "Failed", tip: "Runs where one or more checks failed" },
+                      { label: "Pass Rate", tip: "Percentage of runs that passed all checks" },
+                      { label: "Avg Duration", tip: "Average wall-clock time per run" },
+                      { label: "Avg Cost", tip: "Average API cost per run in USD" },
+                    ] as const).map(
                       (h) => (
                         <th
-                          key={h}
+                          key={h.label}
                           className="text-left text-[0.7rem] font-semibold uppercase tracking-wide text-fg-muted px-5 py-3 first:pl-5"
+                          title={h.tip}
                         >
-                          {h}
+                          {h.label}
                         </th>
                       ),
                     )}
