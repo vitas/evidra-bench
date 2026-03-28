@@ -3,136 +3,159 @@ set -eu
 
 # Overnight benchmark — seeds the evidra.cc dashboard with real data.
 #
-# Runs all active scenarios across 3 cheap models with proxy mode
-# (so evidence entries are created for the Evidence page).
+# Runs scenarios in two parallel tracks per model:
+#   Track 1: --proxy-mode (auto-evidence, agent unaware)
+#   Track 2: --mcp-server "evidra-mcp" (agent uses MCP tools)
+#
+# Each track gets its own k3d cluster to avoid conflicts.
 #
 # Prerequisites:
 #   - source .env && export $(grep -v '^#' .env | grep -v '^$' | xargs)
 #   - Docker running (for k3d clusters)
 #   - bin/bench-cli built (make build)
+#   - evidra-mcp installed
 #
 # Usage:
 #   ./scripts/overnight-bench.sh
 #
-# Expected duration: ~3-4 hours (62 scenarios × 3 models × 1 repeat)
-# Expected cost: ~$5-10 (mostly Gemini Flash at $0.001/run)
-#
-# To run with repeats for pass^k data:
+# With repeats for pass^k:
 #   REPEATS=3 ./scripts/overnight-bench.sh
-#   (adds ~8-10 hours, but fills pass^k with k=3 across all scenarios)
+#
+# Expected: ~3-4 hours for 1 repeat, ~10 hours for 3 repeats
 
 REPEATS="${REPEATS:-1}"
 BINARY="${BINARY:-bin/bench-cli}"
 ENVIRONMENT="${ENVIRONMENT:-k3d}"
 EVIDRA_URL="${EVIDRA_URL:-https://api.evidra.cc}"
 
-# Verify prerequisites.
 if [ ! -x "$BINARY" ]; then
   echo "ERROR: $BINARY not found. Run 'make build' first."
   exit 1
 fi
 if [ -z "${EVIDRA_API_KEY:-}" ]; then
-  echo "ERROR: EVIDRA_API_KEY not set. Run 'source .env && export \$(grep -v '^#' .env | grep -v '^\$' | xargs)'"
+  echo "ERROR: EVIDRA_API_KEY not set."
   exit 1
 fi
+if ! command -v evidra-mcp >/dev/null 2>&1; then
+  echo "WARN: evidra-mcp not found — MCP track will be skipped."
+fi
 
-# Timestamp for this batch.
 STAMP=$(date +%Y%m%d-%H%M%S)
-LOG="runs/overnight-${STAMP}.log"
-mkdir -p runs
+LOG_DIR="runs/overnight-${STAMP}"
+mkdir -p "$LOG_DIR"
 
 echo "=== Overnight Benchmark ${STAMP} ==="
-echo "  Models:      gemini-2.5-flash, deepseek-chat, qwen-plus"
 echo "  Repeats:     ${REPEATS}"
 echo "  Environment: ${ENVIRONMENT}"
-echo "  Evidra URL:  ${EVIDRA_URL}"
-echo "  Log:         ${LOG}"
+echo "  Log dir:     ${LOG_DIR}"
 echo ""
 
-run_model() {
-  local model="$1" base_url="$2" key_var="$3" cluster="$4"
-  local key_val
-  eval "key_val=\${${key_var}:-}"
+# run_bench MODEL BASE_URL KEY_VAR CLUSTER MODE [MCP_CMD]
+run_bench() {
+  local model="$1" base_url="$2" key_var="$3" cluster="$4" mode="$5" mcp_cmd="${6:-}"
+  local key_val log_file mode_flags
 
+  eval "key_val=\${${key_var}:-}"
   if [ -z "$key_val" ]; then
-    echo "SKIP $model — $key_var not set"
+    echo "SKIP $model/$mode — $key_var not set"
     return
   fi
 
-  echo ""
-  echo "════════════════════════════════════════"
-  echo "  Model: $model"
-  echo "  Cluster: $cluster"
-  echo "════════════════════════════════════════"
+  log_file="${LOG_DIR}/${model}-${mode}.log"
 
-  export EVIDRA_BIFROST_BASE_URL="$base_url"
-  export EVIDRA_BIFROST_AUTH_BEARER="$key_val"
+  if [ "$mode" = "proxy" ]; then
+    mode_flags="--proxy-mode"
+  elif [ "$mode" = "mcp" ]; then
+    mode_flags="--mcp-server ${mcp_cmd}"
+  else
+    mode_flags=""
+  fi
 
-  # Run all kubernetes + helm scenarios (51 active).
-  "$BINARY" bench \
-    --scenario kubernetes --scenario helm \
-    --model "$model" --provider bifrost \
-    --repeats "$REPEATS" \
-    --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "$cluster" \
-    --proxy-mode \
-    --evidra-url "$EVIDRA_URL" --evidra-api-key "$EVIDRA_API_KEY" \
-    2>&1 || echo "WARN: $model kubernetes/helm batch exited $?"
+  echo "  START $model/$mode → $log_file"
 
-  # Run ArgoCD scenarios (4 active, separate profile).
-  "$BINARY" bench \
-    --scenario argocd \
-    --model "$model" --provider bifrost \
-    --repeats "$REPEATS" \
-    --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "${cluster}-argo" \
-    --proxy-mode \
-    --evidra-url "$EVIDRA_URL" --evidra-api-key "$EVIDRA_API_KEY" \
-    2>&1 || echo "WARN: $model argocd batch exited $?"
+  (
+    export EVIDRA_BIFROST_BASE_URL="$base_url"
+    export EVIDRA_BIFROST_AUTH_BEARER="$key_val"
 
-  # Run Terraform scenarios (5 active, no cluster needed but uses default profile).
-  "$BINARY" bench \
-    --scenario terraform \
-    --model "$model" --provider bifrost \
-    --repeats "$REPEATS" \
-    --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "$cluster" \
-    --proxy-mode \
-    --evidra-url "$EVIDRA_URL" --evidra-api-key "$EVIDRA_API_KEY" \
-    2>&1 || echo "WARN: $model terraform batch exited $?"
+    # Kubernetes + Helm (51 active scenarios, default profile).
+    "$BINARY" bench \
+      --scenario kubernetes --scenario helm \
+      --model "$model" --provider bifrost \
+      --repeats "$REPEATS" \
+      --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "$cluster" \
+      $mode_flags \
+      --evidra-url "$EVIDRA_URL" --evidra-api-key "$EVIDRA_API_KEY" \
+      2>&1 || echo "WARN: $model/$mode k8s+helm exited $?"
 
-  echo ""
-  echo "  $model complete."
+    # ArgoCD (4 active, argocd profile — separate cluster).
+    "$BINARY" bench \
+      --scenario argocd \
+      --model "$model" --provider bifrost \
+      --repeats "$REPEATS" \
+      --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "${cluster}-argo" \
+      $mode_flags \
+      --evidra-url "$EVIDRA_URL" --evidra-api-key "$EVIDRA_API_KEY" \
+      2>&1 || echo "WARN: $model/$mode argocd exited $?"
+
+    # Terraform (5 active).
+    "$BINARY" bench \
+      --scenario terraform \
+      --model "$model" --provider bifrost \
+      --repeats "$REPEATS" \
+      --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "$cluster" \
+      $mode_flags \
+      --evidra-url "$EVIDRA_URL" --evidra-api-key "$EVIDRA_API_KEY" \
+      2>&1 || echo "WARN: $model/$mode terraform exited $?"
+
+    echo "DONE $model/$mode"
+  ) > "$log_file" 2>&1 &
 }
 
-# Run models sequentially — each gets its own cluster to avoid conflicts.
-# ArgoCD scenarios use a separate cluster per model (different profile).
+# Launch all tracks. Two parallel per model (proxy + mcp).
+# Models run sequentially to avoid overloading the machine with clusters.
+
+run_model() {
+  local model="$1" base_url="$2" key_var="$3" prefix="$4"
+
+  echo ""
+  echo "════ $model ════"
+
+  # Track 1: proxy mode
+  run_bench "$model" "$base_url" "$key_var" "${prefix}-proxy" "proxy"
+
+  # Track 2: MCP mode (if evidra-mcp available)
+  if command -v evidra-mcp >/dev/null 2>&1; then
+    run_bench "$model" "$base_url" "$key_var" "${prefix}-mcp" "mcp" \
+      "evidra-mcp --signing-mode optional"
+  fi
+
+  # Wait for both tracks to finish before moving to next model.
+  echo "  Waiting for $model tracks..."
+  wait
+  echo "  $model complete."
+
+  # Clean up this model's clusters.
+  k3d cluster delete "${prefix}-proxy" "${prefix}-proxy-argo" \
+    "${prefix}-mcp" "${prefix}-mcp-argo" 2>/dev/null || true
+}
+
 {
   run_model "gemini-2.5-flash" \
     "https://generativelanguage.googleapis.com/v1beta/openai" \
-    "GEMINI_API_KEY" \
-    "bench-gemini"
+    "GEMINI_API_KEY" "bn-gem"
 
   run_model "deepseek-chat" \
     "https://api.deepseek.com/v1" \
-    "DEEPSEEK_API_KEY" \
-    "bench-deepseek"
+    "DEEPSEEK_API_KEY" "bn-ds"
 
   run_model "qwen-plus" \
     "https://dashscope-intl.aliyuncs.com/compatible-mode/v1" \
-    "DASHSCOPE_API_KEY" \
-    "bench-qwen"
+    "DASHSCOPE_API_KEY" "bn-qw"
 
   echo ""
   echo "════════════════════════════════════════"
-  echo "  ALL MODELS COMPLETE"
+  echo "  ALL DONE"
   echo "════════════════════════════════════════"
-  echo ""
-
-  # Cleanup clusters.
-  echo "Cleaning up clusters..."
-  k3d cluster delete bench-gemini bench-gemini-argo \
-    bench-deepseek bench-deepseek-argo \
-    bench-qwen bench-qwen-argo 2>/dev/null || true
-
-  echo "Done. Results reported to ${EVIDRA_URL}"
-} 2>&1 | tee "$LOG"
-
-echo "Log saved to: $LOG"
+  echo "  Logs: ${LOG_DIR}/"
+  echo "  Results: ${EVIDRA_URL}"
+} 2>&1 | tee "${LOG_DIR}/main.log"
