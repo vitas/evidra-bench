@@ -147,6 +147,10 @@ const DEFAULT_METADATA: PuzzleMetadata = {
   difficulty: "easy",
   timeLimit: "5m",
   category: "kubernetes",
+  track: "workloads",
+  level: "L1",
+  profile: "default",
+  providers: [],
 };
 
 const DRAFT_KEY = "designer-draft";
@@ -240,6 +244,11 @@ function DesignerInner() {
 
     setNodes(newNodes);
     setEdges(newEdges);
+    // Map category to profile.
+    const profileMap: Record<string, PuzzleMetadata["profile"]> = {
+      argocd: "argocd",
+      aws: "aws-localstack",
+    };
     setMetadata({
       name: scenario.id,
       title: scenario.title,
@@ -247,6 +256,10 @@ function DesignerInner() {
       difficulty: scenario.difficulty,
       timeLimit: "5m",
       category: scenario.category as PuzzleMetadata["category"],
+      track: scenario.track || "",
+      level: (scenario.level || "L2") as PuzzleMetadata["level"],
+      profile: profileMap[scenario.category] || "default",
+      providers: [],
     });
     setSelectedNodeId(null);
 

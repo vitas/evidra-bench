@@ -14,6 +14,10 @@ export interface PuzzleMetadata {
   difficulty: "easy" | "medium" | "hard";
   timeLimit: string;
   category: "kubernetes" | "helm" | "argocd" | "terraform" | "aws";
+  track: string;
+  level: "L1" | "L2" | "L3" | "L4";
+  profile: "default" | "argocd" | "aws-localstack";
+  providers: string[];
 }
 
 export interface GeneratedScenario {
@@ -265,11 +269,15 @@ export function generateScenario(
     }
   }
   lines.push(`category: ${metadata.category}`);
+  if (metadata.track) {
+    lines.push(`track: ${metadata.track}`);
+  }
+  lines.push(`level: ${metadata.level}`);
   lines.push(`tags: [${metadata.category}]`);
   lines.push("prompt: prompts/task.md");
   lines.push(`timeout: ${toYamlString(metadata.timeLimit)}`);
 
-  // Environment block: Kubernetes infra requirements and/or cloud config.
+  // Environment block: profile, providers, kubernetes infra, and/or cloud config.
   const infraNodes = nodes.filter(
     (n) => (n.data as NodeData).kind === "infra",
   );
@@ -279,9 +287,17 @@ export function generateScenario(
   const infraData = infraNodes[0]?.data as InfraData | undefined;
   const hasInfra = infraData && (infraData.cni || infraData.addons.length > 0 || infraData.runtimes.length > 0 || infraData.features.length > 0);
   const isAws = metadata.category === "aws";
+  const hasProfile = metadata.profile !== "default";
+  const hasProviders = metadata.providers.length > 0;
 
-  if (hasInfra || isAws) {
+  if (hasInfra || isAws || hasProfile || hasProviders) {
     lines.push("environment:");
+    if (hasProfile) {
+      lines.push(`  profile: ${metadata.profile}`);
+    }
+    if (hasProviders) {
+      lines.push(`  providers: [${metadata.providers.join(", ")}]`);
+    }
     if (hasInfra) {
       lines.push("  kubernetes:");
       if (infraData.cni) {

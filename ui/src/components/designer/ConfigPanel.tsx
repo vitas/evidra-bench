@@ -547,8 +547,73 @@ function MetadataConfig({
             { value: "helm", label: "Helm" },
             { value: "argocd", label: "Argo CD" },
             { value: "terraform", label: "Terraform" },
+            { value: "aws", label: "AWS" },
           ]}
         />
+      </Field>
+      <Field label="Track">
+        <Select
+          value={metadata.track}
+          onChange={(v) => onMetadataChange({ ...metadata, track: v })}
+          options={[
+            { value: "", label: "— none —" },
+            { value: "workloads", label: "Workloads" },
+            { value: "troubleshooting", label: "Troubleshooting" },
+            { value: "networking", label: "Networking" },
+            { value: "storage", label: "Storage" },
+            { value: "pod-security", label: "Pod Security" },
+            { value: "runtime-security", label: "Runtime Security" },
+            { value: "release-ops", label: "Release Ops" },
+            { value: "platform-eng", label: "Platform Eng" },
+          ]}
+        />
+      </Field>
+      <Field label="Level">
+        <Select
+          value={metadata.level}
+          onChange={(v) =>
+            onMetadataChange({ ...metadata, level: v as PuzzleMetadata["level"] })
+          }
+          options={[
+            { value: "L1", label: "L1 — Fix" },
+            { value: "L2", label: "L2 — Diagnose" },
+            { value: "L3", label: "L3 — Judge" },
+            { value: "L4", label: "L4 — Investigate" },
+          ]}
+        />
+      </Field>
+      <Field label="Execution Profile">
+        <Select
+          value={metadata.profile}
+          onChange={(v) =>
+            onMetadataChange({ ...metadata, profile: v as PuzzleMetadata["profile"] })
+          }
+          options={[
+            { value: "default", label: "Default" },
+            { value: "argocd", label: "ArgoCD" },
+            { value: "aws-localstack", label: "AWS (LocalStack)" },
+          ]}
+        />
+      </Field>
+      <Field label="Providers">
+        <div className="flex gap-3">
+          {["kind", "k3d"].map((p) => (
+            <label key={p} className="flex items-center gap-1.5 text-[0.78rem] text-fg-body cursor-pointer">
+              <input
+                type="checkbox"
+                checked={metadata.providers.includes(p)}
+                onChange={(e) => {
+                  const next = e.target.checked
+                    ? [...metadata.providers, p]
+                    : metadata.providers.filter((x) => x !== p);
+                  onMetadataChange({ ...metadata, providers: next });
+                }}
+                className="accent-accent"
+              />
+              {p}
+            </label>
+          ))}
+        </div>
       </Field>
     </>
   );

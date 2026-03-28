@@ -64,6 +64,10 @@ function scenarioToTemplate(s: ScenarioMeta): Template {
       difficulty: s.difficulty,
       timeLimit,
       category: s.category as PuzzleMetadata["category"],
+      track: s.track || "",
+      level: (s.level || "L2") as PuzzleMetadata["level"],
+      profile: s.category === "argocd" ? "argocd" : s.category === "aws" ? "aws-localstack" : "default",
+      providers: [],
     },
   };
 }
@@ -187,6 +191,10 @@ export function TemplatesModal({ open, onClose, onSelect }: TemplatesModalProps)
                   difficulty: "medium",
                   timeLimit: "8m",
                   category: "kubernetes",
+                  track: "",
+                  level: "L2",
+                  profile: "default",
+                  providers: [],
                 },
               });
             }}
