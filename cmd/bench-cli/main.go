@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -474,6 +475,11 @@ with optional Evidra reporting for behavioral analysis.`,
 			}
 			if v := os.Getenv("KUBECONFIG"); v != "" {
 				cfg.KubeconfigPath = v
+			}
+			if v := os.Getenv("INFRA_BENCH_PARALLEL"); v != "" {
+				if n, err := strconv.Atoi(v); err == nil && n > 0 {
+					cfg.Parallel = n
+				}
 			}
 			return serveAPI(cfg, addr)
 		},
