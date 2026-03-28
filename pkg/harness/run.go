@@ -391,9 +391,10 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	}
 
 	// Step 5b: Verify Evidra protocol compliance.
-	// Skip in proxy and smart modes — evidence format differs from evidra's native format.
+	// Skip when evidence mode is none (baseline — no evidence generated),
+	// proxy, smart, or mcp (evidence format differs from evidra's native format).
 	evidenceMode := config.EffectiveEvidenceMode(req.Config)
-	if s.Evidra.Enabled && evidenceMode != "proxy" && evidenceMode != "smart" && evidenceMode != "mcp" {
+	if s.Evidra.Enabled && evidenceMode != "none" && evidenceMode != "proxy" && evidenceMode != "smart" && evidenceMode != "mcp" {
 		// Fall back to simulated evidence if real evidence dir has no segments.
 		if s.Evidra.SimulatedEvidenceDir != "" {
 			if _, err := os.Stat(filepath.Join(evidenceDir, "segments")); err != nil {
