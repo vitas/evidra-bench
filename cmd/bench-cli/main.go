@@ -820,9 +820,13 @@ func pushScenarios(scenariosDir, evidraURL, apiKey string) error {
 		Title       string   `json:"title"`
 		Description string   `json:"description"`
 		Category    string   `json:"category"`
+		Track       string   `json:"track,omitempty"`
+		Level       string   `json:"level,omitempty"`
+		Timeout     string   `json:"timeout,omitempty"`
 		Tags        []string `json:"tags"`
 		Chaos       bool     `json:"chaos"`
 		Evidra      bool     `json:"evidra"`
+		Skip        bool     `json:"skip,omitempty"`
 	}
 
 	var items []scenarioPayload
@@ -836,9 +840,13 @@ func pushScenarios(scenariosDir, evidraURL, apiKey string) error {
 			Title:       s.Title,
 			Description: s.Description,
 			Category:    s.Category,
+			Track:       s.Track,
+			Level:       s.Level,
+			Timeout:     s.Timeout.String(),
 			Tags:        tags,
 			Chaos:       len(s.Chaos.Steps) > 0,
 			Evidra:      s.Evidra.Enabled,
+			Skip:        s.Skip,
 		})
 	}
 
