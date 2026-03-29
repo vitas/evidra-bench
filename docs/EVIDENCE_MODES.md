@@ -25,7 +25,7 @@ Bench runs have two independent dimensions:
 |---------|------|-------------|
 | **Provider** | `--provider bifrost` (or `claude`) | Built-in multi-turn tool-use agent loop |
 | **A2A** | `--adapter a2a --a2a-agent-url URL` | Sends task to remote A2A agent, waits for result |
-| **CLI** | `--adapter cli --agent-command "cmd"` | Spawns external process with env vars (original adapter, rarely used now) |
+| **CLI** | `--adapter cli --agent-command "cmd"` | Spawns a packaged agent binary/script with env vars (designed for CI pipelines and pre-built agents) |
 | **MCP** | `--mcp-server "evidra-mcp ..."` | Built-in loop + MCP server for tool execution (evidra product experience) |
 
 Dispatch order: `adapter=a2a` → remote A2A, `provider!=empty` → built-in loop, `adapter=cli` → external process.
