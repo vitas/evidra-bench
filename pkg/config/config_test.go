@@ -172,6 +172,103 @@ func TestConfig_ResolveEnvFallback_EmptyEvidenceModePreservesLegacyBehavior(t *t
 	}
 }
 
+func TestEvidraFlags_TraceEvidra(t *testing.T) {
+	t.Parallel()
+	cfg := Config{TraceBackend: "evidra"}
+	if got := EffectiveEvidenceMode(cfg); got != "proxy" {
+		t.Fatalf("EffectiveEvidenceMode = %q, want proxy", got)
+	}
+}
+
+func TestEvidraFlags_EvidraSmart(t *testing.T) {
+	t.Parallel()
+	cfg := Config{EvidraLevel: "smart"}
+	if got := EffectiveEvidenceMode(cfg); got != "smart" {
+		t.Fatalf("EffectiveEvidenceMode = %q, want smart", got)
+	}
+}
+
+func TestEvidraFlags_EvidraFull(t *testing.T) {
+	t.Parallel()
+	cfg := Config{EvidraLevel: "full"}
+	if got := EffectiveEvidenceMode(cfg); got != "mcp" {
+		t.Fatalf("EffectiveEvidenceMode = %q, want mcp", got)
+	}
+}
+
+func TestEvidraFlags_TracePlusEvidra(t *testing.T) {
+	t.Parallel()
+	cfg := Config{TraceBackend: "evidra", EvidraLevel: "smart"}
+	// EvidraLevel takes precedence over TraceBackend.
+	if got := EffectiveEvidenceMode(cfg); got != "smart" {
+		t.Fatalf("EffectiveEvidenceMode = %q, want smart", got)
+	}
+}
+
+func TestEvidraFlags_EvidraFullPlusMCPServer(t *testing.T) {
+	t.Parallel()
+	cfg := Config{EvidraLevel: "full", MCPServer: "npx @anthropic/mcp-server-kubernetes"}
+	err := cfg.ValidateEvidraFlags()
+	if err == nil {
+		t.Fatal("expected validation error for --evidra full + --mcp-server")
+	}
+	if !strings.Contains(err.Error(), "cannot be combined with --mcp-server") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEvidraFlags_EvidraSmartPlusA2A(t *testing.T) {
+	t.Parallel()
+	cfg := Config{EvidraLevel: "smart", Adapter: "a2a"}
+	err := cfg.ValidateEvidraFlags()
+	if err == nil {
+		t.Fatal("expected validation error for --evidra smart + --adapter a2a")
+	}
+	if !strings.Contains(err.Error(), "cannot be combined with --adapter a2a") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEvidraFlags_TracePlusMCPServer(t *testing.T) {
+	t.Parallel()
+	cfg := Config{TraceBackend: "evidra", MCPServer: "npx @anthropic/mcp-server-kubernetes"}
+	if err := cfg.ValidateEvidraFlags(); err != nil {
+		t.Fatalf("unexpected error: --trace evidra + --mcp-server should be valid: %v", err)
+	}
+}
+
+func TestEvidraFlags_InvalidTrace(t *testing.T) {
+	t.Parallel()
+	cfg := Config{TraceBackend: "banana"}
+	err := cfg.ValidateEvidraFlags()
+	if err == nil {
+		t.Fatal("expected validation error for --trace banana")
+	}
+	if !strings.Contains(err.Error(), "banana") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEvidraFlags_InvalidEvidra(t *testing.T) {
+	t.Parallel()
+	cfg := Config{EvidraLevel: "banana"}
+	err := cfg.ValidateEvidraFlags()
+	if err == nil {
+		t.Fatal("expected validation error for --evidra banana")
+	}
+	if !strings.Contains(err.Error(), "banana") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEvidraFlags_LegacyProxyMode(t *testing.T) {
+	t.Parallel()
+	cfg := Config{ProxyMode: true}
+	if got := EffectiveEvidenceMode(cfg); got != "proxy" {
+		t.Fatalf("EffectiveEvidenceMode = %q, want proxy", got)
+	}
+}
+
 func TestConfig_IgnoreUnsupportedEvidenceModeValues(t *testing.T) {
 	t.Setenv("EVIDRA_BIN", "/env/evidra")
 	t.Setenv("INFRA_BENCH_SYSTEM_PROMPT", "/env/system-prompt.md")
