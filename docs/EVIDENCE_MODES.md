@@ -11,7 +11,7 @@ Tests whether an agent can fix infrastructure problems. Works with any MCP serve
 | Mode | Flag | What happens | Evidence |
 |------|------|-------------|----------|
 | **Baseline** | (no flags) | Agent runs kubectl/helm directly | None |
-| **Evidra Auto** | `--proxy-mode` | Identical to baseline — harness silently records mutations | Auto-captured |
+| **Evidra Auto** | `--trace evidra` | Identical to baseline — harness silently records mutations | Auto-captured |
 
 These modes work with every adapter:
 
@@ -24,16 +24,18 @@ These modes work with every adapter:
 
 ### Path 2: Evidra Protocol Testing (evidra-mcp only)
 
-Tests whether an agent follows the evidra prescribe/report protocol. Requires `evidra-mcp` as the MCP server.
+Tests whether an agent follows the evidra prescribe/report protocol. Requires `evidra-mcp` (started automatically by the harness when `--evidra` is set).
 
 | Mode | Flag | What the agent does | Evidence |
 |------|------|-------------------|----------|
-| **Evidra Smart** | `--smart-prescribe` | Agent calls `prescribe_smart` before each mutation — one lightweight tool call | Agent-driven, minimal overhead |
-| **Evidra Full** | `--mcp-server "evidra-mcp --signing-mode optional"` | Agent uses full evidra tool suite: prescribe, report, risk classification | Full protocol compliance |
+| **Evidra Smart** | `--evidra smart` | Agent calls `prescribe_smart` before each mutation — one lightweight tool call | Agent-driven, minimal overhead |
+| **Evidra Full** | `--evidra full` | Agent uses full evidra tool suite: prescribe, report, risk classification | Full protocol compliance |
 
 These modes only work with the **Provider** adapter (built-in agent loop) because the harness must inject evidra tools into the agent's tool set.
 
 **A2A and CLI agents own their tool loop** — the harness cannot inject evidra tools into them. If a remote agent uses evidra internally, that's the agent's choice, not the harness's. The evidence mode filter on the leaderboard is not meaningful for A2A/CLI runs.
+
+**Backward compatibility:** The old flags `--proxy-mode`, `--smart-prescribe`, and `--mcp-server "evidra-mcp ..."` still work but emit deprecation warnings. Use the new flags for all new work.
 
 ---
 
@@ -45,6 +47,50 @@ These modes only work with the **Provider** adapter (built-in agent loop) becaus
 | **Any MCP server** | Yes | Yes | — | — |
 | **A2A** | Yes | Yes | — | — |
 | **CLI** | Yes | Yes | — | — |
+
+---
+
+## Flag Reference
+
+```
+TRACEABILITY:
+  --trace <backend>   Passive mutation recording (default: none)
+                        evidra   Record via evidra evidence chain
+                        none     No recording
+                      The trace backend silently captures every mutation
+                      (kubectl apply, helm upgrade, etc.) without agent
+                      involvement. Works with any adapter and MCP server.
+
+EVIDRA PROTOCOL:
+  --evidra <level>    Agent-side evidra protocol level (default: off)
+                        smart    Agent calls prescribe_smart before acting
+                        full     Agent uses full prescribe/report/risk protocol
+                      Requires evidra-mcp. The harness starts it automatically
+                      if installed. Set --evidra-bin for custom binary path.
+                      Cannot be combined with --mcp-server.
+
+THIRD-PARTY TOOLS:
+  --mcp-server <cmd>  MCP server for tool execution (any MCP server).
+                      Cannot be combined with --evidra smart or --evidra full.
+                      Can be combined with --trace evidra.
+                      Example: --mcp-server "npx @anthropic/mcp-server-kubernetes"
+
+DEPRECATED (still work, emit warnings):
+  --proxy-mode          Use --trace evidra instead
+  --smart-prescribe     Use --evidra smart instead
+  --mcp-server "evidra-mcp ..."  Use --evidra full instead
+```
+
+### Compatibility
+
+| Combination | Valid? | Why |
+|------------|--------|-----|
+| `--trace evidra --mcp-server "npx ..."` | Yes | Trace + third-party tools |
+| `--evidra smart --mcp-server "npx ..."` | No | evidra manages its own MCP server |
+| `--evidra full --mcp-server "npx ..."` | No | evidra manages its own MCP server |
+| `--trace evidra --evidra smart` | Yes | Both concerns active |
+| `--trace evidra --adapter a2a` | Yes | Trace works with any adapter |
+| `--evidra smart --adapter a2a` | No | Can't inject protocol into remote agent |
 
 ---
 
@@ -62,9 +108,9 @@ These modes only work with the **Provider** adapter (built-in agent loop) becaus
 | Goal | Mode | Why |
 |------|------|-----|
 | Measure raw agent ability | **Baseline** | No overhead, cheapest |
-| Measure + get free audit trail | **Evidra Auto** | Same pass rate, evidence for free |
-| Test protocol awareness | **Evidra Smart** | Does the agent prescribe before acting? |
-| Test full evidra product experience | **Evidra Full** | Full prescribe/report/risk protocol |
+| Measure + get free audit trail | **Evidra Auto** (`--trace evidra`) | Same pass rate, evidence for free |
+| Test protocol awareness | **Evidra Smart** (`--evidra smart`) | Does the agent prescribe before acting? |
+| Test full evidra product experience | **Evidra Full** (`--evidra full`) | Full prescribe/report/risk protocol |
 | Compare MCP servers | **Baseline** with different `--mcp-server` | Same agent, different tool backends |
 | Test remote agents | **Baseline** or **Evidra Auto** via A2A | Harness bootstraps and verifies, agent owns execution |
 
@@ -73,5 +119,5 @@ These modes only work with the **Provider** adapter (built-in agent loop) becaus
 | Step | What | Mode |
 |------|------|------|
 | 1 | Agent fixes broken deployment | **Baseline** — raw ability, no evidence |
-| 2 | Same agent, flip a switch | **Evidra Auto** — same result, full audit trail appears |
+| 2 | Same agent, flip a switch | **Evidra Auto** (`--trace evidra`) — same result, full audit trail appears |
 | 3 | Leaderboard filter | Show **Evidra Smart** — models that prescribe first score higher on reliability |

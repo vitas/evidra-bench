@@ -74,7 +74,7 @@ Output:
 |---|---|---|
 | **Baseline** | `bench-cli run --scenario ...` | Raw model ability (direct exec) |
 | **Via A2A** | `bench-cli run --scenario ... --adapter a2a --a2a-agent-url http://agent:8080` | Remote A2A agent execution with local bootstrap and verification |
-| **Via evidra-mcp** | `--mcp-server "evidra-mcp --signing-mode optional"` | Agent through evidra (smart output + auto-evidence) |
+| **Via evidra** | `--evidra full` | Agent through evidra (full prescribe/report/risk protocol) |
 | **Via third-party** | `--mcp-server "npx -y @anthropic/mcp-server-kubernetes"` | Agent through any MCP server |
 | **With role skill** | `--role k8s-admin` | Agent behavior with skill prompt (optional) |
 
