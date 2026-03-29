@@ -3,8 +3,10 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -213,6 +215,17 @@ func (c *Config) ValidateEvidraFlags() error {
 // fields that the harness understands. Call this in the CLI layer before
 // invoking the harness.
 func (c *Config) ResolveEvidraFlags() error {
+	// Emit deprecation warnings for legacy flags when new flags are not set.
+	if c.ProxyMode && c.TraceBackend == "" {
+		log.Println("deprecated: --proxy-mode, use --trace evidra")
+	}
+	if c.SmartPrescribe && c.EvidraLevel == "" {
+		log.Println("deprecated: --smart-prescribe, use --evidra smart")
+	}
+	if strings.Contains(c.MCPServer, "evidra-mcp") && c.EvidraLevel == "" {
+		log.Println("hint: use --evidra full instead of --mcp-server evidra-mcp")
+	}
+
 	if c.EvidraLevel == "full" {
 		bin, err := resolveEvidraMCPBin(c)
 		if err != nil {
