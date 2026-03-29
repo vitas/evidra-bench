@@ -27,6 +27,8 @@ type LabConfig struct {
 	EvidraAPIKey        string `yaml:"evidra_api_key,omitempty"`
 	MemoryWindow        int    `yaml:"memory_window,omitempty"`
 	ReuseCluster        bool   `yaml:"reuse_cluster,omitempty"`
+	TraceBackend        string `yaml:"trace_backend,omitempty"`
+	EvidraLevel         string `yaml:"evidra_level,omitempty"`
 }
 
 // DefaultLabConfig returns sensible defaults.
