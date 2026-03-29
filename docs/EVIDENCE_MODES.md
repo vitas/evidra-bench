@@ -1,10 +1,42 @@
-# Evidence Modes Reference
+# Execution Modes Reference
 
-## Overview
+## Two Dimensions
 
-Every bench run has an evidence mode that determines how (and whether) infrastructure mutations are recorded as evidence entries.
+Bench runs have two independent dimensions:
 
-## Modes
+1. **Adapter** — how the agent executes (CLI local process, built-in provider loop, or remote A2A)
+2. **Evidence mode** — how mutations are recorded (none, proxy, smart, mcp)
+
+### Adapter × Evidence Mode Matrix
+
+|  | none | proxy | smart | mcp |
+|--|------|-------|-------|-----|
+| **Provider (built-in)** | Raw baseline | Auto-evidence | Agent calls prescribe_smart | Agent uses MCP server |
+| **A2A (remote agent)** | Remote agent, no evidence | Remote agent + auto-evidence | N/A — remote agent owns tools | N/A — remote agent owns tools |
+| **CLI (legacy)** | Spawn process | Spawn + auto-evidence | N/A | Spawn MCP-aware process |
+
+**Provider** is the primary path — built-in tool-use loop with Bifrost/Claude providers.
+**A2A** delegates to a remote agent via the A2A protocol. Evidence is either auto (proxy) or managed by the remote agent.
+**CLI** is the legacy adapter — spawns an external process. Rarely used.
+
+### Adapter flags
+
+| Adapter | Flag | What it does |
+|---------|------|-------------|
+| **Provider** | `--provider bifrost` (or `claude`) | Built-in multi-turn tool-use agent loop |
+| **A2A** | `--adapter a2a --a2a-agent-url URL` | Sends task to remote A2A agent, waits for result |
+| **CLI** | `--adapter cli --agent-command "cmd"` | Spawns external process with env vars |
+| **MCP** | `--adapter mcp --agent-command "cmd"` | Spawns MCP-aware external process |
+
+Dispatch order: `adapter=a2a` → remote A2A, `provider!=empty` → built-in loop, `adapter=cli/mcp` → legacy.
+
+---
+
+## Evidence Modes
+
+Every bench run has an evidence mode that determines how (and whether) infrastructure mutations are recorded.
+
+### Modes
 
 | Mode | Flag | Agent behavior | Evidra involvement | Evidence captured |
 |------|------|---------------|-------------------|-------------------|
