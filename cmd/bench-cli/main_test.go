@@ -179,8 +179,7 @@ func TestApplyLabFlagOverrides_PropagatesRunsDir(t *testing.T) {
 }
 
 func TestBuildVersionString_UsesBuildMetadata(t *testing.T) {
-	t.Parallel()
-
+	// Not parallel: mutates package-level version/commit/date vars.
 	originalVersion, originalCommit, originalDate := version, commit, date
 	t.Cleanup(func() {
 		version = originalVersion
