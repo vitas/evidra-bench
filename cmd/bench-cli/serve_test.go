@@ -408,7 +408,7 @@ func TestServeCertifyParallel_RejectsNonDefaultSharedProfiles(t *testing.T) {
 	select {
 	case <-runner.done:
 		t.Fatal("runner should not be called when profile validation fails")
-	case <-time.After(100 * time.Millisecond):
+	case <-time.After(500 * time.Millisecond):
 		// expected
 	}
 }
@@ -516,7 +516,7 @@ func TestHandleCertifyAPI_RejectsFullyIncompatibleRequest(t *testing.T) {
 	select {
 	case <-runner.done:
 		t.Fatal("runner should not be called when all scenarios are incompatible")
-	case <-time.After(100 * time.Millisecond):
+	case <-time.After(500 * time.Millisecond):
 		// expected
 	}
 }
