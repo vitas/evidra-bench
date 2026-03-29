@@ -27,7 +27,7 @@ interface RunRecord {
 }
 
 interface RunsResponse {
-  items: RunRecord[];
+  runs: RunRecord[];
   total: number;
   limit: number;
   offset: number;
@@ -169,7 +169,7 @@ export function Runs() {
   }
 
   // Client-side sort (server could also sort, but we sort the current page)
-  const sorted = data?.items ? [...data.items] : [];
+  const sorted = data?.runs ? [...data.runs] : [];
   sorted.sort((a, b) => {
     const dir = sort.dir === "asc" ? 1 : -1;
     switch (sort.field) {
