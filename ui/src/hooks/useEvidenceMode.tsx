@@ -52,7 +52,7 @@ export function formatEvidenceModeLabel(mode?: string): string {
     case "none":
       return "Baseline";
     case "proxy":
-      return "Evidra Auto";
+      return "Evidra Proxy";
     case "smart":
       return "Evidra Smart";
     case "mcp":
