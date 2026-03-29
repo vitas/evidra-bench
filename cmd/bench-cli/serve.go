@@ -212,7 +212,10 @@ func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string
 
 func buildCertifyRunConfig(baseCfg config.Config, req CertifyRequest) config.Config {
 	runCfg := baseCfg
-	if req.Provider != "" {
+	// Only override provider if bench-cli natively supports it;
+	// unknown providers (deepseek, openai, google) fall through to baseCfg default (bifrost).
+	switch req.Provider {
+	case "bifrost", "claude", "anthropic":
 		runCfg.Provider = req.Provider
 	}
 	if req.Config.A2AAgentURL != "" {

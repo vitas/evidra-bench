@@ -67,6 +67,21 @@ func TestBuildCertifyRunConfig_UsesFallbacksWhenRequestOmitted(t *testing.T) {
 	}
 }
 
+func TestBuildCertifyRunConfig_UnknownProviderFallsBackToBase(t *testing.T) {
+	t.Parallel()
+
+	base := config.Default()
+	base.Provider = "bifrost"
+
+	req := CertifyRequest{Model: "deepseek-chat", Provider: "deepseek"}
+
+	got := buildCertifyRunConfig(base, req)
+
+	if got.Provider != "bifrost" {
+		t.Fatalf("Provider = %q, want bifrost (unknown provider should fall back to base)", got.Provider)
+	}
+}
+
 func TestBuildCertifyRunConfig_A2APreservesAdapter(t *testing.T) {
 	t.Parallel()
 
