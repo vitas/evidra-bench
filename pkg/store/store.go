@@ -86,7 +86,7 @@ func (s *Store) migrate() error {
 	if err := s.ensureColumn("runs", "metadata_json", "TEXT NOT NULL DEFAULT ''"); err != nil {
 		return err
 	}
-	return s.ensureColumn("runs", "evidence_mode", "TEXT NOT NULL DEFAULT 'direct'")
+	return s.ensureColumn("runs", "evidence_mode", "TEXT NOT NULL DEFAULT 'none'")
 }
 
 // Insert adds a run record to the database and appends to JSONL backup.
@@ -95,7 +95,7 @@ func (s *Store) Insert(r RunRecord) error {
 		r.CreatedAt = time.Now().UTC()
 	}
 	if r.EvidenceMode == "" {
-		r.EvidenceMode = "direct"
+		r.EvidenceMode = "none"
 	}
 	_, err := s.db.Exec(`
 		INSERT OR REPLACE INTO runs (
@@ -247,7 +247,7 @@ func (s *Store) Rebuild() (int, error) {
 			continue
 		}
 		if r.EvidenceMode == "" {
-			r.EvidenceMode = "direct"
+			r.EvidenceMode = "none"
 		}
 		if _, err := s.db.Exec(`
 			INSERT OR REPLACE INTO runs (

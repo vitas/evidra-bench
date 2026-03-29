@@ -166,9 +166,6 @@ func EffectiveEvidenceMode(cfg Config) string {
 	if cfg.ProxyMode {
 		return "proxy"
 	}
-	if cfg.ResolveEvidraBin() != "" {
-		return "direct"
-	}
 	return "none"
 }
 

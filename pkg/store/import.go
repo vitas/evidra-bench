@@ -62,7 +62,7 @@ func (s *Store) ImportFromArtifacts(runsDir string) (int, error) {
 		if rj.Metadata["evidence_mode"] != "" {
 			evidenceMode = rj.Metadata["evidence_mode"]
 		} else if rj.Metadata["skill_version"] != "" {
-			evidenceMode = "direct"
+			evidenceMode = "smart"
 		}
 
 		rec := RunRecord{

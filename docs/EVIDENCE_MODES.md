@@ -39,7 +39,6 @@ Every bench run has an evidence mode that determines how (and whether) infrastru
 | **proxy** | `--proxy-mode` | Identical to none — agent is unaware | Harness silently intercepts and records every mutation | Yes (auto) |
 | **smart** | `--smart-prescribe` | Agent calls `prescribe_smart` before each mutation — one lightweight tool call | Agent-driven, minimal overhead (~80% fewer tokens than full protocol) | Yes (agent-driven) |
 | **evidra-mcp** | `--mcp-server "evidra-mcp ..."` | Agent gets evidra's full MCP tool suite (prescribe, report, risk classification) | Full evidra protocol — agent manages the entire evidence lifecycle | Yes (full protocol) |
-| **direct** | `--evidra-bin path` | Agent calls `evidra prescribe` / `evidra report` as shell commands | Same protocol as evidra-mcp, different transport (CLI binary instead of MCP stdio) | Yes (full protocol) |
 
 ### Important: evidra-mcp is not standard MCP
 
@@ -60,18 +59,6 @@ A standard MCP test (generic MCP server, agent discovers tools independently) wo
 | smart → evidra-mcp | Yes — full tool suite | Yes — prescribe, report, risk tools | Significant — some models drop 10-15% pass rate | Full protocol compliance |
 | none → evidra-mcp | Yes — full tool suite | Yes — all tools | Significant | Full protocol compliance |
 
-### evidra-mcp vs direct
-
-Same evidra protocol, different transport:
-
-| | evidra-mcp | direct |
-|---|---|---|
-| Transport | MCP stdio (JSON-RPC) | CLI binary (shell exec) |
-| Flag | `--mcp-server "evidra-mcp ..."` | `--evidra-bin /path/to/evidra` |
-| Tools | MCP tool discovery | `evidra prescribe`, `evidra report` commands |
-| Process management | Harness starts/stops MCP server | Agent calls binary directly |
-| Status | **Current** | **Legacy** — pre-MCP path, backward compatibility only |
-
 ---
 
 ## Benchmark Data (2026-03-29)
@@ -82,7 +69,6 @@ Same evidra protocol, different transport:
 | proxy | 194 | Growing — identical pass rates to none |
 | smart | 295 | Good coverage — shows protocol-aware models |
 | evidra-mcp | 371 | Full compliance — some models drop 10-15% |
-| direct | 142 | Legacy — no new runs planned |
 
 ## Which Mode to Use
 
