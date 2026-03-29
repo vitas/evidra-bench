@@ -45,7 +45,7 @@ run_model() {
       --model "$model" --provider bifrost \
       --repeats "$REPEATS" \
       --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "${prefix}-p" \
-      --proxy-mode \
+      --trace evidra \
       --evidra-url "$EVIDRA_URL" --evidra-api-key "$EVIDRA_API_KEY" \
       2>&1
     echo "DONE $model/proxy"

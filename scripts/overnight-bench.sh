@@ -4,7 +4,7 @@ set -u
 # Overnight benchmark — seeds the evidra.cc dashboard with real data.
 #
 # Runs scenarios in two parallel tracks per model:
-#   Track 1: --proxy-mode (auto-evidence, agent unaware)
+#   Track 1: --trace evidra (auto-evidence, agent unaware)
 #   Track 2: --mcp-server "evidra-mcp" (agent uses MCP tools)
 #
 # Each track gets its own k3d cluster to avoid conflicts.
@@ -64,7 +64,7 @@ run_bench() {
   log_file="${LOG_DIR}/${model}-${mode}.log"
 
   if [ "$mode" = "proxy" ]; then
-    mode_flags="--proxy-mode"
+    mode_flags="--trace evidra"
   elif [ "$mode" = "mcp" ]; then
     mode_flags="--mcp-server ${mcp_cmd}"
   else
