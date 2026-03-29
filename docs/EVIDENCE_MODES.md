@@ -9,11 +9,14 @@ Bench runs have two independent dimensions:
 
 ### Adapter × Evidence Mode Matrix
 
-|  | none | proxy | smart | evidra-mcp |
+|  | Baseline | Evidra Auto | Evidra Smart | Evidra Full |
+|  | `none` | `proxy` | `smart` | `mcp` |
 |--|------|-------|-------|------------|
 | **Provider (built-in)** | Raw baseline | Auto-evidence | Agent calls prescribe_smart | Agent uses evidra-mcp server |
-| **A2A (remote agent)** | Remote agent, no evidence | Remote agent + auto-evidence | N/A — remote agent owns tools | N/A — remote agent owns tools |
+| **A2A (remote agent)** | Remote agent, no evidence | Remote agent + auto-evidence | N/A | N/A |
 | **CLI (CI/packaged)** | Spawn process | Spawn + auto-evidence | N/A | N/A |
+
+**A2A and CLI agents own their tool loop.** The harness cannot inject evidra tools into a remote agent or a pre-built binary. Only `Baseline` and `Evidra Auto` apply — auto records mutations silently without agent cooperation. If an A2A agent uses evidra internally, that's the agent's choice, not the harness's. The evidence mode filter on the leaderboard is not meaningful for A2A runs.
 
 ### Adapter flags
 
