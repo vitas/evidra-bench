@@ -34,7 +34,7 @@ interface Run {
 }
 
 interface RunsResponse {
-  items: Run[];
+  runs: Run[];
   total: number;
 }
 
@@ -155,7 +155,7 @@ export function Benchmarks() {
         const runsPath = `/v1/bench/runs?limit=${runsLimit}${sinceParam ? `&${sinceParam}` : ""}${evidenceModeParam("&", mode)}`;
         const r = await request<RunsResponse>(runsPath);
         if (cancelled) return;
-        setRuns(r.items ?? []);
+        setRuns(r.runs ?? []);
       })
       .catch(() => {
         if (cancelled) return;

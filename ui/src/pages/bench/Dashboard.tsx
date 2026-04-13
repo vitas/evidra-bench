@@ -36,7 +36,7 @@ interface Run {
 }
 
 interface RunsResponse {
-  items: Run[];
+  runs: Run[];
   total: number;
 }
 
@@ -154,8 +154,8 @@ export function Dashboard() {
       .then(([s, recent, all, sig]) => {
         if (cancelled) return;
         setStats(s);
-        setRecentRuns(recent.items ?? []);
-        setAllRuns(all.items ?? []);
+        setRecentRuns(recent.runs ?? []);
+        setAllRuns(all.runs ?? []);
         setSignals(sig);
       })
       .catch(() => {

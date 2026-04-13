@@ -121,14 +121,14 @@ function ModelMatrix() {
     setLoading(true);
     Promise.all([
       request<CatalogResponse>(`/v1/bench/catalog${evidenceModeParam("?", mode)}`),
-      request<{ items: ScenarioCategoryRecord[] }>(`/v1/bench/scenarios${evidenceModeParam("?", mode)}`),
+      request<{ scenarios: ScenarioCategoryRecord[] }>(`/v1/bench/scenarios${evidenceModeParam("?", mode)}`),
     ])
       .then(([catalogRes, scenariosRes]) => {
         const catalog = normalizeCatalog(catalogRes);
         const models = catalog.models;
         setAllModels(models);
         setActiveModels((current) => (current.length > 0 ? current : models));
-        setScenarios(scenariosRes.items ?? []);
+        setScenarios(scenariosRes.scenarios ?? []);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -308,8 +308,8 @@ function RunDiff() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    request<{ items: RunRecord[] }>(`/v1/bench/runs?limit=100${evidenceModeParam("&", mode)}`)
-      .then((res) => setRuns(res.items ?? []))
+    request<{ runs: RunRecord[] }>(`/v1/bench/runs?limit=100${evidenceModeParam("&", mode)}`)
+      .then((res) => setRuns(res.runs ?? []))
       .catch((e) => setError(e.message))
       .finally(() => setLoadingRuns(false));
   }, [request, mode]);

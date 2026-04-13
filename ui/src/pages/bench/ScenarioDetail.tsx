@@ -24,7 +24,7 @@ interface Run {
 }
 
 interface RunsResponse {
-  items: Run[];
+  runs: Run[];
   total: number;
 }
 
@@ -39,7 +39,7 @@ interface Scenario {
 }
 
 interface ScenariosResponse {
-  items: Scenario[];
+  scenarios: Scenario[];
 }
 
 interface ModelGroup {
@@ -112,8 +112,8 @@ export function ScenarioDetail() {
       request<ScenariosResponse>(`/v1/bench/scenarios${evidenceModeParam("?", mode)}`),
     ])
       .then(([runsRes, scenariosRes]) => {
-        setRuns(runsRes.items ?? []);
-        const sc = scenariosRes.items?.find((s) => s.id === id) ?? null;
+        setRuns(runsRes.runs ?? []);
+        const sc = scenariosRes.scenarios?.find((s) => s.id === id) ?? null;
         setScenario(sc);
       })
       .catch(() => {})

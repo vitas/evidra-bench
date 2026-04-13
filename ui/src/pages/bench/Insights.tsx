@@ -22,7 +22,7 @@ interface FailureInsights {
 }
 
 interface Scenario { id: string; title: string }
-interface ScenariosResponse { items: Scenario[] }
+interface ScenariosResponse { scenarios: Scenario[] }
 
 function fmt(n: number): string { return n.toFixed(1); }
 function fmtDur(s: number): string { return s < 60 ? `${s.toFixed(1)}s` : `${Math.floor(s/60)}m ${Math.round(s%60)}s`; }
@@ -44,7 +44,7 @@ export function Insights() {
       request<{ by_scenario: { scenario_id: string; runs: number; passed: number }[] }>(`/v1/bench/stats${evidenceModeParam("?", mode)}`),
     ])
       .then(([scenariosRes, stats]) => {
-        const items = scenariosRes.items ?? [];
+        const items = scenariosRes.scenarios ?? [];
         setScenarios(items);
         // Auto-select the hardest scenario with enough data
         const ranked = [...(stats.by_scenario ?? [])]

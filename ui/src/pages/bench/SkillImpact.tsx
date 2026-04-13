@@ -21,7 +21,7 @@ interface Run {
 }
 
 interface RunsResponse {
-  items: Run[];
+  runs: Run[];
   total: number;
 }
 
@@ -101,7 +101,7 @@ export function SkillImpact() {
 
   useEffect(() => {
     request<RunsResponse>(`/v1/bench/runs?limit=1000${evidenceModeParam("&", mode)}`)
-      .then((res) => setRuns(res.items ?? []))
+      .then((res) => setRuns(res.runs ?? []))
       .catch(() => setRuns([]))
       .finally(() => setLoading(false));
   }, [request, mode]);
