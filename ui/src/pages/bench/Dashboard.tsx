@@ -127,7 +127,7 @@ export function Dashboard() {
   usePageTitle("Dashboard");
   const { request } = useApi();
   const { mode } = useEvidenceMode();
-  const [period, setPeriod] = useState<Period>("7d");
+  const [period, setPeriod] = useState<Period>("all");
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentRuns, setRecentRuns] = useState<Run[]>([]);
   const [allRuns, setAllRuns] = useState<Run[]>([]);
