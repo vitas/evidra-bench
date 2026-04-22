@@ -7,23 +7,21 @@ import (
 	"sort"
 	"time"
 
+	"samebits.com/evidra-infra-bench/pkg/artifact"
 	"samebits.com/evidra-infra-bench/pkg/verifier"
 )
 
-// RunRecord is a single historical run read from run.json.
+// RunRecord is a historical run read from run.json, augmented with
+// data derived from the run directory (scorecard.json) and the parsed
+// verifier.VerifyResult. The JSON shape comes from artifact.RunBundle,
+// so any schema change there is picked up here automatically.
 type RunRecord struct {
-	ScenarioID string                 `json:"scenario_id"`
-	Adapter    string                 `json:"adapter"`
-	StartTime  time.Time              `json:"start_time"`
-	EndTime    time.Time              `json:"end_time"`
-	ExitCode   int                    `json:"exit_code"`
-	Passed     bool                   `json:"passed"`
-	Checks     *verifier.VerifyResult `json:"-"`
-	RawChecks  json.RawMessage        `json:"checks"`
-	Dir        string                 `json:"-"`
-	Signals    map[string]int         `json:"-"`
-	Score      float64                `json:"-"`
-	ScoreBand  string                 `json:"-"`
+	artifact.RunBundle
+	Dir       string                 `json:"-"`
+	Checks    *verifier.VerifyResult `json:"checks,omitempty"`
+	Signals   map[string]int         `json:"-"`
+	Score     float64                `json:"-"`
+	ScoreBand string                 `json:"-"`
 }
 
 // Duration returns the run duration.
@@ -42,14 +40,17 @@ func LoadHistory(runsDir string) []RunRecord {
 		if readErr != nil {
 			return nil
 		}
-		var rec RunRecord
-		if json.Unmarshal(data, &rec) != nil {
+		var bundle artifact.RunBundle
+		if json.Unmarshal(data, &bundle) != nil {
 			return nil
 		}
-		rec.Dir = filepath.Dir(path)
-		if len(rec.RawChecks) > 0 {
+		rec := RunRecord{
+			RunBundle: bundle,
+			Dir:       filepath.Dir(path),
+		}
+		if len(bundle.Checks) > 0 {
 			var vr verifier.VerifyResult
-			if json.Unmarshal(rec.RawChecks, &vr) == nil {
+			if json.Unmarshal(bundle.Checks, &vr) == nil {
 				rec.Checks = &vr
 			}
 		}

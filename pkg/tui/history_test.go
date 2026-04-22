@@ -7,15 +7,16 @@ import (
 	"testing"
 	"time"
 
+	"samebits.com/evidra-infra-bench/pkg/artifact"
 	"samebits.com/evidra-infra-bench/pkg/verifier"
 )
 
-func writeRunJSON(t *testing.T, dir string, rec RunRecord) {
+func writeRunJSON(t *testing.T, dir string, bundle artifact.RunBundle) {
 	t.Helper()
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	data, err := json.Marshal(rec)
+	data, err := json.Marshal(bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,13 +38,13 @@ func TestLoadHistory_ReadsRuns(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	now := time.Now()
-	writeRunJSON(t, filepath.Join(dir, "20260101-run1"), RunRecord{
+	writeRunJSON(t, filepath.Join(dir, "20260101-run1"), artifact.RunBundle{
 		ScenarioID: "broken-deployment",
 		Passed:     true,
 		StartTime:  now.Add(-2 * time.Hour),
 		EndTime:    now.Add(-2*time.Hour + time.Minute),
 	})
-	writeRunJSON(t, filepath.Join(dir, "20260102-run2"), RunRecord{
+	writeRunJSON(t, filepath.Join(dir, "20260102-run2"), artifact.RunBundle{
 		ScenarioID: "broken-deployment",
 		Passed:     false,
 		StartTime:  now.Add(-1 * time.Hour),
@@ -69,12 +70,12 @@ func TestLoadHistory_ParsesChecks(t *testing.T) {
 		},
 	}
 	checksJSON, _ := json.Marshal(checks)
-	writeRunJSON(t, filepath.Join(dir, "run1"), RunRecord{
+	writeRunJSON(t, filepath.Join(dir, "run1"), artifact.RunBundle{
 		ScenarioID: "test",
 		Passed:     true,
 		StartTime:  time.Now(),
 		EndTime:    time.Now(),
-		RawChecks:  checksJSON,
+		Checks:     checksJSON,
 	})
 	records := LoadHistory(dir)
 	if len(records) != 1 {
@@ -91,9 +92,9 @@ func TestLoadHistory_ParsesChecks(t *testing.T) {
 func TestHistoryForScenario(t *testing.T) {
 	t.Parallel()
 	records := []RunRecord{
-		{ScenarioID: "a", Passed: true},
-		{ScenarioID: "b", Passed: false},
-		{ScenarioID: "a", Passed: false},
+		{RunBundle: artifact.RunBundle{ScenarioID: "a", Passed: true}},
+		{RunBundle: artifact.RunBundle{ScenarioID: "b", Passed: false}},
+		{RunBundle: artifact.RunBundle{ScenarioID: "a", Passed: false}},
 	}
 	result := HistoryForScenario(records, "a")
 	if len(result) != 2 {
@@ -104,9 +105,9 @@ func TestHistoryForScenario(t *testing.T) {
 func TestComputeStats(t *testing.T) {
 	t.Parallel()
 	records := []RunRecord{
-		{Passed: false},
-		{Passed: true},
-		{Passed: true},
+		{RunBundle: artifact.RunBundle{Passed: false}},
+		{RunBundle: artifact.RunBundle{Passed: true}},
+		{RunBundle: artifact.RunBundle{Passed: true}},
 	}
 	stats := ComputeStats(records)
 	if stats.TotalRuns != 3 {
@@ -137,8 +138,10 @@ func TestComputeStats_Empty(t *testing.T) {
 func TestRunRecord_Duration(t *testing.T) {
 	t.Parallel()
 	r := RunRecord{
-		StartTime: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-		EndTime:   time.Date(2026, 1, 1, 0, 2, 30, 0, time.UTC),
+		RunBundle: artifact.RunBundle{
+			StartTime: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+			EndTime:   time.Date(2026, 1, 1, 0, 2, 30, 0, time.UTC),
+		},
 	}
 	if r.Duration() != 2*time.Minute+30*time.Second {
 		t.Fatalf("expected 2m30s, got %v", r.Duration())
