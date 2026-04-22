@@ -1098,8 +1098,8 @@ func providerEvidenceDir(configuredRoot, runsDir, scenarioID string, started tim
 	return filepath.Join(root, fmt.Sprintf("%s-%d", safeScenarioID, started.UnixMilli()))
 }
 
-func providerToolCalls(messages []agent.Message) []adapter.ToolCall {
-	var calls []adapter.ToolCall
+func providerToolCalls(messages []agent.Message) []adapter.ToolCallRecord {
+	var calls []adapter.ToolCallRecord
 	callIndexByID := map[string]int{}
 
 	for _, msg := range messages {
@@ -1110,7 +1110,7 @@ func providerToolCalls(messages []agent.Message) []adapter.ToolCall {
 				if strings.TrimSpace(tc.Arguments) != "" {
 					_ = json.Unmarshal([]byte(tc.Arguments), &args)
 				}
-				calls = append(calls, adapter.ToolCall{
+				calls = append(calls, adapter.ToolCallRecord{
 					Tool: tc.Name,
 					Args: args,
 				})

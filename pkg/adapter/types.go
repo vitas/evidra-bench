@@ -26,12 +26,14 @@ type RunResult struct {
 	Transcript string
 	Stdout     string
 	Stderr     string
-	ToolCalls  []ToolCall
+	ToolCalls  []ToolCallRecord
 	Metadata   map[string]string
 }
 
-// ToolCall records a single tool invocation by the agent.
-type ToolCall struct {
+// ToolCallRecord is an historical record of a tool invocation by the agent,
+// written to run artifacts. Not to be confused with agent.ToolCall, which is
+// the in-flight request the LLM sends over the provider protocol.
+type ToolCallRecord struct {
 	Tool      string         `json:"tool"`
 	Args      map[string]any `json:"args,omitempty"`
 	Result    string         `json:"result,omitempty"`
