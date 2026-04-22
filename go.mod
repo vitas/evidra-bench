@@ -6,7 +6,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/jackc/pgx/v5 v5.9.1
-	github.com/modelcontextprotocol/go-sdk v1.4.1
+	github.com/modelcontextprotocol/go-sdk v1.5.0
 	github.com/riverqueue/river v0.32.0
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.32.0
 	github.com/spf13/cobra v1.10.2
