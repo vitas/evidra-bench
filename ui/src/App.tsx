@@ -1,11 +1,14 @@
-import { BrowserRouter, Routes, Route } from "react-router";
+import { BrowserRouter, Navigate, Routes, Route, useLocation, useParams } from "react-router";
 import { EvidenceModeProvider } from "./hooks/useEvidenceMode";
 import { Layout } from "./components/Layout";
 import { Landing } from "./pages/Landing";
-import { Scenarios } from "./pages/Scenarios";
 import { Designer } from "./pages/Designer";
-import { Run } from "./pages/Run";
-import { Results } from "./pages/Results";
+import {
+  BENCH_RUNS_PATH,
+  BENCH_SCENARIOS_PATH,
+  benchRunPath,
+  benchScenarioPath,
+} from "./lib/routes.mts";
 
 // Bench dashboard pages (recovered from git history)
 import { Layout as BenchLayout } from "./pages/bench/Layout";
@@ -42,15 +45,30 @@ export function App() {
           <Route path="/bench/benchmarks" element={<BenchLayout><Benchmarks /></BenchLayout>} />
 
           {/* Lab routes (scenario catalog, designer, run configurator) */}
-          <Route path="/scenarios" element={<Layout><Scenarios /></Layout>} />
-          <Route path="/scenarios/:id" element={<BenchLayout><ScenarioDetail /></BenchLayout>} />
-          <Route path="/runs" element={<BenchLayout><Runs /></BenchLayout>} />
-          <Route path="/runs/:id" element={<BenchLayout><RunDetail /></BenchLayout>} />
+          <Route path="/scenarios" element={<RedirectWithSearch to={BENCH_SCENARIOS_PATH} />} />
+          <Route path="/scenarios/:id" element={<LegacyScenarioRedirect />} />
+          <Route path="/runs" element={<RedirectWithSearch to={BENCH_RUNS_PATH} />} />
+          <Route path="/runs/:id" element={<LegacyRunRedirect />} />
           <Route path="/designer" element={<Layout><Designer /></Layout>} />
-          <Route path="/run" element={<Layout><Run /></Layout>} />
-          <Route path="/results" element={<Layout><Results /></Layout>} />
+          <Route path="/run" element={<RedirectWithSearch to={BENCH_SCENARIOS_PATH} />} />
+          <Route path="/results" element={<RedirectWithSearch to={BENCH_RUNS_PATH} />} />
         </Routes>
       </BrowserRouter>
     </EvidenceModeProvider>
   );
+}
+
+function RedirectWithSearch({ to }: { to: string }) {
+  const { search } = useLocation();
+  return <Navigate to={`${to}${search}`} replace />;
+}
+
+function LegacyRunRedirect() {
+  const { id } = useParams();
+  return <RedirectWithSearch to={id ? benchRunPath(id) : BENCH_RUNS_PATH} />;
+}
+
+function LegacyScenarioRedirect() {
+  const { id } = useParams();
+  return <RedirectWithSearch to={id ? benchScenarioPath(id) : BENCH_SCENARIOS_PATH} />;
 }

@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"samebits.com/evidra-infra-bench/internal/benchsvc"
 	"samebits.com/evidra-infra-bench/pkg/config"
 	"samebits.com/evidra-infra-bench/pkg/orchestrator"
 )
@@ -236,6 +237,23 @@ func TestHandleCertifyAPI_RejectsUnsupportedEvidenceMode(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "unsupported evidence_mode") {
 		t.Fatalf("body = %q, want unsupported evidence_mode", rec.Body.String())
+	}
+}
+
+func TestRegisterBenchAPIRoutes_ProtectsRunsEndpoint(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	svc := benchsvc.NewService(nil, benchsvc.ServiceConfig{})
+	registerBenchAPIRoutes(mux, svc, "secret")
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/bench/runs", nil)
+	rec := httptest.NewRecorder()
+
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401; body = %s", rec.Code, rec.Body.String())
 	}
 }
 

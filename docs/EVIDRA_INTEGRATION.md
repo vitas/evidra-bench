@@ -44,15 +44,17 @@ agent completes and runs declarative assertions.
 
 ## Bench Job Contracts
 
-When `evidra-infra-bench` is wired into the hosted Evidra platform, the
-benchmark job lifecycle is driven by the `evidra` API control plane rather than
-by this repo's local `POST /v1/certify` endpoint.
-That local certify request can override the worker's default evidence mode; the
+This repo now owns the benchmark API/control-plane surface used by the bench UI
+and remote runners. `POST /v1/certify` remains the direct executor endpoint;
+`POST /v1/bench/trigger` is the user-facing trigger endpoint that can either
+enqueue a runner job or use a direct executor.
+
+The local certify request can override the worker's default evidence mode; the
 request value takes precedence over the default worker setting.
 
 ### Direct executor path
 
-In direct executor mode, Evidra accepts:
+In direct executor mode, the bench service accepts:
 
 - `POST /v1/bench/trigger` with `model`, optional `provider`, required
   `evidence_mode` (`none` or `smart`), and `scenarios[]`
@@ -68,8 +70,8 @@ as the scenario runner/executor behind that trigger request.
 
 ### Poll-based runner path
 
-In runner mode, Evidra persists jobs and this repo participates as a registered
-runner:
+In runner mode, the bench service persists jobs and registered runners claim
+them:
 
 - `POST /v1/runners/register` advertises runner capabilities
 - `GET /v1/runners/jobs?runner_id=...` claims the next matching job
@@ -78,13 +80,12 @@ runner:
 - `POST /v1/runners/jobs/{id}/complete` reports `runner_id`, final `status`,
   `passed`, `failed`, and an optional `message`
 
-This repo still owns the execution internals: provisioning, namespace rewrite,
-agent execution, verification, artifact capture, and benchmark result upload.
-The hosted job contract itself is normative in the sibling `evidra` repo:
+The authoritative job contracts are now local to this repo:
 
-- `../evidra/docs/contracts/EXECUTOR_CONTRACT_V1.md`
-- `../evidra/docs/contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md`
-- `../evidra/docs/api-reference.md`
+- [Bench API Reference](BENCH_API_REFERENCE.md)
+- [Executor Contract v1.0.0](contracts/EXECUTOR_CONTRACT_V1.md)
+- [Bench Runner Control Plane Contract v1](contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md)
+- [Bench Service Setup](guides/bench-service-setup.md)
 
 ## Evidence Format
 

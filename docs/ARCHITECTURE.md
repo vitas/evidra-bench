@@ -9,31 +9,33 @@ injects faults, lets agents fix them, and verifies outcomes.
 ## Control Plane Boundary
 
 This repo owns scenario execution, workspace isolation, namespace isolation,
-verification, and result reporting. It does not own the multi-tenant bench job
-contracts exposed by the hosted Evidra API.
+verification, result reporting, and the private bench API/control plane used by
+the dashboard and runners. The sibling `../evidra` repo should stay focused on
+the evidence runtime, CLI/MCP protocol, local flight recorder, and scoring.
 
 | Surface | Owner | Purpose |
 |---------|-------|---------|
-| `bench-cli run`, `bench-cli bench`, `bench-cli serve` | `evidra-infra-bench` | Run scenarios directly or through the local River-backed orchestrator |
-| `POST /v1/certify` | `evidra-infra-bench` | Local standalone enqueue API for the orchestrator; request-level `evidence_mode` overrides the worker default |
-| `POST /v1/bench/trigger`, `GET /v1/bench/trigger/{id}`, `POST /v1/bench/trigger/{id}/progress`, `/v1/runners/*` | sibling `evidra` repo | Hosted trigger, persisted job queue, runner registration, progress, and completion |
+| `bench-cli run`, `bench-cli bench`, `bench-cli certify` | `evidra-bench` | Run scenarios directly or through the local River-backed orchestrator |
+| `bench-cli serve` | `evidra-bench` | Serve bench API, direct executor, runner queue, and local orchestration cluster |
+| `POST /v1/certify` | `evidra-bench` | Direct executor API for scenario execution; request-level `evidence_mode` overrides worker default |
+| `POST /v1/bench/trigger`, `GET /v1/bench/trigger/{id}`, `POST /v1/bench/trigger/{id}/progress`, `/v1/runners/*` | `evidra-bench` | Trigger, persisted job queue, runner registration, progress, and completion |
+| Evidence CLI/MCP, scoring, local flight recorder | sibling `evidra` repo | Runtime/protocol layer used by agents and optional evidence forwarding |
 
-When this harness is used inside the hosted Evidra stack, it participates in
-one of two control-plane modes:
+The bench service participates in one of two control-plane modes:
 
-- direct executor mode: Evidra accepts `POST /v1/bench/trigger` and invokes an
-  executor implementation that runs scenarios immediately; hosted trigger
-  requests only accept the coarse `none|smart` evidence modes
-- poll-based runner mode: Evidra persists the job, a registered runner claims
+- direct executor mode: the bench service accepts `POST /v1/bench/trigger` and invokes an
+  executor implementation that runs scenarios immediately; trigger requests
+  only accept the coarse `none|smart` evidence modes
+- poll-based runner mode: the bench service persists the job, a registered runner claims
   it through `GET /v1/runners/jobs`, and the runner completes it through
   `POST /v1/runners/jobs/{id}/complete`; claimed jobs include `evidence_mode`
 
-The authoritative HTTP contract for those hosted surfaces lives in the sibling
-`evidra` repo:
+The authoritative HTTP contract for the bench surfaces lives in this repo:
 
-- `../evidra/docs/contracts/EXECUTOR_CONTRACT_V1.md`
-- `../evidra/docs/contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md`
-- `../evidra/docs/api-reference.md`
+- [Bench API Reference](BENCH_API_REFERENCE.md)
+- [Executor Contract v1.0.0](contracts/EXECUTOR_CONTRACT_V1.md)
+- [Bench Runner Control Plane Contract v1](contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md)
+- [Bench Service Setup](guides/bench-service-setup.md)
 
 ## Module Diagram
 
@@ -42,7 +44,8 @@ The authoritative HTTP contract for those hosted surfaces lives in the sibling
 │  Entry Points                                                       │
 │                                                                     │
 │  cmd/bench-cli/main.go     CLI: run, bench, certify, lab, serve    │
-│  cmd/bench-cli/serve.go    REST API: POST /v1/certify              │
+│  cmd/bench-cli/serve.go    REST API: /v1/certify, /v1/bench/*      │
+│  internal/benchsvc         Bench API, runner queue, analytics      │
 └───────────┬─────────────────────────────┬───────────────────────────┘
             │ sequential                  │ parallel (--parallel N)
             ▼                             ▼
@@ -193,12 +196,12 @@ serve.go → serveAPI()
 
 Same orchestrator, same lifecycle. The API just enqueues and returns.
 
-This local `POST /v1/certify` surface is separate from the hosted
-`POST /v1/bench/trigger` contract. The Run UI in this repo targets the hosted
-trigger API, not the standalone certify API.
+This local `POST /v1/certify` surface is the direct executor contract.
+The Run UI targets `POST /v1/bench/trigger`, which uses runner mode when a
+healthy runner advertises the requested model and direct executor mode when an
+executor is configured.
 The local certify request can override the worker's default evidence mode; the
-request value wins over the worker default and does not change the hosted
-trigger aliasing.
+request value wins over the worker default and does not change trigger aliasing.
 
 ## Data Flow
 

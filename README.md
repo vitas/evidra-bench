@@ -4,7 +4,7 @@ Development and testing framework for AI infrastructure agent skills. Run your a
 
 **75 scenarios** | **8 CKA/CKS-aligned tracks** | **4 certification levels** | **5 infrastructure categories**
 
-Puzzle Designer: [lab.evidra.cc](https://lab.evidra.cc) | Results: [lab.evidra.cc/results](https://lab.evidra.cc/results)
+Puzzle Designer: [lab.evidra.cc](https://lab.evidra.cc) | Results: [lab.evidra.cc/bench/runs](https://lab.evidra.cc/bench/runs)
 
 ## Why
 
@@ -258,6 +258,31 @@ Design scenarios visually at [lab.evidra.cc](https://lab.evidra.cc):
 - Run configurator with model picker
 
 Source: `ui/` directory. Deploy: `make ui-docker`.
+
+## Bench API and Runners
+
+This repo also owns the private bench control plane:
+
+- `/v1/bench/*` for runs, artifacts, analytics, trigger jobs, and scenario sync
+- `/v1/runners/*` for poll-based runner registration, job claim, and completion
+- `/v1/certify` for the direct executor contract used by `bench-cli serve`
+
+Run it locally:
+
+```bash
+BENCH_DATABASE_URL=postgres://bench:bench@localhost:5432/bench?sslmode=disable \
+EVIDRA_API_KEY=dev-secret \
+BENCH_SERVICE_ADDR=:8090 \
+bench-cli serve
+```
+
+Key docs:
+
+- [Bench API Reference](docs/BENCH_API_REFERENCE.md)
+- [Bench Service Setup](docs/guides/bench-service-setup.md)
+- [Executor Contract v1.0.0](docs/contracts/EXECUTOR_CONTRACT_V1.md)
+- [Runner Control Plane Contract v1](docs/contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md)
+- [Bench Business Model](docs/product/bench-business-model.md)
 
 ## Development
 

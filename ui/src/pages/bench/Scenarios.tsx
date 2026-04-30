@@ -1,6 +1,6 @@
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { useAppInfo } from "../../hooks/useAppInfo";
 import { evidenceModeParam } from "../../lib/catalogData.mts";
@@ -12,6 +12,7 @@ import {
   getModelsForProvider,
   normalizeRunSelection,
 } from "../../lib/runOptions.mts";
+import { benchRunPath, benchRunsPagePath, benchScenarioPath } from "../../lib/routes.mts";
 
 interface Scenario {
   id: string;
@@ -41,18 +42,42 @@ interface Stats {
   by_scenario: ScenarioStat[];
 }
 
-interface JobStatus {
-  id: string;
-  scenario_id: string;
-  model: string;
-  provider: string;
+interface ScenarioProgress {
+  scenario: string;
   status: string;
-  started_at: string;
-  ended_at?: string;
   run_id?: string;
-  exit_code?: number;
-  passed?: boolean;
+}
+
+interface TriggerJob {
+  id: string;
+  model: string;
+  status: string;
+  provider?: string;
+  evidence_mode?: string;
+  execution_mode?: string;
+  total: number;
+  completed: number;
+  passed: number;
+  failed: number;
+  current_scenario?: string;
+  run_ids?: string[];
+  progress: ScenarioProgress[];
+  created_at?: string;
   error?: string;
+}
+
+interface TriggerResponse {
+  id: string;
+  status: string;
+  mode?: string;
+}
+
+function isTerminalTriggerStatus(status: string) {
+  return status === "completed" || status === "failed" || status === "error";
+}
+
+function firstTriggerRunID(job: TriggerJob) {
+  return job.run_ids?.[0] ?? job.progress.find((item) => item.run_id)?.run_id;
 }
 
 const FEATURES = ["All", "Chaos enabled", "Evidra enabled"] as const;
@@ -61,6 +86,7 @@ type ViewMode = "cards" | "list";
 export function Scenarios() {
   usePageTitle("Scenarios");
   const { request } = useApi();
+  const navigate = useNavigate();
   const { mode } = useEvidenceMode();
   const { readonly } = useAppInfo();
   const [data, setData] = useState<ScenariosResponse | null>(null);
@@ -77,9 +103,8 @@ export function Scenarios() {
   const [runModal, setRunModal] = useState<string | null>(null); // scenario id
   const [runModel, setRunModel] = useState<string>(DEFAULT_RUN_SELECTION.model);
   const [runProvider, setRunProvider] = useState<string>(DEFAULT_RUN_SELECTION.provider);
-  const [runDryRun, setRunDryRun] = useState(false);
   const [runSubmitting, setRunSubmitting] = useState(false);
-  const [runJob, setRunJob] = useState<JobStatus | null>(null);
+  const [runJob, setRunJob] = useState<TriggerJob | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
   const pollTimeoutRef = useRef<number | null>(null);
   const pollTokenRef = useRef(0);
@@ -142,38 +167,46 @@ export function Scenarios() {
   const submitRun = useCallback(async () => {
     if (!runModal) return;
     const selection = normalizeRunSelection(runProvider, runModel);
+    const evidenceMode = mode === "evidra" ? "smart" : "none";
     cancelPolling();
     setRunSubmitting(true);
     setRunError(null);
     setRunJob(null);
     try {
-      const res = await request<{ job_id: string }>("/v1/bench/execute", {
+      const res = await request<TriggerResponse>("/v1/bench/trigger", {
         method: "POST",
         body: JSON.stringify({
-          scenario_id: runModal,
           model: selection.model,
           provider: selection.provider,
-          dry_run: runDryRun,
+          evidence_mode: evidenceMode,
+          execution_mode: "provider",
+          scenarios: [runModal],
         }),
       });
-      const jobId = res.job_id;
-      const pendingJob: JobStatus = {
+      const jobId = res.id;
+      const pendingJob: TriggerJob = {
         id: jobId,
-        scenario_id: runModal,
         model: selection.model,
         provider: selection.provider,
-        status: "pending",
-        started_at: new Date().toISOString(),
+        status: res.status || "pending",
+        evidence_mode: evidenceMode,
+        execution_mode: "provider",
+        total: 1,
+        completed: 0,
+        passed: 0,
+        failed: 0,
+        progress: [{ scenario: runModal, status: "pending" }],
+        created_at: new Date().toISOString(),
       };
       setRunJob(pendingJob);
       const pollToken = pollTokenRef.current + 1;
       pollTokenRef.current = pollToken;
       const poll = async () => {
         try {
-          const status = await request<JobStatus>(`/v1/bench/execute/${jobId}/status`);
+          const status = await request<TriggerJob>(`/v1/bench/trigger/${jobId}`);
           if (pollTokenRef.current !== pollToken) return;
           setRunJob(status);
-          if (status.status === "pending" || status.status === "running") {
+          if (!isTerminalTriggerStatus(status.status)) {
             pollTimeoutRef.current = window.setTimeout(() => {
               void poll();
             }, 2000);
@@ -197,7 +230,7 @@ export function Scenarios() {
     } finally {
       setRunSubmitting(false);
     }
-  }, [cancelPolling, runDryRun, runModal, runModel, runProvider, request]);
+  }, [cancelPolling, mode, runModal, runModel, runProvider, request]);
 
   const closeModal = () => {
     cancelPolling();
@@ -206,6 +239,7 @@ export function Scenarios() {
     setRunError(null);
     setRunSubmitting(false);
   };
+  const runJobRunID = runJob ? firstTriggerRunID(runJob) : undefined;
 
   if (loading) {
     return (
@@ -352,7 +386,7 @@ export function Scenarios() {
                   <tr
                     key={s.id}
                     className="border-b border-border-subtle last:border-0 hover:bg-accent-subtle transition-colors cursor-pointer"
-                    onClick={() => (window.location.href = `/scenarios/${s.id}`)}
+                    onClick={() => navigate(benchScenarioPath(s.id))}
                   >
                     <td className="py-2.5 px-4 font-mono text-[0.78rem] text-accent whitespace-nowrap">
                       {s.id}
@@ -482,15 +516,6 @@ export function Scenarios() {
                     </select>
                   </label>
 
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={runDryRun}
-                      onChange={(e) => setRunDryRun(e.target.checked)}
-                      className="accent-accent"
-                    />
-                    <span className="text-[0.82rem] text-fg-muted">Dry run (validate only)</span>
-                  </label>
                 </div>
 
                 {runError && (
@@ -522,7 +547,7 @@ export function Scenarios() {
                         ? "bg-info animate-pulse"
                         : runJob.status === "completed"
                           ? "bg-accent"
-                          : runJob.status === "failed"
+                          : runJob.status === "failed" || runJob.status === "error"
                             ? "bg-danger"
                             : "bg-fg-muted"
                     }`}
@@ -534,22 +559,38 @@ export function Scenarios() {
 
                 <div className="text-[0.78rem] text-fg-muted space-y-1">
                   <p>Model: <span className="font-mono text-fg">{runJob.model}</span></p>
-                  <p>Provider: <span className="font-mono text-fg">{runJob.provider}</span></p>
-                  {runJob.passed !== undefined && (
-                    <p>Result: <span className={`font-semibold ${runJob.passed ? "text-accent" : "text-danger"}`}>{runJob.passed ? "PASS" : "FAIL"}</span></p>
+                  {runJob.provider && <p>Provider: <span className="font-mono text-fg">{runJob.provider}</span></p>}
+                  <p>
+                    Progress:{" "}
+                    <span className="font-mono text-fg">
+                      {runJob.completed}/{runJob.total}
+                    </span>
+                  </p>
+                  {runJob.current_scenario && (
+                    <p>Current: <span className="font-mono text-fg">{runJob.current_scenario}</span></p>
                   )}
-                  {runJob.error && (
-                    <p className="text-danger">{runJob.error}</p>
+                  {isTerminalTriggerStatus(runJob.status) && (
+                    <p>
+                      Result:{" "}
+                      <span className={`font-semibold ${runJob.failed === 0 ? "text-accent" : "text-danger"}`}>
+                        {runJob.failed === 0 ? "PASS" : "FAIL"}
+                      </span>
+                    </p>
                   )}
-                  {runJob.run_id && (
+                  {(runJob.error || runJob.failed > 0) && (
+                    <p className="text-danger">
+                      {runJob.error || `${runJob.failed} scenario${runJob.failed === 1 ? "" : "s"} failed`}
+                    </p>
+                  )}
+                  {runJobRunID && (
                     <p>
                       Run:{" "}
                       <Link
-                        to={`/bench/runs/${runJob.run_id}`}
+                        to={benchRunPath(runJobRunID)}
                         className="text-accent hover:text-accent-bright"
                         onClick={closeModal}
                       >
-                        {runJob.run_id}
+                        {runJobRunID}
                       </Link>
                     </p>
                   )}
@@ -590,7 +631,7 @@ function ScenarioCard({
   return (
     <div className="glass-card p-4 hover:border-accent hover:shadow-[var(--shadow-card-lg)] hover:-translate-y-px transition-all flex flex-col gap-2">
       <Link
-        to={`/bench/runs?scenario=${scenario.id}`}
+        to={benchRunsPagePath({ scenario: scenario.id })}
         className="flex flex-col gap-1"
         style={{ textDecoration: "none", color: "inherit" }}
       >

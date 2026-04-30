@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"samebits.com/evidra-infra-bench/internal/benchdb"
+	"samebits.com/evidra-infra-bench/internal/benchsvc"
 	"samebits.com/evidra-infra-bench/pkg/config"
 	"samebits.com/evidra-infra-bench/pkg/orchestrator"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
@@ -51,6 +53,20 @@ func serveAPI(cfg config.Config, addr string) error {
 		return fmt.Errorf("serve: --database-url required for bench service")
 	}
 
+	pool, err := benchdb.Connect(dbURL)
+	if err != nil {
+		return fmt.Errorf("serve: bench db: %w", err)
+	}
+	defer pool.Close()
+
+	benchRepo := benchsvc.NewPgStore(pool)
+	triggerStore := benchsvc.NewTriggerStore()
+	benchService := benchsvc.NewService(benchRepo, benchsvc.ServiceConfig{
+		PublicTenant: "default",
+		TriggerStore: triggerStore,
+		Dispatcher:   &benchsvc.PoolDispatcher{},
+	})
+
 	ctx := context.Background()
 
 	// Provision cluster once for all workers.
@@ -59,6 +75,7 @@ func serveAPI(cfg config.Config, addr string) error {
 		return fmt.Errorf("serve: %w", err)
 	}
 	defer orch.Teardown(ctx)
+	go benchsvc.StartRunnerJanitor(ctx, benchRepo, 10*time.Second)
 
 	// Sync scenarios to Evidra on startup.
 	if cfg.EvidraURL != "" {
@@ -73,6 +90,7 @@ func serveAPI(cfg config.Config, addr string) error {
 
 	mux := http.NewServeMux()
 
+	registerBenchAPIRoutes(mux, benchService, apiToken)
 	mux.HandleFunc("POST /v1/certify", authMiddleware(apiToken, handleCertifyAPI(cfg, orch, dbURL)))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
