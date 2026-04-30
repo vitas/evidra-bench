@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { applyEvidenceMode, evidenceModeParam, normalizeCatalog, type CatalogResponse } from "../../lib/catalogData.mts";
+import { benchRunPath } from "../../lib/routes.mts";
 import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 interface RunRecord {
@@ -346,7 +347,7 @@ export function Runs() {
                 {sorted.map((run) => (
                   <tr
                     key={run.id}
-                    onClick={() => navigate(`/runs/${run.id}`)}
+                    onClick={() => navigate(benchRunPath(run.id))}
                     className="border-b border-border-subtle cursor-pointer hover:bg-accent-subtle transition-colors"
                   >
                     <td className="px-3 py-2.5">

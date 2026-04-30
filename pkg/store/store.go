@@ -11,10 +11,10 @@ import (
 	"time"
 
 	_ "modernc.org/sqlite"
-	bench "samebits.com/evidra/pkg/bench"
+	bench "samebits.com/evidra-infra-bench/pkg/bench"
 )
 
-// RunRecord is the shared benchmark run type from the parent evidra project.
+// RunRecord is the shared benchmark run type used by local storage and API reporting.
 type RunRecord = bench.RunRecord
 
 // Store manages the results database and JSONL backup.

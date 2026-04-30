@@ -1,0 +1,28 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import {
+  BENCH_RUNS_PATH,
+  BENCH_SCENARIOS_PATH,
+  benchRunPath,
+  benchRunsPagePath,
+  benchScenarioPath,
+} from "./routes.mts";
+
+test("bench route constants use canonical bench paths", () => {
+  assert.equal(BENCH_RUNS_PATH, "/bench/runs");
+  assert.equal(BENCH_SCENARIOS_PATH, "/bench/scenarios");
+});
+
+test("bench detail helpers encode path ids", () => {
+  assert.equal(benchRunPath("run 1"), "/bench/runs/run%201");
+  assert.equal(benchScenarioPath("kubernetes/foo"), "/bench/scenarios/kubernetes%2Ffoo");
+});
+
+test("bench runs page helper appends encoded query parameters", () => {
+  assert.equal(benchRunsPagePath(), "/bench/runs");
+  assert.equal(
+    benchRunsPagePath({ scenario: "missing secret", model: "claude/sonnet" }),
+    "/bench/runs?scenario=missing+secret&model=claude%2Fsonnet",
+  );
+});

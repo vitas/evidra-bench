@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { useTheme } from "../hooks/useTheme";
 import { SCENARIOS } from "../data/catalog";
+import { BENCH_RUNS_PATH, BENCH_SCENARIOS_PATH } from "../lib/routes.mts";
 
 const TRACKS = [
   { id: "workloads", label: "Workloads", source: "CKA", icon: "cube" },
@@ -181,7 +182,7 @@ export function Landing() {
           {/* Left: messaging */}
           <div>
             <Link
-              to="/results"
+              to={BENCH_RUNS_PATH}
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent/40 bg-accent/10 text-[0.75rem] text-accent font-medium mb-8 hover:bg-accent/20 hover:border-accent/60 transition-all group"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-accent-bright animate-pulse" />
@@ -215,7 +216,7 @@ export function Landing() {
                 </svg>
               </Link>
               <Link
-                to="/results"
+                to={BENCH_RUNS_PATH}
                 className="inline-flex items-center gap-2 px-6 py-3 border border-border text-fg-body text-[0.88rem] font-medium rounded-lg hover:border-accent/50 hover:text-fg transition-all"
               >
                 Exam Results
@@ -254,14 +255,14 @@ export function Landing() {
             {
               title: "Lab",
               desc: "Current scenario catalog with track/level filters. Visual puzzle designer for authoring new scenarios. (Designer: Beta)",
-              to: "/scenarios",
+              to: BENCH_SCENARIOS_PATH,
               icon: "M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.3 24.3 0 0 1 4.5 0m0 0v5.714a2.25 2.25 0 0 0 .659 1.591L19 14.5",
               tag: "Scenarios",
             },
             {
               title: "Exams",
               desc: "CKA/CKS-aligned certification results. Per-model, per-track grades. Skill vs baseline comparison.",
-              to: "/results",
+              to: BENCH_RUNS_PATH,
               icon: "M4.26 10.147a60.436 60.436 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347",
               tag: "Certification",
             },
@@ -337,7 +338,7 @@ export function Landing() {
           {TRACKS.map((track) => (
             <Link
               key={track.id}
-              to={`/scenarios?track=${track.id}`}
+              to={`${BENCH_SCENARIOS_PATH}?track=${track.id}`}
               className="flex items-center gap-3 p-4 glass-card transition-all group"
             >
               <div className="text-accent opacity-60 group-hover:opacity-100 transition-opacity">
@@ -406,13 +407,13 @@ export function Landing() {
               Open Benchmark Dashboard
             </Link>
             <Link
-              to="/scenarios"
+              to={BENCH_SCENARIOS_PATH}
               className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-fg-body text-[0.82rem] font-medium rounded-lg hover:border-accent/50 transition-colors"
             >
               View All {SCENARIOS.length} Scenarios
             </Link>
             <Link
-              to="/results"
+              to={BENCH_RUNS_PATH}
               className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-fg-body text-[0.82rem] font-medium rounded-lg hover:border-accent/50 transition-colors"
             >
               Exam Results
@@ -427,8 +428,8 @@ export function Landing() {
           <span>evidra.lab — test framework for AI infrastructure agent skills</span>
           <div className="flex items-center gap-4">
             <Link to="/bench" className="hover:text-accent transition-colors">Bench</Link>
-            <Link to="/scenarios" className="hover:text-accent transition-colors">Lab</Link>
-            <Link to="/results" className="hover:text-accent transition-colors">Exams</Link>
+            <Link to={BENCH_SCENARIOS_PATH} className="hover:text-accent transition-colors">Lab</Link>
+            <Link to={BENCH_RUNS_PATH} className="hover:text-accent transition-colors">Exams</Link>
             <a href="https://github.com/vitas/evidra" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">
               GitHub
             </a>

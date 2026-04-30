@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { buildRunsPath, evidenceModeParam } from "../../lib/catalogData.mts";
+import { benchRunPath } from "../../lib/routes.mts";
 import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 /* ── Types ── */
@@ -409,7 +410,7 @@ export function Dashboard() {
                     <tr
                       key={run.id}
                       className="border-b border-border-subtle last:border-0 hover:bg-accent-subtle transition-colors cursor-pointer"
-                      onClick={() => (window.location.href = `/runs/${run.id}`)}
+                      onClick={() => (window.location.href = benchRunPath(run.id))}
                     >
                       <td className="py-2.5 px-4">
                         <span
