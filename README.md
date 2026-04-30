@@ -257,7 +257,11 @@ Design scenarios visually at [lab.evidra.cc](https://lab.evidra.cc):
 - Export as YAML, generate CLI commands
 - Run configurator with model picker
 
-Source: `ui/` directory. Deploy: `make ui-docker`.
+Source: `ui/` directory. Build image: `make ui-docker`.
+
+Production deployment is intentionally kept outside this repository. Runtime
+manifests, compose files, and environment wiring live in the sibling
+`../evidra-infra` repo.
 
 ## Bench API and Runners
 
@@ -275,6 +279,9 @@ EVIDRA_API_KEY=dev-secret \
 BENCH_SERVICE_ADDR=:8090 \
 bench-cli serve
 ```
+
+Production deployment for this service belongs in `../evidra-infra`; keep this
+repo focused on code, local execution, API contracts, and tests.
 
 Key docs:
 

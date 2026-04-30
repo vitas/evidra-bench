@@ -12,6 +12,8 @@ This repo owns scenario execution, workspace isolation, namespace isolation,
 verification, result reporting, and the private bench API/control plane used by
 the dashboard and runners. The sibling `../evidra` repo should stay focused on
 the evidence runtime, CLI/MCP protocol, local flight recorder, and scoring.
+Production deployment, runtime manifests, compose files, and environment wiring
+belong in the sibling `../evidra-infra` repo.
 
 | Surface | Owner | Purpose |
 |---------|-------|---------|
@@ -20,6 +22,7 @@ the evidence runtime, CLI/MCP protocol, local flight recorder, and scoring.
 | `POST /v1/certify` | `evidra-bench` | Direct executor API for scenario execution; request-level `evidence_mode` overrides worker default |
 | `POST /v1/bench/trigger`, `GET /v1/bench/trigger/{id}`, `POST /v1/bench/trigger/{id}/progress`, `/v1/runners/*` | `evidra-bench` | Trigger, persisted job queue, runner registration, progress, and completion |
 | Evidence CLI/MCP, scoring, local flight recorder | sibling `evidra` repo | Runtime/protocol layer used by agents and optional evidence forwarding |
+| Production deployment | sibling `evidra-infra` repo | Deployment topology, compose/manifests, secrets wiring, and hosted environment operations |
 
 The bench service participates in one of two control-plane modes:
 
@@ -345,6 +348,9 @@ cleanup and are available even if the Evidra API is unreachable.
 ## Docker Images
 
 Two separate images serve different purposes.
+
+This repo documents how images are built and run locally. The authoritative
+production deployment composition is kept in `../evidra-infra`.
 
 ### Lab UI (`ui/Dockerfile`)
 
