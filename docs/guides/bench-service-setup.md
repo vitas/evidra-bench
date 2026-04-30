@@ -20,9 +20,13 @@ while this repo carries the benchmark API surface.
 ## Requirements
 
 - Go 1.25+
-- PostgreSQL
+- PostgreSQL, preferably local or self-managed for this phase
 - `kind`, `kubectl`, and `helm` for local execution
 - an API key value for Bearer auth
+
+Do not point the first-phase smoke test at a hosted Postgres instance in
+Hetzner. A local Docker/Postgres.app database or a disposable self-managed
+development database is enough.
 
 ## Environment
 
