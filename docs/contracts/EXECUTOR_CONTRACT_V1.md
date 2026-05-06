@@ -215,3 +215,7 @@ bench-cli serve
 
 `--database-url` or `BENCH_DATABASE_URL` is required. `--evidra-api-key` or
 `EVIDRA_API_KEY` is required for API auth.
+
+Hosted control-plane deployments can start `bench-cli serve --control-plane-only`
+or set `BENCH_CONTROL_PLANE_ONLY=true`. That mode intentionally disables this
+direct executor endpoint and returns `501 Not Implemented` for `POST /v1/certify`.

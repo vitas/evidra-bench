@@ -11,6 +11,11 @@ BENCH_SERVICE_ADDR=:8090 \
 bench-cli serve
 ```
 
+For hosted control-plane deployments backed by remote runners, start with
+`BENCH_CONTROL_PLANE_ONLY=true` or `--control-plane-only`. In that mode the
+service does not provision a local executor cluster and `POST /v1/certify`
+returns `501 Not Implemented`.
+
 Authentication uses `Authorization: Bearer $EVIDRA_API_KEY` for every
 authenticated route. `GET /v1/bench/leaderboard` and `GET /healthz` are public.
 Static-key auth maps all authenticated requests to tenant `default` in this
@@ -257,8 +262,8 @@ paths:
 - runner queue: if a healthy runner advertises the requested model, the job is
   enqueued in Postgres and claimed via `/v1/runners/jobs`
 - direct executor: if a `RunExecutor` is configured, the service can start a
-  direct executor; `bench-cli serve` currently runs runner mode and returns
-  `501` when no runner is eligible
+  direct executor; control-plane-only mode returns `501` when no runner is
+  eligible
 
 See [Executor Contract v1.0.0](contracts/EXECUTOR_CONTRACT_V1.md) and
 [Bench Runner Control Plane Contract v1](contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md).

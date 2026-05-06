@@ -553,3 +553,63 @@ func TestHandleCertifyAPI_RejectsFullyIncompatibleRequest(t *testing.T) {
 		// expected
 	}
 }
+
+type fakeServeOrchestrator struct {
+	provisionCalls int
+	teardownCalls  int
+}
+
+func (f *fakeServeOrchestrator) Provision(context.Context) (string, error) {
+	f.provisionCalls++
+	return "/tmp/kubeconfig", nil
+}
+
+func (f *fakeServeOrchestrator) Teardown(context.Context) {
+	f.teardownCalls++
+}
+
+func (f *fakeServeOrchestrator) RunParallel(context.Context, config.Config, orchestrator.ProgressReporter, []string, []string, int, int, string) (*orchestrator.RunResult, error) {
+	return &orchestrator.RunResult{}, nil
+}
+
+func TestPrepareServeRunner_ControlPlaneOnlySkipsProvision(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakeServeOrchestrator{}
+
+	runner, teardown, err := prepareServeRunner(context.Background(), config.Config{}, serveOptions{ControlPlaneOnly: true}, func(config.Config) serveOrchestrator {
+		return fake
+	})
+	if err != nil {
+		t.Fatalf("prepareServeRunner returned error: %v", err)
+	}
+	if runner != nil {
+		t.Fatal("expected no direct runner in control-plane-only mode")
+	}
+	if teardown == nil {
+		t.Fatal("expected no-op teardown")
+	}
+	teardown(context.Background())
+	if fake.provisionCalls != 0 {
+		t.Fatalf("expected Provision to be skipped, got %d calls", fake.provisionCalls)
+	}
+	if fake.teardownCalls != 0 {
+		t.Fatalf("expected Teardown to be skipped, got %d calls", fake.teardownCalls)
+	}
+}
+
+func TestHandleCertifyDisabled_ReturnsNotImplemented(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/certify", strings.NewReader(`{}`))
+	rec := httptest.NewRecorder()
+
+	handleCertifyDisabled().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotImplemented {
+		t.Fatalf("expected status %d, got %d", http.StatusNotImplemented, rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "direct executor disabled") {
+		t.Fatalf("expected direct executor disabled response, got %s", rec.Body.String())
+	}
+}

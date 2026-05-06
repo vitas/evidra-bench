@@ -22,6 +22,18 @@ type parallelRunner interface {
 	RunParallel(ctx context.Context, runCfg config.Config, reporter orchestrator.ProgressReporter, scenarios []string, models []string, repeats, parallel int, dbURL string) (*orchestrator.RunResult, error)
 }
 
+type serveOptions struct {
+	ControlPlaneOnly bool
+}
+
+type serveOrchestrator interface {
+	parallelRunner
+	Provision(ctx context.Context) (string, error)
+	Teardown(ctx context.Context)
+}
+
+type serveOrchestratorFactory func(config.Config) serveOrchestrator
+
 // CertifyRequest matches the Evidra executor contract v1.0.0.
 type CertifyRequest struct {
 	ContractVersion string   `json:"contract_version"`
@@ -42,7 +54,12 @@ type CertifyRequest struct {
 	} `json:"callback"`
 }
 
-func serveAPI(cfg config.Config, addr string) error {
+func serveAPI(cfg config.Config, addr string, optList ...serveOptions) error {
+	opts := serveOptions{}
+	if len(optList) > 0 {
+		opts = optList[0]
+	}
+
 	apiToken := cfg.EvidraAPIKey
 	if apiToken == "" {
 		return fmt.Errorf("serve: --evidra-api-key required for bench service authentication")
@@ -69,12 +86,11 @@ func serveAPI(cfg config.Config, addr string) error {
 
 	ctx := context.Background()
 
-	// Provision cluster once for all workers.
-	orch := orchestrator.New(cfg, makeScenarioRunFunc())
-	if _, err := orch.Provision(ctx); err != nil {
+	runner, teardown, err := prepareServeRunner(ctx, cfg, opts, defaultServeOrchestrator)
+	if err != nil {
 		return fmt.Errorf("serve: %w", err)
 	}
-	defer orch.Teardown(ctx)
+	defer teardown(ctx)
 	go benchsvc.StartRunnerJanitor(ctx, benchRepo, 10*time.Second)
 
 	// Sync scenarios to Evidra on startup.
@@ -91,7 +107,11 @@ func serveAPI(cfg config.Config, addr string) error {
 	mux := http.NewServeMux()
 
 	registerBenchAPIRoutes(mux, benchService, apiToken)
-	mux.HandleFunc("POST /v1/certify", authMiddleware(apiToken, handleCertifyAPI(cfg, orch, dbURL)))
+	if runner == nil {
+		mux.HandleFunc("POST /v1/certify", authMiddleware(apiToken, handleCertifyDisabled()))
+	} else {
+		mux.HandleFunc("POST /v1/certify", authMiddleware(apiToken, handleCertifyAPI(cfg, runner, dbURL)))
+	}
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.WriteString(w, `{"status":"ok"}`)
@@ -99,6 +119,31 @@ func serveAPI(cfg config.Config, addr string) error {
 
 	log.Printf("bench service listening on %s", addr)
 	return http.ListenAndServe(addr, mux)
+}
+
+func defaultServeOrchestrator(cfg config.Config) serveOrchestrator {
+	return orchestrator.New(cfg, makeScenarioRunFunc())
+}
+
+func prepareServeRunner(ctx context.Context, cfg config.Config, opts serveOptions, factory serveOrchestratorFactory) (parallelRunner, func(context.Context), error) {
+	if opts.ControlPlaneOnly {
+		log.Printf("[bench-service] control-plane-only mode enabled; direct executor disabled")
+		return nil, func(context.Context) {}, nil
+	}
+
+	orch := factory(cfg)
+	if _, err := orch.Provision(ctx); err != nil {
+		return nil, nil, err
+	}
+	return orch, orch.Teardown, nil
+}
+
+func handleCertifyDisabled() http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{
+			"error": "direct executor disabled in control-plane-only mode",
+		})
+	}
 }
 
 // authMiddleware checks for a valid Bearer token.

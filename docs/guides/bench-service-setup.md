@@ -16,7 +16,8 @@ in the sibling `../evidra-infra` repo.
 - poll-based runner control plane under `/v1/runners/*`
 - the direct executor endpoint `POST /v1/certify`
 - Postgres migrations for bench tables
-- the local orchestration cluster used by `POST /v1/certify`
+- the local orchestration cluster used by `POST /v1/certify` when direct
+  executor mode is enabled
 
 `../evidra` can continue to own evidence runtime, CLI/MCP protocol, and scoring
 while this repo carries the benchmark API surface.
@@ -50,6 +51,18 @@ bench-cli serve \
 
 `BENCH_DATABASE_URL` is also used by parallel bench execution. `EVIDRA_API_KEY`
 is the static Bearer token for authenticated HTTP routes.
+
+For hosted control-plane deployments that use remote runners, disable the local
+direct executor:
+
+```bash
+export BENCH_CONTROL_PLANE_ONLY=true
+bench-cli serve --control-plane-only
+```
+
+In this mode startup does not provision kind/k3d, `/v1/bench/*` and
+`/v1/runners/*` stay available, and `POST /v1/certify` returns
+`501 Not Implemented`.
 
 ## Start
 
@@ -181,5 +194,7 @@ Canonical UI routes are under `/bench/*`. Legacy `/scenarios`, `/runs`, and
   validation, so runner-local aliases can work without a control-plane API key.
 - If no eligible runner exists and no direct executor is configured, trigger
   returns `501 Not Implemented`.
+- `--control-plane-only` or `BENCH_CONTROL_PLANE_ONLY=true` disables direct
+  executor provisioning for production control-plane deployments.
 - The runner janitor marks silent runners unhealthy and re-queues stale claimed
   jobs.

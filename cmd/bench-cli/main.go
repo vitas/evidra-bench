@@ -478,13 +478,18 @@ with optional Evidra reporting for behavioral analysis.`,
 	bf.IntVar(&benchCfg.Parallel, "parallel", 1, "number of parallel workers (1 = sequential)")
 	bf.StringVar(&benchCfg.DatabaseURL, "database-url", "", "PostgreSQL URL for job queue (env: BENCH_DATABASE_URL)")
 
+	serveOpts := serveOptions{}
 	serveCmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Start the bench service REST API",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			opts := serveOpts
 			addr := os.Getenv("BENCH_SERVICE_ADDR")
 			if addr == "" {
 				addr = ":8090"
+			}
+			if isTruthyEnv("BENCH_CONTROL_PLANE_ONLY") || isTruthyEnv("INFRA_BENCH_CONTROL_PLANE_ONLY") {
+				opts.ControlPlaneOnly = true
 			}
 			// Override config from environment for containerized deployment.
 			if v := os.Getenv("INFRA_BENCH_SCENARIOS_DIR"); v != "" {
@@ -525,12 +530,22 @@ with optional Evidra reporting for behavioral analysis.`,
 			if err := cfg.ResolveEvidraFlags(); err != nil {
 				return err
 			}
-			return serveAPI(cfg, addr)
+			return serveAPI(cfg, addr, opts)
 		},
 	}
+	serveCmd.Flags().BoolVar(&serveOpts.ControlPlaneOnly, "control-plane-only", false, "start API/control plane without provisioning a local executor cluster (env: BENCH_CONTROL_PLANE_ONLY)")
 
 	root.AddCommand(runCmd, scenarioCmd, labCmd, dbCmd, skillDeltaCmd, auditCmd, benchCmd, certifyCmd, serveCmd)
 	return root
+}
+
+func isTruthyEnv(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(name))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func applyLabFlagOverrides(labCfg *tui.LabConfig, cfg config.Config, flags *pflag.FlagSet) {

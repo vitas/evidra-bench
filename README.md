@@ -280,6 +280,13 @@ BENCH_SERVICE_ADDR=:8090 \
 bench-cli serve
 ```
 
+Production control-plane deployments that rely on remote runners should disable
+the direct executor so the API process does not provision a local cluster:
+
+```bash
+BENCH_CONTROL_PLANE_ONLY=true bench-cli serve --control-plane-only
+```
+
 Production deployment for this service belongs in `../evidra-infra`; keep this
 repo focused on code, local execution, API contracts, and tests.
 
