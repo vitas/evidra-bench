@@ -18,6 +18,8 @@ test("baseline bench command does not force proxy or smart-prescribe flags", () 
   assert.equal(command.includes("--proxy-mode"), false);
   assert.equal(command.includes("--smart-prescribe"), false);
   assert.equal(command.includes("--mcp-server"), false);
+  assert.equal(command.includes("--evidra-url"), false);
+  assert.equal(command.includes("--bench-url"), true);
 });
 
 test("evidra-mcp bench command uses the MCP server path", () => {

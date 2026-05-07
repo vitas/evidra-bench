@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
-const API_BASE = import.meta.env.VITE_EVIDRA_API_URL || "";
-const API_KEY = import.meta.env.VITE_EVIDRA_API_KEY || "";
+const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
+const API_KEY = import.meta.env.VITE_BENCH_API_KEY || "";
 
 export function useBenchApi() {
   const request = useCallback(

@@ -1,6 +1,6 @@
 # Evidra Integration
 
-`evidra-bench` reports benchmark results to the Evidra API, but it no longer
+`evidra-bench` reports benchmark results to the Bench API, but it no longer
 links against or shells out to the core `evidra` repo.
 
 ## MCP Servers

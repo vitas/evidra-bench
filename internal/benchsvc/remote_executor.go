@@ -35,9 +35,9 @@ type certifyRequest struct {
 }
 
 type certifyCallback struct {
-	ProgressURL  string `json:"progress_url"`
-	EvidraURL    string `json:"evidra_url"`
-	EvidraAPIKey string `json:"evidra_api_key"`
+	ProgressURL string `json:"progress_url"`
+	BenchURL    string `json:"bench_url"`
+	BenchAPIKey string `json:"bench_api_key"`
 }
 
 func buildCertifyConfig(job *TriggerJob) map[string]any {
@@ -52,7 +52,7 @@ func buildCertifyConfig(job *TriggerJob) map[string]any {
 }
 
 // Start sends a POST to the bench service to begin scenario execution.
-func (e *RemoteExecutor) Start(ctx context.Context, job *TriggerJob, evidraURL string, apiKey string) error {
+func (e *RemoteExecutor) Start(ctx context.Context, job *TriggerJob, benchURL string, apiKey string) error {
 	scenarios := make([]string, len(job.Progress))
 	for i, p := range job.Progress {
 		scenarios[i] = p.Scenario
@@ -66,9 +66,9 @@ func (e *RemoteExecutor) Start(ctx context.Context, job *TriggerJob, evidraURL s
 		Scenarios:       scenarios,
 		Config:          buildCertifyConfig(job),
 		Callback: certifyCallback{
-			ProgressURL:  evidraURL + "/v1/bench/trigger/" + job.ID + "/progress",
-			EvidraURL:    evidraURL,
-			EvidraAPIKey: apiKey,
+			ProgressURL: benchURL + "/v1/bench/trigger/" + job.ID + "/progress",
+			BenchURL:    benchURL,
+			BenchAPIKey: apiKey,
 		},
 	}
 

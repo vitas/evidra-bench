@@ -58,11 +58,11 @@ func handleTrigger(svc *Service, store *TriggerStore, executor RunExecutor) http
 		}
 		store.Create(job)
 
-		evidraURL := resolveEvidraURL(r)
+		benchURL := resolveBenchURL(r)
 		apiKey := r.Header.Get("Authorization")
 
 		go func() {
-			if err := executor.Start(context.Background(), job, evidraURL, apiKey); err != nil {
+			if err := executor.Start(context.Background(), job, benchURL, apiKey); err != nil {
 				log.Printf("[bench-trigger] executor failed for job %s: %v", job.ID, err)
 				store.Update(ProgressUpdate{
 					JobID:     job.ID,
@@ -378,11 +378,11 @@ func handleTriggerProgress(svc *Service, store *TriggerStore) http.HandlerFunc {
 	}
 }
 
-// resolveEvidraURL determines the base URL for the Evidra API from the request.
-// In container deployments, EVIDRA_SELF_URL overrides request-based resolution
+// resolveBenchURL determines the base URL for the Bench API from the request.
+// In container deployments, BENCH_SELF_URL overrides request-based resolution
 // because external and internal URLs may differ.
-func resolveEvidraURL(r *http.Request) string {
-	if selfURL := os.Getenv("EVIDRA_SELF_URL"); selfURL != "" {
+func resolveBenchURL(r *http.Request) string {
+	if selfURL := os.Getenv("BENCH_SELF_URL"); selfURL != "" {
 		return selfURL
 	}
 	scheme := "http"

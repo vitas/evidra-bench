@@ -8,7 +8,7 @@ set -u
 
 BINARY="${BINARY:-bin/bench-cli}"
 ENVIRONMENT="${ENVIRONMENT:-k3d}"
-EVIDRA_URL="${EVIDRA_URL:-https://api.evidra.cc}"
+BENCH_API_URL="${BENCH_API_URL:-https://api.evidra.cc}"
 REPEATS="${REPEATS:-1}"
 
 STAMP=$(date +%Y%m%d-%H%M%S)
@@ -38,14 +38,14 @@ run_model() {
 
   # Track 1: baseline
   (
-    export EVIDRA_BIFROST_BASE_URL="$base_url"
-    export EVIDRA_BIFROST_AUTH_BEARER="$key_val"
+    export INFRA_BENCH_BIFROST_URL="$base_url"
+    export INFRA_BENCH_BIFROST_AUTH_BEARER="$key_val"
     "$BINARY" bench \
       --scenario kubernetes --scenario helm \
       --model "$model" --provider bifrost \
       --repeats "$REPEATS" \
       --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "${prefix}-b" \
-      --evidra-url "$EVIDRA_URL" --evidra-api-key "$EVIDRA_API_KEY" \
+      --bench-url "$BENCH_API_URL" --bench-api-key "$BENCH_API_KEY" \
       2>&1
     echo "DONE $model/baseline"
   ) > "${LOG_DIR}/${model}-baseline.log" 2>&1 &
@@ -53,15 +53,15 @@ run_model() {
 
   # Track 2: mcp
   (
-    export EVIDRA_BIFROST_BASE_URL="$base_url"
-    export EVIDRA_BIFROST_AUTH_BEARER="$key_val"
+    export INFRA_BENCH_BIFROST_URL="$base_url"
+    export INFRA_BENCH_BIFROST_AUTH_BEARER="$key_val"
     "$BINARY" bench \
       --scenario kubernetes --scenario helm \
       --model "$model" --provider bifrost \
       --repeats "$REPEATS" \
       --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "${prefix}-m" \
       --mcp-server "evidra-mcp --signing-mode optional" \
-      --evidra-url "$EVIDRA_URL" --evidra-api-key "$EVIDRA_API_KEY" \
+      --bench-url "$BENCH_API_URL" --bench-api-key "$BENCH_API_KEY" \
       2>&1
     echo "DONE $model/mcp"
   ) > "${LOG_DIR}/${model}-mcp.log" 2>&1 &

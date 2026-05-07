@@ -1,5 +1,5 @@
 // Package report provides offline Evidra evidence writing for benchmark runs.
-// Online reporting is handled by harness.ReportToEvidra (POST /v1/bench/runs).
+// Online reporting is handled by harness.ReportToBench (POST /v1/bench/runs).
 package report
 
 import (

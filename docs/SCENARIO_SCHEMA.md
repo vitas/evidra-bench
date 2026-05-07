@@ -305,15 +305,15 @@ Profile hooks receive these env vars:
 | Variable | Description |
 |---|---|
 | `KUBECONFIG` | Path to the cluster kubeconfig |
-| `EVIDRA_PROFILE` | Profile name (e.g. `argocd`, `aws-localstack`) |
-| `EVIDRA_PROVIDER` | Cluster provider (e.g. `kind`, `k3d`) |
-| `EVIDRA_CLUSTER_NAME` | Cluster name |
-| `EVIDRA_WORK_DIR` | Temporary work directory for this profile run |
-| `EVIDRA_ASSETS_DIR` | Path to the profile assets directory |
+| `BENCH_PROFILE` | Profile name (e.g. `argocd`, `aws-localstack`) |
+| `BENCH_PROVIDER` | Cluster provider (e.g. `kind`, `k3d`) |
+| `BENCH_CLUSTER_NAME` | Cluster name |
+| `BENCH_WORK_DIR` | Temporary work directory for this profile run |
+| `BENCH_ASSETS_DIR` | Path to the profile assets directory |
 
 **`lease.env` contract:**
 
-If `install.sh` writes a file named `lease.env` to `$EVIDRA_WORK_DIR`, the
+If `install.sh` writes a file named `lease.env` to `$BENCH_WORK_DIR`, the
 profile runner parses it as newline-delimited `KEY=VALUE` pairs and returns
 them as `Lease.ExtraEnv`. The harness propagates these vars to cloud setup
 scripts, agent subprocesses, and verifier checks.

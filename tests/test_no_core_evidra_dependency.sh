@@ -27,3 +27,6 @@ fail_found "Dockerfile.bench cloning/building core evidra" \
 
 fail_found "bench CLI special evidra mode flag registrations" \
   sh -c "git grep -nE '(StringVar|BoolVar|StringSliceVar|StringP|BoolP)[^(]*\\([^)]*\"(evidra-bin|evidra-evidence-dir|proxy-mode|smart-prescribe|trace|evidra)\"' -- cmd pkg internal ':(exclude)*_test.go'"
+
+fail_found "active code still exposes Evidra-named bench API contract" \
+  sh -c "git grep -nE '(EVIDRA_[A-Z0-9_]+|VITE_EVIDRA_API|--evidra-url|--evidra-api-key|EvidraURL|EvidraAPIKey|X-Evidra-Tenant|evidra_url|evidra_api_key)' -- cmd pkg internal profiles scripts ui/src ui/Dockerfile .github Dockerfile.bench ':(exclude)*_test.go' ':(exclude)*.test.mts' ':(exclude)*.test.ts' ':(exclude)*.test.tsx'"

@@ -11,20 +11,20 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/store"
 )
 
-// evidraIngestRequest extends RunRecord with optional artifacts for the evidra API.
-type evidraIngestRequest struct {
+// benchIngestRequest extends RunRecord with optional artifacts for the bench API.
+type benchIngestRequest struct {
 	store.RunRecord
 	Transcript string `json:"transcript,omitempty"`
 	ToolCalls  any    `json:"tool_calls,omitempty"`
 }
 
-// ReportToEvidra posts a run record with artifacts to the evidra API bench ingest endpoint.
-func ReportToEvidra(evidraURL, apiKey string, rec store.RunRecord, transcript string, toolCalls any) {
-	if evidraURL == "" || apiKey == "" {
+// ReportToBench posts a run record with artifacts to the bench API bench ingest endpoint.
+func ReportToBench(benchURL, apiKey string, rec store.RunRecord, transcript string, toolCalls any) {
+	if benchURL == "" || apiKey == "" {
 		return
 	}
 
-	payload := evidraIngestRequest{
+	payload := benchIngestRequest{
 		RunRecord:  rec,
 		Transcript: transcript,
 		ToolCalls:  toolCalls,
@@ -32,14 +32,14 @@ func ReportToEvidra(evidraURL, apiKey string, rec store.RunRecord, transcript st
 
 	body, err := json.Marshal(payload)
 	if err != nil {
-		log.Printf("[evidra-report] marshal: %v", err)
+		log.Printf("[bench-report] marshal: %v", err)
 		return
 	}
 
-	url := evidraURL + "/v1/bench/runs"
+	url := benchURL + "/v1/bench/runs"
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		log.Printf("[evidra-report] create request: %v", err)
+		log.Printf("[bench-report] create request: %v", err)
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -48,7 +48,7 @@ func ReportToEvidra(evidraURL, apiKey string, rec store.RunRecord, transcript st
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("[evidra-report] POST %s: %v", url, err)
+		log.Printf("[bench-report] POST %s: %v", url, err)
 		return
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -56,19 +56,19 @@ func ReportToEvidra(evidraURL, apiKey string, rec store.RunRecord, transcript st
 	if resp.StatusCode >= 400 {
 		var result map[string]any
 		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-			log.Printf("[evidra-report] decode error response: %v", err)
+			log.Printf("[bench-report] decode error response: %v", err)
 		}
-		log.Printf("[evidra-report] HTTP %d: %v", resp.StatusCode, result)
+		log.Printf("[bench-report] HTTP %d: %v", resp.StatusCode, result)
 		return
 	}
 
-	log.Printf("[evidra-report] reported %s to %s", rec.ID, evidraURL)
+	log.Printf("[bench-report] reported %s to %s", rec.ID, benchURL)
 }
 
-// ReportBatchToEvidra posts multiple run records to the evidra API batch endpoint.
-func ReportBatchToEvidra(evidraURL, apiKey string, records []store.RunRecord) error {
-	if evidraURL == "" || apiKey == "" {
-		return fmt.Errorf("evidra URL and API key required")
+// ReportBatchToBench posts multiple run records to the bench API batch endpoint.
+func ReportBatchToBench(benchURL, apiKey string, records []store.RunRecord) error {
+	if benchURL == "" || apiKey == "" {
+		return fmt.Errorf("bench URL and API key required")
 	}
 
 	payload := map[string]any{"runs": records}
@@ -77,7 +77,7 @@ func ReportBatchToEvidra(evidraURL, apiKey string, records []store.RunRecord) er
 		return fmt.Errorf("marshal: %w", err)
 	}
 
-	url := evidraURL + "/v1/bench/runs/batch"
+	url := benchURL + "/v1/bench/runs/batch"
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
@@ -104,6 +104,6 @@ func ReportBatchToEvidra(evidraURL, apiKey string, records []store.RunRecord) er
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return fmt.Errorf("decode success response: %w", err)
 	}
-	log.Printf("[evidra-report] batch: imported %v records", result["imported"])
+	log.Printf("[bench-report] batch: imported %v records", result["imported"])
 	return nil
 }

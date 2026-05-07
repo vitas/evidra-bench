@@ -4,9 +4,9 @@ set -eu
 # Verify LocalStack is healthy.
 #
 # Required env:
-#   EVIDRA_WORK_DIR — working directory containing lease.env
+#   BENCH_WORK_DIR — working directory containing lease.env
 
-LEASE_ENV="${EVIDRA_WORK_DIR}/lease.env"
+LEASE_ENV="${BENCH_WORK_DIR}/lease.env"
 
 if [ ! -f "${LEASE_ENV}" ]; then
   echo "FAIL: lease.env not found at ${LEASE_ENV}"

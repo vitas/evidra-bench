@@ -5,9 +5,9 @@ set -eu
 # Best-effort: does not fail if the container is already gone.
 #
 # Required env:
-#   EVIDRA_WORK_DIR — working directory containing state/localstack-container
+#   BENCH_WORK_DIR — working directory containing state/localstack-container
 
-STATE_FILE="${EVIDRA_WORK_DIR}/state/localstack-container"
+STATE_FILE="${BENCH_WORK_DIR}/state/localstack-container"
 
 if [ ! -f "${STATE_FILE}" ]; then
   echo "No LocalStack container state found, nothing to clean up."

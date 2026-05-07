@@ -1,3 +1,3 @@
 #!/bin/sh
 set -eu
-echo "argocd-installed" > "${EVIDRA_WORK_DIR}/marker.env"
+echo "argocd-installed" > "${BENCH_WORK_DIR}/marker.env"

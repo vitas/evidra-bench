@@ -6,7 +6,7 @@ metadata, trigger jobs, and runner registration.
 
 ```bash
 BENCH_DATABASE_URL=postgres://bench:bench@localhost:5432/bench?sslmode=disable \
-EVIDRA_API_KEY=dev-secret \
+BENCH_API_KEY=dev-secret \
 BENCH_SERVICE_ADDR=:8090 \
 bench-cli serve
 ```
@@ -16,7 +16,7 @@ For hosted control-plane deployments backed by remote runners, start with
 service does not provision a local executor cluster and `POST /v1/certify`
 returns `501 Not Implemented`.
 
-Authentication uses `Authorization: Bearer $EVIDRA_API_KEY` for every
+Authentication uses `Authorization: Bearer $BENCH_API_KEY` for every
 authenticated route. `GET /v1/bench/leaderboard` and `GET /healthz` are public.
 Static-key auth maps all authenticated requests to tenant `default` in this
 phase.

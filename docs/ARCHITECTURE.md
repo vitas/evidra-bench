@@ -95,7 +95,7 @@ The authoritative HTTP contract for the bench surfaces lives in this repo:
 │    7. Wait for rollouts                                             │
 │    8. Verify outcome (checks)                                      │
 │    9. Write artifacts                                               │
-│   10. Report to Evidra API                                         │
+│   10. Report to Bench API                                         │
 │   11. Store results (SQLite + JSONL)                               │
 └───────────┬─────────────────────────────────────────────────────────┘
             │ uses
@@ -111,7 +111,7 @@ The authoritative HTTP contract for the bench surfaces lives in this repo:
 │  pkg/agent/          MCPExecutor (MCP server stdio transport)      │
 │  pkg/verifier/       deployment-ready, service-reachable, etc.     │
 │  pkg/artifact/       Run bundle writer (JSON, transcripts)         │
-│  pkg/report/         Evidra API reporter (online/offline JSONL)    │
+│  pkg/report/         Bench API reporter (online/offline JSONL)    │
 │  pkg/store/          SQLite + JSONL backup                         │
 │  pkg/config/         Config struct, version collection             │
 │  pkg/adapter/        Legacy CLI/MCP adapter interface              │
@@ -317,9 +317,9 @@ The provisioning flow is:
    profile directory from the checked-in asset tree.
 2. `ProfileRunner.Prepare(...)` executes `install.sh`, then `healthcheck.sh`,
    inside a temporary work dir with well-known env vars (`KUBECONFIG`,
-   `EVIDRA_PROFILE`, `EVIDRA_PROVIDER`, `EVIDRA_CLUSTER_NAME`,
-   `EVIDRA_WORK_DIR`, `EVIDRA_ASSETS_DIR`).
-3. If the install script writes a `lease.env` file to `$EVIDRA_WORK_DIR`, the
+   `BENCH_PROFILE`, `BENCH_PROVIDER`, `BENCH_CLUSTER_NAME`,
+   `BENCH_WORK_DIR`, `BENCH_ASSETS_DIR`).
+3. If the install script writes a `lease.env` file to `$BENCH_WORK_DIR`, the
    runner parses it and returns the key-value pairs as `Lease.ExtraEnv`.
 4. On release, `cleanup.sh` runs (best-effort) before the cluster is destroyed.
 
@@ -343,7 +343,7 @@ worker goroutines, and tracked via atomic counters.
 ### Shared Results Store
 Parallel workers write to a shared SQLite store (opened by the orchestrator)
 rather than workspace-local stores. This ensures results survive workspace
-cleanup and are available even if the Evidra API is unreachable.
+cleanup and are available even if the Bench API is unreachable.
 
 ## Docker Images
 
@@ -357,7 +357,7 @@ production deployment composition is kept in `../evidra-infra`.
 Static React SPA served by nginx. Talks to `api.evidra.cc` — no cluster access needed.
 
 ```bash
-docker build --build-arg VITE_EVIDRA_API_KEY=$VITE_EVIDRA_API_KEY \
+docker build --build-arg VITE_BENCH_API_KEY=$VITE_BENCH_API_KEY \
   -t ghcr.io/vitas/bench-ui:latest ui/
 ```
 
@@ -386,8 +386,8 @@ docker build -f Dockerfile.bench \
 docker run -d \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -e DATABASE_URL=postgres://... \
-  -e EVIDRA_URL=https://api.evidra.cc \
-  -e EVIDRA_API_KEY=$EVIDRA_API_KEY \
+  -e BENCH_API_URL=https://api.evidra.cc \
+  -e BENCH_API_KEY=$BENCH_API_KEY \
   -p 8090:8090 \
   ghcr.io/vitas/bench-runner:latest
 ```

@@ -25,13 +25,10 @@ type BifrostProvider struct {
 
 // NewBifrostProvider creates a BifrostProvider from environment variables.
 // Bifrost is an OpenAI-compatible gateway that handles multi-provider routing.
-// Point INFRA_BENCH_BIFROST_URL or EVIDRA_BIFROST_BASE_URL at your Bifrost instance.
+// Point INFRA_BENCH_BIFROST_URL at your Bifrost instance.
 // Set INFRA_BENCH_BIFROST_RPM to throttle requests (e.g. "10" for 10 req/min).
 func NewBifrostProvider() *BifrostProvider {
 	baseURL := os.Getenv("INFRA_BENCH_BIFROST_URL")
-	if baseURL == "" {
-		baseURL = os.Getenv("EVIDRA_BIFROST_BASE_URL")
-	}
 	if baseURL == "" {
 		baseURL = "http://localhost:8080/v1"
 	}
@@ -263,10 +260,10 @@ func parseOpenAIResponse(body []byte) (*ChatResponse, error) {
 }
 
 func applyBifrostEnvHeaders(header http.Header) {
-	if vk := strings.TrimSpace(os.Getenv("EVIDRA_BIFROST_VK")); vk != "" {
+	if vk := strings.TrimSpace(os.Getenv("INFRA_BENCH_BIFROST_VK")); vk != "" {
 		header.Set("x-bf-vk", vk)
 	}
-	if bearer := strings.TrimSpace(os.Getenv("EVIDRA_BIFROST_AUTH_BEARER")); bearer != "" {
+	if bearer := strings.TrimSpace(os.Getenv("INFRA_BENCH_BIFROST_AUTH_BEARER")); bearer != "" {
 		header.Set("Authorization", "Bearer "+bearer)
 	}
 }

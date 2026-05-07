@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
 import type { PuzzleMetadata } from "./yaml-generator";
 
-const API_BASE = import.meta.env.VITE_EVIDRA_API_URL || "";
-const API_KEY = import.meta.env.VITE_EVIDRA_API_KEY || "";
+const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
+const API_KEY = import.meta.env.VITE_BENCH_API_KEY || "";
 
 interface PublishButtonProps {
   metadata: PuzzleMetadata;
@@ -69,7 +69,7 @@ export function PublishButton({ metadata }: PublishButtonProps) {
             ? "text-red-400"
             : "text-fg-muted hover:text-accent"
       }`}
-      title="Publish scenario metadata to evidra API"
+      title="Publish scenario metadata to bench API"
     >
       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}

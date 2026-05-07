@@ -1,3 +1,3 @@
 #!/bin/sh
 set -eu
-test -f "${EVIDRA_WORK_DIR}/marker.env"
+test -f "${BENCH_WORK_DIR}/marker.env"

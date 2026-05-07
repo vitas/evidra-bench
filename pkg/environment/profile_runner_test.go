@@ -56,7 +56,7 @@ func TestProfileRunner_RunInstallAndHealthcheck(t *testing.T) {
 		Provider:    "kind",
 		ClusterName: "test-cluster",
 		Kubeconfig:  "/tmp/fake-kubeconfig",
-		ExtraEnv:    map[string]string{"EVIDRA_LOCALSTACK_SERVICES": "s3,iam"},
+		ExtraEnv:    map[string]string{"BENCH_LOCALSTACK_SERVICES": "s3,iam"},
 	})
 	if err != nil {
 		t.Fatalf("Prepare failed: %v", err)
@@ -164,7 +164,7 @@ func TestProfileRunner_ReleaseRunsCleanup_WritesMarker(t *testing.T) {
 
 	// We need to inspect the work dir, so we create a known temp dir and
 	// monkey-patch MkdirTemp by using a wrapper runner. Instead, we'll
-	// verify indirectly: the cleanup.sh writes cleanup.marker into EVIDRA_WORK_DIR.
+	// verify indirectly: the cleanup.sh writes cleanup.marker into BENCH_WORK_DIR.
 	// We run Prepare, then peek at the lease.env to find the work dir, then Release.
 
 	result, err := runner.Prepare(context.Background(), ProfileRunRequest{

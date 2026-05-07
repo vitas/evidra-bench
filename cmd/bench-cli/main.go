@@ -68,7 +68,7 @@ func newRootCommand() *cobra.Command {
 failures, executes real agents, and verifies outcomes.
 
 It produces local artifact bundles for debugging and dataset generation,
-with optional Evidra reporting for behavioral analysis.`,
+with optional Bench reporting for behavioral analysis.`,
 		Version: buildVersionString(),
 	}
 
@@ -99,13 +99,13 @@ with optional Evidra reporting for behavioral analysis.`,
 	var pushURL, pushKey string
 	pushCmd := &cobra.Command{
 		Use:   "push",
-		Short: "Push scenario metadata to evidra API",
+		Short: "Push scenario metadata to bench API",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return pushScenarios(cfg.ScenariosDir, pushURL, pushKey)
 		},
 	}
-	pushCmd.Flags().StringVar(&pushURL, "evidra-url", "https://api.evidra.cc", "Evidra API URL")
-	pushCmd.Flags().StringVar(&pushKey, "evidra-api-key", "", "Evidra API key")
+	pushCmd.Flags().StringVar(&pushURL, "bench-url", "https://api.evidra.cc", "Bench API URL")
+	pushCmd.Flags().StringVar(&pushKey, "bench-api-key", "", "Bench API key")
 
 	scenarioCmd.AddCommand(listCmd, pushCmd)
 	scenarioCmd.PersistentFlags().StringVar(&cfg.ScenariosDir, "scenarios-dir", cfg.ScenariosDir, "base directory for scenarios")
@@ -122,8 +122,8 @@ with optional Evidra reporting for behavioral analysis.`,
 	f.BoolVar(&cfg.ReuseCluster, "reuse-cluster", cfg.ReuseCluster, "reuse existing kind cluster")
 	f.StringVar(&cfg.ClusterName, "cluster-name", cfg.ClusterName, "kind cluster name")
 	f.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "validate scenario without executing")
-	f.StringVar(&cfg.EvidraURL, "evidra-url", cfg.EvidraURL, "Evidra API URL for online reporting")
-	f.StringVar(&cfg.EvidraAPIKey, "evidra-api-key", cfg.EvidraAPIKey, "Evidra API key")
+	f.StringVar(&cfg.BenchURL, "bench-url", cfg.BenchURL, "Bench API URL for online reporting")
+	f.StringVar(&cfg.BenchAPIKey, "bench-api-key", cfg.BenchAPIKey, "Bench API key")
 	f.StringVar(&cfg.EvidenceDir, "evidence-dir", cfg.EvidenceDir, "evidence directory for verifier input")
 	f.StringVar(&cfg.Model, "model", cfg.Model, "model for agent (e.g. sonnet, opus, haiku)")
 	f.StringVar(&cfg.Provider, "provider", cfg.Provider, "LLM provider for tool-use agent loop (bifrost, claude)")
@@ -339,8 +339,8 @@ with optional Evidra reporting for behavioral analysis.`,
 	sdrf.BoolVar(&skillDeltaCfg.ReuseCluster, "reuse-cluster", skillDeltaCfg.ReuseCluster, "reuse existing kind cluster")
 	sdrf.StringVar(&skillDeltaCfg.ClusterName, "cluster-name", skillDeltaCfg.ClusterName, "kind cluster name")
 	sdrf.BoolVar(&skillDeltaCfg.DryRun, "dry-run", skillDeltaCfg.DryRun, "validate workflow without executing the agent")
-	sdrf.StringVar(&skillDeltaCfg.EvidraURL, "evidra-url", skillDeltaCfg.EvidraURL, "Evidra API URL for online reporting")
-	sdrf.StringVar(&skillDeltaCfg.EvidraAPIKey, "evidra-api-key", skillDeltaCfg.EvidraAPIKey, "Evidra API key")
+	sdrf.StringVar(&skillDeltaCfg.BenchURL, "bench-url", skillDeltaCfg.BenchURL, "Bench API URL for online reporting")
+	sdrf.StringVar(&skillDeltaCfg.BenchAPIKey, "bench-api-key", skillDeltaCfg.BenchAPIKey, "Bench API key")
 	sdrf.StringVar(&skillDeltaCfg.EvidenceDir, "evidence-dir", skillDeltaCfg.EvidenceDir, "base evidence directory for verifier input")
 	sdrf.StringVar(&skillDeltaCfg.Provider, "provider", skillDeltaCfg.Provider, "LLM provider for tool-use agent loop (bifrost, claude)")
 	sdrf.IntVar(&skillDeltaCfg.MemoryWindow, "memory-window", -1, "agent memory window (-1=full, 0=stateless, N=last N exchanges)")
@@ -392,8 +392,8 @@ with optional Evidra reporting for behavioral analysis.`,
 	cf.StringVar(&certifyCfg.ClusterName, "cluster-name", certifyCfg.ClusterName, "kind cluster name")
 	cf.BoolVar(&certifyCfg.DryRun, "dry-run", certifyCfg.DryRun, "validate without running")
 	cf.IntVar(&certifyCfg.MemoryWindow, "memory-window", -1, "memory window")
-	cf.StringVar(&certifyCfg.EvidraURL, "evidra-url", certifyCfg.EvidraURL, "Evidra API URL for reporting results")
-	cf.StringVar(&certifyCfg.EvidraAPIKey, "evidra-api-key", certifyCfg.EvidraAPIKey, "Evidra API key")
+	cf.StringVar(&certifyCfg.BenchURL, "bench-url", certifyCfg.BenchURL, "Bench API URL for reporting results")
+	cf.StringVar(&certifyCfg.BenchAPIKey, "bench-api-key", certifyCfg.BenchAPIKey, "Bench API key")
 	cf.StringVar(&certifyCfg.SystemPromptFile, "system-prompt-file", certifyCfg.SystemPromptFile, "system prompt file")
 	cf.StringVar(&certifyCfg.Role, "role", certifyCfg.Role, "role-based skill (k8s-admin, security-ops, release-manager, platform-eng)")
 	cf.StringVar(&certifyCfg.ContractVersion, "contract-version", certifyCfg.ContractVersion, "contract version")
@@ -430,8 +430,8 @@ with optional Evidra reporting for behavioral analysis.`,
 	bf.StringVar(&benchCfg.ClusterName, "cluster-name", benchCfg.ClusterName, "kind cluster name")
 	bf.BoolVar(&benchCfg.DryRun, "dry-run", benchCfg.DryRun, "dry-run mode")
 	bf.IntVar(&benchCfg.MemoryWindow, "memory-window", -1, "memory window")
-	bf.StringVar(&benchCfg.EvidraURL, "evidra-url", benchCfg.EvidraURL, "Evidra API URL for reporting results")
-	bf.StringVar(&benchCfg.EvidraAPIKey, "evidra-api-key", benchCfg.EvidraAPIKey, "Evidra API key")
+	bf.StringVar(&benchCfg.BenchURL, "bench-url", benchCfg.BenchURL, "Bench API URL for reporting results")
+	bf.StringVar(&benchCfg.BenchAPIKey, "bench-api-key", benchCfg.BenchAPIKey, "Bench API key")
 	bf.StringVar(&benchCfg.MCPServer, "mcp-server", "", "MCP server command (e.g. 'evidra-mcp --signing-mode optional')")
 	bf.IntVar(&benchCfg.Parallel, "parallel", 1, "number of parallel workers (1 = sequential)")
 	bf.StringVar(&benchCfg.DatabaseURL, "database-url", "", "PostgreSQL URL for job queue (env: BENCH_DATABASE_URL)")
@@ -518,11 +518,11 @@ func applyLabFlagOverrides(labCfg *tui.LabConfig, cfg config.Config, flags *pfla
 	if flags.Changed("runs-dir") || labCfg.RunsDir == "" {
 		labCfg.RunsDir = cfg.RunsDir
 	}
-	if flags.Changed("evidra-url") {
-		labCfg.EvidraURL = cfg.EvidraURL
+	if flags.Changed("bench-url") {
+		labCfg.BenchURL = cfg.BenchURL
 	}
-	if flags.Changed("evidra-api-key") {
-		labCfg.EvidraAPIKey = cfg.EvidraAPIKey
+	if flags.Changed("bench-api-key") {
+		labCfg.BenchAPIKey = cfg.BenchAPIKey
 	}
 	if flags.Changed("memory-window") {
 		labCfg.MemoryWindow = cfg.MemoryWindow
@@ -815,9 +815,9 @@ func listScenarios(cmd *cobra.Command, cfg config.Config) error {
 	return nil
 }
 
-func pushScenarios(scenariosDir, evidraURL, apiKey string) error {
-	if evidraURL == "" || apiKey == "" {
-		return fmt.Errorf("push-scenarios: --evidra-url and --evidra-api-key are required")
+func pushScenarios(scenariosDir, benchURL, apiKey string) error {
+	if benchURL == "" || apiKey == "" {
+		return fmt.Errorf("push-scenarios: --bench-url and --bench-api-key are required")
 	}
 
 	scenarios, err := scenario.LoadAll(scenariosDir)
@@ -865,7 +865,7 @@ func pushScenarios(scenariosDir, evidraURL, apiKey string) error {
 		return fmt.Errorf("push-scenarios: marshal: %w", err)
 	}
 
-	url := evidraURL + "/v1/bench/scenarios/sync"
+	url := benchURL + "/v1/bench/scenarios/sync"
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("push-scenarios: create request: %w", err)
@@ -892,7 +892,7 @@ func pushScenarios(scenariosDir, evidraURL, apiKey string) error {
 		return fmt.Errorf("push-scenarios: HTTP %d: %v", resp.StatusCode, result)
 	}
 
-	fmt.Printf("Pushed %v scenarios to %s (upserted: %v)\n", result["total"], evidraURL, result["upserted"])
+	fmt.Printf("Pushed %v scenarios to %s (upserted: %v)\n", result["total"], benchURL, result["upserted"])
 	return nil
 }
 

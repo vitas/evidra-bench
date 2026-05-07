@@ -146,7 +146,7 @@ func TestRemoteExecutor_StartSendsEvidenceMode(t *testing.T) {
 		CreatedAt: time.Now(),
 	}
 
-	if err := exec.Start(t.Context(), job, "https://evidra.example", "Bearer token"); err != nil {
+	if err := exec.Start(t.Context(), job, "https://bench.example", "Bearer token"); err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}
 
@@ -156,6 +156,16 @@ func TestRemoteExecutor_StartSendsEvidenceMode(t *testing.T) {
 	}
 	if got := cfg["evidence_mode"]; got != "mcp" {
 		t.Fatalf("evidence_mode = %v, want mcp", got)
+	}
+	callback, ok := payload["callback"].(map[string]any)
+	if !ok {
+		t.Fatalf("callback missing or wrong type: %#v", payload["callback"])
+	}
+	if got := callback["bench_url"]; got != "https://bench.example" {
+		t.Fatalf("bench_url = %v, want https://bench.example", got)
+	}
+	if _, ok := callback["evidra_url"]; ok {
+		t.Fatalf("evidra_url should not be present: %#v", callback)
 	}
 }
 
@@ -186,7 +196,7 @@ func TestRemoteExecutor_StartSendsA2AAdapterForA2AExecutionMode(t *testing.T) {
 		CreatedAt: time.Now(),
 	}
 
-	if err := exec.Start(t.Context(), job, "https://evidra.example", "Bearer token"); err != nil {
+	if err := exec.Start(t.Context(), job, "https://bench.example", "Bearer token"); err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}
 
@@ -226,7 +236,7 @@ func TestRemoteExecutor_StartOmitsAdapterForProviderExecutionMode(t *testing.T) 
 		CreatedAt: time.Now(),
 	}
 
-	if err := exec.Start(t.Context(), job, "https://evidra.example", "Bearer token"); err != nil {
+	if err := exec.Start(t.Context(), job, "https://bench.example", "Bearer token"); err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}
 

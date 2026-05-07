@@ -37,7 +37,7 @@ development database is enough.
 
 ```bash
 export BENCH_DATABASE_URL=postgres://bench:bench@localhost:5432/bench?sslmode=disable
-export EVIDRA_API_KEY=dev-secret
+export BENCH_API_KEY=dev-secret
 export BENCH_SERVICE_ADDR=:8090
 ```
 
@@ -46,10 +46,10 @@ Equivalent flags:
 ```bash
 bench-cli serve \
   --database-url "$BENCH_DATABASE_URL" \
-  --evidra-api-key "$EVIDRA_API_KEY"
+  --bench-api-key "$BENCH_API_KEY"
 ```
 
-`BENCH_DATABASE_URL` is also used by parallel bench execution. `EVIDRA_API_KEY`
+`BENCH_DATABASE_URL` is also used by parallel bench execution. `BENCH_API_KEY`
 is the static Bearer token for authenticated HTTP routes.
 
 For hosted control-plane deployments that use remote runners, disable the local
@@ -70,14 +70,14 @@ In this mode startup does not provision kind/k3d, `/v1/bench/*` and
 make build
 bench-cli serve \
   --database-url "$BENCH_DATABASE_URL" \
-  --evidra-api-key "$EVIDRA_API_KEY"
+  --bench-api-key "$BENCH_API_KEY"
 ```
 
 Verify:
 
 ```bash
 curl http://localhost:8090/healthz
-curl -H "Authorization: Bearer $EVIDRA_API_KEY" \
+curl -H "Authorization: Bearer $BENCH_API_KEY" \
   http://localhost:8090/v1/bench/runs
 ```
 
@@ -107,8 +107,8 @@ The UI reads scenarios from Postgres. Seed or refresh them from local YAML:
 
 ```bash
 bench-cli scenario push \
-  --evidra-url http://localhost:8090 \
-  --evidra-api-key "$EVIDRA_API_KEY"
+  --bench-url http://localhost:8090 \
+  --bench-api-key "$BENCH_API_KEY"
 ```
 
 ## Trigger a Run
@@ -117,7 +117,7 @@ With a healthy runner registered:
 
 ```bash
 curl -X POST http://localhost:8090/v1/bench/trigger \
-  -H "Authorization: Bearer $EVIDRA_API_KEY" \
+  -H "Authorization: Bearer $BENCH_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "sonnet",
@@ -131,7 +131,7 @@ curl -X POST http://localhost:8090/v1/bench/trigger \
 Poll the trigger snapshot:
 
 ```bash
-curl -H "Authorization: Bearer $EVIDRA_API_KEY" \
+curl -H "Authorization: Bearer $BENCH_API_KEY" \
   http://localhost:8090/v1/bench/trigger/<job-id>
 ```
 
@@ -139,7 +139,7 @@ curl -H "Authorization: Bearer $EVIDRA_API_KEY" \
 
 ```bash
 curl -X POST http://localhost:8090/v1/runners/register \
-  -H "Authorization: Bearer $EVIDRA_API_KEY" \
+  -H "Authorization: Bearer $BENCH_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "local-runner",
@@ -153,7 +153,7 @@ curl -X POST http://localhost:8090/v1/runners/register \
 Then poll:
 
 ```bash
-curl -H "Authorization: Bearer $EVIDRA_API_KEY" \
+curl -H "Authorization: Bearer $BENCH_API_KEY" \
   "http://localhost:8090/v1/runners/jobs?runner_id=<runner-id>"
 ```
 
@@ -161,7 +161,7 @@ Complete the job after submitting run records:
 
 ```bash
 curl -X POST http://localhost:8090/v1/runners/jobs/<job-id>/complete \
-  -H "Authorization: Bearer $EVIDRA_API_KEY" \
+  -H "Authorization: Bearer $BENCH_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"runner_id":"<runner-id>","status":"completed","passed":1,"failed":0}'
 ```
@@ -178,8 +178,8 @@ For local Vite development:
 
 ```bash
 cd ui
-VITE_EVIDRA_API_URL=http://localhost:8090 \
-VITE_EVIDRA_API_KEY="$EVIDRA_API_KEY" \
+VITE_BENCH_API_URL=http://localhost:8090 \
+VITE_BENCH_API_KEY="$BENCH_API_KEY" \
 npm run dev
 ```
 

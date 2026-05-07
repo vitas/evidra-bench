@@ -48,7 +48,7 @@ func RegisterRoutes(mux *http.ServeMux, svc *Service, authMw func(http.Handler) 
 
 	// Authenticated — model provider configuration.
 	mux.Handle("GET /v1/bench/models", authMw(http.HandlerFunc(handleListModels(svc))))
-	// TODO: enable after adding AES-256-GCM key encryption (EVIDRA_ENCRYPTION_KEY).
+	// TODO: enable after adding AES-256-GCM key encryption (BENCH_ENCRYPTION_KEY).
 	// Per-tenant API key storage is disabled until encryption is implemented.
 	// mux.Handle("PUT /v1/bench/models/{model_id}/provider", authMw(http.HandlerFunc(handleUpsertTenantProvider(svc))))
 	// mux.Handle("DELETE /v1/bench/models/{model_id}/provider", authMw(http.HandlerFunc(handleDeleteTenantProvider(svc))))

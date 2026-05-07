@@ -47,6 +47,8 @@ func TestRunHelpDoesNotExposeEvidraSpecialModes(t *testing.T) {
 	help := buf.String()
 	for _, flag := range []string{
 		"--evidra ",
+		"--evidra-url",
+		"--evidra-api-key",
 		"--trace ",
 		"--proxy-mode",
 		"--smart-prescribe",

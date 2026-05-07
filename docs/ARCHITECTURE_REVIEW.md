@@ -15,7 +15,7 @@
 Общее состояние — здоровое для solo-проекта такого объёма. Ядро доменной
 модели компактное (`scenario.Scenario`, `environment.Lease`, `verifier.Check`)
 и не размазано. Проблемы локализованы на границах — там, где «один и тот же
-результат» проходит через 3 sink'а (диск, SQLite, Evidra API), и на стыке
+результат» проходит через 3 sink'а (диск, SQLite, Bench API), и на стыке
 sequential/parallel-режимов исполнения.
 
 Главные болевые точки по убыванию приоритета:
@@ -132,12 +132,12 @@ type ToolCall struct {
 Файлы:
 - `pkg/harness/run.go:459` — пишет `artifact.RunBundle` с полным payload.
 - `pkg/harness/run.go:519` — в `store.RunRecord.MetadataJSON` идёт только metadata.
-- `pkg/harness/run.go:548` — `ReportToEvidra` получает rec + transcript + toolCalls как отдельные аргументы.
+- `pkg/harness/run.go:548` — `ReportToBench` получает rec + transcript + toolCalls как отдельные аргументы.
 - `pkg/store/store.go:18` — `RunRecord` (алиас на `bench.RunRecord` из соседнего репо).
 
 Что теряется в SQLite:
 
-| Данные | artifact/run.json | SQLite | Evidra API |
+| Данные | artifact/run.json | SQLite | Bench API |
 |--------|------|--------|------------|
 | tool_calls | да | **нет** | да (отдельный payload) |
 | transcript | да | **нет** | да (отдельный payload) |
@@ -317,7 +317,7 @@ parallel:    CLI → orchestrator.Provision → jobqueue → worker → workspac
 ## 7. Поток данных и потеря информации
 
 Единая сборка `agentResult.Metadata` в `harness/run.go:1025` — это хорошо.
-Но дальше три sink'а (disk/SQLite/Evidra API) имеют разные окна:
+Но дальше три sink'а (disk/SQLite/Bench API) имеют разные окна:
 
 ```
 agentResult (полный)

@@ -20,8 +20,8 @@ type LabConfig struct {
 	Timeout             string `yaml:"timeout"`
 	DryRun              bool   `yaml:"dry_run"`
 	EvidenceDir         string `yaml:"evidence_dir,omitempty"`
-	EvidraURL           string `yaml:"evidra_url,omitempty"`
-	EvidraAPIKey        string `yaml:"evidra_api_key,omitempty"`
+	BenchURL            string `yaml:"bench_url,omitempty"`
+	BenchAPIKey         string `yaml:"bench_api_key,omitempty"`
 	MemoryWindow        int    `yaml:"memory_window,omitempty"`
 	ReuseCluster        bool   `yaml:"reuse_cluster,omitempty"`
 }

@@ -98,6 +98,12 @@ func TestKeyStoreMiddleware_PassesRequestContext(t *testing.T) {
 	if rec.Body.String() != "tenant-123" {
 		t.Fatalf("tenant = %q, want %q", rec.Body.String(), "tenant-123")
 	}
+	if rec.Header().Get("X-Bench-Tenant") != "tenant-123" {
+		t.Fatalf("X-Bench-Tenant = %q, want tenant-123", rec.Header().Get("X-Bench-Tenant"))
+	}
+	if rec.Header().Get("X-Evidra-Tenant") != "" {
+		t.Fatalf("X-Evidra-Tenant should not be emitted")
+	}
 }
 
 func TestStaticKeyMiddleware_WrongKey(t *testing.T) {

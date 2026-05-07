@@ -86,13 +86,13 @@ Route model requests directly or through a unified Bifrost gateway:
 
 ```bash
 # Option A: Direct (swap env vars per provider)
-export EVIDRA_BIFROST_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
-export EVIDRA_BIFROST_AUTH_BEARER=$GEMINI_API_KEY
+export INFRA_BENCH_BIFROST_URL=https://generativelanguage.googleapis.com/v1beta/openai
+export INFRA_BENCH_BIFROST_AUTH_BEARER=$GEMINI_API_KEY
 bench-cli run --provider bifrost --model gemini-2.5-flash ...
 
 # Option B: Bifrost gateway (one endpoint, all providers)
 source .env && ./scripts/bifrost-start.sh
-export EVIDRA_BIFROST_BASE_URL=http://localhost:9090/v1
+export INFRA_BENCH_BIFROST_URL=http://localhost:9090/v1
 bench-cli run --provider bifrost --model google/gemini-2.5-flash ...
 bench-cli run --provider bifrost --model deepseek/deepseek-chat ...
 bench-cli run --provider bifrost --model openai/gpt-4.1 ...
@@ -275,7 +275,7 @@ Run it locally:
 
 ```bash
 BENCH_DATABASE_URL=postgres://bench:bench@localhost:5432/bench?sslmode=disable \
-EVIDRA_API_KEY=dev-secret \
+BENCH_API_KEY=dev-secret \
 BENCH_SERVICE_ADDR=:8090 \
 bench-cli serve
 ```

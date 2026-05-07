@@ -37,8 +37,8 @@ export function buildBenchCommand(input: {
     ...evidenceFlags(input.evidenceMode).map((flag) => `  ${flag} \\`),
     "  --reuse-cluster \\",
     "  --timeout 5m \\",
-    "  --evidra-url $EVIDRA_URL \\",
-    "  --evidra-api-key $EVIDRA_API_KEY",
+    "  --bench-url $BENCH_API_URL \\",
+    "  --bench-api-key $BENCH_API_KEY",
   ];
   return lines.join("\n");
 }
@@ -56,8 +56,8 @@ export function buildRunCommand(input: {
     ...evidenceFlags(input.evidenceMode),
     "--reuse-cluster",
     "--timeout 5m",
-    "--evidra-url $EVIDRA_URL",
-    "--evidra-api-key $EVIDRA_API_KEY",
+    "--bench-url $BENCH_API_URL",
+    "--bench-api-key $BENCH_API_KEY",
   ];
   return lines.join(" \\\n  ");
 }

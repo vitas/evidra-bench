@@ -1,10 +1,10 @@
 #!/bin/bash
-# Upload local results.jsonl to evidra API in batches.
-# Usage: ./scripts/upload-results.sh <evidra-url> <api-key> [results.jsonl]
+# Upload local results.jsonl to bench API in batches.
+# Usage: ./scripts/upload-results.sh <bench-url> <api-key> [results.jsonl]
 set -euo pipefail
 
-EVIDRA_URL="${1:?Usage: upload-results.sh <evidra-url> <api-key> [results.jsonl]}"
-API_KEY="${2:?Usage: upload-results.sh <evidra-url> <api-key> [results.jsonl]}"
+BENCH_API_URL="${1:?Usage: upload-results.sh <bench-url> <api-key> [results.jsonl]}"
+API_KEY="${2:?Usage: upload-results.sh <bench-url> <api-key> [results.jsonl]}"
 JSONL="${3:-runs/results.jsonl}"
 BATCH_SIZE=50
 
@@ -14,7 +14,7 @@ if [ ! -f "$JSONL" ]; then
 fi
 
 TOTAL=$(wc -l < "$JSONL" | tr -d ' ')
-echo "Uploading $TOTAL records from $JSONL to $EVIDRA_URL (batch size: $BATCH_SIZE)"
+echo "Uploading $TOTAL records from $JSONL to $BENCH_API_URL (batch size: $BATCH_SIZE)"
 
 UPLOADED=0
 FAILED=0
@@ -23,7 +23,7 @@ FAILED=0
 while IFS= read -r batch; do
   PAYLOAD="{\"runs\": [$batch]}"
   HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-    -X POST "$EVIDRA_URL/v1/bench/runs/batch" \
+    -X POST "$BENCH_API_URL/v1/bench/runs/batch" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer $API_KEY" \
     -d "$PAYLOAD")

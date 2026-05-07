@@ -59,7 +59,7 @@ type ProgressUpdate struct {
 
 // RunExecutor starts a bench job against an external service.
 type RunExecutor interface {
-	Start(ctx context.Context, job *TriggerJob, evidraURL string, apiKey string) error
+	Start(ctx context.Context, job *TriggerJob, benchURL string, apiKey string) error
 }
 
 // TriggerStore is an in-memory store for trigger jobs with SSE notification support.

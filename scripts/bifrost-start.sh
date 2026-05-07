@@ -9,13 +9,13 @@ set -eu
 #   ./scripts/bifrost-start.sh
 #
 # Then use with bench-cli:
-#   export EVIDRA_BIFROST_BASE_URL=http://localhost:9090/v1
+#   export INFRA_BENCH_BIFROST_URL=http://localhost:9090/v1
 #   bench-cli run --provider bifrost --model openai/gpt-4o-mini ...
 #   bench-cli run --provider bifrost --model deepseek/deepseek-chat ...
 #   bench-cli run --provider bifrost --model google/gemini-2.5-flash ...
 
 BIFROST_PORT="${BIFROST_PORT:-9090}"
-CONTAINER_NAME="evidra-bifrost"
+CONTAINER_NAME="bench-bifrost"
 
 echo "Starting Bifrost gateway on port ${BIFROST_PORT}..."
 
@@ -69,7 +69,7 @@ echo ""
 echo "Bifrost ready at ${BIFROST_URL}"
 echo ""
 echo "Usage:"
-echo "  export EVIDRA_BIFROST_BASE_URL=${BIFROST_URL}/v1"
+echo "  export INFRA_BENCH_BIFROST_URL=${BIFROST_URL}/v1"
 echo "  bench-cli run --provider bifrost --model openai/gpt-4o-mini ..."
 echo "  bench-cli run --provider bifrost --model deepseek/deepseek-chat ..."
 echo "  bench-cli run --provider bifrost --model google/gemini-2.5-flash ..."

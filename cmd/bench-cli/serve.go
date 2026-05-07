@@ -35,7 +35,7 @@ type serveOrchestrator interface {
 
 type serveOrchestratorFactory func(config.Config) serveOrchestrator
 
-// CertifyRequest matches the Evidra executor contract v1.0.0.
+// CertifyRequest matches the Bench executor contract v1.0.0.
 type CertifyRequest struct {
 	ContractVersion string   `json:"contract_version"`
 	JobID           string   `json:"job_id"`
@@ -49,9 +49,9 @@ type CertifyRequest struct {
 		EvidenceMode       string `json:"evidence_mode,omitempty"`
 	} `json:"config"`
 	Callback struct {
-		ProgressURL  string `json:"progress_url"`
-		EvidraURL    string `json:"evidra_url"`
-		EvidraAPIKey string `json:"evidra_api_key"`
+		ProgressURL string `json:"progress_url"`
+		BenchURL    string `json:"bench_url"`
+		BenchAPIKey string `json:"bench_api_key"`
 	} `json:"callback"`
 }
 
@@ -61,9 +61,9 @@ func serveAPI(cfg config.Config, addr string, optList ...serveOptions) error {
 		opts = optList[0]
 	}
 
-	apiToken := cfg.EvidraAPIKey
+	apiToken := cfg.BenchAPIKey
 	if apiToken == "" {
-		return fmt.Errorf("serve: --evidra-api-key required for bench service authentication")
+		return fmt.Errorf("serve: --bench-api-key required for bench service authentication")
 	}
 
 	dbURL := cfg.ResolveDatabaseURL()
@@ -95,13 +95,13 @@ func serveAPI(cfg config.Config, addr string, optList ...serveOptions) error {
 	defer teardown(ctx)
 	go benchsvc.StartRunnerJanitor(ctx, benchRepo, 10*time.Second)
 
-	// Sync scenarios to Evidra on startup.
-	if cfg.EvidraURL != "" {
+	// Sync scenarios to the configured bench API on startup.
+	if cfg.BenchURL != "" {
 		go func() {
-			if err := pushScenarios(cfg.ScenariosDir, cfg.EvidraURL, cfg.EvidraAPIKey); err != nil {
+			if err := pushScenarios(cfg.ScenariosDir, cfg.BenchURL, cfg.BenchAPIKey); err != nil {
 				log.Printf("[bench-service] scenario sync failed (non-fatal): %v", err)
 			} else {
-				log.Printf("[bench-service] scenarios synced to %s", cfg.EvidraURL)
+				log.Printf("[bench-service] scenarios synced to %s", cfg.BenchURL)
 			}
 		}()
 	}
@@ -124,11 +124,8 @@ func serveAPI(cfg config.Config, addr string, optList ...serveOptions) error {
 }
 
 func resolveServeTenants() (defaultTenant string, publicTenant string) {
-	defaultTenant = strings.TrimSpace(os.Getenv("EVIDRA_DEFAULT_TENANT"))
-	publicTenant = strings.TrimSpace(os.Getenv("EVIDRA_BENCH_PUBLIC_TENANT"))
-	if publicTenant == "" {
-		publicTenant = strings.TrimSpace(os.Getenv("BENCH_PUBLIC_TENANT"))
-	}
+	defaultTenant = strings.TrimSpace(os.Getenv("BENCH_DEFAULT_TENANT"))
+	publicTenant = strings.TrimSpace(os.Getenv("BENCH_PUBLIC_TENANT"))
 	if defaultTenant == "" {
 		defaultTenant = publicTenant
 	}
@@ -260,15 +257,15 @@ func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string
 
 		// Wire progress reporter for this certify request.
 		progressURL := req.Callback.ProgressURL
-		evidraURL := req.Callback.EvidraURL
-		authToken := req.Callback.EvidraAPIKey
-		if evidraURL == "" {
-			evidraURL = baseCfg.EvidraURL
+		benchURL := req.Callback.BenchURL
+		authToken := req.Callback.BenchAPIKey
+		if benchURL == "" {
+			benchURL = baseCfg.BenchURL
 		}
 
-		reporter := &evidraReporter{
+		reporter := &benchReporter{
 			progressURL:  progressURL,
-			evidraURL:    evidraURL,
+			benchURL:     benchURL,
 			authToken:    authToken,
 			evidenceMode: config.EffectiveEvidenceMode(runCfg),
 			adapter:      runCfg.Adapter,
@@ -324,19 +321,19 @@ func writeJSON(w http.ResponseWriter, status int, data any) {
 	}
 }
 
-// evidraReporter implements orchestrator.ProgressReporter by sending
-// progress webhooks and bench run submissions to the Evidra API.
-type evidraReporter struct {
+// benchReporter implements orchestrator.ProgressReporter by sending
+// progress webhooks and bench run submissions to the Bench API.
+type benchReporter struct {
 	progressURL  string // POST progress updates here
-	evidraURL    string // POST bench runs here
+	benchURL     string // POST bench runs here
 	authToken    string // Bearer token for both endpoints
 	evidenceMode string // explicit evidence mode for run submissions
 	adapter      string // configured bench execution mode
 }
 
 // OnScenario sends a progress webhook and (on completion) submits the bench run.
-func (r *evidraReporter) OnScenario(_ context.Context, ev orchestrator.ScenarioEvent) {
-	log.Printf("[evidra-reporter] %s %s/%s (completed=%d/%d, progressURL=%q)",
+func (r *benchReporter) OnScenario(_ context.Context, ev orchestrator.ScenarioEvent) {
+	log.Printf("[bench-reporter] %s %s/%s (completed=%d/%d, progressURL=%q)",
 		ev.Status, ev.ScenarioID, ev.Model, ev.Completed, ev.Total, r.progressURL)
 
 	// Send progress webhook.
@@ -348,7 +345,7 @@ func (r *evidraReporter) OnScenario(_ context.Context, ev orchestrator.ScenarioE
 	}
 }
 
-func (r *evidraReporter) sendProgress(ev orchestrator.ScenarioEvent) {
+func (r *benchReporter) sendProgress(ev orchestrator.ScenarioEvent) {
 	if r.progressURL == "" {
 		return
 	}
@@ -365,12 +362,12 @@ func (r *evidraReporter) sendProgress(ev orchestrator.ScenarioEvent) {
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		log.Printf("[evidra-reporter] marshal progress: %v", err)
+		log.Printf("[bench-reporter] marshal progress: %v", err)
 		return
 	}
 	req, err := http.NewRequest("POST", r.progressURL, bytes.NewReader(body))
 	if err != nil {
-		log.Printf("[evidra-reporter] create progress request: %v", err)
+		log.Printf("[bench-reporter] create progress request: %v", err)
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -379,17 +376,17 @@ func (r *evidraReporter) sendProgress(ev orchestrator.ScenarioEvent) {
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Printf("[evidra-reporter] send progress: %v", err)
+		log.Printf("[bench-reporter] send progress: %v", err)
 		return
 	}
-	log.Printf("[evidra-reporter] progress POST %s → %d", r.progressURL, resp.StatusCode)
+	log.Printf("[bench-reporter] progress POST %s → %d", r.progressURL, resp.StatusCode)
 	if err := resp.Body.Close(); err != nil {
-		log.Printf("[evidra-reporter] close progress response: %v", err)
+		log.Printf("[bench-reporter] close progress response: %v", err)
 	}
 }
 
-func (r *evidraReporter) submitBenchRun(ev orchestrator.ScenarioEvent) {
-	if r.evidraURL == "" {
+func (r *benchReporter) submitBenchRun(ev orchestrator.ScenarioEvent) {
+	if r.benchURL == "" {
 		return
 	}
 	adapterName := "bench-cli"
@@ -411,13 +408,13 @@ func (r *evidraReporter) submitBenchRun(ev orchestrator.ScenarioEvent) {
 	}
 	body, err := json.Marshal(run)
 	if err != nil {
-		log.Printf("[evidra-reporter] marshal bench run: %v", err)
+		log.Printf("[bench-reporter] marshal bench run: %v", err)
 		return
 	}
-	url := r.evidraURL + "/v1/bench/runs"
+	url := r.benchURL + "/v1/bench/runs"
 	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
 	if err != nil {
-		log.Printf("[evidra-reporter] create bench run request: %v", err)
+		log.Printf("[bench-reporter] create bench run request: %v", err)
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -430,12 +427,12 @@ func (r *evidraReporter) submitBenchRun(ev orchestrator.ScenarioEvent) {
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Printf("[evidra-reporter] submit bench run: %v", err)
+		log.Printf("[bench-reporter] submit bench run: %v", err)
 		return
 	}
-	log.Printf("[evidra-reporter] bench run POST %s → %d", url, resp.StatusCode)
+	log.Printf("[bench-reporter] bench run POST %s → %d", url, resp.StatusCode)
 	if err := resp.Body.Close(); err != nil {
-		log.Printf("[evidra-reporter] close bench run response: %v", err)
+		log.Printf("[bench-reporter] close bench run response: %v", err)
 	}
 }
 

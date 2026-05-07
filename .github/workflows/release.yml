@@ -212,5 +212,5 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            VITE_EVIDRA_API_URL=https://api.evidra.cc
-            VITE_EVIDRA_API_KEY=${{ secrets.EVIDRA_BENCH_API_KEY }}
+            VITE_BENCH_API_URL=https://api.evidra.cc
+            VITE_BENCH_API_KEY=${{ secrets.BENCH_API_KEY }}

@@ -156,7 +156,7 @@ func (p *LocalProvisioner) acquireAWSLocalStack(ctx context.Context, req Provisi
 	// Build extra env for the profile hooks.
 	extraEnv := make(map[string]string)
 	if req.Scenario != nil && len(req.Scenario.Environment.Cloud.Services) > 0 {
-		extraEnv["EVIDRA_LOCALSTACK_SERVICES"] = strings.Join(req.Scenario.Environment.Cloud.Services, ",")
+		extraEnv["BENCH_LOCALSTACK_SERVICES"] = strings.Join(req.Scenario.Environment.Cloud.Services, ",")
 	}
 
 	// Run profile hooks (install.sh starts LocalStack, writes lease.env).

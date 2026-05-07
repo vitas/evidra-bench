@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { SCENARIOS, TRACK_LABELS } from "../data/catalog";
 
-const API_URL = import.meta.env.VITE_EVIDRA_API_URL || "";
-const API_KEY = import.meta.env.VITE_EVIDRA_API_KEY || "";
+const API_URL = import.meta.env.VITE_BENCH_API_URL || "";
+const API_KEY = import.meta.env.VITE_BENCH_API_KEY || "";
 
 // Build lookup from scenario ID → track/level from our catalog
 const SCENARIO_META = new Map(SCENARIOS.map((s) => [s.id, { track: s.track, level: s.level }]));
@@ -87,7 +87,7 @@ export function Results() {
         <div className="text-center max-w-md">
           <h1 className="text-xl font-bold text-fg mb-3">Results Not Configured</h1>
           <p className="text-[0.85rem] text-fg-muted mb-4">
-            Set <code className="text-accent">VITE_EVIDRA_API_KEY</code> at build time to connect to the evidra API.
+            Set <code className="text-accent">VITE_BENCH_API_KEY</code> at build time to connect to the bench API.
           </p>
         </div>
       </div>

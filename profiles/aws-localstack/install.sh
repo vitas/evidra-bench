@@ -6,20 +6,20 @@ set -eu
 #
 # Required env:
 #   KUBECONFIG          — path to the cluster kubeconfig
-#   EVIDRA_CLUSTER_NAME — name of the cluster
-#   EVIDRA_WORK_DIR     — working directory for state and binaries
+#   BENCH_CLUSTER_NAME — name of the cluster
+#   BENCH_WORK_DIR     — working directory for state and binaries
 #
 # Optional env:
-#   EVIDRA_LOCALSTACK_SERVICES — comma-separated list of AWS services (default: s3,iam,sts)
-#   EVIDRA_ASSETS_DIR          — path to the profile assets directory
+#   BENCH_LOCALSTACK_SERVICES — comma-separated list of AWS services (default: s3,iam,sts)
+#   BENCH_ASSETS_DIR          — path to the profile assets directory
 
 LOCALSTACK_IMAGE="localstack/localstack:3.8"
-LOCALSTACK_SERVICES="${EVIDRA_LOCALSTACK_SERVICES:-s3,iam,sts}"
-CONTAINER_NAME="evidra-localstack-${EVIDRA_CLUSTER_NAME}"
+LOCALSTACK_SERVICES="${BENCH_LOCALSTACK_SERVICES:-s3,iam,sts}"
+CONTAINER_NAME="bench-localstack-${BENCH_CLUSTER_NAME}"
 LOCALSTACK_PORT=4566
 
-STATE_DIR="${EVIDRA_WORK_DIR}/state"
-BIN_DIR="${EVIDRA_WORK_DIR}/bin"
+STATE_DIR="${BENCH_WORK_DIR}/state"
+BIN_DIR="${BENCH_WORK_DIR}/bin"
 
 mkdir -p "${STATE_DIR}" "${BIN_DIR}"
 
@@ -75,7 +75,7 @@ chmod +x "${BIN_DIR}/aws"
 CONCRETE_PATH="${BIN_DIR}:${PATH}"
 
 # Write lease.env with concrete values only — no shell variable placeholders.
-cat > "${EVIDRA_WORK_DIR}/lease.env" <<EOF
+cat > "${BENCH_WORK_DIR}/lease.env" <<EOF
 AWS_ENDPOINT_URL=${LOCALSTACK_ENDPOINT}
 AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
@@ -84,4 +84,4 @@ PATH=${CONCRETE_PATH}
 LOCALSTACK_CONTAINER=${CONTAINER_NAME}
 EOF
 
-echo "LocalStack install complete. lease.env written to ${EVIDRA_WORK_DIR}/lease.env"
+echo "LocalStack install complete. lease.env written to ${BENCH_WORK_DIR}/lease.env"

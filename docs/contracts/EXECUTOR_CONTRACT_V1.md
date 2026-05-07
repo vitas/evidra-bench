@@ -46,8 +46,8 @@ Request:
   },
   "callback": {
     "progress_url": "http://bench:8090/v1/bench/trigger/trigger-01KMH.../progress",
-    "evidra_url": "http://bench:8090",
-    "evidra_api_key": "dev-secret"
+    "bench_url": "http://bench:8090",
+    "bench_api_key": "dev-secret"
   }
 }
 ```
@@ -66,8 +66,8 @@ Fields:
 | `config.a2a_agent_url` | no | A2A endpoint when `adapter=a2a` |
 | `config.evidence_mode` | no | `none` or `mcp`; request value overrides worker default |
 | `callback.progress_url` | yes | Trigger progress webhook |
-| `callback.evidra_url` | yes | API base URL for run/artifact delivery |
-| `callback.evidra_api_key` | yes | Bearer token for API auth |
+| `callback.bench_url` | yes | API base URL for run/artifact delivery |
+| `callback.bench_api_key` | yes | Bearer token for API auth |
 
 Response:
 
@@ -125,7 +125,7 @@ Send `running` before starting a scenario. Send `passed`, `failed`, `error`, or
 ## Data Delivery
 
 The executor pushes run results and artifacts to the API identified by
-`callback.evidra_url`. Authentication is `Bearer {callback.evidra_api_key}`.
+`callback.bench_url`. Authentication is `Bearer {callback.bench_api_key}`.
 
 ### Run Result
 
@@ -187,7 +187,7 @@ For each scenario, an executor must:
 1. prepare the target environment
 2. inject or seed the scenario failure
 3. launch the agent with the requested model and execution mode
-4. configure any evidence tooling to forward to `callback.evidra_url`
+4. configure any evidence tooling to forward to `callback.bench_url`
 5. wait for completion or timeout
 6. verify the outcome
 7. submit the bench run result
@@ -208,13 +208,13 @@ For each scenario, an executor must:
 
 ```bash
 BENCH_DATABASE_URL=postgres://bench:bench@localhost:5432/bench?sslmode=disable \
-EVIDRA_API_KEY=dev-secret \
+BENCH_API_KEY=dev-secret \
 BENCH_SERVICE_ADDR=:8090 \
 bench-cli serve
 ```
 
-`--database-url` or `BENCH_DATABASE_URL` is required. `--evidra-api-key` or
-`EVIDRA_API_KEY` is required for API auth.
+`--database-url` or `BENCH_DATABASE_URL` is required. `--bench-api-key` or
+`BENCH_API_KEY` is required for API auth.
 
 Hosted control-plane deployments can start `bench-cli serve --control-plane-only`
 or set `BENCH_CONTROL_PLANE_ONLY=true`. That mode intentionally disables this

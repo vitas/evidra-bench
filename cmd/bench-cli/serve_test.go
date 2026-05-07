@@ -48,8 +48,8 @@ func TestBuildCertifyRunConfig_UsesRequestOverrides(t *testing.T) {
 }
 
 func TestResolveServeTenants_UsesBenchPublicTenantAsFallback(t *testing.T) {
-	t.Setenv("EVIDRA_DEFAULT_TENANT", "")
-	t.Setenv("EVIDRA_BENCH_PUBLIC_TENANT", "tnt-public")
+	t.Setenv("BENCH_DEFAULT_TENANT", "")
+	t.Setenv("BENCH_PUBLIC_TENANT", "tnt-public")
 
 	defaultTenant, publicTenant := resolveServeTenants()
 
@@ -62,8 +62,8 @@ func TestResolveServeTenants_UsesBenchPublicTenantAsFallback(t *testing.T) {
 }
 
 func TestResolveServeTenants_AllowsSeparateAuthenticatedTenant(t *testing.T) {
-	t.Setenv("EVIDRA_DEFAULT_TENANT", "tenant-auth")
-	t.Setenv("EVIDRA_BENCH_PUBLIC_TENANT", "tenant-public")
+	t.Setenv("BENCH_DEFAULT_TENANT", "tenant-auth")
+	t.Setenv("BENCH_PUBLIC_TENANT", "tenant-public")
 
 	defaultTenant, publicTenant := resolveServeTenants()
 
@@ -261,7 +261,7 @@ func TestRegisterBenchAPIRoutes_ProtectsWriteEndpoint(t *testing.T) {
 	}
 }
 
-func TestBuildCertifyRunConfig_EmptyEvidenceModePreservesLegacyBehavior(t *testing.T) {
+func TestBuildCertifyRunConfig_EmptyEvidenceModePreservesDefaultInference(t *testing.T) {
 	t.Parallel()
 
 	base := config.Default()
@@ -282,7 +282,7 @@ func TestBuildCertifyRunConfig_EmptyEvidenceModePreservesLegacyBehavior(t *testi
 	}
 }
 
-func TestEvidraReporter_SubmitBenchRunUsesExplicitEvidenceMode(t *testing.T) {
+func TestBenchReporter_SubmitBenchRunUsesExplicitEvidenceMode(t *testing.T) {
 	t.Parallel()
 
 	var got map[string]any
@@ -297,8 +297,8 @@ func TestEvidraReporter_SubmitBenchRunUsesExplicitEvidenceMode(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	reporter := &evidraReporter{
-		evidraURL:    server.URL,
+	reporter := &benchReporter{
+		benchURL:     server.URL,
 		evidenceMode: "none",
 	}
 	reporter.submitBenchRun(orchestratorScenarioEventForTest())
@@ -308,7 +308,7 @@ func TestEvidraReporter_SubmitBenchRunUsesExplicitEvidenceMode(t *testing.T) {
 	}
 }
 
-func TestEvidraReporter_SubmitBenchRunUsesA2AAdapter(t *testing.T) {
+func TestBenchReporter_SubmitBenchRunUsesA2AAdapter(t *testing.T) {
 	t.Parallel()
 
 	var got map[string]any
@@ -323,8 +323,8 @@ func TestEvidraReporter_SubmitBenchRunUsesA2AAdapter(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	reporter := &evidraReporter{
-		evidraURL:    server.URL,
+	reporter := &benchReporter{
+		benchURL:     server.URL,
 		evidenceMode: "none",
 		adapter:      "a2a",
 	}

@@ -38,6 +38,19 @@ func TestDefault_Timeout(t *testing.T) {
 	}
 }
 
+func TestDefault_UsesBenchAPIEnv(t *testing.T) {
+	t.Setenv("BENCH_API_URL", "https://bench.example")
+	t.Setenv("BENCH_API_KEY", "bench-key")
+
+	cfg := Default()
+	if cfg.BenchURL != "https://bench.example" {
+		t.Fatalf("BenchURL = %q, want env value", cfg.BenchURL)
+	}
+	if cfg.BenchAPIKey != "bench-key" {
+		t.Fatalf("BenchAPIKey = %q, want env value", cfg.BenchAPIKey)
+	}
+}
+
 func TestValidate_MissingScenario(t *testing.T) {
 	t.Parallel()
 	cfg := Default()

@@ -5,8 +5,8 @@ import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { evidenceModeParam } from "../../lib/catalogData.mts";
 import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
-const API_BASE = import.meta.env.VITE_EVIDRA_API_URL || "";
-const API_KEY = import.meta.env.VITE_EVIDRA_API_KEY || "";
+const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
+const API_KEY = import.meta.env.VITE_BENCH_API_KEY || "";
 
 function fetchApi(path: string): Promise<Response> {
   const headers: Record<string, string> = {};

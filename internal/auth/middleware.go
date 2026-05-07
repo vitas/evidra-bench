@@ -77,13 +77,13 @@ func KeyStoreMiddleware(lookup KeyStoreAuthFunc) func(http.Handler) http.Handler
 				return
 			}
 			ctx := WithTenantID(r.Context(), tenantID)
-			w.Header().Set("X-Evidra-Tenant", tenantID)
+			w.Header().Set("X-Bench-Tenant", tenantID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
 
-// AuthCheckHandler returns 200 with X-Evidra-Tenant for valid tokens (forwardAuth target).
+// AuthCheckHandler returns 200 with X-Bench-Tenant for valid tokens (forwardAuth target).
 func AuthCheckHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tid := TenantID(r.Context())
@@ -91,7 +91,7 @@ func AuthCheckHandler() http.HandlerFunc {
 			authFail(w)
 			return
 		}
-		w.Header().Set("X-Evidra-Tenant", tid)
+		w.Header().Set("X-Bench-Tenant", tid)
 		if r.Method == http.MethodHead {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -101,7 +101,7 @@ func AuthCheckHandler() http.HandlerFunc {
 	}
 }
 
-// ExtractTenantHeader reads X-Evidra-Tenant for downstream use (e.g., after forwardAuth).
+// ExtractTenantHeader reads X-Bench-Tenant for downstream use (e.g., after forwardAuth).
 func ExtractTenantHeader(header string) string {
 	return strings.TrimSpace(header)
 }

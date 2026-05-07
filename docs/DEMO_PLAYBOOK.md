@@ -14,31 +14,31 @@ Run ~180 fresh runs across 3 models to fill the leaderboard with pass^k data.
 source .env && export $(grep -v '^#' .env | grep -v '^$' | xargs)
 
 # Gemini — kubernetes + helm scenarios × 3 repeats
-export EVIDRA_BIFROST_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
-export EVIDRA_BIFROST_AUTH_BEARER=$GEMINI_API_KEY
+export INFRA_BENCH_BIFROST_URL=https://generativelanguage.googleapis.com/v1beta/openai
+export INFRA_BENCH_BIFROST_AUTH_BEARER=$GEMINI_API_KEY
 bench-cli bench \
   --scenario kubernetes --scenario helm \
   --model gemini-2.5-flash --provider bifrost \
   --repeats 3 --environment k3d --reuse-cluster --mcp-server "evidra-mcp --signing-mode optional" \
-  --evidra-url https://api.evidra.cc --evidra-api-key $EVIDRA_API_KEY
+  --bench-url https://api.evidra.cc --bench-api-key $BENCH_API_KEY
 
 # DeepSeek — same scenarios
-export EVIDRA_BIFROST_BASE_URL=https://api.deepseek.com/v1
-export EVIDRA_BIFROST_AUTH_BEARER=$DEEPSEEK_API_KEY
+export INFRA_BENCH_BIFROST_URL=https://api.deepseek.com/v1
+export INFRA_BENCH_BIFROST_AUTH_BEARER=$DEEPSEEK_API_KEY
 bench-cli bench \
   --scenario kubernetes --scenario helm \
   --model deepseek-chat --provider bifrost \
   --repeats 3 --environment k3d --reuse-cluster --mcp-server "evidra-mcp --signing-mode optional" \
-  --evidra-url https://api.evidra.cc --evidra-api-key $EVIDRA_API_KEY
+  --bench-url https://api.evidra.cc --bench-api-key $BENCH_API_KEY
 
 # Qwen — same scenarios
-export EVIDRA_BIFROST_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
-export EVIDRA_BIFROST_AUTH_BEARER=$DASHSCOPE_API_KEY
+export INFRA_BENCH_BIFROST_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+export INFRA_BENCH_BIFROST_AUTH_BEARER=$DASHSCOPE_API_KEY
 bench-cli bench \
   --scenario kubernetes --scenario helm \
   --model qwen-plus --provider bifrost \
   --repeats 3 --environment k3d --reuse-cluster --mcp-server "evidra-mcp --signing-mode optional" \
-  --evidra-url https://api.evidra.cc --evidra-api-key $EVIDRA_API_KEY
+  --bench-url https://api.evidra.cc --bench-api-key $BENCH_API_KEY
 ```
 
 ### Morning Of: E2E Verification Checklist
@@ -50,7 +50,7 @@ Run all 7 before recording. Every one must pass.
 | 1 | Baseline PASS | `bench-cli run --scenario kubernetes/broken-deployment --model gemini-2.5-flash --provider bifrost --environment k3d` | PASS, <60s |
 | 2 | MCP PASS | same + `--mcp-server "evidra-mcp --signing-mode optional" --reuse-cluster` | PASS, MCP run reported to API |
 | 3 | ArgoCD PASS | `bench-cli run --scenario argocd/out-of-sync --model gemini-2.5-flash --provider bifrost --environment k3d --reuse-cluster --cluster-name argo-demo` | PASS, <3min |
-| 4 | Leaderboard | `curl -sf -H "Authorization: Bearer $EVIDRA_API_KEY" https://api.evidra.cc/v1/bench/leaderboard` | gemini-2.5-flash in results |
+| 4 | Leaderboard | `curl -sf -H "Authorization: Bearer $BENCH_API_KEY" https://api.evidra.cc/v1/bench/leaderboard` | gemini-2.5-flash in results |
 | 5 | Evidence filter | Open evidra.cc/evidence, select actor from dropdown | Filtered entries shown |
 | 6 | Skipped scenario | `bench-cli run --scenario kubernetes/apparmor-profile-pod --dry-run` | Error: "skipped" |
 | 7 | Profile rejection | `bench-cli bench --scenario argocd/out-of-sync --parallel 2 --database-url ...` | Error: "shared-cluster parallel" |

@@ -27,8 +27,8 @@ type Config struct {
 	ReuseCluster        bool
 	ClusterName         string
 	DryRun              bool
-	EvidraURL           string
-	EvidraAPIKey        string
+	BenchURL            string
+	BenchAPIKey         string
 	EvidenceDir         string
 	Model               string
 	Provider            string
@@ -70,7 +70,7 @@ func (c *Config) ResolveA2AAgentURL() string {
 }
 
 // Default returns a Config with sensible offline-first defaults.
-// Reads EVIDRA_URL and EVIDRA_API_KEY from environment for evidra reporting.
+// Reads BENCH_API_URL and BENCH_API_KEY from environment for bench reporting.
 func Default() Config {
 	return Config{
 		EnvironmentProvider: "kind",
@@ -79,8 +79,8 @@ func Default() Config {
 		RunsDir:             "runs",
 		Timeout:             5 * time.Minute,
 		ClusterName:         "infra-bench",
-		EvidraURL:           os.Getenv("EVIDRA_URL"),
-		EvidraAPIKey:        os.Getenv("EVIDRA_API_KEY"),
+		BenchURL:            os.Getenv("BENCH_API_URL"),
+		BenchAPIKey:         os.Getenv("BENCH_API_KEY"),
 	}
 }
 

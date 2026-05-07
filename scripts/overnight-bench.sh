@@ -26,14 +26,14 @@ set -u
 REPEATS="${REPEATS:-1}"
 BINARY="${BINARY:-bin/bench-cli}"
 ENVIRONMENT="${ENVIRONMENT:-k3d}"
-EVIDRA_URL="${EVIDRA_URL:-https://api.evidra.cc}"
+BENCH_API_URL="${BENCH_API_URL:-https://api.evidra.cc}"
 
 if [ ! -x "$BINARY" ]; then
   echo "ERROR: $BINARY not found. Run 'make build' first."
   exit 1
 fi
-if [ -z "${EVIDRA_API_KEY:-}" ]; then
-  echo "ERROR: EVIDRA_API_KEY not set."
+if [ -z "${BENCH_API_KEY:-}" ]; then
+  echo "ERROR: BENCH_API_KEY not set."
   exit 1
 fi
 if ! command -v evidra-mcp >/dev/null 2>&1; then
@@ -72,8 +72,8 @@ run_bench() {
   echo "  START $model/$mode → $log_file"
 
   (
-    export EVIDRA_BIFROST_BASE_URL="$base_url"
-    export EVIDRA_BIFROST_AUTH_BEARER="$key_val"
+    export INFRA_BENCH_BIFROST_URL="$base_url"
+    export INFRA_BENCH_BIFROST_AUTH_BEARER="$key_val"
 
     # Kubernetes + Helm (51 active scenarios, default profile).
     "$BINARY" bench \
@@ -82,7 +82,7 @@ run_bench() {
       --repeats "$REPEATS" \
       --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "$cluster" \
       $mode_flags \
-      --evidra-url "$EVIDRA_URL" --evidra-api-key "$EVIDRA_API_KEY" \
+      --bench-url "$BENCH_API_URL" --bench-api-key "$BENCH_API_KEY" \
       2>&1 || echo "WARN: $model/$mode k8s+helm exited $?"
 
     # ArgoCD (4 active, argocd profile — separate cluster).
@@ -92,7 +92,7 @@ run_bench() {
       --repeats "$REPEATS" \
       --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "${cluster}-argo" \
       $mode_flags \
-      --evidra-url "$EVIDRA_URL" --evidra-api-key "$EVIDRA_API_KEY" \
+      --bench-url "$BENCH_API_URL" --bench-api-key "$BENCH_API_KEY" \
       2>&1 || echo "WARN: $model/$mode argocd exited $?"
 
     # Terraform (5 active).
@@ -102,7 +102,7 @@ run_bench() {
       --repeats "$REPEATS" \
       --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "$cluster" \
       $mode_flags \
-      --evidra-url "$EVIDRA_URL" --evidra-api-key "$EVIDRA_API_KEY" \
+      --bench-url "$BENCH_API_URL" --bench-api-key "$BENCH_API_KEY" \
       2>&1 || echo "WARN: $model/$mode terraform exited $?"
 
     echo "DONE $model/$mode"
@@ -155,5 +155,5 @@ run_model() {
   echo "  ALL DONE"
   echo "════════════════════════════════════════"
   echo "  Logs: ${LOG_DIR}/"
-  echo "  Results: ${EVIDRA_URL}"
+  echo "  Results: ${BENCH_API_URL}"
 } 2>&1 | tee "${LOG_DIR}/main.log"

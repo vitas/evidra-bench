@@ -37,7 +37,7 @@ provider_url_for_model() {
     deepseek-*)         echo "https://api.deepseek.com/v1" ;;
     llama-*|mixtral-*)  echo "https://api.groq.com/openai/v1" ;;
     qwen*)              echo "https://dashscope-intl.aliyuncs.com/compatible-mode/v1" ;;
-    *)                  echo "${EVIDRA_BIFROST_BASE_URL:-http://localhost:8080/openai}" ;;
+    *)                  echo "${INFRA_BENCH_BIFROST_URL:-http://localhost:8080/openai}" ;;
   esac
 }
 
@@ -49,7 +49,7 @@ provider_key_for_model() {
     deepseek-*)         echo "${DEEPSEEK_API_KEY:-}" ;;
     llama-*|mixtral-*)  echo "${GROQ_API_KEY:-}" ;;
     qwen*)              echo "${DASHSCOPE_API_KEY:-}" ;;
-    *)                  echo "${EVIDRA_BIFROST_AUTH_BEARER:-}" ;;
+    *)                  echo "${INFRA_BENCH_BIFROST_AUTH_BEARER:-}" ;;
   esac
 }
 
@@ -89,10 +89,10 @@ run_exists() {
 }
 
 for MODEL in "${MODELS[@]}"; do
-  export EVIDRA_BIFROST_BASE_URL=$(provider_url_for_model "$MODEL")
-  export EVIDRA_BIFROST_AUTH_BEARER=$(provider_key_for_model "$MODEL")
+  export INFRA_BENCH_BIFROST_URL=$(provider_url_for_model "$MODEL")
+  export INFRA_BENCH_BIFROST_AUTH_BEARER=$(provider_key_for_model "$MODEL")
 
-  if [ -z "$EVIDRA_BIFROST_AUTH_BEARER" ]; then
+  if [ -z "$INFRA_BENCH_BIFROST_AUTH_BEARER" ]; then
     echo "SKIP $MODEL — no API key"
     SKIPPED=$((SKIPPED + SCENARIO_COUNT))
     continue
@@ -117,8 +117,8 @@ for MODEL in "${MODELS[@]}"; do
       --mcp-server "$MCP_SERVER" \
       --reuse-cluster \
       --timeout 10m \
-      --evidra-url "https://api.evidra.cc" \
-      --evidra-api-key "${EVIDRA_API_KEY:?EVIDRA_API_KEY must be set}" \
+      --bench-url "https://api.evidra.cc" \
+      --bench-api-key "${BENCH_API_KEY:?BENCH_API_KEY must be set}" \
       2>&1; then
       PASSED=$((PASSED + 1))
       RESULTS+=("PASS  $SCENARIO  $MODEL")

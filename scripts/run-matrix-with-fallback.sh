@@ -9,7 +9,7 @@
 #   FALLBACK_PROVIDER   Fallback provider for ERROR retries (default: anthropic)
 #   FALLBACK_MODEL      Fallback model (default: claude-sonnet-4-20250514)
 #   ANTHROPIC_API_KEY   Required for anthropic fallback
-#   INFRA_BENCH_BIFROST_URL / EVIDRA_BIFROST_AUTH_BEARER  Required for bifrost
+#   INFRA_BENCH_BIFROST_URL / INFRA_BENCH_BIFROST_AUTH_BEARER  Required for bifrost
 #   CLUSTER_NAME        Kind cluster name (default: evidra)
 #   RUNS_DIR            Output directory (default: runs/matrix-fallback-<timestamp>)
 set -uo pipefail
@@ -18,8 +18,8 @@ PRIMARY_PROVIDER="${PRIMARY_PROVIDER:-claude}"
 PRIMARY_MODEL="${PRIMARY_MODEL:-sonnet}"
 FALLBACK_PROVIDER="${FALLBACK_PROVIDER:-anthropic}"
 FALLBACK_MODEL="${FALLBACK_MODEL:-claude-sonnet-4-20250514}"
-CLUSTER_NAME="${CLUSTER_NAME:-evidra}"
-KUBECONFIG_PATH="${KUBECONFIG_PATH:-/tmp/kind-evidra.kubeconfig}"
+CLUSTER_NAME="${CLUSTER_NAME:-infra-bench}"
+KUBECONFIG_PATH="${KUBECONFIG_PATH:-/tmp/kind-infra-bench.kubeconfig}"
 RUNS_DIR="${RUNS_DIR:-runs/matrix-fallback-$(date +%Y%m%d-%H%M%S)}"
 
 mkdir -p "$RUNS_DIR"

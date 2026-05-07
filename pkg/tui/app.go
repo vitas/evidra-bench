@@ -318,8 +318,8 @@ func (a *App) runScenario() tea.Cmd {
 			RunsDir:      a.runsDir,
 			ClusterName:  "bench-cli",
 			EvidenceDir:  a.cfg.EvidenceDir,
-			EvidraURL:    a.cfg.EvidraURL,
-			EvidraAPIKey: a.cfg.EvidraAPIKey,
+			BenchURL:     a.cfg.BenchURL,
+			BenchAPIKey:  a.cfg.BenchAPIKey,
 			MemoryWindow: a.cfg.MemoryWindow,
 			ReuseCluster: a.cfg.ReuseCluster,
 		}

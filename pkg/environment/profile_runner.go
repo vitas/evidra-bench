@@ -24,7 +24,7 @@ type ProfileRunRequest struct {
 	Provider    string
 	ClusterName string
 	Kubeconfig  string
-	ExtraEnv    map[string]string // additional env vars (e.g., EVIDRA_LOCALSTACK_SERVICES)
+	ExtraEnv    map[string]string // additional env vars (e.g., BENCH_LOCALSTACK_SERVICES)
 }
 
 // ProfileRunResult holds the output of a successful profile preparation.
@@ -43,7 +43,7 @@ type ProfileRunResult struct {
 //
 // On install or healthcheck failure, best-effort cleanup runs before returning the error.
 func (r *ProfileRunner) Prepare(ctx context.Context, req ProfileRunRequest) (*ProfileRunResult, error) {
-	workDir, err := os.MkdirTemp("", "evidra-profile-*")
+	workDir, err := os.MkdirTemp("", "bench-profile-*")
 	if err != nil {
 		return nil, fmt.Errorf("profile runner: create work dir: %w", err)
 	}
@@ -102,11 +102,11 @@ func (r *ProfileRunner) Prepare(ctx context.Context, req ProfileRunRequest) (*Pr
 func (r *ProfileRunner) buildEnv(req ProfileRunRequest, workDir string) []string {
 	env := []string{
 		"KUBECONFIG=" + req.Kubeconfig,
-		"EVIDRA_PROFILE=" + string(req.Profile),
-		"EVIDRA_PROVIDER=" + req.Provider,
-		"EVIDRA_CLUSTER_NAME=" + req.ClusterName,
-		"EVIDRA_WORK_DIR=" + workDir,
-		"EVIDRA_ASSETS_DIR=" + req.Assets.ProfileDir,
+		"BENCH_PROFILE=" + string(req.Profile),
+		"BENCH_PROVIDER=" + req.Provider,
+		"BENCH_CLUSTER_NAME=" + req.ClusterName,
+		"BENCH_WORK_DIR=" + workDir,
+		"BENCH_ASSETS_DIR=" + req.Assets.ProfileDir,
 	}
 
 	// Append extra env in sorted-key order for determinism is not needed;

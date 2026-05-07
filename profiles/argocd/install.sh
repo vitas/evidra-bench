@@ -6,17 +6,17 @@ set -eu
 #
 # Required env:
 #   KUBECONFIG          — path to the cluster kubeconfig
-#   EVIDRA_CLUSTER_NAME — name of the cluster (informational)
+#   BENCH_CLUSTER_NAME — name of the cluster (informational)
 #
 # Optional env:
-#   EVIDRA_WORK_DIR     — working directory for state files
-#   EVIDRA_ASSETS_DIR   — path to the profile assets directory
+#   BENCH_WORK_DIR     — working directory for state files
+#   BENCH_ASSETS_DIR   — path to the profile assets directory
 
 ARGOCD_VERSION="v2.13.3"
 ARGOCD_NAMESPACE="argocd"
-ARGOCD_MANIFEST="${EVIDRA_ASSETS_DIR}/manifests/install.yaml"
+ARGOCD_MANIFEST="${BENCH_ASSETS_DIR}/manifests/install.yaml"
 
-echo "Installing ArgoCD ${ARGOCD_VERSION} into cluster ${EVIDRA_CLUSTER_NAME:-unknown}..."
+echo "Installing ArgoCD ${ARGOCD_VERSION} into cluster ${BENCH_CLUSTER_NAME:-unknown}..."
 
 # Create namespace (idempotent).
 kubectl --kubeconfig="${KUBECONFIG}" create namespace "${ARGOCD_NAMESPACE}" --dry-run=client -o yaml \

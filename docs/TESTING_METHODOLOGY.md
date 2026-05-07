@@ -170,7 +170,7 @@ bench-cli run --provider claude --model sonnet \
   --memory-window 3
 ```
 
-Compare results on the Evidra dashboard at [evidra.cc/bench](https://evidra.cc/bench).
+Compare results on the bench dashboard at [evidra.cc/bench](https://evidra.cc/bench).
 
 ## Model Comparison
 
@@ -195,7 +195,7 @@ bench-cli run --provider claude --model haiku --scenario ...
 
 ```
 
-View results on the Evidra dashboard at [evidra.cc/bench](https://evidra.cc/bench),
+View results on the bench dashboard at [evidra.cc/bench](https://evidra.cc/bench),
 which shows results grouped by scenario with model, provider, duration, turns,
 and token usage — making it easy to compare.
 
@@ -223,12 +223,12 @@ The Bifrost provider works with any OpenAI-compatible endpoint:
 ```bash
 # OpenAI directly
 INFRA_BENCH_BIFROST_URL=https://api.openai.com/v1 \
-EVIDRA_BIFROST_AUTH_BEARER=sk-proj-... \
+INFRA_BENCH_BIFROST_AUTH_BEARER=sk-proj-... \
 bench-cli run --provider bifrost --model gpt-4o ...
 
 # Alibaba DashScope (Qwen)
 INFRA_BENCH_BIFROST_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1 \
-EVIDRA_BIFROST_AUTH_BEARER=sk-... \
+INFRA_BENCH_BIFROST_AUTH_BEARER=sk-... \
 bench-cli run --provider bifrost --model qwen-plus ...
 
 # Any OpenAI-compatible proxy (LiteLLM, vLLM, Ollama, etc.)
@@ -261,7 +261,7 @@ bench-cli compare runs/<run-A>/ runs/<run-B>/
 The output shows: verdict change (improved/regressed/same), duration delta,
 check-level diffs (which checks changed between runs), model/provider/turns/tokens/cost.
 
-View detailed results and visual comparisons on the Evidra dashboard at
+View detailed results and visual comparisons on the bench dashboard at
 [evidra.cc/bench](https://evidra.cc/bench).
 
 ### Comparing models on the same scenario
@@ -286,7 +286,7 @@ Google (gemini-2.5-pro/flash), and Alibaba Qwen (qwen-plus/max/turbo,
 qwen3.5-plus, qwen3-max, qwen3-coder-plus). Cost appears in:
 
 - Run metadata (`estimated_cost` field in run.json)
-- Evidra dashboard at [evidra.cc/bench](https://evidra.cc/bench)
+- bench dashboard at [evidra.cc/bench](https://evidra.cc/bench)
 - `db query` output
 - `compare` output
 
