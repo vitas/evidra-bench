@@ -1,192 +1,215 @@
 # evidra-infra-bench
 
-Development and testing framework for AI infrastructure agent skills. Run your agent, MCP tool, or skill prompt against real Kubernetes clusters, AWS resources, Helm charts, and Argo CD — measure what actually helps and what's just token waste.
+Regression testing for infrastructure agents. Run the same real Kubernetes,
+Helm, Argo CD, Terraform, and AWS/LocalStack scenarios across models, MCP
+servers, skills, and remote agents. Track pass rate, cost, turns, token use,
+and failure patterns over time.
 
-**75 scenarios** | **8 CKA/CKS-aligned tracks** | **4 certification levels** | **5 infrastructure categories**
+Bench answers the questions that matter before an agent touches production:
 
-Puzzle Designer: [lab.evidra.cc](https://lab.evidra.cc) | Results: [lab.evidra.cc/bench/runs](https://lab.evidra.cc/bench/runs)
+- Can it fix the incident?
+- Did it diagnose before acting?
+- Did it loop, give up, or claim success too early?
+- Did a new model, prompt, MCP server, or skill regress behavior?
+- How many tokens and turns did the run waste?
+
+The public leaderboard is the marketing surface. Private regression history,
+scheduled runs, custom scenario packs, and failure reports are the product
+surface.
 
 ## Why
 
-A 5-line troubleshooting skill cuts L1 scenario turns from 17 to 4 — **75% faster.**
-The same skill on L2 makes the agent skip diagnosis and **fail.**
+Agent quality is not a single pass/fail number. The same prompt or tool server
+can make an easy scenario faster and make a harder scenario fail by skipping
+diagnosis. You need repeatable tests with real infrastructure state, artifacts,
+and comparable run history.
 
-Skills aren't universally good or bad. You need to test them on real scenarios
-to know which help and which hurt. That's what `bench-cli` does.
+```bash
+# Baseline model behavior
+bench-cli run \
+  --scenario kubernetes/broken-deployment \
+  --provider bifrost \
+  --model gemini-2.5-flash
 
+# Same model with a skill prompt
+bench-cli run \
+  --scenario kubernetes/broken-deployment \
+  --provider bifrost \
+  --model gemini-2.5-flash \
+  --system-prompt-file skills/k8s-admin.md
+
+# Same scenario through an MCP server
+bench-cli run \
+  --scenario kubernetes/broken-deployment \
+  --provider bifrost \
+  --model gemini-2.5-flash \
+  --mcp-server "npx -y @anthropic/mcp-server-kubernetes"
 ```
-# Without skill: 17 turns, PASS
-bench-cli run --scenario kubernetes/broken-deployment --provider bifrost --model gemini-2.5-flash
 
-# With skill: 4 turns, PASS — 4x faster
-bench-cli run --scenario kubernetes/broken-deployment --provider bifrost --model gemini-2.5-flash \
-  --system-prompt-file my-skill.md
+## Use Cases
 
-# Same skill on harder scenario: 4 turns, FAIL — skipped diagnosis
-bench-cli run --scenario kubernetes/crashloop-backoff --provider bifrost --model gemini-2.5-flash \
-  --system-prompt-file my-skill.md
+| User | Question Bench answers |
+|---|---|
+| Platform teams | Can this agent handle realistic incidents before we deploy it? |
+| Agent builders | Which model, prompt, or tool stack regressed this scenario? |
+| MCP server builders | Does this tool server improve outcomes without raising cost? |
+| Skill authors | Does this skill help on L3/L4, or only on easy L1 tasks? |
+| Security teams | Does the agent fix the issue without weakening controls? |
+
+## What Bench Measures
+
+Bench checks the outcome and the path the agent took:
+
+| Metric | What it shows |
+|---|---|
+| Pass rate | Whether final infrastructure checks passed |
+| Turns | How many agent/tool iterations were needed |
+| Tokens and cost | Whether a change saves or burns budget |
+| Duration | Wall-clock runtime for the scenario |
+| Tool calls | What the agent inspected or changed |
+| Timeline | Discovery, diagnosis, action, and verification phases |
+| Failure patterns | Loops, premature success, missed diagnostics, unsafe actions |
+
+The next product layer is agent failure autopsy: a report that explains where
+the agent got stuck, what it missed, and which behavior caused the regression.
+See [Agent Failure Autopsy](docs/AGENT_FAILURE_AUTOPSY.md).
+
+## Scenario Catalog
+
+The catalog is organized by operational domain and difficulty:
+
+| Track | What it tests |
+|---|---|
+| `workloads` | Deployments, pods, scheduling, resources |
+| `troubleshooting` | Diagnosis, correlation, cascading failures |
+| `networking` | Services, DNS, ingress, network policies |
+| `storage` | PVCs, StorageClass behavior, volume expansion |
+| `pod-security` | RBAC, capabilities, PSA, CSR, AWS SG/S3 |
+| `runtime-security` | Runtime disruptions and chaos resilience |
+| `release-ops` | Helm, Argo CD, rollbacks, GitOps |
+| `platform-eng` | Terraform state, drift, import, refactoring |
+
+Difficulty levels:
+
+| Level | Name | What it tests |
+|---|---|---|
+| L1 | Fix | One clear problem, one fix |
+| L2 | Diagnose | The agent must investigate before fixing |
+| L3 | Judge | The fix has traps, trade-offs, or safety constraints |
+| L4 | Investigate | Multi-step forensics and root-cause tracing |
+
+Infrastructure categories:
+
+| Category | Runtime |
+|---|---|
+| Kubernetes | kind or k3d cluster |
+| Helm | kind or k3d cluster |
+| Argo CD | kind or k3d cluster |
+| Terraform | local state |
+| AWS | LocalStack, no cloud account required |
+
+## Execution Adapters
+
+Bench keeps scenario setup and verification local, then swaps how the agent is
+executed:
+
+| Adapter | Example | What it tests |
+|---|---|---|
+| Built-in provider loop | `--provider bifrost --model ...` | Raw model behavior with Bench-owned tools |
+| MCP server | `--mcp-server "..."` | Model behavior through a tool server |
+| A2A agent | `--adapter a2a --a2a-agent-url ...` | Remote agent behavior with local verification |
+| CLI process | `--adapter cli` | External agent process compatibility |
+| Skill prompt | `--system-prompt-file ...` or `--role ...` | Prompt/skill impact under fixed scenarios |
+
+`evidra-mcp` can be tested as one MCP server:
+
+```bash
+bench-cli run \
+  --scenario kubernetes/broken-deployment \
+  --provider bifrost \
+  --model sonnet \
+  --mcp-server "evidra-mcp --signing-mode optional"
 ```
 
-**Use cases:**
-- **Skill developers:** "Does my skill help on L3, or only on L1?"
-- **MCP server builders:** "Does my tool server improve outcomes without increasing cost?"
-- **Agent vendors:** "How does my agent compare to GPT-4o on CKS security?"
-- **Platform teams:** "Can this agent handle production incidents before we deploy it?"
+It is not required by Bench.
 
-## Certify Your Agent
+## How It Works
+
+```text
+acquire lease
+  -> provision workspace
+  -> bootstrap healthy baseline
+  -> inject failure
+  -> execute agent through adapter
+  -> collect artifacts and timeline
+  -> verify infrastructure outcome
+  -> store result
+  -> report leaderboard/private regression data
+```
+
+Scenario checks are declarative. The agent can fix the problem any way it wants
+as long as the final infrastructure state satisfies the checks.
+
+## Quick Start
+
+Prerequisites: Go 1.25+, kind or k3d, kubectl, helm.
 
 ```bash
 # Build
 make build
 
-# Certify an agent on Kubernetes Admin scenarios
+# List scenarios
+bench-cli scenario list
+
+# Validate a scenario without a cluster run
+bench-cli run --scenario kubernetes/broken-deployment --dry-run
+
+# Run one scenario
+bench-cli run \
+  --scenario kubernetes/broken-deployment \
+  --provider bifrost \
+  --model gemini-2.5-flash \
+  --reuse-cluster
+
+# Certify on one track
 bench-cli certify --track workloads --model sonnet --provider bifrost
 
-# Certify on Kubernetes Security (includes AWS scenarios via LocalStack)
-bench-cli certify --track pod-security --model gpt-4o --provider bifrost
+# Run a full benchmark
+bench-cli bench --provider bifrost --model sonnet --reuse-cluster
+
+# Open the local TUI
+bench-cli lab
 ```
-
-Output:
-
-```
-════════════════════════════════════════════════════
-  EVIDRA AGENT CERTIFICATION
-════════════════════════════════════════════════════
-  Agent:    sonnet (bifrost)
-  Track:    Workloads (workloads)
-
-  Grade:    PROFICIENT (L3)
-
-  L1 Fix:        8/8   v
-  L2 Diagnose:   5/6   v
-  L3 Judge:      4/4   v
-
-  Overall:  17/18 (94.4%)
-  Duration: 8m 12s
-
-  Certified: 2026-03-21
-════════════════════════════════════════════════════
-```
-
-## Execution Modes
-
-| Mode | Command | What it tests |
-|---|---|---|
-| **Baseline** | `bench-cli run --scenario ...` | Raw model ability (direct exec) |
-| **Via A2A** | `bench-cli run --scenario ... --adapter a2a --a2a-agent-url http://agent:8080` | Remote A2A agent execution with local bootstrap and verification |
-| **Via MCP server** | `--mcp-server "npx -y @anthropic/mcp-server-kubernetes"` | Agent through any MCP server |
-| **Via evidra-mcp** | `--mcp-server "evidra-mcp --signing-mode optional"` | evidra-mcp tested as a regular MCP server |
-| **With role skill** | `--role k8s-admin` | Agent behavior with skill prompt (optional) |
-
-Baseline is mandatory for every scenario. MCP server mode swaps only the tool backend.
 
 ## Provider Setup
 
 Route model requests directly or through a unified Bifrost gateway:
 
 ```bash
-# Option A: Direct (swap env vars per provider)
+# Direct OpenAI-compatible endpoint
 export INFRA_BENCH_BIFROST_URL=https://generativelanguage.googleapis.com/v1beta/openai
 export INFRA_BENCH_BIFROST_AUTH_BEARER=$GEMINI_API_KEY
-bench-cli run --provider bifrost --model gemini-2.5-flash ...
+bench-cli run --provider bifrost --model gemini-2.5-flash --scenario ...
 
-# Option B: Bifrost gateway (one endpoint, all providers)
-source .env && ./scripts/bifrost-start.sh
+# Bifrost gateway
+source .env
+./scripts/bifrost-start.sh
 export INFRA_BENCH_BIFROST_URL=http://localhost:9090/v1
-bench-cli run --provider bifrost --model google/gemini-2.5-flash ...
-bench-cli run --provider bifrost --model deepseek/deepseek-chat ...
-bench-cli run --provider bifrost --model openai/gpt-4.1 ...
+bench-cli run --provider bifrost --model google/gemini-2.5-flash --scenario ...
+bench-cli run --provider bifrost --model deepseek/deepseek-chat --scenario ...
+bench-cli run --provider bifrost --model openai/gpt-4.1 --scenario ...
 ```
 
-## How It Works
-
-```
-acquire lease → provision cluster → bootstrap baseline → inject failure → execute agent → verify outcome → grade
-```
-
-1. Acquires a lease from the provisioner (cluster + profile-specific setup)
-2. Bootstraps the healthy baseline declared by the scenario
-3. Injects a known failure — wrong image, broken NetworkPolicy, open security group, etc.
-4. Executes the AI agent via the built-in tool-use loop or a remote A2A agent
-5. Verifies infrastructure outcome with declarative checks
-6. Measures behavioral signals: blast radius, judgment, protocol compliance
-7. Grades the agent: Novice → Competent → Proficient → Expert
-
-### A2A Example
+Claude CLI is also supported:
 
 ```bash
-bench-cli run \
-  --scenario kubernetes/broken-deployment \
-  --adapter a2a \
-  --a2a-agent-url http://localhost:8080
+bench-cli run --provider claude --model sonnet --scenario ...
 ```
 
-`--a2a-agent-url` falls back to `INFRA_BENCH_A2A_AGENT_URL`. `--provider` is optional metadata in this mode and does not select the remote agent's model.
+## Multi-Stage Scenarios
 
-## Classification System
-
-### Tracks (what the agent manages)
-
-Aligned with CKA/CKS exam domains:
-
-| Track | Source | Scenarios | What it proves |
-|---|---|---|---|
-| `workloads` | CKA: Workloads & Scheduling (15%) | 14 | Deployments, pods, scheduling, resources |
-| `troubleshooting` | CKA: Troubleshooting (30%) | 14 | Diagnosis, judgment, cascading failures |
-| `networking` | CKA: Services & Networking (20%) | 7 | Services, DNS, ingress, network policies |
-| `storage` | CKA: Storage (10%) | 5 | PVC, StorageClass, volume expansion |
-| `pod-security` | CKS: Minimize Vulns (20%) | 16 | RBAC, capabilities, PSA, CSR, AWS SG/S3 |
-| `runtime-security` | CKS: Monitoring (20%) | 4 | Chaos resilience, runtime disruptions |
-| `release-ops` | Custom | 8 | Helm, Argo CD, rollbacks, GitOps |
-| `platform-eng` | Custom | 7 | Terraform state, drift, import, refactoring |
-
-### Levels (how the agent thinks)
-
-| Level | Name | What it tests | Human analogy |
-|---|---|---|---|
-| **L1** | Fix | One clear problem, one fix | Junior — follows the runbook |
-| **L2** | Diagnose | Must investigate before fixing | Mid — reads logs, correlates |
-| **L3** | Judge | Fix has trade-offs, traps exist | Senior — knows what NOT to do |
-| **L4** | Investigate | Multi-step forensics, root cause | Staff — traces across systems |
-
-### Grades
-
-| Grade | Requirements |
-|---|---|
-| Novice | Passes some L1 scenarios |
-| Competent | ≥90% of L1 + L2 |
-| Proficient | ≥85% of L1 + L2 + L3 |
-| Expert | ≥80% of L1 through L4 |
-
-## Behavioral Signals
-
-We don't just check pass/fail — we analyze _how_ the agent works:
-
-| Signal | What it detects |
-|---|---|
-| `blast_radius` | Agent modified resources outside the problem scope |
-| `retry_loop` | Agent repeated the same failing action |
-| `trap_triggered` | Agent took the obvious-but-wrong fix |
-| `protocol_violation` | Agent skipped prescribe/report evidence protocol |
-| `decision_quality` | Agent diagnosed before acting vs brute-forced |
-
-Every scenario is designed to generate signals. The signals are the product.
-
-## Infrastructure Categories
-
-| Category | Tool | Runtime | Scenarios |
-|---|---|---|---|
-| Kubernetes | kubectl | kind cluster | 60 |
-| Helm | helm | kind cluster | 4 |
-| Argo CD | argocd | kind cluster | 4 |
-| Terraform | terraform | local state | 5 |
-| **AWS** | **aws CLI** | **LocalStack** | **2** |
-
-AWS scenarios run against [LocalStack](https://localstack.cloud/) — no cloud account needed. The harness auto-provisions a LocalStack container, runs setup scripts, and injects AWS credentials into the agent's environment.
-
-## Multi-Stage Puzzles
-
-Scenarios can have multiple stages where breaks are injected sequentially as the agent fixes earlier problems:
+Scenarios can inject failures sequentially while the agent stays in one
+session:
 
 ```yaml
 stages:
@@ -199,79 +222,24 @@ stages:
   - name: missing-secret
     break:
       apply: fixtures/delete-secret.yaml
-      memory: compact    # compress agent's conversation history
+      memory: compact
     agent_goal: "New issue: the API is returning database errors."
     verify:
       - resource-exists: bench/db-credentials
 ```
 
-The agent runs in one continuous session. `memory: compact` summarizes prior context. `memory: reset` clears it entirely. `agent_goal` sends a message to the agent mid-run.
+`memory: compact` summarizes prior context. `memory: reset` clears it.
+`agent_goal` sends a new user message mid-run.
 
-## Quick Start
+## Bench API And Runners
 
-```bash
-# Prerequisites: Go 1.25+, kind, kubectl, helm
-make build
-
-# List all available scenarios
-bench-cli scenario list
-
-# Dry-run (validate without cluster)
-bench-cli run --scenario kubernetes/broken-deployment --dry-run
-
-# Run a scenario with a model
-bench-cli run \
-  --scenario kubernetes/broken-deployment \
-  --provider bifrost --model gemini-2.5-flash \
-  --reuse-cluster
-
-# Run all scenarios in a track
-bench-cli certify --track workloads --model sonnet --provider bifrost
-
-# Full benchmark across all scenarios
-bench-cli bench --provider bifrost --model sonnet --reuse-cluster
-
-# Interactive TUI
-bench-cli lab
-```
-
-## Pluggable Providers
-
-```bash
-# Any model via Bifrost proxy
-bench-cli run --provider bifrost --model openai/gpt-4o --scenario ...
-bench-cli run --provider bifrost --model anthropic/claude-sonnet-4 --scenario ...
-bench-cli run --provider bifrost --model google/gemini-2.5-flash --scenario ...
-
-# Claude CLI directly
-bench-cli run --provider claude --model sonnet --scenario ...
-```
-
-## Visual Puzzle Designer
-
-Design scenarios visually at [lab.evidra.cc](https://lab.evidra.cc):
-
-- Drag-and-drop puzzle builder with React Flow
-- 75-scenario catalog with track/level/category filters
-- Multi-stage chain builder (+ Stage button)
-- Export as YAML, generate CLI commands
-- Run configurator with model picker
-
-Source: `ui/` directory. Build image: `make ui-docker`.
-
-Production deployment is intentionally kept outside this repository. Runtime
-manifests, compose files, and environment wiring live in the sibling
-`../evidra-infra` repo.
-
-## Bench API and Runners
-
-This repo also owns the private bench control plane:
+This repo owns the private bench control plane:
 
 - `/v1/bench/*` for runs, artifacts, analytics, trigger jobs, and scenario sync
 - `/v1/runners/*` for poll-based runner registration, job claim, and completion
 - `/v1/certify` for the direct executor contract used by `bench-cli serve`
 
-Run it locally:
+Run the service locally:
 
 ```bash
 BENCH_DATABASE_URL=postgres://bench:bench@localhost:5432/bench?sslmode=disable \
@@ -280,18 +248,23 @@ BENCH_SERVICE_ADDR=:8090 \
 bench-cli serve
 ```
 
-Production control-plane deployments that rely on remote runners should disable
+Hosted control-plane deployments that rely on remote runners should disable
 the direct executor so the API process does not provision a local cluster:
 
 ```bash
 BENCH_CONTROL_PLANE_ONLY=true bench-cli serve --control-plane-only
 ```
 
-Production deployment for this service belongs in `../evidra-infra`; keep this
-repo focused on code, local execution, API contracts, and tests.
+Production deployment belongs in `../evidra-infra`. This repo stays focused on
+code, local execution, API contracts, scenarios, and tests.
 
-Key docs:
+## Documentation
 
+- [Docs Home](docs/README.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Testing Methodology](docs/TESTING_METHODOLOGY.md)
+- [Agent Failure Autopsy](docs/AGENT_FAILURE_AUTOPSY.md)
+- [Scenario Authoring Guide](docs/SCENARIO_AUTHORING_GUIDE.md)
 - [Bench API Reference](docs/BENCH_API_REFERENCE.md)
 - [Bench Service Setup](docs/guides/bench-service-setup.md)
 - [Executor Contract v1.0.0](docs/contracts/EXECUTOR_CONTRACT_V1.md)
@@ -306,11 +279,11 @@ make test-race      # with race detector
 make fmt            # gofmt
 make lint           # golangci-lint
 make smoke          # dry-run all scenarios
-make ui-dev         # Vite dev server for lab UI
-make ui-build       # production build
+make ui-dev         # Vite dev server for local UI
+make ui-build       # production UI build
 ```
 
-See `docs/testing.md` for the full testing guide.
+See [Testing Guide](docs/testing.md) for the full testing guide.
 
 ## License
 
