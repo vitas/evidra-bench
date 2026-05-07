@@ -83,6 +83,33 @@ func (s *sleepingAdapter) Run(ctx context.Context, _ adapter.RunInput) (*adapter
 	}
 }
 
+type autopsyAdapter struct{}
+
+func (a *autopsyAdapter) Run(_ context.Context, _ adapter.RunInput) (*adapter.RunResult, error) {
+	return &adapter.RunResult{
+		ExitCode:   0,
+		Transcript: "The deployment is fixed and everything is working.",
+		ToolCalls: []adapter.ToolCallRecord{
+			{
+				Tool:   "run_command",
+				Args:   map[string]any{"command": "kubectl get pods -n bench"},
+				Result: "web 0/1 ErrImagePull",
+			},
+			{
+				Tool:   "run_command",
+				Args:   map[string]any{"command": "kubectl get pods -n bench"},
+				Result: "web 0/1 ErrImagePull",
+			},
+			{
+				Tool:   "run_command",
+				Args:   map[string]any{"command": "kubectl get pods -n bench"},
+				Result: "web 0/1 ErrImagePull",
+			},
+		},
+		Metadata: map[string]string{"turns": "3", "prompt_tokens": "100", "completion_tokens": "50"},
+	}, nil
+}
+
 type workspaceCheckingAdapter struct {
 	exists bool
 }
@@ -1007,5 +1034,53 @@ func TestHarness_RunWritesChaosArtifacts(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(result.ArtifactDir, "chaos.json")); err != nil {
 		t.Fatalf("missing chaos.json: %v", err)
+	}
+}
+
+func TestHarness_RunWritesFailureAutopsyArtifact(t *testing.T) {
+	t.Parallel()
+
+	fp := &fakeProvider{}
+	writer := artifact.NewWriter(t.TempDir())
+	h := New(Deps{
+		EnvProvider: fp,
+		Adapter:     &autopsyAdapter{},
+		Writer:      writer,
+	})
+
+	cfg := config.Default()
+	cfg.Scenario = "broken-deployment"
+	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
+
+	result, err := h.Run(context.Background(), RunRequest{
+		Config:         cfg,
+		KubeconfigPath: fakeKubeconfig(t),
+		Scenario: &scenario.Scenario{
+			ID:       "broken-deployment",
+			Title:    "Broken deployment",
+			Category: "kubernetes",
+			Checks:   []scenario.Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(result.ArtifactDir, "failure-autopsy.json"))
+	if err != nil {
+		t.Fatalf("read failure-autopsy.json: %v", err)
+	}
+	var parsed struct {
+		Outcome        string `json:"outcome"`
+		PrimaryFailure string `json:"primary_failure"`
+	}
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("parse failure-autopsy.json: %v", err)
+	}
+	if parsed.Outcome != "fail" {
+		t.Fatalf("outcome = %q, want fail", parsed.Outcome)
+	}
+	if parsed.PrimaryFailure != "premature_success" {
+		t.Fatalf("primary_failure = %q, want premature_success", parsed.PrimaryFailure)
 	}
 }

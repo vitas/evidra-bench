@@ -23,6 +23,7 @@ type RunBundle struct {
 	Stderr         string            `json:"stderr,omitempty"`
 	ToolCalls      json.RawMessage   `json:"tool_calls,omitempty"`
 	Checks         json.RawMessage   `json:"checks,omitempty"`
+	Autopsy        json.RawMessage   `json:"autopsy,omitempty"`
 	ChaosEnabled   bool              `json:"chaos_enabled,omitempty"`
 	ChaosMode      string            `json:"chaos_mode,omitempty"`
 	ChaosStepCount int               `json:"chaos_step_count,omitempty"`
@@ -101,6 +102,13 @@ func (w *Writer) Write(bundle RunBundle) (*WriteOutput, error) {
 	if len(bundle.Checks) > 0 {
 		if err := os.WriteFile(filepath.Join(runDir, "verifier.json"), bundle.Checks, 0644); err != nil {
 			return nil, fmt.Errorf("artifact.Writer.Write: write verifier.json: %w", err)
+		}
+	}
+
+	// Write failure-autopsy.json if present.
+	if len(bundle.Autopsy) > 0 {
+		if err := os.WriteFile(filepath.Join(runDir, "failure-autopsy.json"), bundle.Autopsy, 0644); err != nil {
+			return nil, fmt.Errorf("artifact.Writer.Write: write failure-autopsy.json: %w", err)
 		}
 	}
 

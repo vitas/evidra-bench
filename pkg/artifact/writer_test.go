@@ -184,3 +184,36 @@ func TestWriter_WritesChaosArtifacts(t *testing.T) {
 		t.Fatalf("run.json chaos_step_count = %d, want 1", parsed.ChaosStepCount)
 	}
 }
+
+func TestWriter_WritesFailureAutopsy(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	w := NewWriter(dir)
+	autopsy, _ := json.Marshal(map[string]any{
+		"outcome":         "fail",
+		"primary_failure": "retry_loop",
+	})
+
+	out, err := w.Write(RunBundle{
+		ScenarioID: "looping-scenario",
+		Adapter:    "cli",
+		StartTime:  time.Now(),
+		Autopsy:    autopsy,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(out.Path, "failure-autopsy.json"))
+	if err != nil {
+		t.Fatalf("missing failure-autopsy.json: %v", err)
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("invalid failure-autopsy.json: %v", err)
+	}
+	if parsed["primary_failure"] != "retry_loop" {
+		t.Fatalf("primary_failure = %v, want retry_loop", parsed["primary_failure"])
+	}
+}

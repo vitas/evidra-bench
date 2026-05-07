@@ -18,6 +18,8 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/adapter"
 	"samebits.com/evidra-infra-bench/pkg/agent"
 	"samebits.com/evidra-infra-bench/pkg/artifact"
+	"samebits.com/evidra-infra-bench/pkg/autopsy"
+	bench "samebits.com/evidra-infra-bench/pkg/bench"
 	"samebits.com/evidra-infra-bench/pkg/config"
 	"samebits.com/evidra-infra-bench/pkg/environment"
 	"samebits.com/evidra-infra-bench/pkg/report"
@@ -427,6 +429,26 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	endTime := time.Now()
 	checksJSON, _ := json.Marshal(verifyResult)
 	toolCallsJSON, _ := json.Marshal(agentResult.ToolCalls)
+	checksPassedForAutopsy, checksTotalForAutopsy := countChecks(verifyResult)
+	autopsyJSON := buildFailureAutopsyJSON(store.RunRecord{
+		ScenarioID:       s.ID,
+		Model:            req.Config.Model,
+		Provider:         req.Config.Provider,
+		Adapter:          req.Config.Adapter,
+		EvidenceMode:     config.EffectiveEvidenceMode(req.Config),
+		Passed:           verifyResult.Passed,
+		Duration:         endTime.Sub(startTime).Seconds(),
+		ExitCode:         agentResult.ExitCode,
+		Turns:            parseIntMeta(agentResult.Metadata, "turns"),
+		MemoryWindow:     req.Config.MemoryWindow,
+		PromptTokens:     parseIntMeta(agentResult.Metadata, "prompt_tokens"),
+		CompletionTokens: parseIntMeta(agentResult.Metadata, "completion_tokens"),
+		EstimatedCost:    parseFloatMeta(agentResult.Metadata, "estimated_cost"),
+		ChecksPassed:     checksPassedForAutopsy,
+		ChecksTotal:      checksTotalForAutopsy,
+		ChecksJSON:       string(checksJSON),
+		CreatedAt:        startTime,
+	}, toolCallsJSON, agentResult.Transcript, checksJSON)
 	chaosJSON, chaosLog := chaosArtifacts(chaosRunner)
 	chaosStepCount := 0
 	chaosMode := ""
@@ -449,6 +471,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		Stderr:         agentResult.Stderr,
 		ToolCalls:      toolCallsJSON,
 		Checks:         checksJSON,
+		Autopsy:        autopsyJSON,
 		ChaosEnabled:   chaosRunner != nil,
 		ChaosMode:      chaosMode,
 		ChaosStepCount: chaosStepCount,
@@ -542,6 +565,28 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	}
 
 	return result, nil
+}
+
+func buildFailureAutopsyJSON(rec store.RunRecord, toolCallsJSON json.RawMessage, transcript string, checksJSON json.RawMessage) json.RawMessage {
+	var calls []bench.ToolCall
+	if len(toolCallsJSON) > 0 {
+		if err := json.Unmarshal(toolCallsJSON, &calls); err != nil {
+			log.Printf("[harness] warning: failure autopsy skipped: parse tool calls: %v", err)
+			return nil
+		}
+	}
+	report := autopsy.Analyze(autopsy.Input{
+		Run:        rec,
+		ToolCalls:  calls,
+		Transcript: transcript,
+		ChecksJSON: checksJSON,
+	})
+	data, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		log.Printf("[harness] warning: failure autopsy skipped: marshal: %v", err)
+		return nil
+	}
+	return data
 }
 
 func (h *Harness) executeSingleAgent(ctx context.Context, req RunRequest, s *scenario.Scenario, kubeconfigPath, promptContent string, timeout time.Duration, evidenceDir string) (*adapter.RunResult, error) {
