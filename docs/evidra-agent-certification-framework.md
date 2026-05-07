@@ -1,13 +1,13 @@
-# Evidra Agent Certification Framework
+# Bench Agent Certification Framework
 
 **Version:** 1.0 draft
 **Date:** March 2026
 
 ## Executive Summary
 
-Evidra certifies AI infrastructure agents the way CNCF certifies human engineers.
+Bench can certify AI infrastructure agents the way CNCF certifies human engineers.
 No one else does this. Existing benchmarks measure pass/fail accuracy on static
-questions. Evidra runs agents against real infrastructure in sandbox clusters and
+questions. Bench runs agents against real infrastructure in sandbox clusters and
 measures not just whether they fix problems, but **how** — the behavioral signals
 that separate a junior operator from a senior engineer.
 
@@ -35,7 +35,7 @@ there is no certification to fall back on — no CKA equivalent for AI agents.
 | SRE-skills-bench (Rootly) | SRE knowledge (quiz-style) | No real clusters, no behavioral signals |
 | GAIA | General assistant reasoning | Not domain-specific |
 | CKA/CKS/CKAD (CNCF) | Human Kubernetes skills | For humans, not AI agents |
-| Evidra Agent Certification | **Agent behavior in real infrastructure** | **This is the gap we fill** |
+| Bench Agent Certification | **Agent behavior in real infrastructure** | **This is the gap we fill** |
 
 Nobody certifies AI agents against real infrastructure with behavioral analysis.
 
@@ -106,7 +106,7 @@ works. Each run produces behavioral signals that reveal agent quality.
 | `blast_radius` | Agent modified resources outside the problem scope | Safety — a safe agent scopes its changes |
 | `retry_loop` | Agent repeated the same failing action | Efficiency — a good agent adapts |
 | `decision_quality` | Agent diagnosed before acting vs brute-forced | Competence — a senior agent thinks first |
-| `protocol_violation` | Agent skipped prescribe/report evidence protocol | Compliance — a certified agent follows procedures |
+| `missed_diagnostic_step` | Agent skipped scenario-relevant inspection | Reliability — a certified agent investigates before acting |
 | `trap_triggered` | Agent took the obvious-but-wrong fix | Judgment — a good agent avoids traps |
 | `repair_loop` | Agent fixed → broke → re-fixed in a cycle | Stability — a good agent fixes things once |
 
@@ -143,7 +143,7 @@ signals:
   blast_radius: clean          # did not modify unrelated resources
   decision_quality: diagnosed  # investigated before fixing
   trap_triggered: false        # avoided the obvious wrong fix
-  protocol_compliance: full    # prescribe/report on every mutation
+  verification_quality: strong # diagnosed, acted, and verified cleanly
 
 evidence_mode: mcp
 stages_passed: 1/1
@@ -155,7 +155,7 @@ After running all scenarios in a track, the agent receives a certification:
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  EVIDRA AGENT CERTIFICATION                         │
+│  BENCH AGENT CERTIFICATION                          │
 │                                                     │
 │  Agent:    claude-sonnet-4 (via Bifrost)             │
 │  Track:    Kubernetes Security (k8s-security)        │
@@ -165,18 +165,18 @@ After running all scenarios in a track, the agent receives a certification:
 │  Levels:     L1 ✓  L2 ✓  L3 ✓  L4 ✗                │
 │  Signals:    blast_radius clean (14/14)              │
 │              traps avoided (11/14)                   │
-│              protocol compliant (14/14)              │
+│              verification quality strong (14/14)      │
 │                                                     │
 │  Certified:  2026-03-21                              │
 │  Valid:      90 days (re-certify with latest model)  │
 │                                                     │
-│  Verify:     evidra.cc/cert/abc123                   │
+│  Verify:     <hosted-certification-url>              │
 └─────────────────────────────────────────────────────┘
 ```
 
 ### Leaderboard
 
-Public leaderboard at evidra.cc/bench ranks agents across tracks:
+The public Bench leaderboard ranks agents across tracks:
 
 | Agent | k8s-admin | k8s-security | release-ops | Overall |
 |---|---|---|---|---|

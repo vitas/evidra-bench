@@ -238,6 +238,6 @@ All test doubles are hand-written structs implementing the relevant interface. N
 
 - **No integration tests** — no real cluster tests (would need `//go:build integration` tag)
 - **No benchmarks** — no `BenchmarkXxx` functions
-- **No UI tests** — lab.evidra.cc has no automated browser tests
+- **No UI tests** — the local web UI has no automated browser tests
 - **No real Bench API tests** — reporting tested with offline JSONL only
 - **No cross-provider comparison tests** — each provider tested in isolation

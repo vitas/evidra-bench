@@ -356,18 +356,18 @@ environment:
 
 ---
 
-## Evidra Protocol Expectations
+## Optional Evidence Compatibility Expectations
 
-Opt-in assertions for prescribe/report protocol compliance.
-Only checked when `evidra.enabled: true`.
+Opt-in assertions for file-based evidence compatibility. These are only
+checked when `evidra.enabled: true` and a run provides the required artifacts.
 
 ```yaml
 evidra:
-  enabled: true                          # Enable protocol verification.
+  enabled: true                          # Enable compatibility verification.
   min_prescriptions: 1                   # Minimum prescribe calls expected.
   min_reports: 1                         # Minimum report calls expected.
   orphaned_prescriptions: 0              # Expected prescribes without matching reports.
-  protocol_violations: 0                 # Expected protocol violations (usually 0).
+  # Optional compatibility checks can include a protocol violation count.
   all_reports_have_verdict: true         # Every report must have success/failure/declined.
   expected_risk_level: medium            # Expected risk level from assessment.
                                          # Values: low, medium, high, critical

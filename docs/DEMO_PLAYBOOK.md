@@ -2,7 +2,7 @@
 
 ## Overview
 
-5-minute video demo showing the full Evidra value prop: run agents against real infrastructure, capture evidence, compare models.
+5-minute video demo showing the Bench value prop: run agents against real infrastructure, compare models, and inspect why runs pass or fail.
 
 ## Pre-Demo Setup
 
@@ -99,21 +99,21 @@ bench-cli run --scenario kubernetes/wrong-service-selector \
 
 **Talking point:** "L1 scenarios test if the agent can follow a runbook. L2 tests if it can think."
 
-### Act 3: "Every mutation is traceable" (1.5 min)
+### Act 3: "Why did it fail?" (1.5 min)
 
-Switch to browser. Open **evidra.cc/evidence**.
+Switch to the Bench run detail or local artifacts.
 
-1. Select actor filter — pick `claude-code` or the agent that just ran
-2. Show prescribe/report pairs — every mutation has a before (prescribe) and after (report)
-3. Sort by Risk column — high-risk operations float to top
-4. Point out a `declined` verdict — "the agent refused to do something risky"
-5. Show the scorecard summary — score, signals, period
+1. Open the latest run.
+2. Show pass/fail, turns, duration, token usage, and estimated cost.
+3. Open transcript and tool calls.
+4. Point out whether the agent diagnosed before acting.
+5. Show the verifier output that decided the run.
 
-**Talking point:** "Every kubectl apply, every helm upgrade, every terraform plan — risk-classified, auditable, traceable. Not just 'did it work' but 'should it have done that'."
+**Talking point:** "The important question is not only did it pass. It is where the agent spent turns, what it inspected, and why the final checks passed or failed."
 
 ### Act 4: "How does your agent compare?" (1 min)
 
-Switch to **lab.evidra.cc/bench** leaderboard.
+Switch to the Bench leaderboard.
 
 1. Show 10 models ranked by pass rate
 2. Hover over "Reliability" — explain pass^k: "not just does it pass, but does it pass consistently"
@@ -149,7 +149,7 @@ Switch to **lab.evidra.cc/bench** leaderboard.
 ## Key Messages for Judges
 
 1. **"Skills aren't universally good"** — a 5-line troubleshooting skill cuts L1 from 17 turns to 4, but makes L2 fail. You need to measure.
-2. **"Evidence, not just outcomes"** — every mutation is prescribe/report paired, risk-classified, and auditable. Not "did it pass" but "was it safe."
+2. **"Failure analysis, not just outcomes"** — show turns, token burn, tool calls, checks, and the reason a run failed.
 3. **"Real infrastructure"** — disposable Kind/k3d clusters, real kubectl, real Helm, real ArgoCD. Not mocks.
 4. **"Model-agnostic"** — 10 models benchmarked through one framework. Swap `--model` and compare.
 5. **"Open source"** — 75 scenarios, YAML-first, anyone can add scenarios without writing Go.
