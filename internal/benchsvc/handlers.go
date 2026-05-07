@@ -18,11 +18,24 @@ import (
 // Public routes (leaderboard, scenarios) are registered directly.
 // Authenticated routes go through authMw and extract tenant from context.
 func RegisterRoutes(mux *http.ServeMux, svc *Service, authMw func(http.Handler) http.Handler) {
+	publicReadMw := publicTenantMiddleware(svc)
+
 	// Public — no auth.
 	mux.HandleFunc("GET /v1/bench/leaderboard", handleLeaderboard(svc))
-
-	// Authenticated — scenarios (metadata is IP).
-	mux.Handle("GET /v1/bench/scenarios", authMw(http.HandlerFunc(handleListScenarios(svc))))
+	mux.Handle("GET /v1/bench/scenarios", publicReadMw(http.HandlerFunc(handleListScenarios(svc))))
+	mux.Handle("GET /v1/bench/runs", publicReadMw(http.HandlerFunc(handleListRuns(svc))))
+	mux.Handle("GET /v1/bench/runs/{id}", publicReadMw(http.HandlerFunc(handleGetRun(svc))))
+	mux.Handle("GET /v1/bench/runs/{id}/transcript", publicReadMw(http.HandlerFunc(handleGetTranscript(svc))))
+	mux.Handle("GET /v1/bench/runs/{id}/tool-calls", publicReadMw(http.HandlerFunc(handleGetToolCalls(svc))))
+	mux.Handle("GET /v1/bench/runs/{id}/timeline", publicReadMw(http.HandlerFunc(handleGetTimeline(svc))))
+	mux.Handle("GET /v1/bench/runs/{id}/scorecard", publicReadMw(http.HandlerFunc(handleGetScorecard(svc))))
+	mux.Handle("GET /v1/bench/stats", publicReadMw(http.HandlerFunc(handleStats(svc))))
+	mux.Handle("GET /v1/bench/catalog", publicReadMw(http.HandlerFunc(handleCatalog(svc))))
+	mux.Handle("GET /v1/bench/compare/runs", publicReadMw(http.HandlerFunc(handleCompareRuns(svc))))
+	mux.Handle("GET /v1/bench/compare/models", publicReadMw(http.HandlerFunc(handleCompareModels(svc))))
+	mux.Handle("GET /v1/bench/signals", publicReadMw(http.HandlerFunc(handleSignals(svc))))
+	mux.Handle("GET /v1/bench/regressions", publicReadMw(http.HandlerFunc(handleRegressions(svc))))
+	mux.Handle("GET /v1/bench/insights", publicReadMw(http.HandlerFunc(handleFailureAnalysis(svc))))
 
 	// Authenticated — ingest.
 	mux.Handle("POST /v1/bench/runs", authMw(http.HandlerFunc(handleIngestRun(svc))))
@@ -33,25 +46,12 @@ func RegisterRoutes(mux *http.ServeMux, svc *Service, authMw func(http.Handler) 
 	mux.Handle("DELETE /v1/bench/runs/{id}", authMw(http.HandlerFunc(handleDeleteRun(svc))))
 	mux.Handle("POST /v1/bench/runs/archive", authMw(http.HandlerFunc(handleArchiveRuns(svc))))
 
-	// Authenticated — queries.
-	mux.Handle("GET /v1/bench/runs", authMw(http.HandlerFunc(handleListRuns(svc))))
-	mux.Handle("GET /v1/bench/runs/{id}", authMw(http.HandlerFunc(handleGetRun(svc))))
-	mux.Handle("GET /v1/bench/runs/{id}/transcript", authMw(http.HandlerFunc(handleGetTranscript(svc))))
-	mux.Handle("GET /v1/bench/runs/{id}/tool-calls", authMw(http.HandlerFunc(handleGetToolCalls(svc))))
-	mux.Handle("GET /v1/bench/runs/{id}/timeline", authMw(http.HandlerFunc(handleGetTimeline(svc))))
-	mux.Handle("GET /v1/bench/stats", authMw(http.HandlerFunc(handleStats(svc))))
-	mux.Handle("GET /v1/bench/catalog", authMw(http.HandlerFunc(handleCatalog(svc))))
+	// Authenticated — model provider configuration.
 	mux.Handle("GET /v1/bench/models", authMw(http.HandlerFunc(handleListModels(svc))))
 	// TODO: enable after adding AES-256-GCM key encryption (EVIDRA_ENCRYPTION_KEY).
 	// Per-tenant API key storage is disabled until encryption is implemented.
 	// mux.Handle("PUT /v1/bench/models/{model_id}/provider", authMw(http.HandlerFunc(handleUpsertTenantProvider(svc))))
 	// mux.Handle("DELETE /v1/bench/models/{model_id}/provider", authMw(http.HandlerFunc(handleDeleteTenantProvider(svc))))
-	mux.Handle("GET /v1/bench/runs/{id}/scorecard", authMw(http.HandlerFunc(handleGetScorecard(svc))))
-	mux.Handle("GET /v1/bench/compare/runs", authMw(http.HandlerFunc(handleCompareRuns(svc))))
-	mux.Handle("GET /v1/bench/compare/models", authMw(http.HandlerFunc(handleCompareModels(svc))))
-	mux.Handle("GET /v1/bench/signals", authMw(http.HandlerFunc(handleSignals(svc))))
-	mux.Handle("GET /v1/bench/regressions", authMw(http.HandlerFunc(handleRegressions(svc))))
-	mux.Handle("GET /v1/bench/insights", authMw(http.HandlerFunc(handleFailureAnalysis(svc))))
 
 	// Trigger routes — only enabled when TriggerStore is configured.
 	if svc.cfg.TriggerStore != nil {
@@ -66,6 +66,19 @@ func RegisterRoutes(mux *http.ServeMux, svc *Service, authMw func(http.Handler) 
 	mux.Handle("DELETE /v1/runners/{id}", authMw(http.HandlerFunc(handleDeleteRunner(svc))))
 	mux.Handle("GET /v1/runners/jobs", authMw(http.HandlerFunc(handlePollJob(svc))))
 	mux.Handle("POST /v1/runners/jobs/{id}/complete", authMw(http.HandlerFunc(handleCompleteJob(svc))))
+}
+
+func publicTenantMiddleware(svc *Service) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if svc.cfg.PublicTenant == "" {
+				apiutil.WriteError(w, http.StatusServiceUnavailable, ErrPublicTenantUnavailable.Error())
+				return
+			}
+			ctx := auth.WithTenantID(r.Context(), svc.cfg.PublicTenant)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
 }
 
 // parseSince parses a "since" query parameter as RFC3339 or date string.

@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -78,8 +79,9 @@ func serveAPI(cfg config.Config, addr string, optList ...serveOptions) error {
 
 	benchRepo := benchsvc.NewPgStore(pool)
 	triggerStore := benchsvc.NewTriggerStore()
+	defaultTenant, publicTenant := resolveServeTenants()
 	benchService := benchsvc.NewService(benchRepo, benchsvc.ServiceConfig{
-		PublicTenant: "default",
+		PublicTenant: publicTenant,
 		TriggerStore: triggerStore,
 		Dispatcher:   &benchsvc.PoolDispatcher{},
 	})
@@ -106,7 +108,7 @@ func serveAPI(cfg config.Config, addr string, optList ...serveOptions) error {
 
 	mux := http.NewServeMux()
 
-	registerBenchAPIRoutes(mux, benchService, apiToken)
+	registerBenchAPIRoutes(mux, benchService, apiToken, defaultTenant)
 	if runner == nil {
 		mux.HandleFunc("POST /v1/certify", authMiddleware(apiToken, handleCertifyDisabled()))
 	} else {
@@ -119,6 +121,24 @@ func serveAPI(cfg config.Config, addr string, optList ...serveOptions) error {
 
 	log.Printf("bench service listening on %s", addr)
 	return http.ListenAndServe(addr, mux)
+}
+
+func resolveServeTenants() (defaultTenant string, publicTenant string) {
+	defaultTenant = strings.TrimSpace(os.Getenv("EVIDRA_DEFAULT_TENANT"))
+	publicTenant = strings.TrimSpace(os.Getenv("EVIDRA_BENCH_PUBLIC_TENANT"))
+	if publicTenant == "" {
+		publicTenant = strings.TrimSpace(os.Getenv("BENCH_PUBLIC_TENANT"))
+	}
+	if defaultTenant == "" {
+		defaultTenant = publicTenant
+	}
+	if defaultTenant == "" {
+		defaultTenant = "default"
+	}
+	if publicTenant == "" {
+		publicTenant = defaultTenant
+	}
+	return defaultTenant, publicTenant
 }
 
 func defaultServeOrchestrator(cfg config.Config) serveOrchestrator {

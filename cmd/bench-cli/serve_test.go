@@ -47,6 +47,34 @@ func TestBuildCertifyRunConfig_UsesRequestOverrides(t *testing.T) {
 	}
 }
 
+func TestResolveServeTenants_UsesBenchPublicTenantAsFallback(t *testing.T) {
+	t.Setenv("EVIDRA_DEFAULT_TENANT", "")
+	t.Setenv("EVIDRA_BENCH_PUBLIC_TENANT", "tnt-public")
+
+	defaultTenant, publicTenant := resolveServeTenants()
+
+	if defaultTenant != "tnt-public" {
+		t.Fatalf("defaultTenant = %q, want tnt-public", defaultTenant)
+	}
+	if publicTenant != "tnt-public" {
+		t.Fatalf("publicTenant = %q, want tnt-public", publicTenant)
+	}
+}
+
+func TestResolveServeTenants_AllowsSeparateAuthenticatedTenant(t *testing.T) {
+	t.Setenv("EVIDRA_DEFAULT_TENANT", "tenant-auth")
+	t.Setenv("EVIDRA_BENCH_PUBLIC_TENANT", "tenant-public")
+
+	defaultTenant, publicTenant := resolveServeTenants()
+
+	if defaultTenant != "tenant-auth" {
+		t.Fatalf("defaultTenant = %q, want tenant-auth", defaultTenant)
+	}
+	if publicTenant != "tenant-public" {
+		t.Fatalf("publicTenant = %q, want tenant-public", publicTenant)
+	}
+}
+
 func TestBuildCertifyRunConfig_UsesFallbacksWhenRequestOmitted(t *testing.T) {
 	t.Parallel()
 
@@ -240,14 +268,14 @@ func TestHandleCertifyAPI_RejectsUnsupportedEvidenceMode(t *testing.T) {
 	}
 }
 
-func TestRegisterBenchAPIRoutes_ProtectsRunsEndpoint(t *testing.T) {
+func TestRegisterBenchAPIRoutes_ProtectsWriteEndpoint(t *testing.T) {
 	t.Parallel()
 
 	mux := http.NewServeMux()
 	svc := benchsvc.NewService(nil, benchsvc.ServiceConfig{})
 	registerBenchAPIRoutes(mux, svc, "secret")
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/bench/runs", nil)
+	req := httptest.NewRequest(http.MethodPost, "/v1/bench/runs", nil)
 	rec := httptest.NewRecorder()
 
 	mux.ServeHTTP(rec, req)

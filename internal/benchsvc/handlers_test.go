@@ -236,6 +236,73 @@ func setupMux(repo *handlerRepo, cfg ServiceConfig, tenantID string) *http.Serve
 	return mux
 }
 
+func rejectingAuth(http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "auth required", http.StatusUnauthorized)
+	})
+}
+
+func TestRegisterRoutes_PublicReadEndpointsUsePublicTenantWithoutAuth(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "scenarios", path: "/v1/bench/scenarios"},
+		{name: "runs", path: "/v1/bench/runs"},
+		{name: "stats", path: "/v1/bench/stats"},
+		{name: "catalog", path: "/v1/bench/catalog"},
+		{name: "signals", path: "/v1/bench/signals"},
+		{name: "regressions", path: "/v1/bench/regressions"},
+		{name: "insights", path: "/v1/bench/insights?scenario=s1"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &handlerRepo{
+				runs:    []bench.RunRecord{{ID: "r1", ScenarioID: "s1", Model: "sonnet"}},
+				catalog: &bench.RunCatalog{Models: []string{"sonnet"}, Providers: []string{"anthropic"}},
+				signals: &bench.SignalAggregation{Signals: map[string]bench.SignalCount{}},
+				insights: &bench.FailureInsights{
+					ScenarioID: "s1",
+				},
+			}
+			svc := NewService(repo, ServiceConfig{PublicTenant: "bench-public"})
+			mux := http.NewServeMux()
+			RegisterRoutes(mux, svc, rejectingAuth)
+
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+			}
+			if tt.name != "scenarios" && repo.lastTenant != "bench-public" {
+				t.Fatalf("tenant = %q, want bench-public", repo.lastTenant)
+			}
+		})
+	}
+}
+
+func TestRegisterRoutes_PublicReadEndpointsRequirePublicTenant(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{}
+	svc := NewService(repo, ServiceConfig{})
+	mux := http.NewServeMux()
+	RegisterRoutes(mux, svc, rejectingAuth)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/v1/bench/runs", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusServiceUnavailable, rec.Body.String())
+	}
+}
+
 func evidenceModeMatchesQuery(mode, stored string) bool {
 	switch mode {
 	case "":
@@ -621,8 +688,8 @@ func TestHandleListRuns_ReturnsItems(t *testing.T) {
 	if body.Limit != 50 {
 		t.Fatalf("limit = %d, want 50 (default)", body.Limit)
 	}
-	if repo.lastTenant != "tenant-a" {
-		t.Fatalf("tenant = %q, want tenant-a", repo.lastTenant)
+	if repo.lastTenant != "pub" {
+		t.Fatalf("tenant = %q, want pub", repo.lastTenant)
 	}
 }
 
