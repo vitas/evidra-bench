@@ -41,8 +41,51 @@ func TestServiceIngestRunBatch_SkipsArtifactWritesForDuplicateRunIDs(t *testing.
 	}
 }
 
+func TestServiceIngestRunBatch_StoresFailureAutopsyArtifact(t *testing.T) {
+	t.Parallel()
+
+	tx := &fakeTx{
+		execTags: []pgconn.CommandTag{
+			pgconn.NewCommandTag("INSERT 0 1"),
+		},
+	}
+	repo := &fakeRepo{tx: tx}
+	svc := NewService(repo, ServiceConfig{})
+
+	autopsy := []byte(`{"outcome":"fail","primary_failure":"retry_loop"}`)
+	count, err := svc.IngestRunBatch(context.Background(), "tenant-a", []IngestRunRequest{
+		{
+			RunRecord: bench.RunRecord{ID: "run-1", ScenarioID: "s1", Model: "m1"},
+			Autopsy:   autopsy,
+		},
+	})
+	if err != nil {
+		t.Fatalf("IngestRunBatch: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("count = %d, want 1", count)
+	}
+	if len(tx.execArgs) != 2 {
+		t.Fatalf("exec count = %d, want 2", len(tx.execArgs))
+	}
+	if got := tx.execArgs[1][1]; got != "failure_autopsy" {
+		t.Fatalf("artifact type = %v, want failure_autopsy", got)
+	}
+	if got := tx.execArgs[1][2]; got != "application/json" {
+		t.Fatalf("content type = %v, want application/json", got)
+	}
+	data, ok := tx.execArgs[1][3].([]byte)
+	if !ok {
+		t.Fatalf("artifact data type = %T, want []byte", tx.execArgs[1][3])
+	}
+	if string(data) != string(autopsy) {
+		t.Fatalf("artifact data = %s, want %s", data, autopsy)
+	}
+}
+
 type fakeTx struct {
 	execSQL     []string
+	execArgs    [][]any
 	execTags    []pgconn.CommandTag
 	committed   bool
 	rolledBack  bool
@@ -75,8 +118,9 @@ func (f *fakeTx) Prepare(context.Context, string, string) (*pgconn.StatementDesc
 	return nil, nil
 }
 
-func (f *fakeTx) Exec(_ context.Context, sql string, _ ...any) (pgconn.CommandTag, error) {
+func (f *fakeTx) Exec(_ context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
 	f.execSQL = append(f.execSQL, sql)
+	f.execArgs = append(f.execArgs, args)
 	if f.execErr != nil {
 		return pgconn.CommandTag{}, f.execErr
 	}

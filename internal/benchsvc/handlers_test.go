@@ -39,6 +39,7 @@ type handlerRepo struct {
 	artifact         []byte
 	artCT            string
 	artErr           error
+	lastArtifactType string
 
 	// delete / archive
 	deleteErr         error
@@ -158,6 +159,7 @@ func (r *handlerRepo) ListScenarios(_ context.Context) ([]bench.ScenarioSummary,
 func (r *handlerRepo) StoreArtifact(_ context.Context, _, _, _ string, _ []byte) error { return nil }
 func (r *handlerRepo) GetArtifact(_ context.Context, tenant, runID, artType string) ([]byte, string, error) {
 	r.lastTenant = tenant
+	r.lastArtifactType = artType
 	return r.artifact, r.artCT, r.artErr
 }
 func (r *handlerRepo) CompareModels(_ context.Context, _, _, _, _ string) ([]ScenarioModelComparison, error) {
@@ -1003,6 +1005,57 @@ func TestHandleGetTimeline_404WhenNoToolCalls(t *testing.T) {
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+}
+
+func TestHandleGetAutopsy_ReturnsJSON(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		artifact: []byte(`{"outcome":"fail","primary_failure":"premature_success"}`),
+		artCT:    "application/json",
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/runs/r1/autopsy", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if repo.lastArtifactType != "failure_autopsy" {
+		t.Fatalf("artifact type = %q, want failure_autopsy", repo.lastArtifactType)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", ct)
+	}
+	var body struct {
+		PrimaryFailure string `json:"primary_failure"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.PrimaryFailure != "premature_success" {
+		t.Fatalf("primary_failure = %q, want premature_success", body.PrimaryFailure)
+	}
+}
+
+func TestHandleGetAutopsy_404WhenMissing(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{artErr: ErrNotFound}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/runs/r1/autopsy", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+	if repo.lastArtifactType != "failure_autopsy" {
+		t.Fatalf("artifact type = %q, want failure_autopsy", repo.lastArtifactType)
 	}
 }
 

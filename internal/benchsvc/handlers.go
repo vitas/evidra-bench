@@ -29,6 +29,7 @@ func RegisterRoutes(mux *http.ServeMux, svc *Service, authMw func(http.Handler) 
 	mux.Handle("GET /v1/bench/runs/{id}/tool-calls", publicReadMw(http.HandlerFunc(handleGetToolCalls(svc))))
 	mux.Handle("GET /v1/bench/runs/{id}/timeline", publicReadMw(http.HandlerFunc(handleGetTimeline(svc))))
 	mux.Handle("GET /v1/bench/runs/{id}/scorecard", publicReadMw(http.HandlerFunc(handleGetScorecard(svc))))
+	mux.Handle("GET /v1/bench/runs/{id}/autopsy", publicReadMw(http.HandlerFunc(handleGetAutopsy(svc))))
 	mux.Handle("GET /v1/bench/stats", publicReadMw(http.HandlerFunc(handleStats(svc))))
 	mux.Handle("GET /v1/bench/catalog", publicReadMw(http.HandlerFunc(handleCatalog(svc))))
 	mux.Handle("GET /v1/bench/compare/runs", publicReadMw(http.HandlerFunc(handleCompareRuns(svc))))
@@ -347,6 +348,25 @@ func handleGetScorecard(svc *Service) http.HandlerFunc {
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				apiutil.WriteError(w, http.StatusNotFound, "scorecard not found")
+				return
+			}
+			apiutil.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", contentType)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(data)
+	}
+}
+
+func handleGetAutopsy(svc *Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenantID := auth.TenantID(r.Context())
+		id := r.PathValue("id")
+		data, contentType, err := svc.GetArtifact(r.Context(), tenantID, id, "failure_autopsy")
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				apiutil.WriteError(w, http.StatusNotFound, "failure autopsy not found")
 				return
 			}
 			apiutil.WriteError(w, http.StatusInternalServerError, err.Error())

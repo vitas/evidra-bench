@@ -88,6 +88,7 @@ type IngestRunRequest struct {
 	bench.RunRecord
 	Transcript string          `json:"transcript,omitempty"`
 	ToolCalls  json.RawMessage `json:"tool_calls,omitempty"`
+	Autopsy    json.RawMessage `json:"autopsy,omitempty"`
 }
 
 // --- Authenticated methods (tenant from caller) ---
@@ -151,6 +152,12 @@ func (s *Service) IngestRun(ctx context.Context, tenantID string, req IngestRunR
 		_, err = tx.Exec(ctx, artifactQ, req.ID, "tool_calls", "application/json", []byte(req.ToolCalls))
 		if err != nil {
 			return fmt.Errorf("benchsvc.IngestRun: store tool_calls: %w", err)
+		}
+	}
+	if len(req.Autopsy) > 0 {
+		_, err = tx.Exec(ctx, artifactQ, req.ID, "failure_autopsy", "application/json", []byte(req.Autopsy))
+		if err != nil {
+			return fmt.Errorf("benchsvc.IngestRun: store failure_autopsy: %w", err)
 		}
 	}
 
@@ -217,6 +224,11 @@ func (s *Service) IngestRunBatch(ctx context.Context, tenantID string, runs []In
 		if len(run.ToolCalls) > 0 {
 			if _, err := tx.Exec(ctx, artifactQ, run.ID, "tool_calls", "application/json", []byte(run.ToolCalls)); err != nil {
 				return 0, fmt.Errorf("benchsvc.IngestRunBatch: tool_calls for %s: %w", run.ID, err)
+			}
+		}
+		if len(run.Autopsy) > 0 {
+			if _, err := tx.Exec(ctx, artifactQ, run.ID, "failure_autopsy", "application/json", []byte(run.Autopsy)); err != nil {
+				return 0, fmt.Errorf("benchsvc.IngestRunBatch: failure_autopsy for %s: %w", run.ID, err)
 			}
 		}
 	}

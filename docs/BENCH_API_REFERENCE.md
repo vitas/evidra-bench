@@ -127,7 +127,8 @@ artifact fields:
   "checks_passed": 3,
   "checks_total": 3,
   "transcript": "optional text transcript",
-  "tool_calls": []
+  "tool_calls": [],
+  "autopsy": { "outcome": "pass", "primary_failure": "" }
 }
 ```
 
@@ -194,6 +195,10 @@ Returns the decision timeline derived from stored artifacts.
 ### GET /v1/bench/runs/{id}/scorecard
 
 Returns scorecard artifact JSON.
+
+### GET /v1/bench/runs/{id}/autopsy
+
+Returns failure autopsy artifact JSON when the run has one.
 
 ## Analytics
 

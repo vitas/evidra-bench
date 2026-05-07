@@ -14,12 +14,13 @@ import (
 // benchIngestRequest extends RunRecord with optional artifacts for the bench API.
 type benchIngestRequest struct {
 	store.RunRecord
-	Transcript string `json:"transcript,omitempty"`
-	ToolCalls  any    `json:"tool_calls,omitempty"`
+	Transcript string          `json:"transcript,omitempty"`
+	ToolCalls  any             `json:"tool_calls,omitempty"`
+	Autopsy    json.RawMessage `json:"autopsy,omitempty"`
 }
 
 // ReportToBench posts a run record with artifacts to the bench API bench ingest endpoint.
-func ReportToBench(benchURL, apiKey string, rec store.RunRecord, transcript string, toolCalls any) {
+func ReportToBench(benchURL, apiKey string, rec store.RunRecord, transcript string, toolCalls any, autopsy json.RawMessage) {
 	if benchURL == "" || apiKey == "" {
 		return
 	}
@@ -28,6 +29,7 @@ func ReportToBench(benchURL, apiKey string, rec store.RunRecord, transcript stri
 		RunRecord:  rec,
 		Transcript: transcript,
 		ToolCalls:  toolCalls,
+		Autopsy:    autopsy,
 	}
 
 	body, err := json.Marshal(payload)

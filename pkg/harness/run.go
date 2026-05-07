@@ -560,8 +560,8 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		if err := h.deps.Store.Insert(rec); err != nil {
 			log.Printf("[harness] warning: store insert failed: %v", err)
 		}
-		// Report to bench API if configured (includes transcript + tool-calls).
-		ReportToBench(req.Config.BenchURL, req.Config.BenchAPIKey, rec, agentResult.Transcript, agentResult.ToolCalls)
+		// Report to bench API if configured (includes transcript, tool calls, and autopsy).
+		ReportToBench(req.Config.BenchURL, req.Config.BenchAPIKey, rec, agentResult.Transcript, agentResult.ToolCalls, autopsyJSON)
 	}
 
 	return result, nil
