@@ -304,14 +304,7 @@ func TestRegisterRoutes_PublicReadEndpointsRequirePublicTenant(t *testing.T) {
 }
 
 func evidenceModeMatchesQuery(mode, stored string) bool {
-	switch mode {
-	case "":
-		return true
-	case "evidra":
-		return stored != "none"
-	default:
-		return stored == mode
-	}
+	return mode == "" || stored == mode
 }
 
 func filterRunsByEvidenceMode(runs []bench.RunRecord, mode string) []bench.RunRecord {
@@ -466,8 +459,8 @@ func TestHandleLeaderboard_EvidenceModeFiltersAndAggregates(t *testing.T) {
 	sharedRuns := []bench.RunRecord{
 		{ID: "baseline-1", ScenarioID: "s1", Model: "sonnet", EvidenceMode: "none", Passed: true, Duration: 10, EstimatedCost: 1.0},
 		{ID: "baseline-2", ScenarioID: "s2", Model: "sonnet", EvidenceMode: "none", Passed: false, Duration: 20, EstimatedCost: 2.0},
-		{ID: "evidra-1", ScenarioID: "s1", Model: "sonnet", EvidenceMode: "smart", Passed: true, Duration: 30, EstimatedCost: 3.0},
-		{ID: "evidra-2", ScenarioID: "s2", Model: "sonnet", EvidenceMode: "direct", Passed: false, Duration: 40, EstimatedCost: 4.0},
+		{ID: "evidra-1", ScenarioID: "s1", Model: "sonnet", EvidenceMode: "mcp", Passed: true, Duration: 30, EstimatedCost: 3.0},
+		{ID: "evidra-2", ScenarioID: "s2", Model: "sonnet", EvidenceMode: "mcp", Passed: false, Duration: 40, EstimatedCost: 4.0},
 	}
 
 	tests := []struct {
@@ -477,7 +470,7 @@ func TestHandleLeaderboard_EvidenceModeFiltersAndAggregates(t *testing.T) {
 		wantPassRate float64
 	}{
 		{name: "baseline only", mode: "none", wantRuns: 2, wantPassRate: 50.0},
-		{name: "non-baseline alias", mode: "evidra", wantRuns: 2, wantPassRate: 50.0},
+		{name: "mcp", mode: "mcp", wantRuns: 2, wantPassRate: 50.0},
 	}
 
 	for _, tt := range tests {
@@ -700,7 +693,7 @@ func TestHandleListRuns_ParsesFilters(t *testing.T) {
 	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-b")
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/v1/bench/runs?model=sonnet&scenario=broken-deployment&evidence_mode=direct&limit=10&offset=5", nil)
+	req := httptest.NewRequest("GET", "/v1/bench/runs?model=sonnet&scenario=broken-deployment&evidence_mode=mcp&limit=10&offset=5", nil)
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
@@ -713,8 +706,8 @@ func TestHandleListRuns_ParsesFilters(t *testing.T) {
 	if f.ScenarioID != "broken-deployment" {
 		t.Errorf("ScenarioID = %q, want broken-deployment", f.ScenarioID)
 	}
-	if f.EvidenceMode != "direct" {
-		t.Errorf("EvidenceMode = %q, want direct", f.EvidenceMode)
+	if f.EvidenceMode != "mcp" {
+		t.Errorf("EvidenceMode = %q, want mcp", f.EvidenceMode)
 	}
 	if f.Limit != 10 {
 		t.Errorf("Limit = %d, want 10", f.Limit)
@@ -730,8 +723,8 @@ func TestHandleListRuns_EvidenceModeFiltersItems(t *testing.T) {
 	sharedRuns := []bench.RunRecord{
 		{ID: "baseline-1", ScenarioID: "s1", Model: "sonnet", EvidenceMode: "none"},
 		{ID: "baseline-2", ScenarioID: "s2", Model: "sonnet", EvidenceMode: "none"},
-		{ID: "evidra-1", ScenarioID: "s3", Model: "sonnet", EvidenceMode: "smart"},
-		{ID: "evidra-2", ScenarioID: "s4", Model: "sonnet", EvidenceMode: "direct"},
+		{ID: "evidra-1", ScenarioID: "s3", Model: "sonnet", EvidenceMode: "mcp"},
+		{ID: "evidra-2", ScenarioID: "s4", Model: "sonnet", EvidenceMode: "mcp"},
 	}
 
 	tests := []struct {
@@ -740,7 +733,7 @@ func TestHandleListRuns_EvidenceModeFiltersItems(t *testing.T) {
 		wantIDs []string
 	}{
 		{name: "baseline only", mode: "none", wantIDs: []string{"baseline-1", "baseline-2"}},
-		{name: "non-baseline alias", mode: "evidra", wantIDs: []string{"evidra-1", "evidra-2"}},
+		{name: "mcp", mode: "mcp", wantIDs: []string{"evidra-1", "evidra-2"}},
 	}
 
 	for _, tt := range tests {
@@ -1049,8 +1042,8 @@ func TestHandleStats_EvidenceModeFiltersTotals(t *testing.T) {
 	sharedRuns := []bench.RunRecord{
 		{ID: "baseline-1", ScenarioID: "s1", Model: "sonnet", EvidenceMode: "none", Passed: true},
 		{ID: "baseline-2", ScenarioID: "s2", Model: "sonnet", EvidenceMode: "none", Passed: false},
-		{ID: "evidra-1", ScenarioID: "s3", Model: "sonnet", EvidenceMode: "smart", Passed: true},
-		{ID: "evidra-2", ScenarioID: "s4", Model: "sonnet", EvidenceMode: "direct", Passed: false},
+		{ID: "evidra-1", ScenarioID: "s3", Model: "sonnet", EvidenceMode: "mcp", Passed: true},
+		{ID: "evidra-2", ScenarioID: "s4", Model: "sonnet", EvidenceMode: "mcp", Passed: false},
 	}
 
 	tests := []struct {
@@ -1061,7 +1054,7 @@ func TestHandleStats_EvidenceModeFiltersTotals(t *testing.T) {
 		wantFail  int
 	}{
 		{name: "baseline only", mode: "none", wantTotal: 2, wantPass: 1, wantFail: 1},
-		{name: "non-baseline alias", mode: "evidra", wantTotal: 2, wantPass: 1, wantFail: 1},
+		{name: "mcp", mode: "mcp", wantTotal: 2, wantPass: 1, wantFail: 1},
 	}
 
 	for _, tt := range tests {
@@ -1390,14 +1383,14 @@ func TestHandleCompareModels_MatrixPassesEvidenceMode(t *testing.T) {
 	RegisterRoutes(mux, svc, passthroughAuth("tenant-a"))
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/v1/bench/compare/models?models=sonnet&scenarios=broken-deployment&evidence_mode=evidra", nil)
+	req := httptest.NewRequest("GET", "/v1/bench/compare/models?models=sonnet&scenarios=broken-deployment&evidence_mode=mcp", nil)
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	if repo.lastMode != "evidra" {
-		t.Fatalf("evidence_mode = %q, want evidra", repo.lastMode)
+	if repo.lastMode != "mcp" {
+		t.Fatalf("evidence_mode = %q, want mcp", repo.lastMode)
 	}
 }
 
@@ -1712,7 +1705,7 @@ func TestHandleTrigger_NoExecutor_Returns501(t *testing.T) {
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"test-model","evidence_mode":"smart","scenarios":["s1"]}`
+	body := `{"model":"test-model","evidence_mode":"mcp","scenarios":["s1"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
@@ -1764,7 +1757,7 @@ func TestHandleTrigger_RejectsInvalidEvidenceMode(t *testing.T) {
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"test-model","evidence_mode":"proxy","scenarios":["s1"]}`
+	body := `{"model":"test-model","evidence_mode":"legacy","scenarios":["s1"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
@@ -1790,7 +1783,7 @@ func TestHandleTrigger_RejectsInvalidExecutionMode(t *testing.T) {
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"test-model","execution_mode":"wat","evidence_mode":"smart","scenarios":["s1"]}`
+	body := `{"model":"test-model","execution_mode":"wat","evidence_mode":"mcp","scenarios":["s1"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
@@ -1818,7 +1811,7 @@ func TestHandleTrigger_ValidRequest_Returns202(t *testing.T) {
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"test-model","evidence_mode":"smart","scenarios":["s1","s2"]}`
+	body := `{"model":"test-model","evidence_mode":"mcp","scenarios":["s1","s2"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
@@ -1843,8 +1836,8 @@ func TestHandleTrigger_ValidRequest_Returns202(t *testing.T) {
 	if stored == nil {
 		t.Fatal("stored trigger job missing")
 	}
-	if stored.EvidenceMode != "smart" {
-		t.Fatalf("stored evidence mode = %q, want smart", stored.EvidenceMode)
+	if stored.EvidenceMode != "mcp" {
+		t.Fatalf("stored evidence mode = %q, want mcp", stored.EvidenceMode)
 	}
 	if stored.ExecutionMode != "provider" {
 		t.Fatalf("stored execution mode = %q, want provider", stored.ExecutionMode)
@@ -1852,8 +1845,8 @@ func TestHandleTrigger_ValidRequest_Returns202(t *testing.T) {
 	if spy.job == nil {
 		t.Fatal("executor job missing")
 	}
-	if spy.job.EvidenceMode != "smart" {
-		t.Fatalf("job evidence mode = %q, want smart", spy.job.EvidenceMode)
+	if spy.job.EvidenceMode != "mcp" {
+		t.Fatalf("job evidence mode = %q, want mcp", spy.job.EvidenceMode)
 	}
 	if spy.job.ExecutionMode != "provider" {
 		t.Fatalf("job execution mode = %q, want provider", spy.job.ExecutionMode)
@@ -1920,7 +1913,7 @@ func TestHandleTrigger_ValidRequest_Returns202_WithExecutionModeA2A(t *testing.T
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"sonnet","execution_mode":"a2a","evidence_mode":"smart","scenarios":["s1","s2"]}`
+	body := `{"model":"sonnet","execution_mode":"a2a","evidence_mode":"mcp","scenarios":["s1","s2"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
@@ -2088,7 +2081,7 @@ func TestHandleTrigger_WithRunner_QueuesJob(t *testing.T) {
 			Model:      "sonnet",
 			Provider:   "bifrost",
 			Status:     "queued",
-			ConfigJSON: json.RawMessage(`{"scenarios":["s1"],"evidence_mode":"smart","execution_mode":"a2a"}`),
+			ConfigJSON: json.RawMessage(`{"scenarios":["s1"],"evidence_mode":"mcp","execution_mode":"a2a"}`),
 		},
 	}
 	svc := NewService(repo, ServiceConfig{
@@ -2100,7 +2093,7 @@ func TestHandleTrigger_WithRunner_QueuesJob(t *testing.T) {
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"sonnet","execution_mode":"a2a","evidence_mode":"smart","scenarios":["s1"]}`
+	body := `{"model":"sonnet","execution_mode":"a2a","evidence_mode":"mcp","scenarios":["s1"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
@@ -2119,8 +2112,8 @@ func TestHandleTrigger_WithRunner_QueuesJob(t *testing.T) {
 	if resp["mode"] != "runner" {
 		t.Fatalf("mode = %v, want runner", resp["mode"])
 	}
-	if repo.lastEnqueueCfg.EvidenceMode != "smart" {
-		t.Fatalf("enqueue evidence mode = %q, want smart", repo.lastEnqueueCfg.EvidenceMode)
+	if repo.lastEnqueueCfg.EvidenceMode != "mcp" {
+		t.Fatalf("enqueue evidence mode = %q, want mcp", repo.lastEnqueueCfg.EvidenceMode)
 	}
 	if repo.lastEnqueueCfg.ExecutionMode != "a2a" {
 		t.Fatalf("enqueue execution mode = %q, want a2a", repo.lastEnqueueCfg.ExecutionMode)
@@ -2129,8 +2122,8 @@ func TestHandleTrigger_WithRunner_QueuesJob(t *testing.T) {
 	if stored == nil {
 		t.Fatal("stored runner trigger job missing")
 	}
-	if stored.EvidenceMode != "smart" {
-		t.Fatalf("stored evidence mode = %q, want smart", stored.EvidenceMode)
+	if stored.EvidenceMode != "mcp" {
+		t.Fatalf("stored evidence mode = %q, want mcp", stored.EvidenceMode)
 	}
 	if stored.ExecutionMode != "a2a" {
 		t.Fatalf("stored execution mode = %q, want a2a", stored.ExecutionMode)
@@ -2163,7 +2156,7 @@ func TestHandleTrigger_WithRunner_AllowsProviderSuppliedModelAlias(t *testing.T)
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"sonnet","provider":"claude","evidence_mode":"smart","scenarios":["s1"]}`
+	body := `{"model":"sonnet","provider":"claude","evidence_mode":"mcp","scenarios":["s1"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
@@ -2171,8 +2164,8 @@ func TestHandleTrigger_WithRunner_AllowsProviderSuppliedModelAlias(t *testing.T)
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusAccepted, rec.Body.String())
 	}
-	if repo.lastEnqueueCfg.EvidenceMode != "smart" {
-		t.Fatalf("enqueue evidence mode = %q, want smart", repo.lastEnqueueCfg.EvidenceMode)
+	if repo.lastEnqueueCfg.EvidenceMode != "mcp" {
+		t.Fatalf("enqueue evidence mode = %q, want mcp", repo.lastEnqueueCfg.EvidenceMode)
 	}
 	stored := store.Get("job-alias-1")
 	if stored == nil {
@@ -2210,7 +2203,7 @@ func TestHandleTrigger_WithRunner_DoesNotRequireControlPlaneModelAPIKey(t *testi
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"claude-sonnet-4-20250514","evidence_mode":"smart","scenarios":["s1"]}`
+	body := `{"model":"claude-sonnet-4-20250514","evidence_mode":"mcp","scenarios":["s1"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
@@ -2249,7 +2242,7 @@ func TestHandleTrigger_WithPinnedRunnerUnavailable_Returns400AndSkipsExecutor(t 
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"sonnet","runner_id":"runner-missing","evidence_mode":"smart","scenarios":["s1"]}`
+	body := `{"model":"sonnet","runner_id":"runner-missing","evidence_mode":"mcp","scenarios":["s1"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
@@ -2328,7 +2321,7 @@ func TestHandlePollJob_ReturnsEvidenceMode(t *testing.T) {
 			ConfigJSON: json.RawMessage(`{
 				"scenarios":["s1"],
 				"runner_id":"runner-1",
-				"evidence_mode":"smart",
+				"evidence_mode":"mcp",
 				"execution_mode":"a2a"
 			}`),
 		},
@@ -2352,8 +2345,8 @@ func TestHandlePollJob_ReturnsEvidenceMode(t *testing.T) {
 	if resp["provider"] != "bifrost" {
 		t.Fatalf("provider = %v, want bifrost", resp["provider"])
 	}
-	if resp["evidence_mode"] != "smart" {
-		t.Fatalf("evidence_mode = %v, want smart", resp["evidence_mode"])
+	if resp["evidence_mode"] != "mcp" {
+		t.Fatalf("evidence_mode = %v, want mcp", resp["evidence_mode"])
 	}
 	if resp["execution_mode"] != "a2a" {
 		t.Fatalf("execution_mode = %v, want a2a", resp["execution_mode"])

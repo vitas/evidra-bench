@@ -113,7 +113,7 @@ export function Run() {
         method: "POST",
         body: JSON.stringify({
           model: selectedModel,
-          evidence_mode: mode === "evidra" ? "smart" : "none",
+          evidence_mode: mode === "mcp" ? "mcp" : "none",
           scenarios: [...selectedIds],
         }),
       });
@@ -149,7 +149,7 @@ export function Run() {
     return buildBenchCommand({
       scenarios: [...selectedIds],
       model: selectedModel,
-      evidenceMode: mode === "evidra" ? "evidra-mcp" : "baseline",
+      evidenceMode: mode === "mcp" ? "evidra-mcp" : "baseline",
     });
   }, [selectedIds, selectedModel, mode]);
 
@@ -360,11 +360,11 @@ export function Run() {
               {EVIDENCE_MODES.map((evidenceMode) => {
                 const isSelected =
                   (mode === "none" && evidenceMode.id === "baseline") ||
-                  (mode === "evidra" && evidenceMode.id === "evidra-mcp");
+                  (mode === "mcp" && evidenceMode.id === "evidra-mcp");
                 return (
                   <button
                     key={evidenceMode.id}
-                    onClick={() => setMode(evidenceMode.id === "baseline" ? "none" : "evidra")}
+                    onClick={() => setMode(evidenceMode.id === "baseline" ? "none" : "mcp")}
                     className={`flex-1 px-3 py-2 rounded-md border text-[0.78rem] font-medium transition-all ${
                       isSelected
                         ? "border-accent bg-accent/10 text-fg"

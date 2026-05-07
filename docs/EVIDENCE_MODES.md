@@ -1,123 +1,41 @@
-# Execution Modes Reference
+# Evidence Modes
 
-## Two Paths
+`bench-cli` has two run-record evidence modes:
 
-The bench framework has two distinct execution paths:
+| Mode | How to select it | Meaning |
+|---|---|---|
+| `none` | no MCP server, or `evidence_mode: "none"` in API requests | Baseline run. The harness executes its built-in tools and stores normal benchmark artifacts. |
+| `mcp` | `--mcp-server "..."`, or `evidence_mode: "mcp"` in API requests | The agent uses an external MCP server. The server may produce its own evidence, but the harness treats it as a generic tool backend. |
 
-### Path 1: Infrastructure Testing (any agent, any MCP server)
+There are no bench-specific evidra submodes. To test `evidra-mcp`, run it the
+same way as any other MCP server:
 
-Tests whether an agent can fix infrastructure problems. Works with any MCP server or no MCP server at all.
-
-| Mode | Flag | What happens | Evidence |
-|------|------|-------------|----------|
-| **Baseline** | (no flags) | Agent runs kubectl/helm directly | None |
-| **Evidra Auto** | `--trace evidra` | Identical to baseline — harness silently records mutations | Auto-captured |
-
-These modes work with every adapter:
-
-| Adapter | Flag | Use case |
-|---------|------|----------|
-| **Provider** | `--provider bifrost --model gemini-2.5-flash` | Built-in agent loop, direct model testing |
-| **Any MCP server** | `--mcp-server "npx @anthropic/mcp-server-kubernetes"` | Agent uses third-party MCP tools |
-| **A2A** | `--adapter a2a --a2a-agent-url URL` | Remote agent, harness only bootstraps and verifies |
-| **CLI** | `--adapter cli --agent-command "cmd"` | Packaged agent binary for CI pipelines |
-
-### Path 2: Evidra Protocol Testing (evidra-mcp only)
-
-Tests whether an agent follows the evidra prescribe/report protocol. Requires `evidra-mcp` (started automatically by the harness when `--evidra` is set).
-
-| Mode | Flag | What the agent does | Evidence |
-|------|------|-------------------|----------|
-| **Evidra Smart** | `--evidra smart` | Agent calls `prescribe_smart` before each mutation — one lightweight tool call | Agent-driven, minimal overhead |
-| **Evidra Full** | `--evidra full` | Agent uses full evidra tool suite: prescribe, report, risk classification | Full protocol compliance |
-
-These modes only work with the **Provider** adapter (built-in agent loop) because the harness must inject evidra tools into the agent's tool set.
-
-**A2A and CLI agents own their tool loop** — the harness cannot inject evidra tools into them. If a remote agent uses evidra internally, that's the agent's choice, not the harness's. The evidence mode filter on the leaderboard is not meaningful for A2A/CLI runs.
-
-**Backward compatibility:** The old flags `--proxy-mode`, `--smart-prescribe`, and `--mcp-server "evidra-mcp ..."` still work but emit deprecation warnings. Use the new flags for all new work.
-
----
-
-## Summary Matrix
-
-|  | Baseline | Evidra Auto | Evidra Smart | Evidra Full |
-|--|----------|-------------|-------------|-------------|
-| **Provider** | Yes | Yes | Yes | Yes |
-| **Any MCP server** | Yes | Yes | — | — |
-| **A2A** | Yes | Yes | — | — |
-| **CLI** | Yes | Yes | — | — |
-
----
-
-## Flag Reference
-
-```
-TRACEABILITY:
-  --trace <backend>   Passive mutation recording (default: none)
-                        evidra   Record via evidra evidence chain
-                        none     No recording
-                      The trace backend silently captures every mutation
-                      (kubectl apply, helm upgrade, etc.) without agent
-                      involvement. Works with any adapter and MCP server.
-
-EVIDRA PROTOCOL:
-  --evidra <level>    Agent-side evidra protocol level (default: off)
-                        smart    Agent calls prescribe_smart before acting
-                        full     Agent uses full prescribe/report/risk protocol
-                      Requires evidra-mcp. The harness starts it automatically
-                      if installed. Set --evidra-bin for custom binary path.
-                      Cannot be combined with --mcp-server.
-
-THIRD-PARTY TOOLS:
-  --mcp-server <cmd>  MCP server for tool execution (any MCP server).
-                      Cannot be combined with --evidra smart or --evidra full.
-                      Can be combined with --trace evidra.
-                      Example: --mcp-server "npx @anthropic/mcp-server-kubernetes"
-
-DEPRECATED (still work, emit warnings):
-  --proxy-mode          Use --trace evidra instead
-  --smart-prescribe     Use --evidra smart instead
-  --mcp-server "evidra-mcp ..."  Use --evidra full instead
+```bash
+bench-cli run \
+  --scenario kubernetes/broken-deployment \
+  --provider bifrost \
+  --model sonnet \
+  --mcp-server "evidra-mcp --signing-mode optional"
 ```
 
-### Compatibility
+To compare tool backends, keep the model, provider, scenario set, timeout, and
+cluster settings fixed, then change only `--mcp-server`.
 
-| Combination | Valid? | Why |
-|------------|--------|-----|
-| `--trace evidra --mcp-server "npx ..."` | Yes | Trace + third-party tools |
-| `--evidra smart --mcp-server "npx ..."` | No | evidra manages its own MCP server |
-| `--evidra full --mcp-server "npx ..."` | No | evidra manages its own MCP server |
-| `--trace evidra --evidra smart` | Yes | Both concerns active |
-| `--trace evidra --adapter a2a` | Yes | Trace works with any adapter |
-| `--evidra smart --adapter a2a` | No | Can't inject protocol into remote agent |
+```bash
+# Baseline
+bench-cli bench --scenario kubernetes --model sonnet --provider bifrost --reuse-cluster
 
----
+# Same benchmark through evidra-mcp
+bench-cli bench --scenario kubernetes --model sonnet --provider bifrost \
+  --mcp-server "evidra-mcp --signing-mode optional" \
+  --reuse-cluster
 
-## Benchmark Data (2026-03-29)
+# Same benchmark through another MCP server
+bench-cli bench --scenario kubernetes --model sonnet --provider bifrost \
+  --mcp-server "npx -y @anthropic/mcp-server-kubernetes" \
+  --reuse-cluster
+```
 
-| Mode | Label | Runs | Notes |
-|------|-------|------|-------|
-| `none` | Baseline | 895 | Largest dataset — raw agent ability |
-| `proxy` | Evidra Auto | 194 | Identical pass rates to baseline |
-| `smart` | Evidra Smart | 295 | Lightweight protocol compliance |
-| `mcp` | Evidra Full | 371 | Full protocol — some models drop 10-15% |
-
-## Which Mode to Use
-
-| Goal | Mode | Why |
-|------|------|-----|
-| Measure raw agent ability | **Baseline** | No overhead, cheapest |
-| Measure + get free audit trail | **Evidra Auto** (`--trace evidra`) | Same pass rate, evidence for free |
-| Test protocol awareness | **Evidra Smart** (`--evidra smart`) | Does the agent prescribe before acting? |
-| Test full evidra product experience | **Evidra Full** (`--evidra full`) | Full prescribe/report/risk protocol |
-| Compare MCP servers | **Baseline** with different `--mcp-server` | Same agent, different tool backends |
-| Test remote agents | **Baseline** or **Evidra Auto** via A2A | Harness bootstraps and verifies, agent owns execution |
-
-## Demo Story
-
-| Step | What | Mode |
-|------|------|------|
-| 1 | Agent fixes broken deployment | **Baseline** — raw ability, no evidence |
-| 2 | Same agent, flip a switch | **Evidra Auto** (`--trace evidra`) — same result, full audit trail appears |
-| 3 | Leaderboard filter | Show **Evidra Smart** — models that prescribe first score higher on reliability |
+Infrastructure verification is independent of evidence mode. Scenario checks
+always run; MCP-specific artifacts are interpreted only when a scenario or a
+separate verifier explicitly points at an evidence directory.

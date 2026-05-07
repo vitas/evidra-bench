@@ -12,8 +12,8 @@ export const EVIDENCE_MODES: Array<{
   },
   {
     id: "evidra-mcp",
-    label: "Via evidra-mcp",
-    description: "MCP tool execution + evidence",
+    label: "evidra-mcp",
+    description: "Generic MCP server",
   },
 ];
 

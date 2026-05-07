@@ -2,7 +2,7 @@
 set -u
 
 # Overnight lite — kubernetes + helm only, 2 parallel clusters max.
-# Proxy + MCP per model, models sequential.
+# Baseline + MCP per model, models sequential.
 #
 # Usage: source .env && nohup ./scripts/overnight-lite.sh &
 
@@ -18,7 +18,7 @@ mkdir -p "$LOG_DIR"
 echo "=== Overnight Lite ${STAMP} ==="
 echo "  Scenarios:   kubernetes + helm (51 active)"
 echo "  Models:      gemini-2.5-flash, deepseek-chat, qwen-plus"
-echo "  Modes:       proxy + mcp (2 clusters max)"
+echo "  Modes:       baseline + mcp (2 clusters max)"
 echo "  Repeats:     ${REPEATS}"
 echo "  Log dir:     ${LOG_DIR}"
 echo ""
@@ -36,7 +36,7 @@ run_model() {
   echo ""
   echo "════ $model ════"
 
-  # Track 1: proxy
+  # Track 1: baseline
   (
     export EVIDRA_BIFROST_BASE_URL="$base_url"
     export EVIDRA_BIFROST_AUTH_BEARER="$key_val"
@@ -44,13 +44,12 @@ run_model() {
       --scenario kubernetes --scenario helm \
       --model "$model" --provider bifrost \
       --repeats "$REPEATS" \
-      --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "${prefix}-p" \
-      --trace evidra \
+      --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "${prefix}-b" \
       --evidra-url "$EVIDRA_URL" --evidra-api-key "$EVIDRA_API_KEY" \
       2>&1
-    echo "DONE $model/proxy"
-  ) > "${LOG_DIR}/${model}-proxy.log" 2>&1 &
-  local pid_proxy=$!
+    echo "DONE $model/baseline"
+  ) > "${LOG_DIR}/${model}-baseline.log" 2>&1 &
+  local pid_baseline=$!
 
   # Track 2: mcp
   (
@@ -68,13 +67,13 @@ run_model() {
   ) > "${LOG_DIR}/${model}-mcp.log" 2>&1 &
   local pid_mcp=$!
 
-  echo "  proxy PID=$pid_proxy  mcp PID=$pid_mcp"
+  echo "  baseline PID=$pid_baseline  mcp PID=$pid_mcp"
   echo "  Waiting for $model..."
-  wait $pid_proxy $pid_mcp
+  wait $pid_baseline $pid_mcp
   echo "  $model complete."
 
   # Clean clusters before next model.
-  k3d cluster delete "${prefix}-p" "${prefix}-m" 2>/dev/null || true
+  k3d cluster delete "${prefix}-b" "${prefix}-m" 2>/dev/null || true
 }
 
 {

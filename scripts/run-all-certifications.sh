@@ -34,7 +34,7 @@ MODELS=(
 PROVIDER="${PROVIDER:-bifrost}"
 EVIDRA_URL="${EVIDRA_URL:-https://api.evidra.cc}"
 EVIDRA_API_KEY="${EVIDRA_API_KEY:?EVIDRA_API_KEY must be set}"
-EXTRA_FLAGS="${EXTRA_FLAGS:---proxy-mode --reuse-cluster}"
+EXTRA_FLAGS="${EXTRA_FLAGS:---reuse-cluster}"
 
 # ── Provider URL per model (when not using Bifrost gateway) ──
 provider_url_for_model() {

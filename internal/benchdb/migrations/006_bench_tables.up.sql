@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS bench_runs (
     model TEXT NOT NULL,
     provider TEXT NOT NULL DEFAULT '',
     adapter TEXT NOT NULL DEFAULT 'cli',
-    evidence_mode TEXT NOT NULL DEFAULT 'proxy',
+    evidence_mode TEXT NOT NULL DEFAULT 'none',
     passed BOOLEAN NOT NULL DEFAULT FALSE,
     duration_seconds DOUBLE PRECISION NOT NULL DEFAULT 0,
     exit_code INTEGER NOT NULL DEFAULT 0,

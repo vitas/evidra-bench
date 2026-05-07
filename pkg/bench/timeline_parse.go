@@ -51,16 +51,6 @@ func Parse(calls []ToolCall) *Timeline {
 		}
 
 		switch call.Tool {
-		case "evidra_prescribe_smart", "evidra_prescribe_full":
-			step.Phase = PhaseDecide
-			step.Operation = call.Tool
-			step.Summary = "Prescribed action via Evidra"
-
-		case "evidra_report":
-			step.Phase = PhaseAct
-			step.Operation = call.Tool
-			step.Summary = "Reported outcome to Evidra"
-
 		case "run_command":
 			cmd := extractCommand(call.Args)
 			step.Command = cmd
@@ -73,8 +63,6 @@ func Parse(calls []ToolCall) *Timeline {
 			step.ExitCode = extractExitCode(call.Result)
 
 			if isMutationCmd(infraTool, subcommand, cmd) {
-				// Explicit decide phase only comes from current Evidra prescribe calls.
-				// Mutations without prescribe are classified as act directly.
 				step.Phase = PhaseAct
 				seenMutation = true
 				tl.MutationCount++
@@ -93,7 +81,7 @@ func Parse(calls []ToolCall) *Timeline {
 			}
 
 		default:
-			// Non-run_command, non-evidra tools (Bash, Agent, etc.) — skip.
+			// Non-run_command tools (Bash, Agent, external MCP tools, etc.) are skipped.
 			continue
 		}
 

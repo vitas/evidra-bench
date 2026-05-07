@@ -14,9 +14,8 @@ import (
 
 // MCPExecutor routes tool calls through an MCP server process.
 type MCPExecutor struct {
-	session      *mcp.ClientSession
-	serverCmd    string
-	evidenceMode EvidenceMode
+	session   *mcp.ClientSession
+	serverCmd string
 }
 
 // NewMCPExecutor starts an MCP server subprocess and connects via stdio.
@@ -49,22 +48,16 @@ func NewMCPExecutor(ctx context.Context, command string, extraEnv []string) (*MC
 
 	log.Printf("[mcp-executor] connected to %s", command)
 
-	// Detect evidence mode from available tools.
-	mode := EvidenceModeNone
 	tools, listErr := session.ListTools(ctx, &mcp.ListToolsParams{})
 	if listErr == nil {
 		for _, t := range tools.Tools {
 			log.Printf("[mcp-executor] tool: %s", t.Name)
-			if t.Name == "prescribe_smart" || t.Name == "prescribe_full" {
-				mode = EvidenceModeProxy // has evidence tools = at least proxy
-			}
 		}
 	}
 
 	return &MCPExecutor{
-		session:      session,
-		serverCmd:    command,
-		evidenceMode: mode,
+		session:   session,
+		serverCmd: command,
 	}, nil
 }
 
@@ -134,11 +127,6 @@ func (e *MCPExecutor) Execute(ctx context.Context, tc ToolCall) string {
 		}
 	}
 	return strings.Join(texts, "\n")
-}
-
-// EvidenceMode returns the evidence mode based on available MCP tools.
-func (e *MCPExecutor) EvidenceMode() EvidenceMode {
-	return e.evidenceMode
 }
 
 // Close terminates the MCP server session.

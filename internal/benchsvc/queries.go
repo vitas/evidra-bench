@@ -630,15 +630,11 @@ func buildWhere(tenantID string, f bench.RunFilters) (string, []any) {
 	return " WHERE " + strings.Join(clauses, " AND "), args
 }
 
-// evidenceModeClause returns a SQL predicate for the evidence_mode filter.
-// evidra is a query alias for all non-baseline runs, while other non-empty
-// values continue to match their exact stored subtype.
+// evidenceModeClause returns a SQL predicate for an exact evidence_mode filter.
 func evidenceModeClause(argPos int, evidenceMode string) (string, []any) {
 	switch evidenceMode {
 	case "":
 		return "", nil
-	case "evidra":
-		return fmt.Sprintf("evidence_mode <> $%d", argPos), []any{"none"}
 	default:
 		return fmt.Sprintf("evidence_mode = $%d", argPos), []any{evidenceMode}
 	}

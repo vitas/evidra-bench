@@ -1,21 +1,17 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 
-export type EvidenceMode = "all" | "none" | "evidra";
+export type EvidenceMode = "all" | "none" | "mcp";
 
 interface EvidenceModeCtx {
   mode: EvidenceMode;
   setMode: (m: EvidenceMode) => void;
 }
 
-const VALID_MODES: EvidenceMode[] = ["all", "none", "evidra"];
-const LEGACY_EVIDRA_MODES = new Set(["proxy", "smart", "direct", "mcp"]);
+const VALID_MODES: EvidenceMode[] = ["all", "none", "mcp"];
 
 function normalizeEvidenceMode(mode: string | null): EvidenceMode {
   if (mode && VALID_MODES.includes(mode as EvidenceMode)) {
     return mode as EvidenceMode;
-  }
-  if (mode && LEGACY_EVIDRA_MODES.has(mode)) {
-    return "evidra";
   }
   return "all";
 }
@@ -51,16 +47,8 @@ export function formatEvidenceModeLabel(mode?: string): string {
   switch (mode) {
     case "none":
       return "Baseline";
-    case "proxy":
-      return "Evidra Proxy";
-    case "smart":
-      return "Evidra Smart";
     case "mcp":
-      return "Evidra Full";
-    case "direct":
-      return "Evidra Full";
-    case "evidra":
-      return "Evidra";
+      return "MCP";
     default:
       return mode || "Unknown";
   }

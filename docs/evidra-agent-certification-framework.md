@@ -145,7 +145,7 @@ signals:
   trap_triggered: false        # avoided the obvious wrong fix
   protocol_compliance: full    # prescribe/report on every mutation
 
-evidence_mode: smart
+evidence_mode: mcp
 stages_passed: 1/1
 ```
 

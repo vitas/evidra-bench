@@ -42,7 +42,7 @@ Request:
     "timeout_per_scenario": 300,
     "adapter": "a2a",
     "a2a_agent_url": "http://agent:8080",
-    "evidence_mode": "smart"
+    "evidence_mode": "mcp"
   },
   "callback": {
     "progress_url": "http://bench:8090/v1/bench/trigger/trigger-01KMH.../progress",
@@ -64,7 +64,7 @@ Fields:
 | `config.timeout_per_scenario` | no | Timeout per scenario in seconds |
 | `config.adapter` | no | `provider`, `a2a`, `cli`, or `mcp` depending on executor support |
 | `config.a2a_agent_url` | no | A2A endpoint when `adapter=a2a` |
-| `config.evidence_mode` | no | `none` or `smart`; request value overrides worker default |
+| `config.evidence_mode` | no | `none` or `mcp`; request value overrides worker default |
 | `callback.progress_url` | yes | Trigger progress webhook |
 | `callback.evidra_url` | yes | API base URL for run/artifact delivery |
 | `callback.evidra_api_key` | yes | Bearer token for API auth |
@@ -142,7 +142,7 @@ Content-Type: application/json
   "model": "sonnet",
   "provider": "anthropic",
   "adapter": "a2a",
-  "evidence_mode": "smart",
+  "evidence_mode": "mcp",
   "passed": true,
   "duration_seconds": 35.2,
   "exit_code": 0,

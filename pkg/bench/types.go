@@ -28,7 +28,7 @@ type RunRecord struct {
 	Model             string    `json:"model"`
 	Provider          string    `json:"provider"`
 	Adapter           string    `json:"adapter"`
-	EvidenceMode      string    `json:"evidence_mode"`       // direct, proxy, smart, or none; evidra is a query alias for non-none
+	EvidenceMode      string    `json:"evidence_mode"`       // none or mcp
 	ToolServer        string    `json:"tool_server"`         // MCP server used (empty = baseline/direct exec)
 	ToolServerVersion string    `json:"tool_server_version"` // version of MCP server binary
 	ScenarioVersion   string    `json:"scenario_version"`    // version/hash of scenario definition
@@ -53,7 +53,7 @@ type RunFilters struct {
 	ScenarioID    string
 	Model         string
 	Provider      string
-	EvidenceMode  string // proxy, direct, smart, none -- empty means all; evidra aliases non-none
+	EvidenceMode  string // none, mcp, or empty for all
 	PassedOnly    bool
 	FailedOnly    bool
 	Since         *time.Time // cutoff time — handler parses, store just uses

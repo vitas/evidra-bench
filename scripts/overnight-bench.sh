@@ -4,8 +4,8 @@ set -u
 # Overnight benchmark — seeds the evidra.cc dashboard with real data.
 #
 # Runs scenarios in two parallel tracks per model:
-#   Track 1: --trace evidra (auto-evidence, agent unaware)
-#   Track 2: --mcp-server "evidra-mcp" (agent uses MCP tools)
+#   Track 1: baseline
+#   Track 2: --mcp-server "evidra-mcp --signing-mode optional"
 #
 # Each track gets its own k3d cluster to avoid conflicts.
 #
@@ -63,9 +63,7 @@ run_bench() {
 
   log_file="${LOG_DIR}/${model}-${mode}.log"
 
-  if [ "$mode" = "proxy" ]; then
-    mode_flags="--trace evidra"
-  elif [ "$mode" = "mcp" ]; then
+  if [ "$mode" = "mcp" ]; then
     mode_flags="--mcp-server ${mcp_cmd}"
   else
     mode_flags=""
@@ -111,7 +109,7 @@ run_bench() {
   ) > "$log_file" 2>&1 &
 }
 
-# Launch all tracks. Two parallel per model (proxy + mcp).
+# Launch all tracks. Two parallel per model (baseline + mcp).
 # Models run sequentially to avoid overloading the machine with clusters.
 
 run_model() {
@@ -120,8 +118,8 @@ run_model() {
   echo ""
   echo "════ $model ════"
 
-  # Track 1: proxy mode
-  run_bench "$model" "$base_url" "$key_var" "${prefix}-proxy" "proxy"
+  # Track 1: baseline mode
+  run_bench "$model" "$base_url" "$key_var" "${prefix}-baseline" "baseline"
 
   # Track 2: MCP mode (if evidra-mcp available)
   if command -v evidra-mcp >/dev/null 2>&1; then
@@ -135,7 +133,7 @@ run_model() {
   echo "  $model complete."
 
   # Clean up this model's clusters.
-  k3d cluster delete "${prefix}-proxy" "${prefix}-proxy-argo" \
+  k3d cluster delete "${prefix}-baseline" "${prefix}-baseline-argo" \
     "${prefix}-mcp" "${prefix}-mcp-argo" 2>/dev/null || true
 }
 

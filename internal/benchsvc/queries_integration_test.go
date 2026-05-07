@@ -258,7 +258,7 @@ func TestPgStore_ModelMatrix_EvidenceModeSemantics(t *testing.T) {
 			TenantID:      tenantID,
 			ScenarioID:    "broken-deployment",
 			Model:         "sonnet",
-			EvidenceMode:  "smart",
+			EvidenceMode:  "mcp",
 			Passed:        false,
 			Duration:      20,
 			EstimatedCost: 2.0,
@@ -269,7 +269,7 @@ func TestPgStore_ModelMatrix_EvidenceModeSemantics(t *testing.T) {
 			TenantID:      tenantID,
 			ScenarioID:    "broken-deployment",
 			Model:         "opus",
-			EvidenceMode:  "direct",
+			EvidenceMode:  "mcp",
 			Passed:        true,
 			Duration:      30,
 			EstimatedCost: 3.0,
@@ -294,17 +294,17 @@ func TestPgStore_ModelMatrix_EvidenceModeSemantics(t *testing.T) {
 		t.Fatalf("baseline cell = %+v, want one passed run", cell)
 	}
 
-	evidra, err := store.ModelMatrix(context.Background(), tenantID, nil, nil, "evidra")
+	mcp, err := store.ModelMatrix(context.Background(), tenantID, nil, nil, "mcp")
 	if err != nil {
-		t.Fatalf("ModelMatrix evidra: %v", err)
+		t.Fatalf("ModelMatrix mcp: %v", err)
 	}
-	if len(evidra.Models) != 2 {
-		t.Fatalf("evidra models = %v, want 2 models", evidra.Models)
+	if len(mcp.Models) != 2 {
+		t.Fatalf("mcp models = %v, want 2 models", mcp.Models)
 	}
-	if cell := evidra.Cells["broken-deployment"]["sonnet"]; cell.Runs != 1 || cell.Passed != 0 {
-		t.Fatalf("evidra sonnet cell = %+v, want one failed non-baseline run", cell)
+	if cell := mcp.Cells["broken-deployment"]["sonnet"]; cell.Runs != 1 || cell.Passed != 0 {
+		t.Fatalf("mcp sonnet cell = %+v, want one failed mcp run", cell)
 	}
-	if cell := evidra.Cells["broken-deployment"]["opus"]; cell.Runs != 1 || cell.Passed != 1 {
-		t.Fatalf("evidra opus cell = %+v, want one passed non-baseline run", cell)
+	if cell := mcp.Cells["broken-deployment"]["opus"]; cell.Runs != 1 || cell.Passed != 1 {
+		t.Fatalf("mcp opus cell = %+v, want one passed mcp run", cell)
 	}
 }

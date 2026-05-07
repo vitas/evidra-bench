@@ -269,12 +269,10 @@ View detailed results and visual comparisons on the Evidra dashboard at
 ```bash
 # Run the same scenario with different models
 bench-cli run --provider bifrost --model gpt-4o --scenario kubernetes/broken-deployment \
-  --runs-dir runs/gpt4o --reuse-cluster --cluster-name evidra \
-  --evidra-bin ../evidra-benchmark/bin/evidra
+  --runs-dir runs/gpt4o --reuse-cluster --cluster-name evidra
 
 bench-cli run --provider bifrost --model qwen-plus --scenario kubernetes/broken-deployment \
-  --runs-dir runs/qwen --reuse-cluster --cluster-name evidra \
-  --evidra-bin ../evidra-benchmark/bin/evidra
+  --runs-dir runs/qwen --reuse-cluster --cluster-name evidra
 
 # Compare
 bench-cli compare runs/gpt4o/<run-dir>/ runs/qwen/<run-dir>/
@@ -387,13 +385,7 @@ Note: single-operation runs (1 prescribe/report pair) cannot produce
 behavioral signals like `retry_loop` or `blast_radius`. These need
 multi-operation evidence from batch or chained scenarios.
 
-## Evidra Scorecard Post-Processing
+## Signal Audit
 
-Every non-dry-run with `--evidra-bin` set automatically runs `evidra scorecard`
-on the evidence after the agent finishes. The output is saved as
-`scorecard.json` in the run artifact directory.
-
-This enables:
-- Signal audit reads signal counts directly from scorecard
-- TUI history view shows detected signals and score band
-- Evidra dashboard at [evidra.cc/bench](https://evidra.cc/bench) includes scorecard data per run
+Signal audit reads local run artifacts and checks whether verifier outcomes,
+tool calls, and metadata match the expected scenario signals.

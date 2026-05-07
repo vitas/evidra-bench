@@ -1,11 +1,8 @@
 package agent
 
 import (
-	"reflect"
 	"strings"
 	"testing"
-
-	"samebits.com/evidra/pkg/execcontract"
 )
 
 func TestResolveProvider_Bifrost(t *testing.T) {
@@ -53,14 +50,17 @@ func TestChatResponse_Done(t *testing.T) {
 func TestBenchTools_Count(t *testing.T) {
 	t.Parallel()
 	tools := BenchTools()
-	if len(tools) != 4 {
-		t.Fatalf("expected 4 tools, got %d", len(tools))
+	if len(tools) != 2 {
+		t.Fatalf("expected 2 tools, got %d", len(tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range tools {
 		names[tool.Name] = true
+		if strings.HasPrefix(tool.Name, "evidra_") {
+			t.Fatalf("default bench tools must stay MCP-server agnostic, got %q", tool.Name)
+		}
 	}
-	for _, expected := range []string{"run_command", "write_file", "evidra_prescribe_full", "evidra_report"} {
+	for _, expected := range []string{"run_command", "write_file"} {
 		if !names[expected] {
 			t.Fatalf("missing tool: %s", expected)
 		}
@@ -83,36 +83,6 @@ func TestResolveClaudeModel(t *testing.T) {
 		if got := resolveClaudeModel(tt.input); got != tt.expected {
 			t.Errorf("resolveClaudeModel(%q) = %q, want %q", tt.input, got, tt.expected)
 		}
-	}
-}
-
-func TestBenchTools_EvidraSchemasMatchParentContract(t *testing.T) {
-	t.Parallel()
-
-	tools := BenchTools()
-	byName := map[string]ToolDef{}
-	for _, tool := range tools {
-		byName[tool.Name] = tool
-	}
-
-	prescribeDef, err := execcontract.PrescribeFullToolDefinition()
-	if err != nil {
-		t.Fatalf("PrescribeFullToolDefinition: %v", err)
-	}
-	reportDef, err := execcontract.ReportToolDefinition()
-	if err != nil {
-		t.Fatalf("ReportToolDefinition: %v", err)
-	}
-
-	// Sanitize parent schemas the same way BenchTools does (adds "items" to arrays for OpenAI compat).
-	sanitizeArrayItems(prescribeDef.Parameters)
-	sanitizeArrayItems(reportDef.Parameters)
-
-	if got := byName["evidra_prescribe_full"]; !reflect.DeepEqual(got.Parameters, prescribeDef.Parameters) {
-		t.Fatalf("evidra_prescribe_full parameters drifted from parent contract")
-	}
-	if got := byName["evidra_report"]; !reflect.DeepEqual(got.Parameters, reportDef.Parameters) {
-		t.Fatalf("evidra_report parameters drifted from parent contract")
 	}
 }
 
@@ -222,8 +192,8 @@ func TestBuildToolPrompt(t *testing.T) {
 	if !strings.Contains(prompt, "run_command") {
 		t.Fatal("missing run_command in tool prompt")
 	}
-	if !strings.Contains(prompt, "evidra_prescribe") {
-		t.Fatal("missing evidra_prescribe in tool prompt")
+	if strings.Contains(prompt, "evidra_") {
+		t.Fatal("default provider prompt must not include evidra-specific tools")
 	}
 	if !strings.Contains(prompt, "```json") {
 		t.Fatal("missing JSON format instruction")

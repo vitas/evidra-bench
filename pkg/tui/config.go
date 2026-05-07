@@ -16,19 +16,14 @@ type LabConfig struct {
 	Provider            string `yaml:"provider,omitempty"`
 	AgentCommand        string `yaml:"agent_command"`
 	Model               string `yaml:"model,omitempty"`
-	EvidraBin           string `yaml:"evidra_bin,omitempty"`
 	RunsDir             string `yaml:"runs_dir,omitempty"`
 	Timeout             string `yaml:"timeout"`
 	DryRun              bool   `yaml:"dry_run"`
-	EvidraEvidenceDir   string `yaml:"evidra_evidence_dir,omitempty"`
-	ProxyMode           bool   `yaml:"proxy_mode,omitempty"`
-	SmartPrescribe      bool   `yaml:"smart_prescribe,omitempty"`
+	EvidenceDir         string `yaml:"evidence_dir,omitempty"`
 	EvidraURL           string `yaml:"evidra_url,omitempty"`
 	EvidraAPIKey        string `yaml:"evidra_api_key,omitempty"`
 	MemoryWindow        int    `yaml:"memory_window,omitempty"`
 	ReuseCluster        bool   `yaml:"reuse_cluster,omitempty"`
-	TraceBackend        string `yaml:"trace_backend,omitempty"`
-	EvidraLevel         string `yaml:"evidra_level,omitempty"`
 }
 
 // DefaultLabConfig returns sensible defaults.

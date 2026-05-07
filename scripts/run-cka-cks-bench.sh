@@ -83,7 +83,7 @@ for MODEL in "${MODELS[@]}"; do
       --scenario "$SCENARIO" \
       --model "$MODEL" \
       --provider bifrost \
-      --proxy-mode \
+      --mcp-server "evidra-mcp --signing-mode optional" \
       --reuse-cluster \
       --timeout 10m \
       --evidra-url "https://api.evidra.cc" \

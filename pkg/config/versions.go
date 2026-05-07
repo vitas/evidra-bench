@@ -1,12 +1,8 @@
 package config
 
 import (
-	"encoding/json"
 	"os"
-	"os/exec"
 	"strings"
-
-	promptdata "samebits.com/evidra/prompts"
 )
 
 // VersionInfo holds all version metadata for reproducible benchmarks.
@@ -17,14 +13,6 @@ type VersionInfo struct {
 	InfraBenchVersion string `json:"infra_bench_version"`
 	InfraBenchCommit  string `json:"infra_bench_commit,omitempty"`
 
-	// evidra binary
-	EvidraVersion string `json:"evidra_version,omitempty"`
-
-	// evidra signal/scoring specification
-	SpecVersion      string `json:"spec_version,omitempty"`
-	ScoringVersion   string `json:"scoring_version,omitempty"`
-	ScoringProfileID string `json:"scoring_profile_id,omitempty"`
-
 	// prompt/contract
 	ContractVersion string `json:"contract_version,omitempty"`
 	SkillVersion    string `json:"skill_version,omitempty"`
@@ -33,8 +21,8 @@ type VersionInfo struct {
 	Role            string `json:"role,omitempty"`
 }
 
-// CollectVersions gathers version information from the evidra binary,
-// the prompt file, and the infra-bench build.
+// CollectVersions gathers version information from the prompt file and the
+// infra-bench build.
 func CollectVersions(infraBenchVersion, infraBenchCommit string, cfg Config) VersionInfo {
 	vi := VersionInfo{
 		InfraBenchVersion: infraBenchVersion,
@@ -45,61 +33,18 @@ func CollectVersions(infraBenchVersion, infraBenchCommit string, cfg Config) Ver
 	}
 
 	if vi.ContractVersion != "" {
-		vi.SkillVersion = promptdata.ParseSkillVersionFromContractVersion(vi.ContractVersion)
-	}
-
-	evidraBin := cfg.ResolveEvidraBin()
-	if evidraBin != "" {
-		// Get evidra version
-		if out, err := exec.Command(evidraBin, "--version").CombinedOutput(); err == nil {
-			vi.EvidraVersion = strings.TrimSpace(string(out))
-		}
-		// Get spec/scoring versions from evidra scorecard --help or dry run
-		vi.SpecVersion, vi.ScoringVersion, vi.ScoringProfileID = probeEvidraVersions(evidraBin)
+		vi.SkillVersion = parseSkillVersionFromContractVersion(vi.ContractVersion)
 	}
 
 	if vi.PromptFile != "" {
-		if meta, err := promptdata.ResolvePromptMetadata(vi.PromptFile); err == nil {
-			vi.ContractVersion = meta.ContractVersion
-			vi.SkillVersion = meta.SkillVersion
-			vi.PromptVersion = meta.PromptVersion
-		} else if vi.ContractVersion == "" {
+		if vi.ContractVersion == "" {
 			vi.ContractVersion = extractContractVersion(vi.PromptFile)
-			vi.SkillVersion = promptdata.ParseSkillVersionFromContractVersion(vi.ContractVersion)
+			vi.SkillVersion = parseSkillVersionFromContractVersion(vi.ContractVersion)
 		}
+		vi.PromptVersion = extractPromptVersion(vi.PromptFile)
 	}
 
 	return vi
-}
-
-// probeEvidraVersions runs a minimal evidra scorecard to extract spec/scoring metadata.
-func probeEvidraVersions(evidraBin string) (specVersion, scoringVersion, profileID string) {
-	// Create a temp dir with empty evidence to get a scorecard with version fields
-	tmpDir, err := os.MkdirTemp("", "evidra-version-probe")
-	if err != nil {
-		return
-	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
-	if err := os.MkdirAll(tmpDir+"/segments", 0755); err != nil {
-		return
-	}
-
-	out, err := exec.Command(evidraBin, "scorecard", "--evidence-dir", tmpDir, "--ttl", "1s").CombinedOutput()
-	if err != nil {
-		return
-	}
-
-	var sc struct {
-		SpecVersion      string `json:"spec_version"`
-		ScoringVersion   string `json:"scoring_version"`
-		ScoringProfileID string `json:"scoring_profile_id"`
-	}
-	if json.Unmarshal(out, &sc) == nil {
-		specVersion = sc.SpecVersion
-		scoringVersion = sc.ScoringVersion
-		profileID = sc.ScoringProfileID
-	}
-	return
 }
 
 // ToMetadata converts VersionInfo to a flat string map for run metadata.
@@ -110,18 +55,6 @@ func (v VersionInfo) ToMetadata() map[string]string {
 	}
 	if v.InfraBenchCommit != "" {
 		m["infra_bench_commit"] = v.InfraBenchCommit
-	}
-	if v.EvidraVersion != "" {
-		m["evidra_version"] = v.EvidraVersion
-	}
-	if v.SpecVersion != "" {
-		m["spec_version"] = v.SpecVersion
-	}
-	if v.ScoringVersion != "" {
-		m["scoring_version"] = v.ScoringVersion
-	}
-	if v.ScoringProfileID != "" {
-		m["scoring_profile_id"] = v.ScoringProfileID
 	}
 	if v.ContractVersion != "" {
 		m["contract_version"] = v.ContractVersion
@@ -141,6 +74,18 @@ func (v VersionInfo) ToMetadata() map[string]string {
 	return m
 }
 
+func parseSkillVersionFromContractVersion(contractVersion string) string {
+	v := strings.TrimPrefix(strings.TrimSpace(contractVersion), "v")
+	if v == "" {
+		return ""
+	}
+	parts := strings.Split(v, ".")
+	if len(parts) < 2 {
+		return v
+	}
+	return parts[0] + "." + parts[1]
+}
+
 // extractContractVersion reads the <!-- contract: vX.Y.Z --> header from a prompt file.
 func extractContractVersion(path string) string {
 	data, err := readFileHead(path, 512)
@@ -156,6 +101,26 @@ func extractContractVersion(path string) string {
 		}
 		if strings.HasPrefix(line, "# contract:") {
 			return strings.TrimSpace(strings.TrimPrefix(line, "# contract:"))
+		}
+	}
+	return ""
+}
+
+// extractPromptVersion reads an optional prompt version header from a prompt file.
+func extractPromptVersion(path string) string {
+	data, err := readFileHead(path, 512)
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "<!-- prompt:") {
+			v := strings.TrimPrefix(line, "<!-- prompt:")
+			v = strings.TrimSuffix(v, "-->")
+			return strings.TrimSpace(v)
+		}
+		if strings.HasPrefix(line, "# prompt:") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "# prompt:"))
 		}
 	}
 	return ""

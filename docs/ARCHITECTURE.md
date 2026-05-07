@@ -28,7 +28,7 @@ The bench service participates in one of two control-plane modes:
 
 - direct executor mode: the bench service accepts `POST /v1/bench/trigger` and invokes an
   executor implementation that runs scenarios immediately; trigger requests
-  only accept the coarse `none|smart` evidence modes
+  only accept the coarse `none|mcp` evidence modes
 - poll-based runner mode: the bench service persists the job, a registered runner claims
   it through `GET /v1/runners/jobs`, and the runner completes it through
   `POST /v1/runners/jobs/{id}/complete`; claimed jobs include `evidence_mode`

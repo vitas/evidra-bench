@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import { generateScenario, type PuzzleMetadata } from "./yaml-generator";
 import { MODELS } from "../../data/models";
-import { buildRunCommand, EVIDENCE_MODES } from "../../lib/commandBuilder.mts";
+import { buildRunCommand, EVIDENCE_MODES, type EvidenceModeId } from "../../lib/commandBuilder.mts";
 
 interface RunButtonProps {
   metadata: PuzzleMetadata;
@@ -13,7 +13,7 @@ interface RunButtonProps {
 export function RunButton({ metadata, nodes, edges }: RunButtonProps) {
   const [open, setOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
-  const [mode, setMode] = useState<"proxy" | "smart">("proxy");
+  const [mode, setMode] = useState<EvidenceModeId>("baseline");
   const [result, setResult] = useState<{ command: string } | null>(null);
 
   const handleRun = useCallback(() => {
@@ -23,7 +23,7 @@ export function RunButton({ metadata, nodes, edges }: RunButtonProps) {
     const command = buildRunCommand({
       scenario: `./${metadata.name || "my-puzzle"}`,
       model: selectedModel,
-      evidenceMode: mode === "smart" ? "evidra-mcp" : "baseline",
+      evidenceMode: mode,
     });
 
     setResult({ command });
@@ -96,12 +96,11 @@ export function RunButton({ metadata, nodes, edges }: RunButtonProps) {
                 <div className="flex gap-2">
                   {EVIDENCE_MODES.map((evidenceMode) => {
                     const isSelected =
-                      (mode === "proxy" && evidenceMode.id === "baseline") ||
-                      (mode === "smart" && evidenceMode.id === "evidra-mcp");
+                      mode === evidenceMode.id;
                     return (
                       <button
                         key={evidenceMode.id}
-                        onClick={() => setMode(evidenceMode.id === "baseline" ? "proxy" : "smart")}
+                        onClick={() => setMode(evidenceMode.id)}
                         className={`flex-1 px-3 py-1.5 rounded-md border text-[0.78rem] font-medium transition-all ${
                           isSelected
                             ? "border-accent bg-accent/10 text-fg"

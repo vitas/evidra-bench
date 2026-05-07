@@ -18,7 +18,7 @@ func TestTriggerStore_CreateAndGet(t *testing.T) {
 		Status:       "pending",
 		Model:        "sonnet-4",
 		Provider:     "anthropic",
-		EvidenceMode: "smart",
+		EvidenceMode: "mcp",
 		Total:        2,
 		CreatedAt:    time.Now(),
 		Progress: []ScenarioProgress{
@@ -36,8 +36,8 @@ func TestTriggerStore_CreateAndGet(t *testing.T) {
 	if got.Model != "sonnet-4" {
 		t.Errorf("model = %q, want %q", got.Model, "sonnet-4")
 	}
-	if got.EvidenceMode != "smart" {
-		t.Errorf("evidence_mode = %q, want smart", got.EvidenceMode)
+	if got.EvidenceMode != "mcp" {
+		t.Errorf("evidence_mode = %q, want mcp", got.EvidenceMode)
 	}
 	if got.Total != 2 {
 		t.Errorf("total = %d, want 2", got.Total)
@@ -138,7 +138,7 @@ func TestRemoteExecutor_StartSendsEvidenceMode(t *testing.T) {
 		Status:       "pending",
 		Model:        "sonnet",
 		Provider:     "bifrost",
-		EvidenceMode: "smart",
+		EvidenceMode: "mcp",
 		Total:        1,
 		Progress: []ScenarioProgress{
 			{Scenario: "s1", Status: "pending"},
@@ -154,8 +154,8 @@ func TestRemoteExecutor_StartSendsEvidenceMode(t *testing.T) {
 	if !ok {
 		t.Fatalf("config missing or wrong type: %#v", payload["config"])
 	}
-	if got := cfg["evidence_mode"]; got != "smart" {
-		t.Fatalf("evidence_mode = %v, want smart", got)
+	if got := cfg["evidence_mode"]; got != "mcp" {
+		t.Fatalf("evidence_mode = %v, want mcp", got)
 	}
 }
 
@@ -177,7 +177,7 @@ func TestRemoteExecutor_StartSendsA2AAdapterForA2AExecutionMode(t *testing.T) {
 		Status:        "pending",
 		Model:         "sonnet",
 		Provider:      "bifrost",
-		EvidenceMode:  "smart",
+		EvidenceMode:  "mcp",
 		ExecutionMode: "a2a",
 		Total:         1,
 		Progress: []ScenarioProgress{
@@ -217,7 +217,7 @@ func TestRemoteExecutor_StartOmitsAdapterForProviderExecutionMode(t *testing.T) 
 		Status:        "pending",
 		Model:         "sonnet",
 		Provider:      "bifrost",
-		EvidenceMode:  "smart",
+		EvidenceMode:  "mcp",
 		ExecutionMode: "provider",
 		Total:         1,
 		Progress: []ScenarioProgress{

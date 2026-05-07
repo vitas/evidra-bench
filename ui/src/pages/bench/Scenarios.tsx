@@ -167,7 +167,7 @@ export function Scenarios() {
   const submitRun = useCallback(async () => {
     if (!runModal) return;
     const selection = normalizeRunSelection(runProvider, runModel);
-    const evidenceMode = mode === "evidra" ? "smart" : "none";
+    const evidenceMode = mode === "mcp" ? "mcp" : "none";
     cancelPolling();
     setRunSubmitting(true);
     setRunError(null);

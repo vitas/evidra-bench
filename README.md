@@ -29,7 +29,7 @@ bench-cli run --scenario kubernetes/crashloop-backoff --provider bifrost --model
 
 **Use cases:**
 - **Skill developers:** "Does my skill help on L3, or only on L1?"
-- **MCP server builders:** "Does smart output reduce tokens without hurting pass rate?"
+- **MCP server builders:** "Does my tool server improve outcomes without increasing cost?"
 - **Agent vendors:** "How does my agent compare to GPT-4o on CKS security?"
 - **Platform teams:** "Can this agent handle production incidents before we deploy it?"
 
@@ -74,11 +74,11 @@ Output:
 |---|---|---|
 | **Baseline** | `bench-cli run --scenario ...` | Raw model ability (direct exec) |
 | **Via A2A** | `bench-cli run --scenario ... --adapter a2a --a2a-agent-url http://agent:8080` | Remote A2A agent execution with local bootstrap and verification |
-| **Via evidra** | `--evidra full` | Agent through evidra (full prescribe/report/risk protocol) |
-| **Via third-party** | `--mcp-server "npx -y @anthropic/mcp-server-kubernetes"` | Agent through any MCP server |
+| **Via MCP server** | `--mcp-server "npx -y @anthropic/mcp-server-kubernetes"` | Agent through any MCP server |
+| **Via evidra-mcp** | `--mcp-server "evidra-mcp --signing-mode optional"` | evidra-mcp tested as a regular MCP server |
 | **With role skill** | `--role k8s-admin` | Agent behavior with skill prompt (optional) |
 
-Baseline is mandatory for every scenario. MCP server mode tests the real product experience.
+Baseline is mandatory for every scenario. MCP server mode swaps only the tool backend.
 
 ## Provider Setup
 

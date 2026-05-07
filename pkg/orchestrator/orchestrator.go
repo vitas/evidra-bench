@@ -220,7 +220,7 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 		workerCfg.Scenario = args.ScenarioID
 		workerCfg.ScenariosDir = ws.ScenariosDir
 		workerCfg.RunsDir = ws.RunsDir
-		workerCfg.EvidraEvidenceDir = ws.EvidenceDir
+		workerCfg.EvidenceDir = ws.EvidenceDir
 		workerCfg.Model = args.Model
 
 		// Report scenario started.

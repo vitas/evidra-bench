@@ -124,7 +124,7 @@ func TestPgStore_EnqueueAndClaimJob_PreservesEvidenceMode(t *testing.T) {
 
 	_, err := store.EnqueueJob(context.Background(), tenantID, "deepseek-chat", "bifrost", JobConfig{
 		Scenarios:    []string{"broken-deployment"},
-		EvidenceMode: "smart",
+		EvidenceMode: "mcp",
 	})
 	if err != nil {
 		t.Fatalf("EnqueueJob: %v", err)
@@ -142,8 +142,8 @@ func TestPgStore_EnqueueAndClaimJob_PreservesEvidenceMode(t *testing.T) {
 	if err := json.Unmarshal(claimed.ConfigJSON, &cfg); err != nil {
 		t.Fatalf("unmarshal config_json: %v", err)
 	}
-	if cfg.EvidenceMode != "smart" {
-		t.Fatalf("evidence_mode = %q, want smart", cfg.EvidenceMode)
+	if cfg.EvidenceMode != "mcp" {
+		t.Fatalf("evidence_mode = %q, want mcp", cfg.EvidenceMode)
 	}
 }
 

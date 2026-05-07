@@ -161,7 +161,7 @@ func TestServiceLeaderboard_UsesPublicTenant(t *testing.T) {
 
 	// When PublicTenant is empty, Leaderboard must return ErrPublicTenantUnavailable.
 	svc := NewService(&fakeRepo{}, ServiceConfig{})
-	_, err := svc.Leaderboard(context.Background(), "proxy", 3)
+	_, err := svc.Leaderboard(context.Background(), "mcp", 3)
 	if !errors.Is(err, ErrPublicTenantUnavailable) {
 		t.Fatalf("Leaderboard err = %v, want ErrPublicTenantUnavailable", err)
 	}
@@ -170,7 +170,7 @@ func TestServiceLeaderboard_UsesPublicTenant(t *testing.T) {
 	// with the configured public tenant.
 	repo := &fakeRepo{}
 	svc2 := NewService(repo, ServiceConfig{PublicTenant: "bench-public"})
-	_, _ = svc2.Leaderboard(context.Background(), "proxy", 3)
+	_, _ = svc2.Leaderboard(context.Background(), "mcp", 3)
 	if repo.leaderboardTenant != "bench-public" {
 		t.Fatalf("leaderboardTenant = %q, want bench-public", repo.leaderboardTenant)
 	}

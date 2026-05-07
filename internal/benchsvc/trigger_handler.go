@@ -100,7 +100,7 @@ func decodeTriggerRequest(w http.ResponseWriter, r *http.Request) (TriggerReques
 		return TriggerRequest{}, false
 	}
 	if !isSupportedTriggerEvidenceMode(req.EvidenceMode) {
-		apiutil.WriteError(w, http.StatusBadRequest, "evidence_mode must be none or smart")
+		apiutil.WriteError(w, http.StatusBadRequest, "evidence_mode must be none or mcp")
 		return TriggerRequest{}, false
 	}
 	var ok bool
@@ -113,7 +113,7 @@ func decodeTriggerRequest(w http.ResponseWriter, r *http.Request) (TriggerReques
 }
 
 func isSupportedTriggerEvidenceMode(mode string) bool {
-	return mode == "none" || mode == "smart"
+	return mode == "none" || mode == "mcp"
 }
 
 func normalizeTriggerExecutionMode(mode string) (string, bool) {

@@ -14,22 +14,20 @@ func makeToolCall(tool string, args map[string]string, result string) ToolCall {
 	}
 }
 
-func TestParse_SmartPrescribeFlow(t *testing.T) {
+func TestParse_CommandFlow(t *testing.T) {
 	t.Parallel()
 
 	calls := []ToolCall{
 		makeToolCall("run_command", map[string]string{"command": "kubectl get pods -n bench"}, "NAME  READY  STATUS\nweb   0/1    ErrImagePull"),
 		makeToolCall("run_command", map[string]string{"command": "kubectl describe pod web-abc -n bench"}, "Events: Failed to pull image"),
-		makeToolCall("evidra_prescribe_smart", map[string]string{"operation": "patch", "tool": "kubectl"}, `{"ok":true,"prescription_id":"abc123"}`),
 		makeToolCall("run_command", map[string]string{"command": "kubectl patch deployment/web -n bench --type=json -p=[...]"}, "deployment.apps/web patched"),
-		makeToolCall("evidra_report", map[string]string{"prescription_id": "abc123", "verdict": "success"}, `{"ok":true}`),
 		makeToolCall("run_command", map[string]string{"command": "kubectl rollout status deployment/web -n bench --timeout=60s"}, "deployment \"web\" successfully rolled out"),
 	}
 
 	tl := Parse(calls)
 
-	if tl.TotalSteps != 6 {
-		t.Fatalf("expected 6 steps, got %d", tl.TotalSteps)
+	if tl.TotalSteps != 4 {
+		t.Fatalf("expected 4 steps, got %d", tl.TotalSteps)
 	}
 
 	expected := []struct {
@@ -38,9 +36,7 @@ func TestParse_SmartPrescribeFlow(t *testing.T) {
 	}{
 		{PhaseDiscover, "run_command"},
 		{PhaseDiagnose, "run_command"},
-		{PhaseDecide, "evidra_prescribe_smart"},
 		{PhaseAct, "run_command"},
-		{PhaseAct, "evidra_report"},
 		{PhaseVerify, "run_command"},
 	}
 
@@ -66,18 +62,18 @@ func TestParse_SmartPrescribeFlow(t *testing.T) {
 	if tl.Steps[0].Resource != "pods" {
 		t.Errorf("step 0: resource = %q, want %q", tl.Steps[0].Resource, "pods")
 	}
-	if tl.Steps[3].Resource != "deployment/web" {
-		t.Errorf("step 3: resource = %q, want %q", tl.Steps[3].Resource, "deployment/web")
+	if tl.Steps[2].Resource != "deployment/web" {
+		t.Errorf("step 2: resource = %q, want %q", tl.Steps[2].Resource, "deployment/web")
 	}
 	if tl.Steps[0].Summary != "Listed pods in bench" {
 		t.Errorf("step 0: summary = %q, want %q", tl.Steps[0].Summary, "Listed pods in bench")
 	}
-	if tl.Steps[3].Summary != "Patched deployment/web in bench" {
-		t.Errorf("step 3: summary = %q, want %q", tl.Steps[3].Summary, "Patched deployment/web in bench")
+	if tl.Steps[2].Summary != "Patched deployment/web in bench" {
+		t.Errorf("step 2: summary = %q, want %q", tl.Steps[2].Summary, "Patched deployment/web in bench")
 	}
 }
 
-func TestParse_ProxyNoEvidra(t *testing.T) {
+func TestParse_NoDecidePhaseForPlainCommands(t *testing.T) {
 	t.Parallel()
 
 	calls := []ToolCall{
@@ -103,7 +99,7 @@ func TestParse_ProxyNoEvidra(t *testing.T) {
 	if tl.MutationCount != 1 {
 		t.Errorf("mutation_count = %d, want 1", tl.MutationCount)
 	}
-	// No decide phase without evidra tools.
+	// No decide phase without an explicit decide signal.
 	if count := tl.PhaseCount[PhaseDecide]; count != 0 {
 		t.Errorf("decide phase count = %d, want 0", count)
 	}

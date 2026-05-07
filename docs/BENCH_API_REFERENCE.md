@@ -39,7 +39,7 @@ Bench list and analytics endpoints accept the public evidence-mode aliases:
 | any other value | exact match against stored `evidence_mode` |
 
 The trigger contract is narrower: `POST /v1/bench/trigger` accepts only
-`none` or `smart`.
+`none` or `mcp`.
 
 ## Public Endpoints
 
@@ -119,7 +119,7 @@ artifact fields:
   "model": "sonnet",
   "provider": "anthropic",
   "adapter": "a2a",
-  "evidence_mode": "smart",
+  "evidence_mode": "mcp",
   "passed": true,
   "duration_seconds": 35.2,
   "exit_code": 0,
@@ -277,7 +277,7 @@ Starts a benchmark run. Requires `model`, `scenarios`, and `evidence_mode`.
   "model": "sonnet",
   "provider": "anthropic",
   "execution_mode": "provider",
-  "evidence_mode": "smart",
+  "evidence_mode": "mcp",
   "runner_id": "01K...",
   "scenarios": ["broken-deployment"]
 }
@@ -308,7 +308,7 @@ Returns the in-memory trigger snapshot. Supports SSE when
   "status": "running",
   "model": "sonnet",
   "provider": "anthropic",
-  "evidence_mode": "smart",
+  "evidence_mode": "mcp",
   "execution_mode": "provider",
   "completed": 1,
   "passed": 1,
@@ -382,7 +382,7 @@ Response when a job is available:
   "job_id": "01K...",
   "model": "sonnet",
   "provider": "anthropic",
-  "evidence_mode": "smart",
+  "evidence_mode": "mcp",
   "execution_mode": "provider",
   "scenarios": ["broken-deployment"],
   "timeout": 300

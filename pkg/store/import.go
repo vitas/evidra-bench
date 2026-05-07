@@ -56,13 +56,13 @@ func (s *Store) ImportFromArtifacts(runsDir string) (int, error) {
 
 		// Determine evidence mode from metadata.
 		// - Explicit evidence_mode in metadata takes priority
-		// - skill_version present → direct (agent used the skill)
+		// - skill_version present → mcp (older artifacts used protocol skills)
 		// - Otherwise → none (baseline run, no evidence recording)
 		evidenceMode := "none"
 		if rj.Metadata["evidence_mode"] != "" {
 			evidenceMode = rj.Metadata["evidence_mode"]
 		} else if rj.Metadata["skill_version"] != "" {
-			evidenceMode = "smart"
+			evidenceMode = "mcp"
 		}
 
 		rec := RunRecord{

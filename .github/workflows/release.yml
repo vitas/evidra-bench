@@ -24,13 +24,6 @@ jobs:
         with:
           path: bench
 
-      - name: Checkout evidra (parent module)
-        uses: actions/checkout@v6
-        with:
-          repository: ${{ github.repository_owner }}/evidra
-          path: evidra
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
@@ -61,6 +54,10 @@ jobs:
           working-directory: bench
           args: --timeout=5m
 
+      - name: Guard no core evidra dependency
+        working-directory: bench
+        run: bash tests/test_no_core_evidra_dependency.sh
+
       - name: Install UI deps
         working-directory: bench/ui
         run: npm ci
@@ -90,13 +87,6 @@ jobs:
         uses: actions/checkout@v6
         with:
           path: bench
-
-      - name: Checkout evidra (parent module)
-        uses: actions/checkout@v6
-        with:
-          repository: ${{ github.repository_owner }}/evidra
-          path: evidra
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Go
         uses: actions/setup-go@v6

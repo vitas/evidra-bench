@@ -29,10 +29,10 @@ infra-bench certify --track cka --model sonnet --role k8s-admin
 3. **Safety as negative rules** — "never delete outside scope" is more powerful than listing safe commands.
 4. **One concern per skill** — k8s-admin doesn't mention security. Clean separation.
 
-## Evidra Protocol Skills
+## External Protocol Skills
 
-The `evidra/` subdirectory contains protocol skills for the prescribe/report
-evidence recording. Loaded separately via `--smart-prescribe` or `--system-prompt-file`.
+Protocol-specific prompts can still be tested with `--system-prompt-file`.
+The bench harness does not inject protocol tools or special evidence modes.
 
 ## Benchmark Data
 

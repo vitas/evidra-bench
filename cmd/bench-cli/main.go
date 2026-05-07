@@ -28,10 +28,10 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/orchestrator"
 	"samebits.com/evidra-infra-bench/pkg/report"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"samebits.com/evidra-infra-bench/pkg/signalaudit"
 	"samebits.com/evidra-infra-bench/pkg/skilldelta"
 	"samebits.com/evidra-infra-bench/pkg/store"
 	"samebits.com/evidra-infra-bench/pkg/tui"
-	"samebits.com/evidra/pkg/signalaudit"
 )
 
 var (
@@ -76,12 +76,6 @@ with optional Evidra reporting for behavioral analysis.`,
 		Use:   "run",
 		Short: "Run a benchmark scenario against an agent",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := cfg.ValidateEvidraFlags(); err != nil {
-				return err
-			}
-			if err := cfg.ResolveEvidraFlags(); err != nil {
-				return err
-			}
 			if err := cfg.Validate(); err != nil {
 				return err
 			}
@@ -130,19 +124,14 @@ with optional Evidra reporting for behavioral analysis.`,
 	f.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "validate scenario without executing")
 	f.StringVar(&cfg.EvidraURL, "evidra-url", cfg.EvidraURL, "Evidra API URL for online reporting")
 	f.StringVar(&cfg.EvidraAPIKey, "evidra-api-key", cfg.EvidraAPIKey, "Evidra API key")
-	f.StringVar(&cfg.EvidraEvidenceDir, "evidra-evidence-dir", cfg.EvidraEvidenceDir, "evidence directory for protocol verification")
+	f.StringVar(&cfg.EvidenceDir, "evidence-dir", cfg.EvidenceDir, "evidence directory for verifier input")
 	f.StringVar(&cfg.Model, "model", cfg.Model, "model for agent (e.g. sonnet, opus, haiku)")
 	f.StringVar(&cfg.Provider, "provider", cfg.Provider, "LLM provider for tool-use agent loop (bifrost, claude)")
-	f.StringVar(&cfg.EvidraBin, "evidra-bin", cfg.EvidraBin, "path to evidra binary for protocol tools")
 	f.IntVar(&cfg.MemoryWindow, "memory-window", -1, "agent memory window (-1=full, 0=stateless, N=last N exchanges)")
 	f.StringVar(&cfg.SystemPromptFile, "system-prompt-file", cfg.SystemPromptFile, "system prompt file path (overrides default; env: INFRA_BENCH_SYSTEM_PROMPT)")
 	f.StringVar(&cfg.Role, "role", cfg.Role, "role-based skill (k8s-admin, security-ops, release-manager, platform-eng)")
 	f.StringVar(&cfg.MCPServer, "mcp-server", cfg.MCPServer, "MCP server command for tool execution (e.g. 'evidra-mcp --signing-mode optional')")
-	f.StringVar(&cfg.ContractVersion, "contract-version", cfg.ContractVersion, "evidra contract version label for tracking")
-	f.BoolVar(&cfg.ProxyMode, "proxy-mode", false, "auto-record evidence for mutations (no agent prescribe/report needed)")
-	f.BoolVar(&cfg.SmartPrescribe, "smart-prescribe", false, "simplified prescribe (tool+operation, 80% fewer tokens)")
-	f.StringVar(&cfg.TraceBackend, "trace", "", "passive mutation recording backend: evidra, none")
-	f.StringVar(&cfg.EvidraLevel, "evidra", "", "evidra protocol level: smart, full")
+	f.StringVar(&cfg.ContractVersion, "contract-version", cfg.ContractVersion, "contract version label for tracking")
 	f.IntVar(&cfg.Parallel, "parallel", 1, "number of parallel workers (1 = sequential)")
 	f.StringVar(&cfg.DatabaseURL, "database-url", "", "PostgreSQL URL for job queue (env: BENCH_DATABASE_URL)")
 
@@ -330,12 +319,6 @@ with optional Evidra reporting for behavioral analysis.`,
 		Use:   "run",
 		Short: "Run paired without-skill and with-skill benchmark cases",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := skillDeltaCfg.ValidateEvidraFlags(); err != nil {
-				return err
-			}
-			if err := skillDeltaCfg.ResolveEvidraFlags(); err != nil {
-				return err
-			}
 			return executeSkillDeltaRun(cmd, skillDeltaCfg, skillDeltaScenarios, skillDeltaModels, skillDeltaRepeats, skillDeltaNoSkillPrompt, skillDeltaWithSkillPrompt, skillDeltaOutDir)
 		},
 	}
@@ -358,13 +341,10 @@ with optional Evidra reporting for behavioral analysis.`,
 	sdrf.BoolVar(&skillDeltaCfg.DryRun, "dry-run", skillDeltaCfg.DryRun, "validate workflow without executing the agent")
 	sdrf.StringVar(&skillDeltaCfg.EvidraURL, "evidra-url", skillDeltaCfg.EvidraURL, "Evidra API URL for online reporting")
 	sdrf.StringVar(&skillDeltaCfg.EvidraAPIKey, "evidra-api-key", skillDeltaCfg.EvidraAPIKey, "Evidra API key")
-	sdrf.StringVar(&skillDeltaCfg.EvidraEvidenceDir, "evidra-evidence-dir", skillDeltaCfg.EvidraEvidenceDir, "base evidence directory for protocol verification")
+	sdrf.StringVar(&skillDeltaCfg.EvidenceDir, "evidence-dir", skillDeltaCfg.EvidenceDir, "base evidence directory for verifier input")
 	sdrf.StringVar(&skillDeltaCfg.Provider, "provider", skillDeltaCfg.Provider, "LLM provider for tool-use agent loop (bifrost, claude)")
-	sdrf.StringVar(&skillDeltaCfg.EvidraBin, "evidra-bin", skillDeltaCfg.EvidraBin, "path to evidra binary for protocol tools")
 	sdrf.IntVar(&skillDeltaCfg.MemoryWindow, "memory-window", -1, "agent memory window (-1=full, 0=stateless, N=last N exchanges)")
-	sdrf.StringVar(&skillDeltaCfg.ContractVersion, "contract-version", skillDeltaCfg.ContractVersion, "evidra contract version label for tracking")
-	sdrf.StringVar(&skillDeltaCfg.TraceBackend, "trace", "", "passive mutation recording backend: evidra, none")
-	sdrf.StringVar(&skillDeltaCfg.EvidraLevel, "evidra", "", "evidra protocol level: smart, full")
+	sdrf.StringVar(&skillDeltaCfg.ContractVersion, "contract-version", skillDeltaCfg.ContractVersion, "contract version label for tracking")
 
 	skillDeltaAggregateCmd := &cobra.Command{
 		Use:   "aggregate",
@@ -394,12 +374,6 @@ with optional Evidra reporting for behavioral analysis.`,
 		Use:   "certify",
 		Short: "Run all scenarios in a track and produce a certification grade",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := certifyCfg.ValidateEvidraFlags(); err != nil {
-				return err
-			}
-			if err := certifyCfg.ResolveEvidraFlags(); err != nil {
-				return err
-			}
 			return executeCertify(cmd, certifyCfg, certifyTrack, certifyModel)
 		},
 	}
@@ -417,14 +391,9 @@ with optional Evidra reporting for behavioral analysis.`,
 	cf.BoolVar(&certifyCfg.ReuseCluster, "reuse-cluster", certifyCfg.ReuseCluster, "reuse kind cluster")
 	cf.StringVar(&certifyCfg.ClusterName, "cluster-name", certifyCfg.ClusterName, "kind cluster name")
 	cf.BoolVar(&certifyCfg.DryRun, "dry-run", certifyCfg.DryRun, "validate without running")
-	cf.BoolVar(&certifyCfg.ProxyMode, "proxy-mode", false, "auto-record evidence for mutations")
-	cf.BoolVar(&certifyCfg.SmartPrescribe, "smart-prescribe", false, "simplified prescribe (tool+operation+resource, v1.1.0)")
-	cf.StringVar(&certifyCfg.TraceBackend, "trace", "", "passive mutation recording backend: evidra, none")
-	cf.StringVar(&certifyCfg.EvidraLevel, "evidra", "", "evidra protocol level: smart, full")
 	cf.IntVar(&certifyCfg.MemoryWindow, "memory-window", -1, "memory window")
 	cf.StringVar(&certifyCfg.EvidraURL, "evidra-url", certifyCfg.EvidraURL, "Evidra API URL for reporting results")
 	cf.StringVar(&certifyCfg.EvidraAPIKey, "evidra-api-key", certifyCfg.EvidraAPIKey, "Evidra API key")
-	cf.StringVar(&certifyCfg.EvidraBin, "evidra-bin", certifyCfg.EvidraBin, "evidra binary path")
 	cf.StringVar(&certifyCfg.SystemPromptFile, "system-prompt-file", certifyCfg.SystemPromptFile, "system prompt file")
 	cf.StringVar(&certifyCfg.Role, "role", certifyCfg.Role, "role-based skill (k8s-admin, security-ops, release-manager, platform-eng)")
 	cf.StringVar(&certifyCfg.ContractVersion, "contract-version", certifyCfg.ContractVersion, "contract version")
@@ -440,12 +409,6 @@ with optional Evidra reporting for behavioral analysis.`,
 		Use:   "bench",
 		Short: "Run all scenarios (or filtered set) with aggregated results",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := benchCfg.ValidateEvidraFlags(); err != nil {
-				return err
-			}
-			if err := benchCfg.ResolveEvidraFlags(); err != nil {
-				return err
-			}
 			return executeBench(cmd, benchCfg, benchScenarios, benchModels, benchRepeats)
 		},
 	}
@@ -459,14 +422,9 @@ with optional Evidra reporting for behavioral analysis.`,
 	bf.StringVar(&benchCfg.Adapter, "adapter", benchCfg.Adapter, "agent adapter type (cli, mcp, a2a)")
 	bf.StringVar(&benchCfg.A2AAgentURL, "a2a-agent-url", benchCfg.A2AAgentURL, "A2A agent URL (env: INFRA_BENCH_A2A_AGENT_URL)")
 	bf.StringVar(&benchCfg.Provider, "provider", benchCfg.Provider, "LLM provider")
-	bf.StringVar(&benchCfg.EvidraBin, "evidra-bin", benchCfg.EvidraBin, "evidra binary path")
 	bf.StringVar(&benchCfg.SystemPromptFile, "system-prompt-file", benchCfg.SystemPromptFile, "system prompt file")
 	bf.StringVar(&benchCfg.Role, "role", benchCfg.Role, "role-based skill (k8s-admin, security-ops, release-manager, platform-eng)")
 	bf.StringVar(&benchCfg.ContractVersion, "contract-version", benchCfg.ContractVersion, "contract version")
-	bf.BoolVar(&benchCfg.ProxyMode, "proxy-mode", false, "auto-record evidence for mutations")
-	bf.BoolVar(&benchCfg.SmartPrescribe, "smart-prescribe", false, "simplified prescribe (tool+operation+resource, v1.1.0)")
-	bf.StringVar(&benchCfg.TraceBackend, "trace", "", "passive mutation recording backend: evidra, none")
-	bf.StringVar(&benchCfg.EvidraLevel, "evidra", "", "evidra protocol level: smart, full")
 	bf.DurationVar(&benchCfg.Timeout, "timeout", benchCfg.Timeout, "per-scenario timeout")
 	bf.BoolVar(&benchCfg.ReuseCluster, "reuse-cluster", benchCfg.ReuseCluster, "reuse kind cluster")
 	bf.StringVar(&benchCfg.ClusterName, "cluster-name", benchCfg.ClusterName, "kind cluster name")
@@ -502,12 +460,6 @@ with optional Evidra reporting for behavioral analysis.`,
 			if v := os.Getenv("INFRA_BENCH_MCP_SERVER"); v != "" {
 				cfg.MCPServer = v
 			}
-			if v := os.Getenv("INFRA_BENCH_TRACE"); v != "" {
-				cfg.TraceBackend = v
-			}
-			if v := os.Getenv("INFRA_BENCH_EVIDRA"); v != "" {
-				cfg.EvidraLevel = v
-			}
 			if v := os.Getenv("INFRA_BENCH_CLUSTER_NAME"); v != "" {
 				cfg.ClusterName = v
 			}
@@ -521,12 +473,6 @@ with optional Evidra reporting for behavioral analysis.`,
 				if n, err := strconv.Atoi(v); err == nil && n > 0 {
 					cfg.Parallel = n
 				}
-			}
-			if err := cfg.ValidateEvidraFlags(); err != nil {
-				return err
-			}
-			if err := cfg.ResolveEvidraFlags(); err != nil {
-				return err
 			}
 			return serveAPI(cfg, addr, opts)
 		},
@@ -571,12 +517,6 @@ func applyLabFlagOverrides(labCfg *tui.LabConfig, cfg config.Config, flags *pfla
 	}
 	if flags.Changed("runs-dir") || labCfg.RunsDir == "" {
 		labCfg.RunsDir = cfg.RunsDir
-	}
-	if flags.Changed("proxy-mode") {
-		labCfg.ProxyMode = cfg.ProxyMode
-	}
-	if flags.Changed("smart-prescribe") {
-		labCfg.SmartPrescribe = cfg.SmartPrescribe
 	}
 	if flags.Changed("evidra-url") {
 		labCfg.EvidraURL = cfg.EvidraURL
@@ -1024,7 +964,7 @@ func executeSkillDeltaRun(cmd *cobra.Command, cfg config.Config, scenarios []str
 					withoutCfg.Model = model
 					withoutCfg.SystemPromptFile = noSkillPrompt
 					withoutCfg.RunsDir = paths.WithoutSkillRunsDir
-					withoutCfg.EvidraEvidenceDir = filepath.Join(paths.WithoutSkillRunsDir, "evidence")
+					withoutCfg.EvidenceDir = filepath.Join(paths.WithoutSkillRunsDir, "evidence")
 
 					withoutResult, err := runScenarioOnce(cmd.Context(), withoutCfg, s)
 					if err != nil {
@@ -1036,7 +976,7 @@ func executeSkillDeltaRun(cmd *cobra.Command, cfg config.Config, scenarios []str
 					withCfg.Model = model
 					withCfg.SystemPromptFile = withSkillPrompt
 					withCfg.RunsDir = paths.WithSkillRunsDir
-					withCfg.EvidraEvidenceDir = filepath.Join(paths.WithSkillRunsDir, "evidence")
+					withCfg.EvidenceDir = filepath.Join(paths.WithSkillRunsDir, "evidence")
 
 					withResult, err := runScenarioOnce(cmd.Context(), withCfg, s)
 					if err != nil {
@@ -1343,7 +1283,7 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 				runCfg.Scenario = s.Path
 				runCfg.Model = model
 				runCfg.RunsDir = runDir
-				runCfg.EvidraEvidenceDir = evidenceDir
+				runCfg.EvidenceDir = evidenceDir
 
 				label := fmt.Sprintf("[%d/%d] %s model=%s repeat=%d", total, len(runnable)*len(models)*repeats, s.ID, model, rep)
 				writef(cmd.OutOrStdout(), "%s ...\n", label)

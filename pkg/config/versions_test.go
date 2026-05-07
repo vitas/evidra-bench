@@ -1,27 +1,31 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
-
-	promptdata "samebits.com/evidra/prompts"
 )
 
-func TestCollectVersions_UsesCanonicalPromptMetadata(t *testing.T) {
+func TestCollectVersions_UsesPromptHeaders(t *testing.T) {
 	t.Parallel()
 
+	dir := t.TempDir()
+	promptPath := filepath.Join(dir, "prompt.md")
+	if err := os.WriteFile(promptPath, []byte("<!-- contract: v1.2.3 -->\n<!-- prompt: p4 -->\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
 	cfg := Default()
-	// Use the embedded prompt path — no filesystem dependency on parent repo.
-	cfg.SystemPromptFile = promptdata.MCPAgentContractPath
+	cfg.SystemPromptFile = promptPath
 
 	got := CollectVersions("dev", "test-commit", cfg)
-	if got.ContractVersion != promptdata.DefaultContractVersion {
-		t.Fatalf("contract_version = %q, want %q", got.ContractVersion, promptdata.DefaultContractVersion)
+	if got.ContractVersion != "v1.2.3" {
+		t.Fatalf("contract_version = %q, want v1.2.3", got.ContractVersion)
 	}
-	expectedSkill := promptdata.DefaultContractSkillVersion
-	if got.SkillVersion != expectedSkill {
-		t.Fatalf("skill_version = %q, want %q", got.SkillVersion, expectedSkill)
+	if got.SkillVersion != "1.2" {
+		t.Fatalf("skill_version = %q, want 1.2", got.SkillVersion)
 	}
-	if got.PromptVersion == "" {
-		t.Fatalf("prompt_version is empty")
+	if got.PromptVersion != "p4" {
+		t.Fatalf("prompt_version = %q, want p4", got.PromptVersion)
 	}
 }

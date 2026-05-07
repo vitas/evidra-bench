@@ -24,7 +24,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const modeOptions: { value: EvidenceMode; label: string }[] = [
     { value: "all", label: "All" },
     { value: "none", label: "Baseline" },
-    { value: "evidra", label: "Evidra" },
+    { value: "mcp", label: "MCP" },
   ];
 
   return (

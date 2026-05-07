@@ -1,28 +1,10 @@
-# Self-contained bench service image.
-# Clones the evidra dependency at build time to resolve the replace directive.
 FROM golang:1.25-alpine AS bench-builder
-RUN apk add --no-cache git
 WORKDIR /build
 
-# Clone the parent module to satisfy the replace directive.
-ARG EVIDRA_REPO=https://github.com/vitas/evidra.git
-ARG EVIDRA_REF=main
-RUN git clone --depth 1 --branch ${EVIDRA_REF} ${EVIDRA_REPO} /build/parent
-
-# Build evidra-mcp from the cloned source (needed for provider mode).
-WORKDIR /build/parent
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" \
-    -o /evidra-mcp ./cmd/evidra-mcp
-
 # Copy bench service source and build.
-WORKDIR /build/bench
 COPY go.mod go.sum ./
-# Rewrite replace directive to point to cloned path.
-RUN sed -i 's|=> ../[^ ]*|=> /build/parent|' go.mod
 RUN go mod download
 COPY . .
-# Re-apply sed after COPY overwrites go.mod.
-RUN sed -i 's|=> ../[^ ]*|=> /build/parent|' go.mod
 
 ARG VERSION=dev
 ARG COMMIT=dev
@@ -31,7 +13,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
     -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" \
     -o /bench-cli ./cmd/bench-cli
 
-# Runtime — Alpine with kubectl + bench-cli + evidra-mcp + scenarios.
+# Runtime — Alpine with kubectl + bench-cli + scenarios.
 FROM alpine:3.21
 
 ARG KUBECTL_VERSION=v1.32.0
@@ -51,7 +33,6 @@ RUN apk add --no-cache ca-certificates curl docker-cli && \
     rm -rf /var/cache/apk/*
 
 COPY --from=bench-builder /bench-cli /usr/local/bin/bench-cli
-COPY --from=bench-builder /evidra-mcp /usr/local/bin/evidra-mcp
 COPY scenarios/ /scenarios/
 COPY manifests/ /manifests/
 

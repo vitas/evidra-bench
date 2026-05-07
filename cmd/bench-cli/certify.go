@@ -329,7 +329,7 @@ func runCertifySingle(ctx context.Context, cfg config.Config, track, model strin
 		runCfg.Scenario = s.Path
 		runCfg.Model = model
 		runCfg.RunsDir = runDir
-		runCfg.EvidraEvidenceDir = evidenceDir
+		runCfg.EvidenceDir = evidenceDir
 
 		if cfg.ReuseCluster && batchLease != nil {
 			cleanBenchNamespace(ctx, cfg.ClusterName, s)
@@ -501,7 +501,7 @@ func executeCertifySingle(cmd *cobra.Command, cfg config.Config, track, model st
 		runCfg.Scenario = s.Path
 		runCfg.Model = model
 		runCfg.RunsDir = runDir
-		runCfg.EvidraEvidenceDir = evidenceDir
+		runCfg.EvidenceDir = evidenceDir
 
 		label := fmt.Sprintf("[%d/%d] %s (%s)", i+1, len(selected), s.ID, level)
 		writef(cmd.OutOrStdout(), "%s ...\n", label)

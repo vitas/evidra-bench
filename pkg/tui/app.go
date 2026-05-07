@@ -227,10 +227,6 @@ func (a *App) handleConfigKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		a.cycleModel()
 	case "4":
 		a.cycleProvider()
-	case "5":
-		a.cycleTrace()
-	case "6":
-		a.cycleEvidra()
 	}
 	return a, nil
 }
@@ -291,34 +287,6 @@ func (a *App) cycleModel() {
 	a.cfg.Model = ModelChoices[(idx+1)%len(ModelChoices)]
 }
 
-// TraceChoices are the available trace backends for cycling.
-var TraceChoices = []string{"", "evidra"}
-
-func (a *App) cycleTrace() {
-	idx := 0
-	for i, t := range TraceChoices {
-		if t == a.cfg.TraceBackend {
-			idx = i
-			break
-		}
-	}
-	a.cfg.TraceBackend = TraceChoices[(idx+1)%len(TraceChoices)]
-}
-
-// EvidraChoices are the available evidra levels for cycling.
-var EvidraChoices = []string{"", "smart", "full"}
-
-func (a *App) cycleEvidra() {
-	idx := 0
-	for i, e := range EvidraChoices {
-		if e == a.cfg.EvidraLevel {
-			idx = i
-			break
-		}
-	}
-	a.cfg.EvidraLevel = EvidraChoices[(idx+1)%len(EvidraChoices)]
-}
-
 func (a *App) applyFilter() {
 	cat := ""
 	if a.categoryIdx < len(CategoryFilters) {
@@ -339,26 +307,21 @@ func (a *App) runScenario() tea.Cmd {
 
 	return func() tea.Msg {
 		cfg := config.Config{
-			Scenario:          s.ID,
-			ScenariosDir:      a.scenariosDir,
-			Adapter:           a.cfg.Adapter,
-			Provider:          a.cfg.Provider,
-			AgentCommand:      a.cfg.AgentCommand,
-			Model:             a.cfg.Model,
-			EvidraBin:         a.cfg.EvidraBin,
-			Timeout:           a.cfg.TimeoutDuration(),
-			DryRun:            a.cfg.DryRun,
-			RunsDir:           a.runsDir,
-			ClusterName:       "bench-cli",
-			EvidraEvidenceDir: a.cfg.EvidraEvidenceDir,
-			ProxyMode:         a.cfg.ProxyMode,
-			SmartPrescribe:    a.cfg.SmartPrescribe,
-			EvidraURL:         a.cfg.EvidraURL,
-			EvidraAPIKey:      a.cfg.EvidraAPIKey,
-			MemoryWindow:      a.cfg.MemoryWindow,
-			ReuseCluster:      a.cfg.ReuseCluster,
-			TraceBackend:      a.cfg.TraceBackend,
-			EvidraLevel:       a.cfg.EvidraLevel,
+			Scenario:     s.ID,
+			ScenariosDir: a.scenariosDir,
+			Adapter:      a.cfg.Adapter,
+			Provider:     a.cfg.Provider,
+			AgentCommand: a.cfg.AgentCommand,
+			Model:        a.cfg.Model,
+			Timeout:      a.cfg.TimeoutDuration(),
+			DryRun:       a.cfg.DryRun,
+			RunsDir:      a.runsDir,
+			ClusterName:  "bench-cli",
+			EvidenceDir:  a.cfg.EvidenceDir,
+			EvidraURL:    a.cfg.EvidraURL,
+			EvidraAPIKey: a.cfg.EvidraAPIKey,
+			MemoryWindow: a.cfg.MemoryWindow,
+			ReuseCluster: a.cfg.ReuseCluster,
 		}
 
 		if a.cfg.DryRun {
@@ -638,29 +601,18 @@ func (a *App) renderConfig() string {
 	if modelDisplay == "" {
 		modelDisplay = "(default)"
 	}
-	traceDisplay := a.cfg.TraceBackend
-	if traceDisplay == "" {
-		traceDisplay = "off"
-	}
-	evidraDisplay := a.cfg.EvidraLevel
-	if evidraDisplay == "" {
-		evidraDisplay = "off"
-	}
 	fmt.Fprintf(&b, "  [1] Adapter:       %s\n", a.cfg.Adapter)
 	fmt.Fprintf(&b, "  [2] Dry-run:       %v\n", a.cfg.DryRun)
 	fmt.Fprintf(&b, "  [3] Model:         %s\n", modelDisplay)
 	fmt.Fprintf(&b, "  [4] Provider:      %s\n", providerDisplay)
-	fmt.Fprintf(&b, "  [5] Trace:         %s\n", traceDisplay)
-	fmt.Fprintf(&b, "  [6] Evidra:        %s\n", evidraDisplay)
 	fmt.Fprintf(&b, "      Agent command: %s\n", a.cfg.AgentCommand)
-	fmt.Fprintf(&b, "      Evidra bin:    %s\n", a.cfg.EvidraBin)
 	fmt.Fprintf(&b, "      Timeout:       %s\n", a.cfg.Timeout)
-	if a.cfg.EvidraEvidenceDir != "" {
-		fmt.Fprintf(&b, "      Evidence dir:  %s\n", a.cfg.EvidraEvidenceDir)
+	if a.cfg.EvidenceDir != "" {
+		fmt.Fprintf(&b, "      Evidence dir:  %s\n", a.cfg.EvidenceDir)
 	}
 
 	b.WriteString("\n")
-	b.WriteString(dimStyle.Render("1-6: toggle  esc: back"))
+	b.WriteString(dimStyle.Render("1-4: toggle  esc: back"))
 	return b.String()
 }
 

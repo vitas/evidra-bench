@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"samebits.com/evidra/pkg/signalaudit"
+	"samebits.com/evidra-infra-bench/pkg/signalaudit"
 )
 
 func loadAuditRuns(runsDir, scenarioFilter, modelFilter, providerFilter string) ([]signalaudit.Run, error) {

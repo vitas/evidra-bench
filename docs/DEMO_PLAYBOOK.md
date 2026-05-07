@@ -19,7 +19,7 @@ export EVIDRA_BIFROST_AUTH_BEARER=$GEMINI_API_KEY
 bench-cli bench \
   --scenario kubernetes --scenario helm \
   --model gemini-2.5-flash --provider bifrost \
-  --repeats 3 --environment k3d --reuse-cluster --trace evidra \
+  --repeats 3 --environment k3d --reuse-cluster --mcp-server "evidra-mcp --signing-mode optional" \
   --evidra-url https://api.evidra.cc --evidra-api-key $EVIDRA_API_KEY
 
 # DeepSeek — same scenarios
@@ -28,7 +28,7 @@ export EVIDRA_BIFROST_AUTH_BEARER=$DEEPSEEK_API_KEY
 bench-cli bench \
   --scenario kubernetes --scenario helm \
   --model deepseek-chat --provider bifrost \
-  --repeats 3 --environment k3d --reuse-cluster --trace evidra \
+  --repeats 3 --environment k3d --reuse-cluster --mcp-server "evidra-mcp --signing-mode optional" \
   --evidra-url https://api.evidra.cc --evidra-api-key $EVIDRA_API_KEY
 
 # Qwen — same scenarios
@@ -37,7 +37,7 @@ export EVIDRA_BIFROST_AUTH_BEARER=$DASHSCOPE_API_KEY
 bench-cli bench \
   --scenario kubernetes --scenario helm \
   --model qwen-plus --provider bifrost \
-  --repeats 3 --environment k3d --reuse-cluster --trace evidra \
+  --repeats 3 --environment k3d --reuse-cluster --mcp-server "evidra-mcp --signing-mode optional" \
   --evidra-url https://api.evidra.cc --evidra-api-key $EVIDRA_API_KEY
 ```
 
@@ -48,7 +48,7 @@ Run all 7 before recording. Every one must pass.
 | # | What | Command | Expected |
 |---|------|---------|----------|
 | 1 | Baseline PASS | `bench-cli run --scenario kubernetes/broken-deployment --model gemini-2.5-flash --provider bifrost --environment k3d` | PASS, <60s |
-| 2 | Trace PASS | same + `--trace evidra --reuse-cluster` | PASS, evidence reported to API |
+| 2 | MCP PASS | same + `--mcp-server "evidra-mcp --signing-mode optional" --reuse-cluster` | PASS, MCP run reported to API |
 | 3 | ArgoCD PASS | `bench-cli run --scenario argocd/out-of-sync --model gemini-2.5-flash --provider bifrost --environment k3d --reuse-cluster --cluster-name argo-demo` | PASS, <3min |
 | 4 | Leaderboard | `curl -sf -H "Authorization: Bearer $EVIDRA_API_KEY" https://api.evidra.cc/v1/bench/leaderboard` | gemini-2.5-flash in results |
 | 5 | Evidence filter | Open evidra.cc/evidence, select actor from dropdown | Filtered entries shown |
@@ -69,7 +69,7 @@ Live terminal. Show the agent fixing a broken deployment.
 ```bash
 bench-cli run --scenario kubernetes/broken-deployment \
   --model gemini-2.5-flash --provider bifrost \
-  --environment k3d --trace evidra
+  --environment k3d --mcp-server "evidra-mcp --signing-mode optional"
 ```
 
 **What judges see:**
@@ -87,7 +87,7 @@ bench-cli run --scenario kubernetes/broken-deployment \
 ```bash
 bench-cli run --scenario kubernetes/wrong-service-selector \
   --model gemini-2.5-flash --provider bifrost \
-  --environment k3d --reuse-cluster --trace evidra
+  --environment k3d --reuse-cluster --mcp-server "evidra-mcp --signing-mode optional"
 ```
 
 **What judges see:**

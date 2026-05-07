@@ -20,7 +20,6 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/environment"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 	"samebits.com/evidra-infra-bench/pkg/store"
-	promptdata "samebits.com/evidra/prompts"
 )
 
 // fakeProvider is a test double for environment.ClusterLifecycle.
@@ -134,6 +133,18 @@ func fakeKubeconfig(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return f.Name()
+}
+
+func writePromptMetadataFile(t *testing.T, contractVersion, promptVersion string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "prompt.md")
+	body := "<!-- contract: " + contractVersion + " -->\n" +
+		"<!-- prompt: " + promptVersion + " -->\n" +
+		"You are an infra agent.\n"
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
 
 func TestExecuteSingleAgent_A2APrecedesProvider(t *testing.T) {
@@ -409,14 +420,14 @@ func TestHarness_Run_DoesNotCreateOrDestroyEnvironmentWhenLeaseProvided(t *testi
 	}
 }
 
-func TestBuildRunMetadata_UsesCanonicalPromptMetadata(t *testing.T) {
+func TestBuildRunMetadata_UsesPromptFileMetadata(t *testing.T) {
 	t.Parallel()
 
+	promptPath := writePromptMetadataFile(t, "v1.2.3", "p7")
 	cfg := config.Default()
 	cfg.Provider = "claude"
 	cfg.Model = "sonnet"
-	// Use an embedded prompt path — no filesystem dependency on the parent repo.
-	cfg.SystemPromptFile = promptdata.MCPAgentContractPath
+	cfg.SystemPromptFile = promptPath
 
 	meta := buildRunMetadata(cfg, &agent.LoopResult{
 		Turns:        4,
@@ -427,15 +438,14 @@ func TestBuildRunMetadata_UsesCanonicalPromptMetadata(t *testing.T) {
 		},
 	}, "/tmp/evidence")
 
-	if meta["contract_version"] != promptdata.DefaultContractVersion {
-		t.Fatalf("contract_version = %q, want %q", meta["contract_version"], promptdata.DefaultContractVersion)
+	if meta["contract_version"] != "v1.2.3" {
+		t.Fatalf("contract_version = %q, want v1.2.3", meta["contract_version"])
 	}
-	expectedSkill := promptdata.DefaultContractSkillVersion
-	if meta["skill_version"] != expectedSkill {
-		t.Fatalf("skill_version = %q, want %q", meta["skill_version"], expectedSkill)
+	if meta["skill_version"] != "1.2" {
+		t.Fatalf("skill_version = %q, want 1.2", meta["skill_version"])
 	}
-	if meta["prompt_version"] == "" {
-		t.Fatalf("prompt_version is empty")
+	if meta["prompt_version"] != "p7" {
+		t.Fatalf("prompt_version = %q, want p7", meta["prompt_version"])
 	}
 }
 
@@ -446,10 +456,8 @@ func TestBuildRunMetadata_PrefersExplicitEvidenceMode(t *testing.T) {
 	cfg.Provider = "claude"
 	cfg.Model = "sonnet"
 	cfg.EvidenceMode = "none"
-	cfg.SmartPrescribe = true
-	cfg.ProxyMode = true
-	cfg.EvidraBin = "/usr/local/bin/evidra"
-	cfg.SystemPromptFile = promptdata.MCPAgentContractPath
+	cfg.MCPServer = "evidra-mcp --signing-mode optional"
+	cfg.SystemPromptFile = writePromptMetadataFile(t, "v1.2.3", "p7")
 	cfg.ContractVersion = "v9.9.9"
 
 	meta := buildRunMetadata(cfg, &agent.LoopResult{}, "/tmp/evidence")
@@ -488,10 +496,7 @@ func TestHarness_StoreUsesExplicitEvidenceMode(t *testing.T) {
 	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
 	cfg.EvidenceMode = "none"
 	cfg.MCPServer = "evidra-mcp --signing-mode optional"
-	cfg.ProxyMode = true
-	cfg.SmartPrescribe = true
-	cfg.EvidraBin = "/usr/local/bin/evidra"
-	cfg.SystemPromptFile = promptdata.MCPAgentContractPath
+	cfg.SystemPromptFile = writePromptMetadataFile(t, "v1.2.3", "p7")
 
 	if _, err := h.Run(context.Background(), RunRequest{
 		Config:         cfg,

@@ -24,7 +24,6 @@ import (
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 	"samebits.com/evidra-infra-bench/pkg/store"
 	"samebits.com/evidra-infra-bench/pkg/verifier"
-	"samebits.com/evidra/pkg/proxy"
 )
 
 // InfraError wraps errors caused by infrastructure problems (cluster degraded,
@@ -287,7 +286,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	}
 
 	if isMultiStage && shouldUseProviderEvidenceDir(req.Config) {
-		providerEvDir = providerEvidenceDir(req.Config.EvidraEvidenceDir, req.Config.RunsDir, s.ID, startTime)
+		providerEvDir = providerEvidenceDir(req.Config.EvidenceDir, req.Config.RunsDir, s.ID, startTime)
 
 		// Multi-stage: run agent and stages concurrently.
 		agentCtx, agentCancel := context.WithCancel(ctx)
@@ -319,7 +318,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		}
 	} else {
 		if shouldUseProviderEvidenceDir(req.Config) {
-			providerEvDir = providerEvidenceDir(req.Config.EvidraEvidenceDir, req.Config.RunsDir, s.ID, startTime)
+			providerEvDir = providerEvidenceDir(req.Config.EvidenceDir, req.Config.RunsDir, s.ID, startTime)
 		}
 		agentResult, err = h.executeSingleAgent(ctx, req, s, handle.KubeconfigPath, promptContent, timeout, providerEvDir)
 	}
@@ -383,18 +382,17 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	}
 
 	// Resolve evidence directory for both protocol checks and scorecard.
-	evidenceDir := req.Config.EvidraEvidenceDir
+	evidenceDir := req.Config.EvidenceDir
 	if providerEvDir != "" {
 		evidenceDir = providerEvDir
 	} else if evidenceDir == "" {
 		evidenceDir = filepath.Join(req.Config.RunsDir, "evidence")
 	}
 
-	// Step 5b: Verify Evidra protocol compliance.
-	// Skip when evidence mode is none (baseline — no evidence generated),
-	// proxy, smart, or mcp (evidence format differs from evidra's native format).
+	// Step 5b: Verify protocol evidence only when a run explicitly supplies an
+	// evidence directory. Generic MCP servers are not treated specially here.
 	evidenceMode := config.EffectiveEvidenceMode(req.Config)
-	if s.Evidra.Enabled && evidenceMode != "none" && evidenceMode != "proxy" && evidenceMode != "smart" && evidenceMode != "mcp" {
+	if s.Evidra.Enabled && evidenceMode != "none" && req.Config.EvidenceDir != "" {
 		// Fall back to simulated evidence if real evidence dir has no segments.
 		if s.Evidra.SimulatedEvidenceDir != "" {
 			if _, err := os.Stat(filepath.Join(evidenceDir, "segments")); err != nil {
@@ -467,11 +465,6 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 		} else {
 			artifactDir = out.Path
 		}
-	}
-
-	// Step 6b: Post-process evidence with evidra scorecard.
-	if artifactDir != "" && evidenceDir != "" {
-		runEvidraScorecard(req.Config.ResolveEvidraBin(), evidenceDir, artifactDir)
 	}
 
 	// Step 7: Evidra reporting.
@@ -895,7 +888,7 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 	}
 
 	if evidenceDir == "" {
-		evidenceDir = providerEvidenceDir(cfg.EvidraEvidenceDir, cfg.RunsDir, s.ID, time.Now())
+		evidenceDir = providerEvidenceDir(cfg.EvidenceDir, cfg.RunsDir, s.ID, time.Now())
 	}
 	if err := os.MkdirAll(evidenceDir, 0755); err != nil {
 		return nil, fmt.Errorf("harness: create evidence dir: %w", err)
@@ -917,9 +910,6 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 	if cfg.MCPServer != "" {
 		// MCP mode: route tool calls through MCP server.
 		mcpEnv := append(req.ExtraEnv, "KUBECONFIG="+kubeconfigPath)
-		if evidenceDir != "" {
-			mcpEnv = append(mcpEnv, "EVIDRA_EVIDENCE_DIR="+evidenceDir)
-		}
 		var mcpErr error
 		mcpExec, mcpErr = agent.NewMCPExecutor(agentCtx, cfg.MCPServer, mcpEnv)
 		if mcpErr != nil {
@@ -939,29 +929,9 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		// Direct mode: harness executes commands.
 		executor := &agent.ToolExecutor{
 			KubeconfigPath: kubeconfigPath,
-			EvidencePath:   evidenceDir,
-			EvidraBin:      cfg.ResolveEvidraBin(),
 			ExtraEnv:       req.ExtraEnv,
 		}
 		loopExecutor = executor
-
-		if cfg.SmartPrescribe {
-			// Smart mode: simplified prescribe schema, no evidra binary needed.
-			evidence, evErr := proxy.NewEvidenceWriter(evidenceDir)
-			if evErr != nil {
-				return nil, fmt.Errorf("harness: smart evidence: %w", evErr)
-			}
-			defer func() { _ = evidence.Close() }()
-			loopExecutor = &agent.SmartToolExecutor{Base: executor, Evidence: evidence}
-		} else if cfg.ProxyMode {
-			// Proxy mode: auto-record, agent unaware.
-			proxyEvidence, proxyErr := proxy.NewEvidenceWriter(evidenceDir)
-			if proxyErr != nil {
-				return nil, fmt.Errorf("harness: proxy evidence: %w", proxyErr)
-			}
-			defer func() { _ = proxyEvidence.Close() }()
-			executor.ProxyEvidence = proxyEvidence
-		}
 	}
 
 	loopResult, err := agent.RunLoop(agentCtx, agent.LoopConfig{
@@ -1056,29 +1026,6 @@ func buildSystemPrompt(cfg config.Config, s *scenario.Scenario) (string, error) 
 		return prompt, nil
 	}
 
-	// 3. Smart prescribe mode: auto-load the smart prescribe skill if no prompt file given.
-	if cfg.SmartPrescribe {
-		// Load smart prescribe skill. Source of truth: evidra/prompts/skill/SKILL_SMART.md
-		skillPath := filepath.Join(cfg.ScenariosDir, "..", "skills", "evidra", "smart-prescribe.md")
-		if data, err := os.ReadFile(skillPath); err == nil {
-			prompt := string(data)
-			prompt += fmt.Sprintf("\n\nTarget namespace: %s\n", strings.Join(s.Scope.Namespaces, ", "))
-			return prompt, nil
-		}
-		// Fallback: inline minimal smart prescribe instructions.
-		return fmt.Sprintf(
-			"You are an infrastructure agent. Fix the problem described in the task.\n"+
-				"KUBECONFIG is already set. Use kubectl, helm, or other tools via the run_command tool.\n"+
-				"For read-only commands (get, describe, logs): just use run_command directly.\n\n"+
-				"IMPORTANT: Before every infrastructure mutation (kubectl apply/patch/delete, helm upgrade, etc.),\n"+
-				"call evidra_prescribe_smart with tool, operation, resource, namespace, and actor fields.\n"+
-				"After the mutation, call evidra_report with the prescription_id and verdict.\n"+
-				"Skip the protocol for read-only commands.\n\n"+
-				"Namespace: %s",
-			strings.Join(s.Scope.Namespaces, ", "),
-		), nil
-	}
-
 	// Default prompt — no protocol skill
 	return fmt.Sprintf(
 		"You are an infrastructure agent. Fix the problem described in the task.\n"+
@@ -1149,40 +1096,6 @@ func waitForRollouts(ctx context.Context, kubeconfigPath string, s *scenario.Sce
 		if err != nil {
 			log.Printf("[harness] rollout wait for %s/%s: %v: %s", ns, check.Name, err, strings.TrimSpace(string(out)))
 		}
-	}
-}
-
-// runEvidraScorecard runs `evidra scorecard` on the evidence and saves
-// scorecard.json into the artifact directory for audit consumption.
-func runEvidraScorecard(evidraBin, evidenceDir, artifactDir string) {
-	if evidraBin == "" {
-		return
-	}
-	// Find the actual evidence session dir (may be a subdirectory)
-	var sessionDir string
-	_ = filepath.WalkDir(evidenceDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil || !d.IsDir() || d.Name() != "segments" {
-			return nil
-		}
-		sessionDir = filepath.Dir(path)
-		return filepath.SkipAll
-	})
-	if sessionDir == "" {
-		return
-	}
-
-	cmd := exec.CommandContext(context.Background(), evidraBin, "scorecard", "--evidence-dir", sessionDir, "--ttl", "1s")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("[harness] scorecard failed: %v", err)
-		return
-	}
-
-	scorecardPath := filepath.Join(artifactDir, "scorecard.json")
-	if writeErr := os.WriteFile(scorecardPath, out, 0644); writeErr != nil {
-		log.Printf("[harness] warning: write scorecard.json: %v", writeErr)
-	} else {
-		log.Printf("[harness] scorecard written: %s", scorecardPath)
 	}
 }
 

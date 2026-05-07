@@ -32,6 +32,36 @@ func TestRunCommand_MissingScenario(t *testing.T) {
 	}
 }
 
+func TestRunHelpDoesNotExposeEvidraSpecialModes(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	cmd := newRootCommand()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"run", "--help"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("help failed: %v", err)
+	}
+
+	help := buf.String()
+	for _, flag := range []string{
+		"--evidra ",
+		"--trace ",
+		"--proxy-mode",
+		"--smart-prescribe",
+		"--evidra-bin",
+		"--evidra-evidence-dir",
+	} {
+		if strings.Contains(help, flag) {
+			t.Fatalf("run help exposes removed special mode flag %q:\n%s", flag, help)
+		}
+	}
+	if !strings.Contains(help, "--mcp-server") {
+		t.Fatalf("run help must retain generic --mcp-server support:\n%s", help)
+	}
+}
+
 func TestApplyServeEnvOptions_ControlPlaneOnlyUsesCanonicalEnv(t *testing.T) {
 	t.Setenv("BENCH_CONTROL_PLANE_ONLY", "true")
 

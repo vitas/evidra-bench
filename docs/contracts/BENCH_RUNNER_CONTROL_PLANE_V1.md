@@ -38,7 +38,7 @@ Request:
   "model": "sonnet",
   "provider": "anthropic",
   "execution_mode": "provider",
-  "evidence_mode": "smart",
+  "evidence_mode": "mcp",
   "runner_id": "01K...",
   "scenarios": ["broken-deployment", "repair-loop-escalation"]
 }
@@ -47,7 +47,7 @@ Request:
 Rules:
 
 - `model`, `scenarios`, and `evidence_mode` are required.
-- `evidence_mode` must be `none` or `smart`.
+- `evidence_mode` must be `none` or `mcp`.
 - `execution_mode` is optional and must be `provider` or `a2a`; omitted means
   `provider`.
 - `provider` may be supplied by the caller, inherited from the runner config,
@@ -152,7 +152,7 @@ Response when a job is claimed:
   "job_id": "01K...",
   "model": "sonnet",
   "provider": "anthropic",
-  "evidence_mode": "smart",
+  "evidence_mode": "mcp",
   "execution_mode": "provider",
   "scenarios": ["broken-deployment", "repair-loop-escalation"],
   "timeout": 300

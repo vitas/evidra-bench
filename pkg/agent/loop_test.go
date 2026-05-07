@@ -142,7 +142,6 @@ type mockExecutor struct{}
 func (e *mockExecutor) Execute(_ context.Context, tc ToolCall) string {
 	return "ok"
 }
-func (e *mockExecutor) EvidenceMode() EvidenceMode { return EvidenceModeNone }
 
 func TestRunLoop_InjectMessage(t *testing.T) {
 	t.Parallel()

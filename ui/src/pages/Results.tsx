@@ -96,7 +96,7 @@ export function Results() {
 
   type ExamFilter = "all" | "cka" | "cks" | "custom";
   type TimeFilter = "24h" | "7d" | "30d" | "all";
-  type EvidenceFilter = "all" | "none" | "evidra";
+  type EvidenceFilter = "all" | "none" | "mcp";
   const [tab, setTab] = useState<Tab>("leaderboard");
   const [examFilter, setExamFilter] = useState<ExamFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
@@ -304,7 +304,7 @@ export function Results() {
             [
               { key: "all" as EvidenceFilter, label: "All" },
               { key: "none" as EvidenceFilter, label: "Baseline" },
-              { key: "evidra" as EvidenceFilter, label: "Evidra" },
+              { key: "mcp" as EvidenceFilter, label: "MCP" },
             ]
           ).map((ef) => (
             <button

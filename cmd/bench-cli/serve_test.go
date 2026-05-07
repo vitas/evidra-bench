@@ -169,9 +169,6 @@ func TestBuildCertifyRunConfig_EvidenceModeNoneClearsConflicts(t *testing.T) {
 	base := config.Default()
 	base.Provider = "claude"
 	base.MCPServer = "evidra-mcp --signing-mode optional"
-	base.ProxyMode = true
-	base.SmartPrescribe = true
-	base.EvidraBin = "/usr/local/bin/evidra"
 	base.SystemPromptFile = "/tmp/system-prompt.md"
 	base.Role = "platform-eng"
 	base.ContractVersion = "v9.9.9"
@@ -187,15 +184,6 @@ func TestBuildCertifyRunConfig_EvidenceModeNoneClearsConflicts(t *testing.T) {
 	if got.MCPServer != "" {
 		t.Fatalf("MCPServer = %q, want empty", got.MCPServer)
 	}
-	if got.ProxyMode {
-		t.Fatal("ProxyMode = true, want false")
-	}
-	if got.SmartPrescribe {
-		t.Fatal("SmartPrescribe = true, want false")
-	}
-	if got.EvidraBin != "" {
-		t.Fatalf("EvidraBin = %q, want empty", got.EvidraBin)
-	}
 	if got.SystemPromptFile != "" {
 		t.Fatalf("SystemPromptFile = %q, want empty", got.SystemPromptFile)
 	}
@@ -207,47 +195,35 @@ func TestBuildCertifyRunConfig_EvidenceModeNoneClearsConflicts(t *testing.T) {
 	}
 }
 
-func TestBuildCertifyRunConfig_EvidenceModeSmartOverridesDefaults(t *testing.T) {
+func TestBuildCertifyRunConfig_EvidenceModeMCPPreservesGenericMCPServer(t *testing.T) {
 	t.Parallel()
 
 	base := config.Default()
 	base.Provider = "claude"
 	base.MCPServer = "evidra-mcp --signing-mode optional"
-	base.ProxyMode = true
-	base.SmartPrescribe = false
-	base.EvidraBin = "/usr/local/bin/evidra"
 	base.SystemPromptFile = "/tmp/system-prompt.md"
 	base.Role = "platform-eng"
 	base.ContractVersion = "v9.9.9"
 
 	req := CertifyRequest{Model: "sonnet"}
-	req.Config.EvidenceMode = "smart"
+	req.Config.EvidenceMode = "mcp"
 
 	got := buildCertifyRunConfig(base, req)
 
-	if got.EvidenceMode != "smart" {
-		t.Fatalf("EvidenceMode = %q, want smart", got.EvidenceMode)
+	if got.EvidenceMode != "mcp" {
+		t.Fatalf("EvidenceMode = %q, want mcp", got.EvidenceMode)
 	}
-	if got.MCPServer != "" {
-		t.Fatalf("MCPServer = %q, want empty", got.MCPServer)
+	if got.MCPServer != base.MCPServer {
+		t.Fatalf("MCPServer = %q, want %q", got.MCPServer, base.MCPServer)
 	}
-	if got.ProxyMode {
-		t.Fatal("ProxyMode = true, want false")
+	if got.SystemPromptFile != base.SystemPromptFile {
+		t.Fatalf("SystemPromptFile = %q, want %q", got.SystemPromptFile, base.SystemPromptFile)
 	}
-	if !got.SmartPrescribe {
-		t.Fatal("SmartPrescribe = false, want true")
+	if got.Role != base.Role {
+		t.Fatalf("Role = %q, want %q", got.Role, base.Role)
 	}
-	if got.EvidraBin != "" {
-		t.Fatalf("EvidraBin = %q, want empty", got.EvidraBin)
-	}
-	if got.SystemPromptFile != "" {
-		t.Fatalf("SystemPromptFile = %q, want empty", got.SystemPromptFile)
-	}
-	if got.Role != "" {
-		t.Fatalf("Role = %q, want empty", got.Role)
-	}
-	if got.ContractVersion != "" {
-		t.Fatalf("ContractVersion = %q, want empty", got.ContractVersion)
+	if got.ContractVersion != base.ContractVersion {
+		t.Fatalf("ContractVersion = %q, want %q", got.ContractVersion, base.ContractVersion)
 	}
 }
 
@@ -255,7 +231,7 @@ func TestHandleCertifyAPI_RejectsUnsupportedEvidenceMode(t *testing.T) {
 	t.Parallel()
 
 	handler := handleCertifyAPI(config.Default(), newNoopParallelRunner(), t.TempDir())
-	req := httptest.NewRequest(http.MethodPost, "/v1/certify", strings.NewReader(`{"config":{"evidence_mode":"proxy"}}`))
+	req := httptest.NewRequest(http.MethodPost, "/v1/certify", strings.NewReader(`{"config":{"evidence_mode":"legacy"}}`))
 	rec := httptest.NewRecorder()
 
 	handler(rec, req)
@@ -291,9 +267,6 @@ func TestBuildCertifyRunConfig_EmptyEvidenceModePreservesLegacyBehavior(t *testi
 	base := config.Default()
 	base.Provider = "claude"
 	base.MCPServer = "evidra-mcp --signing-mode optional"
-	base.ProxyMode = true
-	base.SmartPrescribe = false
-	base.EvidraBin = "/usr/local/bin/evidra"
 	base.SystemPromptFile = "/tmp/system-prompt.md"
 
 	got := buildCertifyRunConfig(base, CertifyRequest{Model: "sonnet"})
@@ -303,15 +276,6 @@ func TestBuildCertifyRunConfig_EmptyEvidenceModePreservesLegacyBehavior(t *testi
 	}
 	if got.MCPServer != base.MCPServer {
 		t.Fatalf("MCPServer = %q, want %q", got.MCPServer, base.MCPServer)
-	}
-	if !got.ProxyMode {
-		t.Fatal("ProxyMode = false, want true")
-	}
-	if got.SmartPrescribe {
-		t.Fatal("SmartPrescribe = true, want false")
-	}
-	if got.EvidraBin != base.EvidraBin {
-		t.Fatalf("EvidraBin = %q, want %q", got.EvidraBin, base.EvidraBin)
 	}
 	if got.SystemPromptFile != base.SystemPromptFile {
 		t.Fatalf("SystemPromptFile = %q, want %q", got.SystemPromptFile, base.SystemPromptFile)

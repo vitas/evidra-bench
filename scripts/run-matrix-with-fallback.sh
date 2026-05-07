@@ -10,7 +10,6 @@
 #   FALLBACK_MODEL      Fallback model (default: claude-sonnet-4-20250514)
 #   ANTHROPIC_API_KEY   Required for anthropic fallback
 #   INFRA_BENCH_BIFROST_URL / EVIDRA_BIFROST_AUTH_BEARER  Required for bifrost
-#   EVIDRA_BIN          Path to evidra binary
 #   CLUSTER_NAME        Kind cluster name (default: evidra)
 #   RUNS_DIR            Output directory (default: runs/matrix-fallback-<timestamp>)
 set -uo pipefail
@@ -19,7 +18,6 @@ PRIMARY_PROVIDER="${PRIMARY_PROVIDER:-claude}"
 PRIMARY_MODEL="${PRIMARY_MODEL:-sonnet}"
 FALLBACK_PROVIDER="${FALLBACK_PROVIDER:-anthropic}"
 FALLBACK_MODEL="${FALLBACK_MODEL:-claude-sonnet-4-20250514}"
-EVIDRA_BIN="${EVIDRA_BIN:-../evidra/bin/evidra}"
 CLUSTER_NAME="${CLUSTER_NAME:-evidra}"
 KUBECONFIG_PATH="${KUBECONFIG_PATH:-/tmp/kind-evidra.kubeconfig}"
 RUNS_DIR="${RUNS_DIR:-runs/matrix-fallback-$(date +%Y%m%d-%H%M%S)}"
@@ -43,7 +41,6 @@ while IFS= read -r scenario; do
     --scenario "$scenario" \
     --provider "$PRIMARY_PROVIDER" \
     --model "$PRIMARY_MODEL" \
-    --evidra-bin "$EVIDRA_BIN" \
     --cluster-name "$CLUSTER_NAME" \
     --reuse-cluster \
     --timeout 5m \
@@ -82,7 +79,6 @@ if [ ${#ERROR_SCENARIOS[@]} -gt 0 ]; then
       --scenario "$scenario" \
       --provider "$FALLBACK_PROVIDER" \
       --model "$FALLBACK_MODEL" \
-      --evidra-bin "$EVIDRA_BIN" \
       --cluster-name "$CLUSTER_NAME" \
       --reuse-cluster \
       --timeout 5m \
