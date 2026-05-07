@@ -57,6 +57,36 @@ interface Scorecard {
   [key: string]: unknown;
 }
 
+interface AutopsyFinding {
+  kind: string;
+  severity: string;
+  message: string;
+  evidence?: string;
+}
+
+interface AutopsyMetrics {
+  turns: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  estimated_cost_usd: number;
+  checks_passed: number;
+  checks_total: number;
+  mutation_count: number;
+  diagnosis_depth: number;
+  total_steps: number;
+}
+
+interface AutopsyReport {
+  outcome: string;
+  primary_failure?: string;
+  summary: string;
+  findings?: AutopsyFinding[];
+  metrics: AutopsyMetrics;
+  wasted_turns?: number;
+  wasted_tokens?: number;
+}
+
 interface TimelineStep {
   index: number;
   phase: string;
@@ -86,10 +116,11 @@ const PHASE_STYLES: Record<string, string> = {
 
 const PHASE_ORDER = ["discover", "diagnose", "decide", "act", "verify", "explain"];
 
-type Tab = "summary" | "timeline" | "transcript" | "tool-calls" | "scorecard";
+type Tab = "summary" | "autopsy" | "timeline" | "transcript" | "tool-calls" | "scorecard";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "summary", label: "Summary" },
+  { key: "autopsy", label: "Autopsy" },
   { key: "timeline", label: "Timeline" },
   { key: "transcript", label: "Transcript" },
   { key: "tool-calls", label: "Tool Calls" },
@@ -112,6 +143,14 @@ function formatTokens(n: number): string {
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
   return s.slice(0, max) + "\u2026";
+}
+
+function formatFailureKind(kind: string | undefined): string {
+  if (!kind) return "none";
+  return kind
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function highlightTranscript(text: string): (React.ReactElement | string)[] {
@@ -168,6 +207,10 @@ export function RunDetail() {
   const [timeline, setTimeline] = useState<TimelineData | null>(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState<string | null>(null);
+
+  const [autopsy, setAutopsy] = useState<AutopsyReport | null>(null);
+  const [autopsyLoading, setAutopsyLoading] = useState(false);
+  const [autopsyError, setAutopsyError] = useState<string | null>(null);
 
   // Fetch run record
   useEffect(() => {
@@ -261,6 +304,26 @@ export function RunDetail() {
       .finally(() => setTimelineLoading(false));
   }, [activeTab, timeline, timelineError, timelineLoading, id, mode]);
 
+  // Fetch failure autopsy on tab switch
+  useEffect(() => {
+    if (activeTab !== "autopsy" || autopsy !== null || autopsyError !== null || autopsyLoading || !id) return;
+    setAutopsyLoading(true);
+    fetchApi(`/v1/bench/runs/${id}/autopsy${evidenceModeParam("?", mode)}`)
+      .then((res) => {
+        if (res.status === 404) {
+          setAutopsyError("not-found");
+          return;
+        }
+        if (!res.ok) throw new Error(res.statusText);
+        return res.json();
+      })
+      .then((data) => {
+        if (data) setAutopsy(data as AutopsyReport);
+      })
+      .catch((err) => setAutopsyError(err.message))
+      .finally(() => setAutopsyLoading(false));
+  }, [activeTab, autopsy, autopsyError, autopsyLoading, id, mode]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-fg-muted text-[0.85rem]">
@@ -332,12 +395,12 @@ export function RunDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-border-subtle flex gap-0">
+      <div className="border-b border-border-subtle flex gap-0 overflow-x-auto">
         {TABS.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
-            className={`text-[0.82rem] font-medium px-4 py-2 border-b-2 transition-colors cursor-pointer ${
+            className={`text-[0.82rem] font-medium px-4 py-2 border-b-2 transition-colors cursor-pointer whitespace-nowrap flex-shrink-0 ${
               activeTab === key
                 ? "text-accent border-accent font-semibold"
                 : "text-fg-muted border-transparent hover:text-fg"
@@ -350,6 +413,13 @@ export function RunDetail() {
 
       {/* Tab content */}
       {activeTab === "summary" && <SummaryTab checks={checks} scorecard={scorecard} />}
+      {activeTab === "autopsy" && (
+        <AutopsyTab
+          autopsy={autopsy}
+          loading={autopsyLoading}
+          error={autopsyError}
+        />
+      )}
       {activeTab === "timeline" && (
         <TimelineTab
           timeline={timeline}
@@ -562,6 +632,130 @@ function ToolCallsTab({
       </table>
     </div>
   );
+}
+
+function AutopsyTab({
+  autopsy,
+  loading,
+  error,
+}: {
+  autopsy: AutopsyReport | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  if (loading) {
+    return <p className="text-fg-muted text-[0.82rem] py-6">Loading failure autopsy...</p>;
+  }
+  if (error === "not-found" || (!autopsy && !loading && !error)) {
+    return <p className="text-fg-muted text-[0.82rem] py-6">No failure autopsy available.</p>;
+  }
+  if (error) {
+    return <p className="text-danger text-[0.82rem] py-6">Failed to load failure autopsy: {error}</p>;
+  }
+  if (!autopsy) {
+    return <p className="text-fg-muted text-[0.82rem] py-6">No failure autopsy available.</p>;
+  }
+
+  const findings = autopsy.findings || [];
+  const primary = autopsy.primary_failure || (autopsy.outcome === "pass" ? "none" : "");
+  const metrics = autopsy.metrics;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`inline-block px-2 py-0.5 rounded text-[0.7rem] font-semibold uppercase tracking-wide ${
+              autopsy.outcome === "pass" ? "bg-accent-tint text-accent" : "bg-danger/15 text-danger"
+            }`}>
+              {autopsy.outcome}
+            </span>
+            <span className="text-fg font-semibold text-[1rem] break-words">
+              {formatFailureKind(primary)}
+            </span>
+          </div>
+          <p className="text-fg-muted text-[0.82rem] mt-2 max-w-3xl break-words">
+            {autopsy.summary}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 text-[0.78rem] flex-shrink-0 sm:justify-end">
+          <span className="font-mono text-fg-muted bg-bg-alt/80 rounded-md px-2.5 py-1">
+            wasted turns {autopsy.wasted_turns || 0}
+          </span>
+          <span className="font-mono text-fg-muted bg-bg-alt/80 rounded-md px-2.5 py-1">
+            wasted tokens {formatTokens(autopsy.wasted_tokens || 0)}
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <AutopsyMetric label="Turns" value={String(metrics.turns)} />
+        <AutopsyMetric label="Tokens" value={formatTokens(metrics.total_tokens)} />
+        <AutopsyMetric label="Checks" value={`${metrics.checks_passed}/${metrics.checks_total}`} />
+        <AutopsyMetric label="Cost" value={`$${metrics.estimated_cost_usd.toFixed(4)}`} />
+        <AutopsyMetric label="Steps" value={String(metrics.total_steps)} />
+        <AutopsyMetric label="Mutations" value={String(metrics.mutation_count)} />
+        <AutopsyMetric label="Diagnosis" value={String(metrics.diagnosis_depth)} />
+        <AutopsyMetric label="Prompt / Completion" value={`${formatTokens(metrics.prompt_tokens)} / ${formatTokens(metrics.completion_tokens)}`} />
+      </div>
+
+      <div>
+        <h3 className="text-[0.9rem] font-semibold text-fg mb-3">
+          Findings
+        </h3>
+        {findings.length > 0 ? (
+          <div className="space-y-1.5">
+            {findings.map((finding, i) => (
+              <div
+                key={`${finding.kind}-${i}`}
+                className="flex flex-col gap-2 px-3 py-2.5 bg-bg-alt/80 rounded-md text-[0.8rem] sm:flex-row sm:items-start"
+              >
+                <span className={`inline-block px-2 py-0.5 rounded text-[0.7rem] font-semibold uppercase tracking-wide flex-shrink-0 ${severityStyle(finding.severity)}`}>
+                  {finding.severity}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="font-mono text-fg text-[0.78rem] break-words">
+                    {finding.kind}
+                  </div>
+                  <div className="text-fg-muted mt-0.5 break-words">
+                    {finding.message}
+                  </div>
+                  {finding.evidence && (
+                    <div className="font-mono text-fg-muted text-[0.72rem] mt-1 break-all">
+                      {finding.evidence}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-fg-muted text-[0.82rem]">
+            No deterministic failure pattern matched.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AutopsyMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-bg-alt/80 rounded-md px-3 py-2 min-w-0">
+      <div className="text-[0.65rem] font-semibold text-fg-muted uppercase tracking-wide">
+        {label}
+      </div>
+      <div className="font-mono text-[0.78rem] font-semibold text-fg mt-0.5 break-words">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function severityStyle(severity: string): string {
+  if (severity === "critical") return "bg-danger/15 text-danger";
+  if (severity === "warning") return "bg-warning/15 text-warning";
+  return "bg-accent-tint text-accent";
 }
 
 function TimelineTab({
