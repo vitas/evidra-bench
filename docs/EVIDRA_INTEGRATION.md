@@ -1,11 +1,33 @@
-# Evidra Integration
+---
+title: Tool Server And Evidence Compatibility
+type: guide
+status: active
+tags:
+  - bench
+  - mcp
+  - integrations
+  - compatibility
+---
 
-`evidra-bench` reports benchmark results to the Bench API, but it no longer
-links against or shells out to the core `evidra` repo.
+# Tool Server And Evidence Compatibility
+
+This file keeps its historical name for link stability. The current Bench
+integration model is generic: Bench has no core dependency on the sibling
+`../evidra` repo.
 
 ## MCP Servers
 
-All MCP servers are configured through the same generic flag:
+All MCP servers are configured through the same flag:
+
+```bash
+bench-cli run \
+  --scenario kubernetes/broken-deployment \
+  --provider bifrost \
+  --model sonnet \
+  --mcp-server "npx -y @anthropic/mcp-server-kubernetes"
+```
+
+To test `evidra-mcp`, pass it as a normal MCP server command:
 
 ```bash
 bench-cli run \
@@ -15,23 +37,27 @@ bench-cli run \
   --mcp-server "evidra-mcp --signing-mode optional"
 ```
 
-The harness does not auto-start or auto-build `evidra-mcp`. Install it in the
-runner environment the same way you would install any other MCP server binary.
+Bench does not auto-start or auto-build MCP server binaries. Install them in
+the runner environment the same way you would install any other tool server.
 
 ## Evidence Modes
 
-API and stored run records use only:
+API and stored run records use two coarse modes:
 
-- `none` for baseline runs
-- `mcp` for runs that use an MCP server
+| Mode | Meaning |
+|---|---|
+| `none` | baseline or direct provider-loop run |
+| `mcp` | run used an MCP server |
 
 The trigger endpoint accepts `evidence_mode` values `none` and `mcp`.
 
-## Protocol Evidence Checks
+Use `tool_server` and `tool_server_version` metadata to distinguish individual
+MCP servers when comparing results.
 
-Some scenarios still declare `evidra:` protocol expectations. Those checks read
-JSONL evidence from `<evidence-dir>/segments/*.jsonl` only when a run explicitly
-sets an evidence directory:
+## Optional File-Based Checks
+
+Some scenarios can read local evidence artifacts when a run explicitly provides
+an evidence directory:
 
 ```bash
 bench-cli run \
@@ -42,13 +68,43 @@ bench-cli run \
   --evidence-dir ./runs/evidence
 ```
 
-This keeps protocol verification file-based and explicit. Normal infrastructure
-checks always run regardless of evidence mode.
+This is compatibility behavior. Normal infrastructure checks always run
+regardless of evidence mode or evidence directory.
+
+## Comparison Pattern
+
+To compare tool backends, keep the model, provider, scenario set, timeout,
+memory window, and cluster settings fixed. Change only the MCP server command:
+
+```bash
+# Baseline
+bench-cli bench \
+  --scenario kubernetes \
+  --model sonnet \
+  --provider bifrost \
+  --reuse-cluster
+
+# Same benchmark through one MCP server
+bench-cli bench \
+  --scenario kubernetes \
+  --model sonnet \
+  --provider bifrost \
+  --mcp-server "npx -y @anthropic/mcp-server-kubernetes" \
+  --reuse-cluster
+
+# Same benchmark through another MCP server
+bench-cli bench \
+  --scenario kubernetes \
+  --model sonnet \
+  --provider bifrost \
+  --mcp-server "evidra-mcp --signing-mode optional" \
+  --reuse-cluster
+```
 
 ## Bench Job Contracts
 
-This repo owns the benchmark API/control-plane surface used by the bench UI and
-remote runners:
+This repo owns the benchmark API and runner control-plane surface used by the
+Bench UI and remote runners:
 
 - [Bench API Reference](BENCH_API_REFERENCE.md)
 - [Executor Contract v1.0.0](contracts/EXECUTOR_CONTRACT_V1.md)
