@@ -80,8 +80,8 @@ func TestHandleLeaderboard_EvidenceModeFiltersAndAggregates(t *testing.T) {
 	sharedRuns := []bench.RunRecord{
 		{ID: "baseline-1", ScenarioID: "s1", Model: "sonnet", EvidenceMode: "none", Passed: true, Duration: 10, EstimatedCost: 1.0},
 		{ID: "baseline-2", ScenarioID: "s2", Model: "sonnet", EvidenceMode: "none", Passed: false, Duration: 20, EstimatedCost: 2.0},
-		{ID: "evidra-1", ScenarioID: "s1", Model: "sonnet", EvidenceMode: "mcp", Passed: true, Duration: 30, EstimatedCost: 3.0},
-		{ID: "evidra-2", ScenarioID: "s2", Model: "sonnet", EvidenceMode: "mcp", Passed: false, Duration: 40, EstimatedCost: 4.0},
+		{ID: "mcp-1", ScenarioID: "s1", Model: "sonnet", EvidenceMode: "mcp", Passed: true, Duration: 30, EstimatedCost: 3.0},
+		{ID: "mcp-2", ScenarioID: "s2", Model: "sonnet", EvidenceMode: "mcp", Passed: false, Duration: 40, EstimatedCost: 4.0},
 	}
 
 	tests := []struct {

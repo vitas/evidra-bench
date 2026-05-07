@@ -24,7 +24,7 @@ func RenderMarkdown(benchmark Benchmark) string {
 	writeSummaryRow(&b, "Duration (s)", benchmark.Summary.WithoutSkill.DurationSeconds, benchmark.Summary.WithSkill.DurationSeconds, benchmark.Summary.Delta.DurationSeconds, 2)
 	writeSummaryRow(&b, "Total tokens", benchmark.Summary.WithoutSkill.TotalTokens, benchmark.Summary.WithSkill.TotalTokens, benchmark.Summary.Delta.TotalTokens, 2)
 	writeSummaryRow(&b, "Estimated cost (USD)", benchmark.Summary.WithoutSkill.EstimatedCostUSD, benchmark.Summary.WithSkill.EstimatedCostUSD, benchmark.Summary.Delta.EstimatedCostUSD, 4)
-	writeSummaryRow(&b, "Evidra score", benchmark.Summary.WithoutSkill.Score, benchmark.Summary.WithSkill.Score, benchmark.Summary.Delta.Score, 2)
+	writeSummaryRow(&b, "Signal score", benchmark.Summary.WithoutSkill.Score, benchmark.Summary.WithSkill.Score, benchmark.Summary.Delta.Score, 2)
 
 	b.WriteString("\n## Pairs\n\n")
 	b.WriteString("| Scenario | Model | Repeat | Without | With | Compliance Δ | Token Δ | Cost Δ | Score Δ |\n")

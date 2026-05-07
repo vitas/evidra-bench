@@ -199,14 +199,14 @@ export function SkillImpact() {
             Skill Impact
           </h1>
           <p className="text-[0.85rem] text-fg-muted mt-0.5">
-            How the Evidra protocol skill affects agent reliability
+            How a system prompt skill affects agent reliability
           </p>
         </div>
         <div className="glass-card p-8 text-center">
           <p className="text-fg-muted text-[0.9rem] mb-2">No skill-enabled runs yet</p>
           <p className="text-fg-muted text-[0.78rem]">
             Run benchmarks with <code className="font-mono bg-bg-alt/80 px-1.5 py-0.5 rounded text-accent">--system-prompt-file</code> pointing
-            to the evidra contract skill to see the impact comparison.
+            to a skill prompt to see the impact comparison.
           </p>
         </div>
       </div>
@@ -221,7 +221,7 @@ export function SkillImpact() {
           Skill Impact
         </h1>
         <p className="text-[0.85rem] text-fg-muted mt-0.5">
-          How the Evidra protocol skill affects agent reliability
+          How a system prompt skill affects agent reliability
         </p>
       </div>
 
@@ -272,7 +272,7 @@ export function SkillImpact() {
             Pass Rate by Model
           </h2>
           <p className="text-[0.72rem] text-fg-muted">
-            Comparing runs with and without the Evidra protocol skill
+            Comparing runs with and without the selected skill prompt
           </p>
         </div>
         <table className="w-full text-[0.82rem]">
@@ -453,7 +453,7 @@ export function SkillImpact() {
           Want more data?
         </p>
         <p className="text-fg-muted text-[0.8rem]">
-          Run benchmarks with the evidra protocol skill to build a complete comparison.
+          Run benchmarks with a skill prompt to build a complete comparison.
           Use <code className="font-mono bg-bg-alt/80 px-1.5 py-0.5 rounded text-accent">--system-prompt-file</code> with
           the contract prompt to enable skill-mode runs.
         </p>

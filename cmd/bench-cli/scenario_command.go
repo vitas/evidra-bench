@@ -36,7 +36,7 @@ func newScenarioCommand(cfg *config.Config) *cobra.Command {
 			return pushScenarios(cfg.ScenariosDir, pushURL, pushKey)
 		},
 	}
-	pushCmd.Flags().StringVar(&pushURL, "bench-url", "https://api.evidra.cc", "Bench API URL")
+	pushCmd.Flags().StringVar(&pushURL, "bench-url", "", "Bench API URL")
 	pushCmd.Flags().StringVar(&pushKey, "bench-api-key", "", "Bench API key")
 
 	cmd.AddCommand(listCmd, pushCmd)
@@ -79,7 +79,6 @@ func pushScenarios(scenariosDir, benchURL, apiKey string) error {
 		Timeout     string   `json:"timeout,omitempty"`
 		Tags        []string `json:"tags"`
 		Chaos       bool     `json:"chaos"`
-		Evidra      bool     `json:"evidra"`
 		Skip        bool     `json:"skip,omitempty"`
 	}
 
@@ -99,7 +98,6 @@ func pushScenarios(scenariosDir, benchURL, apiKey string) error {
 			Timeout:     s.Timeout.String(),
 			Tags:        tags,
 			Chaos:       len(s.Chaos.Steps) > 0,
-			Evidra:      s.Evidra.Enabled,
 			Skip:        s.Skip,
 		})
 	}

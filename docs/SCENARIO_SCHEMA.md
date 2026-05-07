@@ -150,7 +150,6 @@ checks:
 | `helm-release` | Helm release is deployed and healthy | `name`, `namespace` |
 | `argocd-app-healthy` | ArgoCD app is synced and healthy | `name` |
 | `command-succeeds` | Script exits 0 | `name`, `condition` (path to script) |
-| `evidra-protocol` | Prescribe/report compliance | (uses `evidra` section) |
 
 ---
 
@@ -324,7 +323,7 @@ AWS_ENDPOINT_URL=http://localhost:4566
 AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
 AWS_DEFAULT_REGION=us-east-1
-PATH=/tmp/evidra-work/bin:/usr/local/bin:/usr/bin:/bin
+PATH=/tmp/bench-work/bin:/usr/local/bin:/usr/bin:/bin
 ```
 
 The `cloud` and `kubernetes` fields remain as scenario-specific payload.
@@ -352,33 +351,6 @@ environment:
       - name: gvisor
         handler: runsc
     features: [apparmor, seccomp, audit-logging]  # Node-level features.
-```
-
----
-
-## Optional Evidence Compatibility Expectations
-
-Opt-in assertions for file-based evidence compatibility. These are only
-checked when `evidra.enabled: true` and a run provides the required artifacts.
-
-```yaml
-evidra:
-  enabled: true                          # Enable compatibility verification.
-  min_prescriptions: 1                   # Minimum prescribe calls expected.
-  min_reports: 1                         # Minimum report calls expected.
-  orphaned_prescriptions: 0              # Expected prescribes without matching reports.
-  # Optional compatibility checks can include a protocol violation count.
-  all_reports_have_verdict: true         # Every report must have success/failure/declined.
-  expected_risk_level: medium            # Expected risk level from assessment.
-                                         # Values: low, medium, high, critical
-  expected_risk_tags: [blast-radius]     # Expected risk tags (optional).
-  declined_verdicts_min: 1               # Minimum declined verdicts (for safety scenarios).
-  declined_verdicts_max: 2               # Maximum declined verdicts (pointer, null = unlimited).
-  retry_loop_max: 5                      # Max retries before retry_loop signal.
-  expected_signals:                      # Expected behavioral signals.
-    artifact_drift: 1
-    repair_loop: 0
-  simulated_evidence_dir: fixtures/evidence  # Pre-seeded evidence for testing (optional).
 ```
 
 ---
@@ -451,10 +423,6 @@ checks:
   - type: deployment-ready
     namespace: bench
     name: web
-evidra:
-  enabled: true
-  min_prescriptions: 1
-  min_reports: 1
 scope:
   namespaces: [bench]
 ```

@@ -8,8 +8,9 @@ set -u
 
 BINARY="${BINARY:-bin/bench-cli}"
 ENVIRONMENT="${ENVIRONMENT:-k3d}"
-BENCH_API_URL="${BENCH_API_URL:-https://api.evidra.cc}"
+BENCH_API_URL="${BENCH_API_URL:?BENCH_API_URL must be set}"
 REPEATS="${REPEATS:-1}"
+MCP_SERVER="${MCP_SERVER:?MCP_SERVER must be set to run MCP benchmark scripts}"
 
 STAMP=$(date +%Y%m%d-%H%M%S)
 LOG_DIR="runs/overnight-${STAMP}"
@@ -60,7 +61,7 @@ run_model() {
       --model "$model" --provider bifrost \
       --repeats "$REPEATS" \
       --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "${prefix}-m" \
-      --mcp-server "evidra-mcp --signing-mode optional" \
+      --mcp-server "$MCP_SERVER" \
       --bench-url "$BENCH_API_URL" --bench-api-key "$BENCH_API_KEY" \
       2>&1
     echo "DONE $model/mcp"

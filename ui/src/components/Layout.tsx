@@ -30,7 +30,7 @@ function Header() {
             to="/"
             className="font-extrabold text-[1.05rem] text-fg tracking-tight no-underline hover:text-fg"
           >
-            evidra<span className="text-accent">.</span>lab
+            bench<span className="text-accent">.</span>lab
           </Link>
           <nav className="flex gap-3 sm:gap-5 items-center overflow-x-auto">
             {NAV_LINKS.map((link) => (
@@ -57,7 +57,7 @@ function Header() {
           </Link>
           <a
             className="inline-flex items-center gap-1 text-[0.82rem] font-medium text-fg-muted tracking-wide hover:text-fg no-underline transition-colors"
-            href="https://github.com/vitas/evidra"
+            href="https://github.com/vitas/evidra-bench"
             target="_blank"
             rel="noopener"
           >

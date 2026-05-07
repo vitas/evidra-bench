@@ -40,7 +40,7 @@ func parseFloatMeta(meta map[string]string, key string) float64 {
 }
 
 // mcpServerName extracts the binary name from a full MCP server command.
-// "evidra-mcp --signing-mode optional" → "evidra-mcp"
+// "my-mcp-server --stdio" -> "my-mcp-server"
 func mcpServerName(cmd string) string {
 	if cmd == "" {
 		return ""

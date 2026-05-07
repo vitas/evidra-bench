@@ -101,7 +101,7 @@ func (h *Harness) reportRun(req RunRequest, agentResult *adapter.RunResult, veri
 		},
 	}
 	if err := h.deps.Reporter.Report(entries); err != nil {
-		log.Printf("[harness] warning: evidra report failed: %v", err)
+		log.Printf("[harness] warning: offline report failed: %v", err)
 	}
 }
 

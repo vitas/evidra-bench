@@ -20,7 +20,6 @@ type BenchmarkMetadata struct {
 	WithSkillPrompt   string   `json:"with_skill_prompt,omitempty"`
 	InfraBenchVersion string   `json:"infra_bench_version,omitempty"`
 	InfraBenchCommit  string   `json:"infra_bench_commit,omitempty"`
-	EvidraVersion     string   `json:"evidra_version,omitempty"`
 	ContractVersion   string   `json:"contract_version,omitempty"`
 	PromptVersion     string   `json:"prompt_version,omitempty"`
 	SkillVersion      string   `json:"skill_version,omitempty"`
@@ -74,7 +73,7 @@ type ProtocolMetrics struct {
 	ComplianceRatePct     float64 `json:"compliance_rate_pct"`
 }
 
-// ScorecardMetrics captures scorecard output derived from Evidra evidence.
+// ScorecardMetrics captures scorecard output derived from benchmark evidence.
 type ScorecardMetrics struct {
 	Available    bool           `json:"available"`
 	Score        *float64       `json:"score,omitempty"`

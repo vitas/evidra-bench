@@ -51,7 +51,7 @@ func loadSignalCounts(runDir string, metadata map[string]string) (map[string]int
 
 	evidenceDir := strings.TrimSpace(metadata["evidence_dir"])
 	if !hasSegments(evidenceDir) {
-		fallback := filepath.Join(runDir, "evidra")
+		fallback := filepath.Join(runDir, "evidence")
 		if hasSegments(fallback) {
 			evidenceDir = fallback
 		}
@@ -70,7 +70,7 @@ func loadSignalCounts(runDir string, metadata map[string]string) (map[string]int
 func loadScorecardSignals(runDir string) (map[string]int, bool, error) {
 	for _, path := range []string{
 		filepath.Join(runDir, "scorecard.json"),
-		filepath.Join(runDir, "evidra", "scorecard.json"),
+		filepath.Join(runDir, "evidence", "scorecard.json"),
 	} {
 		if _, err := os.Stat(path); err != nil {
 			continue

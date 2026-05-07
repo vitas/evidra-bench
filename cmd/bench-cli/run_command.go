@@ -51,7 +51,7 @@ func newRunCommand(cfg *config.Config) *cobra.Command {
 	f.IntVar(&cfg.MemoryWindow, "memory-window", -1, "agent memory window (-1=full, 0=stateless, N=last N exchanges)")
 	f.StringVar(&cfg.SystemPromptFile, "system-prompt-file", cfg.SystemPromptFile, "system prompt file path (overrides default; env: INFRA_BENCH_SYSTEM_PROMPT)")
 	f.StringVar(&cfg.Role, "role", cfg.Role, "role-based skill (k8s-admin, security-ops, release-manager, platform-eng)")
-	f.StringVar(&cfg.MCPServer, "mcp-server", cfg.MCPServer, "MCP server command for tool execution (e.g. 'evidra-mcp --signing-mode optional')")
+	f.StringVar(&cfg.MCPServer, "mcp-server", cfg.MCPServer, "MCP server command for tool execution")
 	f.StringVar(&cfg.ContractVersion, "contract-version", cfg.ContractVersion, "contract version label for tracking")
 	f.IntVar(&cfg.Parallel, "parallel", 1, "number of parallel workers (1 = sequential)")
 	f.StringVar(&cfg.DatabaseURL, "database-url", "", "PostgreSQL URL for job queue (env: BENCH_DATABASE_URL)")
@@ -179,7 +179,7 @@ func runScenarioOnceWithLease(ctx context.Context, cfg config.Config, s *scenari
 	writer := artifact.NewWriter(cfg.RunsDir)
 
 	reporter := report.NewReporter(report.Config{
-		EvidencePath: filepath.Join(cfg.RunsDir, "evidra"),
+		EvidencePath: filepath.Join(cfg.RunsDir, "evidence"),
 	})
 
 	resultsStore, err := store.Open(cfg.RunsDir)
@@ -271,7 +271,7 @@ func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *sce
 	writer := artifact.NewWriter(cfg.RunsDir)
 
 	reporter := report.NewReporter(report.Config{
-		EvidencePath: filepath.Join(cfg.RunsDir, "evidra"),
+		EvidencePath: filepath.Join(cfg.RunsDir, "evidence"),
 	})
 
 	// Use shared store if provided (parallel mode), otherwise open workspace-local.

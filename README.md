@@ -1,4 +1,4 @@
-# evidra-infra-bench
+# Bench
 
 Regression testing for infrastructure agents. Run the same real Kubernetes,
 Helm, Argo CD, Terraform, and AWS/LocalStack scenarios across models, MCP
@@ -121,17 +121,15 @@ executed:
 | CLI process | `--adapter cli` | External agent process compatibility |
 | Skill prompt | `--system-prompt-file ...` or `--role ...` | Prompt/skill impact under fixed scenarios |
 
-`evidra-mcp` can be tested as one MCP server:
+Any MCP tool server can be tested by passing its command to `--mcp-server`:
 
 ```bash
 bench-cli run \
   --scenario kubernetes/broken-deployment \
   --provider bifrost \
   --model sonnet \
-  --mcp-server "evidra-mcp --signing-mode optional"
+  --mcp-server "$MCP_SERVER"
 ```
-
-It is not required by Bench.
 
 ## How It Works
 

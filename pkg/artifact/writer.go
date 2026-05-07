@@ -60,9 +60,9 @@ func (w *Writer) Write(bundle RunBundle) (*WriteOutput, error) {
 		return nil, fmt.Errorf("artifact.Writer.Write: mkdir: %w", err)
 	}
 
-	// Create evidra subdirectory for optional evidence output.
-	if err := os.MkdirAll(filepath.Join(runDir, "evidra"), 0755); err != nil {
-		return nil, fmt.Errorf("artifact.Writer.Write: mkdir evidra: %w", err)
+	// Create evidence subdirectory for optional local evidence output.
+	if err := os.MkdirAll(filepath.Join(runDir, "evidence"), 0755); err != nil {
+		return nil, fmt.Errorf("artifact.Writer.Write: mkdir evidence: %w", err)
 	}
 
 	// Write run.json metadata.

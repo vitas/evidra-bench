@@ -16,5 +16,5 @@ SG_ID=$(aws ec2 create-security-group --group-name app-sg --description "App sec
 aws ec2 authorize-security-group-ingress --group-id "$SG_ID" --protocol tcp --port 80 --cidr 10.0.0.0/16
 
 # Store SG_ID for break and verify scripts
-echo "$SG_ID" > /tmp/evidra-sg-id
-echo "$VPC_ID" > /tmp/evidra-vpc-id
+echo "$SG_ID" > /tmp/bench-sg-id
+echo "$VPC_ID" > /tmp/bench-vpc-id

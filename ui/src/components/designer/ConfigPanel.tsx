@@ -288,7 +288,6 @@ function VerifyConfig({
             { value: "resource-exists", label: "Resource Exists" },
             { value: "helm-release", label: "Helm Release" },
             { value: "argocd-app-healthy", label: "ArgoCD App Healthy" },
-            { value: "evidra-protocol", label: "Evidra Protocol" },
             { value: "command-succeeds", label: "Command Succeeds" },
           ]}
         />

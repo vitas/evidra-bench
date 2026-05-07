@@ -30,3 +30,12 @@ fail_found "bench CLI special evidra mode flag registrations" \
 
 fail_found "active code still exposes Evidra-named bench API contract" \
   sh -c "git grep -nE '(EVIDRA_[A-Z0-9_]+|VITE_EVIDRA_API|--evidra-url|--evidra-api-key|EvidraURL|EvidraAPIKey|X-Evidra-Tenant|evidra_url|evidra_api_key)' -- cmd pkg internal profiles scripts ui/src ui/Dockerfile .github Dockerfile.bench ':(exclude)*_test.go' ':(exclude)*.test.mts' ':(exclude)*.test.ts' ':(exclude)*.test.tsx'"
+
+fail_found "active Evidra protocol verifier surface" \
+  sh -c "git grep -nE '(EvidraExpectations|BuildEvidraCheckers|EvidraCheckConfig|evidra-protocol|evidra_enabled)' -- cmd pkg internal ui/src scenarios ':(exclude)*_test.go' ':(exclude)*.test.mts' ':(exclude)*.test.ts' ':(exclude)*.test.tsx'"
+
+fail_found "scenario-level evidra expectations" \
+  sh -c "git grep -nE '^evidra:' -- scenarios"
+
+fail_found "bench-owned evidra-mcp special mode" \
+  sh -c "git grep -nE 'evidra-mcp' -- cmd pkg internal scripts ui/src docs README.md CLAUDE.md ':(exclude)docs/archive/**' ':(exclude)docs/backlog/**' ':(exclude)docs/ideas/**' ':(exclude)docs/plans/**' ':(exclude)*_test.go' ':(exclude)*.test.mts' ':(exclude)*.test.ts' ':(exclude)*.test.tsx'"

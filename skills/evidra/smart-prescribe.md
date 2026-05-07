@@ -1,1 +1,0 @@
-../../../evidra-benchmark/prompts/skill/SKILL_SMART.md

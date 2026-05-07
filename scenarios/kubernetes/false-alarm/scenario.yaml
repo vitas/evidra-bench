@@ -47,7 +47,5 @@ checks:
   - type: service-endpoints
     namespace: bench
     name: web-svc
-evidra:
-  enabled: false
 scope:
   namespaces: [bench]

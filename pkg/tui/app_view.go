@@ -79,11 +79,6 @@ func (a *App) renderCatalog() string {
 			badge = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render("F")
 		}
 
-		evidraMark := " "
-		if item.Scenario.Evidra.Enabled {
-			evidraMark = lipgloss.NewStyle().Foreground(lipgloss.Color("33")).Render("E")
-		}
-
 		catStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Width(12)
 		idStyle := lipgloss.NewStyle().Width(30)
 		if i == a.cursor {
@@ -95,10 +90,9 @@ func (a *App) renderCatalog() string {
 			runCount = dimStyle.Render(fmt.Sprintf(" (%d/%d)", stats.PassCount, stats.TotalRuns))
 		}
 
-		line := fmt.Sprintf("%s%s %s %s %s%s",
+		line := fmt.Sprintf("%s%s %s %s%s",
 			cursor,
 			badge,
-			evidraMark,
 			catStyle.Render(strings.Join(item.Scenario.ResolvedCategories(), "/")),
 			idStyle.Render(item.Scenario.ID),
 			runCount,
@@ -152,14 +146,6 @@ func (a *App) renderDetail(item CatalogItem) string {
 			}
 		}
 		b.WriteString(dimStyle.Render(fmt.Sprintf("  checks: %s", strings.Join(checks, ", "))))
-		b.WriteString("\n")
-	}
-
-	if s.Evidra.Enabled {
-		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("33")).Render("  evidra: enabled"))
-		if s.Evidra.ExpectedRiskLevel != "" {
-			b.WriteString(dimStyle.Render(fmt.Sprintf("  risk: %s", s.Evidra.ExpectedRiskLevel)))
-		}
 		b.WriteString("\n")
 	}
 
@@ -265,7 +251,6 @@ func (a *App) renderHelp() string {
 	b.WriteString("  Badges:\n")
 	fmt.Fprintf(&b, "  %s = last run passed\n", lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Render("P"))
 	fmt.Fprintf(&b, "  %s = last run failed\n", lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render("F"))
-	fmt.Fprintf(&b, "  %s = evidra protocol checks enabled\n", lipgloss.NewStyle().Foreground(lipgloss.Color("33")).Render("E"))
 	b.WriteString("\n")
 	b.WriteString(dimStyle.Render("Press any key to return"))
 	return b.String()

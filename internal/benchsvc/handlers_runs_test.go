@@ -92,8 +92,8 @@ func TestHandleListRuns_EvidenceModeFiltersItems(t *testing.T) {
 	sharedRuns := []bench.RunRecord{
 		{ID: "baseline-1", ScenarioID: "s1", Model: "sonnet", EvidenceMode: "none"},
 		{ID: "baseline-2", ScenarioID: "s2", Model: "sonnet", EvidenceMode: "none"},
-		{ID: "evidra-1", ScenarioID: "s3", Model: "sonnet", EvidenceMode: "mcp"},
-		{ID: "evidra-2", ScenarioID: "s4", Model: "sonnet", EvidenceMode: "mcp"},
+		{ID: "mcp-1", ScenarioID: "s3", Model: "sonnet", EvidenceMode: "mcp"},
+		{ID: "mcp-2", ScenarioID: "s4", Model: "sonnet", EvidenceMode: "mcp"},
 	}
 
 	tests := []struct {
@@ -102,7 +102,7 @@ func TestHandleListRuns_EvidenceModeFiltersItems(t *testing.T) {
 		wantIDs []string
 	}{
 		{name: "baseline only", mode: "none", wantIDs: []string{"baseline-1", "baseline-2"}},
-		{name: "mcp", mode: "mcp", wantIDs: []string{"evidra-1", "evidra-2"}},
+		{name: "mcp", mode: "mcp", wantIDs: []string{"mcp-1", "mcp-2"}},
 	}
 
 	for _, tt := range tests {

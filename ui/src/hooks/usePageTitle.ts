@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-const BASE = "Evidra Bench";
+const BASE = "Bench Lab";
 
 export function usePageTitle(page?: string) {
   useEffect(() => {

@@ -19,8 +19,8 @@ export INFRA_BENCH_BIFROST_AUTH_BEARER=$GEMINI_API_KEY
 bench-cli bench \
   --scenario kubernetes --scenario helm \
   --model gemini-2.5-flash --provider bifrost \
-  --repeats 3 --environment k3d --reuse-cluster --mcp-server "evidra-mcp --signing-mode optional" \
-  --bench-url https://api.evidra.cc --bench-api-key $BENCH_API_KEY
+  --repeats 3 --environment k3d --reuse-cluster --mcp-server "$MCP_SERVER" \
+  --bench-url $BENCH_API_URL --bench-api-key $BENCH_API_KEY
 
 # DeepSeek — same scenarios
 export INFRA_BENCH_BIFROST_URL=https://api.deepseek.com/v1
@@ -28,8 +28,8 @@ export INFRA_BENCH_BIFROST_AUTH_BEARER=$DEEPSEEK_API_KEY
 bench-cli bench \
   --scenario kubernetes --scenario helm \
   --model deepseek-chat --provider bifrost \
-  --repeats 3 --environment k3d --reuse-cluster --mcp-server "evidra-mcp --signing-mode optional" \
-  --bench-url https://api.evidra.cc --bench-api-key $BENCH_API_KEY
+  --repeats 3 --environment k3d --reuse-cluster --mcp-server "$MCP_SERVER" \
+  --bench-url $BENCH_API_URL --bench-api-key $BENCH_API_KEY
 
 # Qwen — same scenarios
 export INFRA_BENCH_BIFROST_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
@@ -37,8 +37,8 @@ export INFRA_BENCH_BIFROST_AUTH_BEARER=$DASHSCOPE_API_KEY
 bench-cli bench \
   --scenario kubernetes --scenario helm \
   --model qwen-plus --provider bifrost \
-  --repeats 3 --environment k3d --reuse-cluster --mcp-server "evidra-mcp --signing-mode optional" \
-  --bench-url https://api.evidra.cc --bench-api-key $BENCH_API_KEY
+  --repeats 3 --environment k3d --reuse-cluster --mcp-server "$MCP_SERVER" \
+  --bench-url $BENCH_API_URL --bench-api-key $BENCH_API_KEY
 ```
 
 ### Morning Of: E2E Verification Checklist
@@ -48,10 +48,10 @@ Run all 7 before recording. Every one must pass.
 | # | What | Command | Expected |
 |---|------|---------|----------|
 | 1 | Baseline PASS | `bench-cli run --scenario kubernetes/broken-deployment --model gemini-2.5-flash --provider bifrost --environment k3d` | PASS, <60s |
-| 2 | MCP PASS | same + `--mcp-server "evidra-mcp --signing-mode optional" --reuse-cluster` | PASS, MCP run reported to API |
+| 2 | MCP PASS | same + `--mcp-server "$MCP_SERVER" --reuse-cluster` | PASS, MCP run reported to API |
 | 3 | ArgoCD PASS | `bench-cli run --scenario argocd/out-of-sync --model gemini-2.5-flash --provider bifrost --environment k3d --reuse-cluster --cluster-name argo-demo` | PASS, <3min |
-| 4 | Leaderboard | `curl -sf -H "Authorization: Bearer $BENCH_API_KEY" https://api.evidra.cc/v1/bench/leaderboard` | gemini-2.5-flash in results |
-| 5 | Evidence filter | Open evidra.cc/evidence, select actor from dropdown | Filtered entries shown |
+| 4 | Leaderboard | `curl -sf -H "Authorization: Bearer $BENCH_API_KEY" $BENCH_API_URL/v1/bench/leaderboard` | gemini-2.5-flash in results |
+| 5 | Evidence filter | Open the run detail page and inspect tool calls | Run details shown |
 | 6 | Skipped scenario | `bench-cli run --scenario kubernetes/apparmor-profile-pod --dry-run` | Error: "skipped" |
 | 7 | Profile rejection | `bench-cli bench --scenario argocd/out-of-sync --parallel 2 --database-url ...` | Error: "shared-cluster parallel" |
 
@@ -69,7 +69,7 @@ Live terminal. Show the agent fixing a broken deployment.
 ```bash
 bench-cli run --scenario kubernetes/broken-deployment \
   --model gemini-2.5-flash --provider bifrost \
-  --environment k3d --mcp-server "evidra-mcp --signing-mode optional"
+  --environment k3d --mcp-server "$MCP_SERVER"
 ```
 
 **What judges see:**
@@ -78,7 +78,7 @@ bench-cli run --scenario kubernetes/broken-deployment \
 - Fixes it with `kubectl set image`
 - Deployment goes green
 - **PASS** in ~30s
-- Evidence auto-recorded
+- Tool calls and transcript recorded
 
 **Talking point:** "One command. Real cluster. Real agent. Real verification."
 
@@ -87,7 +87,7 @@ bench-cli run --scenario kubernetes/broken-deployment \
 ```bash
 bench-cli run --scenario kubernetes/wrong-service-selector \
   --model gemini-2.5-flash --provider bifrost \
-  --environment k3d --reuse-cluster --mcp-server "evidra-mcp --signing-mode optional"
+  --environment k3d --reuse-cluster --mcp-server "$MCP_SERVER"
 ```
 
 **What judges see:**
@@ -161,5 +161,5 @@ Switch to the Bench leaderboard.
 | k3d won't start | Use `--environment kind` instead |
 | API key expired | Check `.env`, re-export |
 | Scenario fails live | "This is exactly why we benchmark — let me show you a passing one" |
-| evidra.cc is down | Show local results: `cat runs/bench/*/summary.json` |
+| Bench API is down | Show local results: `cat runs/bench/*/summary.json` |
 | Agent times out | "DeepSeek sometimes does this — that's why reliability matters" |

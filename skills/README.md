@@ -37,4 +37,4 @@ The bench harness does not inject protocol tools or special evidence modes.
 ## Benchmark Data
 
 Skills aren't universally good — they help some scenarios and hurt others.
-Test before shipping. See results at [lab.evidra.cc/results](https://lab.evidra.cc/results).
+Test before shipping.

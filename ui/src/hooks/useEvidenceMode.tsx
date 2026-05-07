@@ -23,13 +23,13 @@ const EvidenceModeContext = createContext<EvidenceModeCtx>({
 
 export function EvidenceModeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<EvidenceMode>(() => {
-    const saved = localStorage.getItem("evidra-bench-evidence-mode");
+    const saved = localStorage.getItem("bench-evidence-mode");
     return normalizeEvidenceMode(saved);
   });
 
   const setMode = (m: EvidenceMode) => {
     setModeState(m);
-    localStorage.setItem("evidra-bench-evidence-mode", m);
+    localStorage.setItem("bench-evidence-mode", m);
   };
 
   return (

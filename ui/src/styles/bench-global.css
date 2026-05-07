@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* ── Theme tokens (matching parent evidra project) ── */
+/* ── Theme tokens (matching Bench Lab) ── */
 @theme {
   --color-bg: #ebf3ef;
   --color-bg-alt: #e2ede7;

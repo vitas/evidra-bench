@@ -252,9 +252,6 @@ func buildSkillDeltaMetadata(dir string, pairs []skilldelta.PairResult) skilldel
 		if meta.SkillVersion == "" {
 			meta.SkillVersion = firstMetadata(pair, "skill_version")
 		}
-		if meta.EvidraVersion == "" {
-			meta.EvidraVersion = firstMetadata(pair, "evidra_version")
-		}
 		if meta.InfraBenchVersion == "" {
 			meta.InfraBenchVersion = firstMetadata(pair, "infra_bench_version")
 		}

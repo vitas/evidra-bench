@@ -30,7 +30,6 @@ export function PublishButton({ metadata }: PublishButtonProps) {
           category: metadata.category || "kubernetes",
           tags: [],
           chaos: false,
-          evidra: false,
         }],
       };
 

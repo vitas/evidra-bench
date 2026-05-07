@@ -36,7 +36,7 @@ type Config struct {
 	SystemPromptFile    string
 	ContractVersion     string
 	Role                string // role-based skill (k8s-admin, security-ops, release-manager, platform-eng)
-	MCPServer           string // MCP server command (for example, "evidra-mcp --signing-mode optional")
+	MCPServer           string // MCP server command
 	EvidenceMode        string // explicit per-run override for evidence mode
 	Parallel            int    // number of parallel workers (0 or 1 = sequential, >1 requires --database-url)
 	DatabaseURL         string // PostgreSQL connection string for River job queue (env: BENCH_DATABASE_URL)

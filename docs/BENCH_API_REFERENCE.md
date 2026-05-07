@@ -29,17 +29,15 @@ Returns `200 OK` with `{"status":"ok"}` when the HTTP process is running.
 
 ## Filters
 
-Bench list and analytics endpoints accept the public evidence-mode aliases:
+Bench list and analytics endpoints accept exact evidence-mode filters:
 
 | Query value | Meaning |
 |---|---|
 | empty | all runs |
 | `none` | baseline runs only |
-| `evidra` | all non-`none` runs |
-| any other value | exact match against stored `evidence_mode` |
+| `mcp` | runs that used an MCP server |
 
-The trigger contract is narrower: `POST /v1/bench/trigger` accepts only
-`none` or `mcp`.
+`POST /v1/bench/trigger` accepts only `none` or `mcp`.
 
 ## Public Endpoints
 
@@ -94,8 +92,7 @@ Upserts scenario metadata. Used by `bench-cli scenario push`.
       "title": "Broken Deployment",
       "category": "kubernetes",
       "tags": ["deployment", "image"],
-      "chaos": false,
-      "evidra": true
+      "chaos": false
     }
   ]
 }

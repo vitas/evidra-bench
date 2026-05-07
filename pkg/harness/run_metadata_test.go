@@ -50,7 +50,7 @@ func TestBuildRunMetadata_PrefersExplicitEvidenceMode(t *testing.T) {
 	cfg.Provider = "claude"
 	cfg.Model = "sonnet"
 	cfg.EvidenceMode = "none"
-	cfg.MCPServer = "evidra-mcp --signing-mode optional"
+	cfg.MCPServer = "sample-mcp --stdio"
 	cfg.SystemPromptFile = writePromptMetadataFile(t, "v1.2.3", "p7")
 	cfg.ContractVersion = "v9.9.9"
 
@@ -89,7 +89,7 @@ func TestHarness_StoreUsesExplicitEvidenceMode(t *testing.T) {
 	cfg.Scenario = "broken-deployment"
 	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
 	cfg.EvidenceMode = "none"
-	cfg.MCPServer = "evidra-mcp --signing-mode optional"
+	cfg.MCPServer = "sample-mcp --stdio"
 	cfg.SystemPromptFile = writePromptMetadataFile(t, "v1.2.3", "p7")
 
 	if _, err := h.Run(context.Background(), RunRequest{

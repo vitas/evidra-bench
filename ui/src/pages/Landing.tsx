@@ -153,7 +153,7 @@ export function Landing() {
       {/* Top bar */}
       <div className="relative flex items-center justify-end gap-3 max-w-6xl mx-auto px-6 pt-4">
         <a
-          href="https://github.com/vitas/evidra"
+          href="https://github.com/vitas/evidra-bench"
           target="_blank"
           rel="noopener noreferrer"
           className="w-8 h-8 flex items-center justify-center rounded-md border border-border text-fg-muted hover:border-accent hover:text-accent transition-all"
@@ -425,12 +425,12 @@ export function Landing() {
       {/* Footer */}
       <footer className="max-w-6xl mx-auto px-6 py-8 border-t border-border">
         <div className="flex items-center justify-between text-[0.72rem] text-fg-muted">
-          <span>evidra.lab — test framework for AI infrastructure agent skills</span>
+          <span>bench.lab - test framework for AI infrastructure agent skills</span>
           <div className="flex items-center gap-4">
             <Link to="/bench" className="hover:text-accent transition-colors">Bench</Link>
             <Link to={BENCH_SCENARIOS_PATH} className="hover:text-accent transition-colors">Lab</Link>
             <Link to={BENCH_RUNS_PATH} className="hover:text-accent transition-colors">Exams</Link>
-            <a href="https://github.com/vitas/evidra" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">
+            <a href="https://github.com/vitas/evidra-bench" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">
               GitHub
             </a>
           </div>

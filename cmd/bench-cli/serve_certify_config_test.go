@@ -130,7 +130,7 @@ func TestBuildCertifyRunConfig_EvidenceModeNoneClearsConflicts(t *testing.T) {
 
 	base := config.Default()
 	base.Provider = "claude"
-	base.MCPServer = "evidra-mcp --signing-mode optional"
+	base.MCPServer = "sample-mcp --stdio"
 	base.SystemPromptFile = "/tmp/system-prompt.md"
 	base.Role = "platform-eng"
 	base.ContractVersion = "v9.9.9"
@@ -162,7 +162,7 @@ func TestBuildCertifyRunConfig_EvidenceModeMCPPreservesGenericMCPServer(t *testi
 
 	base := config.Default()
 	base.Provider = "claude"
-	base.MCPServer = "evidra-mcp --signing-mode optional"
+	base.MCPServer = "sample-mcp --stdio"
 	base.SystemPromptFile = "/tmp/system-prompt.md"
 	base.Role = "platform-eng"
 	base.ContractVersion = "v9.9.9"
@@ -194,7 +194,7 @@ func TestBuildCertifyRunConfig_EmptyEvidenceModePreservesDefaultInference(t *tes
 
 	base := config.Default()
 	base.Provider = "claude"
-	base.MCPServer = "evidra-mcp --signing-mode optional"
+	base.MCPServer = "sample-mcp --stdio"
 	base.SystemPromptFile = "/tmp/system-prompt.md"
 
 	got := buildCertifyRunConfig(base, CertifyRequest{Model: "sonnet"})

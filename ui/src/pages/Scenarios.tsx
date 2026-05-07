@@ -167,7 +167,7 @@ export function Scenarios() {
   const [track, setTrack] = useState<TrackFilter>("all");
   const [level, setLevel] = useState<LevelFilter>("all");
   const [view, setView] = useState<ViewMode>(() => {
-    const saved = localStorage.getItem("evidra-lab-view-mode");
+    const saved = localStorage.getItem("bench-lab-view-mode");
     return saved === "list" ? "list" : "grid";
   });
 
@@ -322,7 +322,7 @@ export function Scenarios() {
         </span>
         <div className="flex items-center gap-0.5 glass-card p-0.5">
           <button
-            onClick={() => { setView("grid"); localStorage.setItem("evidra-lab-view-mode", "grid"); }}
+            onClick={() => { setView("grid"); localStorage.setItem("bench-lab-view-mode", "grid"); }}
             className={`p-1.5 rounded-md transition-colors ${view === "grid" ? "bg-accent/15 text-accent" : "text-fg-muted hover:text-fg"}`}
             title="Grid view"
           >
@@ -334,7 +334,7 @@ export function Scenarios() {
             </svg>
           </button>
           <button
-            onClick={() => { setView("list"); localStorage.setItem("evidra-lab-view-mode", "list"); }}
+            onClick={() => { setView("list"); localStorage.setItem("bench-lab-view-mode", "list"); }}
             className={`p-1.5 rounded-md transition-colors ${view === "list" ? "bg-accent/15 text-accent" : "text-fg-muted hover:text-fg"}`}
             title="List view"
           >

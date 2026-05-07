@@ -11,7 +11,7 @@ import (
 	bench "samebits.com/evidra-infra-bench/pkg/bench"
 )
 
-// jsonlRecord matches the JSONL format from evidra-stand results.jsonl.
+// jsonlRecord matches the local results.jsonl import format.
 type jsonlRecord struct {
 	ID               string  `json:"id"`
 	ScenarioID       string  `json:"scenario_id"`

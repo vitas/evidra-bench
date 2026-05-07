@@ -202,7 +202,6 @@ CREATE TABLE IF NOT EXISTS bench_scenarios (
     difficulty TEXT NOT NULL DEFAULT 'medium',
     tools TEXT[] NOT NULL DEFAULT '{}',
     chaos BOOLEAN NOT NULL DEFAULT FALSE,
-    evidra_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     track TEXT NOT NULL DEFAULT '',
     level TEXT NOT NULL DEFAULT '',
     tags TEXT[] NOT NULL DEFAULT '{}',

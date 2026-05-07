@@ -7,7 +7,7 @@ import (
 
 // VersionInfo holds all version metadata for reproducible benchmarks.
 // Every run must record these so results can be compared across time,
-// models, and evidra releases.
+// models, prompts, and skill releases.
 type VersionInfo struct {
 	// infra-bench
 	InfraBenchVersion string `json:"infra_bench_version"`

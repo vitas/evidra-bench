@@ -19,7 +19,7 @@ type MCPExecutor struct {
 }
 
 // NewMCPExecutor starts an MCP server subprocess and connects via stdio.
-// The command is split on spaces: "evidra-mcp --signing-mode optional"
+// The command is split on spaces: "MCP server --signing-mode optional"
 // Extra env vars (e.g., KUBECONFIG) are injected into the subprocess.
 func NewMCPExecutor(ctx context.Context, command string, extraEnv []string) (*MCPExecutor, error) {
 	parts := strings.Fields(command)

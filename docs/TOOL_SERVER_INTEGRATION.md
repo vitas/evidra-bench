@@ -11,9 +11,8 @@ tags:
 
 # Tool Server And Evidence Compatibility
 
-This file keeps its historical name for link stability. The current Bench
-integration model is generic: Bench has no core dependency on the sibling
-`../evidra` repo.
+Bench uses a generic integration model. Tool servers are external processes,
+not project-specific modes.
 
 ## MCP Servers
 
@@ -25,16 +24,6 @@ bench-cli run \
   --provider bifrost \
   --model sonnet \
   --mcp-server "npx -y @anthropic/mcp-server-kubernetes"
-```
-
-To test `evidra-mcp`, pass it as a normal MCP server command:
-
-```bash
-bench-cli run \
-  --scenario kubernetes/broken-deployment \
-  --provider bifrost \
-  --model sonnet \
-  --mcp-server "evidra-mcp --signing-mode optional"
 ```
 
 Bench does not auto-start or auto-build MCP server binaries. Install them in
@@ -64,7 +53,7 @@ bench-cli run \
   --scenario kubernetes/privileged-pod-review \
   --provider bifrost \
   --model sonnet \
-  --mcp-server "evidra-mcp --signing-mode optional" \
+  --mcp-server "$MCP_SERVER" \
   --evidence-dir ./runs/evidence
 ```
 
@@ -97,7 +86,7 @@ bench-cli bench \
   --scenario kubernetes \
   --model sonnet \
   --provider bifrost \
-  --mcp-server "evidra-mcp --signing-mode optional" \
+  --mcp-server "$OTHER_MCP_SERVER" \
   --reuse-cluster
 ```
 

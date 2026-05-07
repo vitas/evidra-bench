@@ -85,7 +85,7 @@ func New(deps Deps) *Harness {
 // 4. Execute agent
 // 5. Verify outcome
 // 6. Write artifacts
-// 7. Optionally report to Evidra
+// 7. Optionally report results
 func (h *Harness) Run(ctx context.Context, req RunRequest) (*RunResult, error) {
 	startTime := time.Now()
 	s := req.Scenario

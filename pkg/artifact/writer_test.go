@@ -28,7 +28,7 @@ func TestWriter_CreatesRunBundle(t *testing.T) {
 	}
 }
 
-func TestWriter_CreatesEvidraDir(t *testing.T) {
+func TestWriter_CreatesEvidenceDir(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	w := NewWriter(dir)
@@ -40,12 +40,12 @@ func TestWriter_CreatesEvidraDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	info, err := os.Stat(filepath.Join(out.Path, "evidra"))
+	info, err := os.Stat(filepath.Join(out.Path, "evidence"))
 	if err != nil {
-		t.Fatalf("missing evidra dir: %v", err)
+		t.Fatalf("missing evidence dir: %v", err)
 	}
 	if !info.IsDir() {
-		t.Fatal("evidra is not a directory")
+		t.Fatal("evidence is not a directory")
 	}
 }
 

@@ -57,7 +57,7 @@ func newBenchCommand() *cobra.Command {
 	f.IntVar(&cfg.MemoryWindow, "memory-window", -1, "memory window")
 	f.StringVar(&cfg.BenchURL, "bench-url", cfg.BenchURL, "Bench API URL for reporting results")
 	f.StringVar(&cfg.BenchAPIKey, "bench-api-key", cfg.BenchAPIKey, "Bench API key")
-	f.StringVar(&cfg.MCPServer, "mcp-server", "", "MCP server command (e.g. 'evidra-mcp --signing-mode optional')")
+	f.StringVar(&cfg.MCPServer, "mcp-server", "", "MCP server command")
 	f.IntVar(&cfg.Parallel, "parallel", 1, "number of parallel workers (1 = sequential)")
 	f.StringVar(&cfg.DatabaseURL, "database-url", "", "PostgreSQL URL for job queue (env: BENCH_DATABASE_URL)")
 	return cmd

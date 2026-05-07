@@ -1,4 +1,4 @@
-// Package report provides offline Evidra evidence writing for benchmark runs.
+// Package report provides offline evidence writing for benchmark runs.
 // Online reporting is handled by harness.ReportToBench (POST /v1/bench/runs).
 package report
 
@@ -10,12 +10,12 @@ import (
 	"time"
 )
 
-// Config configures the Evidra reporter.
+// Config configures the offline reporter.
 type Config struct {
 	EvidencePath string
 }
 
-// EvidenceEntry represents a single evidence record in Evidra format.
+// EvidenceEntry represents a single benchmark evidence record.
 type EvidenceEntry struct {
 	ID         string            `json:"id"`
 	Type       string            `json:"type"`
@@ -29,7 +29,7 @@ type EvidenceEntry struct {
 	Metadata   map[string]string `json:"metadata,omitempty"`
 }
 
-// Reporter writes Evidra evidence to local JSONL files.
+// Reporter writes benchmark evidence to local JSONL files.
 type Reporter struct {
 	cfg Config
 }

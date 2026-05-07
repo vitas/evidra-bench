@@ -1,7 +1,6 @@
 package scenario
 
 import (
-	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
 	"strings"
@@ -159,54 +158,5 @@ func TestValidateRuntimeContract_ChaosUnsupportedType(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), `unsupported step type "explode"`) {
 		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestEvidraEnabledScenarios_RuntimeContracts(t *testing.T) {
-	t.Parallel()
-
-	root := runtimeProjectRoot()
-	scenariosDir := filepath.Join(root, "scenarios")
-	scenarios, err := LoadAll(scenariosDir)
-	if err != nil {
-		t.Fatalf("load scenarios: %v", err)
-	}
-
-	for _, s := range scenarios {
-		if !s.Evidra.Enabled {
-			continue
-		}
-		s := s
-		t.Run(s.Path, func(t *testing.T) {
-			t.Parallel()
-			if s.Evidra.MinPrescriptions < 1 {
-				t.Errorf("evidra.min_prescriptions must be >= 1, got %d", s.Evidra.MinPrescriptions)
-			}
-			if s.Evidra.MinReports < 1 {
-				t.Errorf("evidra.min_reports must be >= 1, got %d", s.Evidra.MinReports)
-			}
-
-			// Verify orphaned_prescriptions and protocol_violations are explicitly set
-			// by reading the raw YAML and checking the keys exist.
-			rawPath := filepath.Join(s.Dir, "scenario.yaml")
-			data, err := os.ReadFile(rawPath)
-			if err != nil {
-				t.Fatalf("read scenario.yaml: %v", err)
-			}
-			var raw map[string]any
-			if err := yaml.Unmarshal(data, &raw); err != nil {
-				t.Fatalf("parse scenario.yaml: %v", err)
-			}
-			evidraRaw, ok := raw["evidra"].(map[string]any)
-			if !ok {
-				t.Fatal("evidra key not found in scenario.yaml")
-			}
-			if _, ok := evidraRaw["orphaned_prescriptions"]; !ok {
-				t.Error("evidra.orphaned_prescriptions must be explicitly set")
-			}
-			if _, ok := evidraRaw["protocol_violations"]; !ok {
-				t.Error("evidra.protocol_violations must be explicitly set")
-			}
-		})
 	}
 }

@@ -26,7 +26,7 @@ Use this page as the documentation home in Obsidian and GitHub.
 - [Architecture](ARCHITECTURE.md) - execution model, control-plane boundary,
   packages, data flow, and deployment ownership.
 - [Testing Methodology](TESTING_METHODOLOGY.md) - what Bench measures and why.
-- [Evidence and Tool-Server Integration](EVIDRA_INTEGRATION.md) - optional MCP
+- [Evidence and Tool-Server Integration](TOOL_SERVER_INTEGRATION.md) - optional MCP
   and file-based compatibility notes.
 - [Evidence Modes](EVIDENCE_MODES.md) - run-record modes used by API filters
   and MCP runs.
@@ -81,6 +81,5 @@ Bench should stay focused on repeatable evaluation:
 4. Explain failures in a way that helps teams improve agents and prevent
    regressions.
 
-Evidra is not a required dependency for this product path. It can be tested as
-one MCP server, or consumed as an optional artifact source when a scenario asks
-for file-based evidence checks.
+External MCP servers and artifact sources are tested through generic Bench
+interfaces; none are required project dependencies.

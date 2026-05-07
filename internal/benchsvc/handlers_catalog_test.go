@@ -45,8 +45,8 @@ func TestHandleStats_EvidenceModeFiltersTotals(t *testing.T) {
 	sharedRuns := []bench.RunRecord{
 		{ID: "baseline-1", ScenarioID: "s1", Model: "sonnet", EvidenceMode: "none", Passed: true},
 		{ID: "baseline-2", ScenarioID: "s2", Model: "sonnet", EvidenceMode: "none", Passed: false},
-		{ID: "evidra-1", ScenarioID: "s3", Model: "sonnet", EvidenceMode: "mcp", Passed: true},
-		{ID: "evidra-2", ScenarioID: "s4", Model: "sonnet", EvidenceMode: "mcp", Passed: false},
+		{ID: "mcp-1", ScenarioID: "s3", Model: "sonnet", EvidenceMode: "mcp", Passed: true},
+		{ID: "mcp-2", ScenarioID: "s4", Model: "sonnet", EvidenceMode: "mcp", Passed: false},
 	}
 
 	tests := []struct {

@@ -19,6 +19,8 @@ if [ -f "$PROJECT_DIR/.env" ]; then
   set +a
 fi
 
+MCP_SERVER="${MCP_SERVER:?MCP_SERVER must be set to run MCP benchmark scripts}"
+
 SCENARIOS=(
   "argocd/out-of-sync"
   "argocd/sync-wave-ordering"
@@ -95,11 +97,11 @@ for MODEL in "${MODELS[@]}"; do
       --scenario "$SCENARIO" \
       --model "$MODEL" \
       --provider bifrost \
-      --mcp-server "evidra-mcp --signing-mode optional" \
+      --mcp-server "$MCP_SERVER" \
       --reuse-cluster \
       --cluster-name "$CLUSTER_NAME" \
       --timeout 10m \
-      --bench-url "https://api.evidra.cc" \
+      --bench-url "$BENCH_API_URL" \
       --bench-api-key "${BENCH_API_KEY:?BENCH_API_KEY must be set}" \
       2>&1; then
       PASSED=$((PASSED + 1))

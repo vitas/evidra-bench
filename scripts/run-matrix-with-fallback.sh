@@ -10,7 +10,7 @@
 #   FALLBACK_MODEL      Fallback model (default: claude-sonnet-4-20250514)
 #   ANTHROPIC_API_KEY   Required for anthropic fallback
 #   INFRA_BENCH_BIFROST_URL / INFRA_BENCH_BIFROST_AUTH_BEARER  Required for bifrost
-#   CLUSTER_NAME        Kind cluster name (default: evidra)
+#   CLUSTER_NAME        Kind cluster name (default: bench)
 #   RUNS_DIR            Output directory (default: runs/matrix-fallback-<timestamp>)
 set -uo pipefail
 

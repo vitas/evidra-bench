@@ -31,7 +31,7 @@ type RunFunc func(ctx context.Context, cfg config.Config, scenarioPath, targetNS
 
 // ScenarioEvent describes a scenario lifecycle transition for external reporting.
 type ScenarioEvent struct {
-	JobID      string        // Evidra trigger job ID
+	JobID      string        // Bench trigger job ID
 	ScenarioID string        // Scenario identifier
 	Model      string        // LLM model name
 	Provider   string        // LLM provider

@@ -1,4 +1,4 @@
-export type EvidenceModeId = "baseline" | "evidra-mcp";
+export type EvidenceModeId = "baseline" | "mcp";
 
 export const EVIDENCE_MODES: Array<{
   id: EvidenceModeId;
@@ -11,15 +11,15 @@ export const EVIDENCE_MODES: Array<{
     description: "Direct execution",
   },
   {
-    id: "evidra-mcp",
-    label: "evidra-mcp",
-    description: "Generic MCP server",
+    id: "mcp",
+    label: "MCP server",
+    description: "Tool server",
   },
 ];
 
 function evidenceFlags(evidenceMode: EvidenceModeId): string[] {
-  if (evidenceMode === "evidra-mcp") {
-    return ['--mcp-server "evidra-mcp --signing-mode optional"'];
+  if (evidenceMode === "mcp") {
+    return ['--mcp-server "$MCP_SERVER"'];
   }
   return [];
 }

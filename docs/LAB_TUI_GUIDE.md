@@ -27,9 +27,9 @@ The main screen shows all scenarios in a filterable list.
 ```
 bench-cli lab  [all]  [dry-run]
 
-  P E kubernetes    broken-deployment           (2/3)
->   E kubernetes    crashloop-backoff
-    E helm          helm-failed-upgrade         (1/1)
+  P   kubernetes    broken-deployment           (2/3)
+>     kubernetes    crashloop-backoff
+      helm          helm-failed-upgrade         (1/1)
       argocd        argocd-out-of-sync
   F   kubernetes    impossible-scheduling       (0/2)
 
@@ -37,14 +37,12 @@ Fix a pod stuck in CrashLoopBackOff
   category: kubernetes  timeout: 3m0s
   tags: pod, crashloop, container
   checks: deployment-ready/app
-  evidra: enabled
 
 j/k:nav  /:filter  t:category  h:history  d:dry-run  e:config  enter:run  ?:help  q:quit
 ```
 
 **Columns:**
 - First badge: `P` (pass, green) / `F` (fail, red) / blank (never run)
-- Second badge: `E` (evidra protocol checks enabled, blue)
 - Category and scenario ID
 - Run count in parentheses: `(pass/total)`
 
@@ -68,9 +66,6 @@ After a scenario completes, shows pass/fail verdict with individual check result
 PASS  scenario=broken-deployment  duration=45.2s
 
   ok deployment-ready/bench/web
-  ok evidra-protocol/prescribe-count-min
-  ok evidra-protocol/report-count-min
-  ok evidra-protocol/orphaned-prescriptions
 
 Press any key to return
 ```
@@ -82,7 +77,6 @@ FAIL  scenario=impossible-scheduling  duration=5m0s
 
   !! deployment-ready/bench/scheduler-test — ready replicas: 0/1
   ok deployment-ready/bench/web
-  ok evidra-protocol/expected-signal/thrashing
 
 Press any key to return
 ```
@@ -180,7 +174,7 @@ or modify the file directly.
 
 # Filter with '/' and type the scenario name
 # Press Enter to dry-run — verifies it loads without error
-# Check detail pane for correct checks and evidra expectations
+# Check detail pane for correct checks and scenario metadata
 ```
 
 ### Iterative Debugging

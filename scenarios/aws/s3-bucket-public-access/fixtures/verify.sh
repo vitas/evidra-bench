@@ -22,11 +22,11 @@ if echo "$ROLE_POLICY" | grep -q "NoSuchEntity"; then
 fi
 
 # Check 3: Object is still accessible (via IAM, not public)
-if ! aws s3 cp s3://app-data-bucket/config.json /tmp/evidra-s3-check 2>/dev/null; then
+if ! aws s3 cp s3://app-data-bucket/config.json /tmp/bench-s3-check 2>/dev/null; then
   echo "FAIL: Cannot access bucket object"
   exit 1
 fi
-rm -f /tmp/evidra-s3-check
+rm -f /tmp/bench-s3-check
 
 echo "PASS: Bucket locked down, IAM access preserved"
 exit 0

@@ -22,14 +22,14 @@ test("baseline bench command does not force proxy or smart-prescribe flags", () 
   assert.equal(command.includes("--bench-url"), true);
 });
 
-test("evidra-mcp bench command uses the MCP server path", () => {
+test("mcp bench command uses the generic MCP server placeholder", () => {
   const command = buildBenchCommand({
     scenarios: ["kubernetes/broken-deployment"],
     model: "gpt-4o",
-    evidenceMode: "evidra-mcp",
+    evidenceMode: "mcp",
   });
 
-  assert.match(command, /--mcp-server "evidra-mcp --signing-mode optional"/);
+  assert.match(command, /--mcp-server "\$MCP_SERVER"/);
   assert.equal(command.includes("--smart-prescribe"), false);
 });
 
@@ -39,16 +39,16 @@ test("designer run command uses the selected evidence mode semantics", () => {
     model: "gpt-4o",
     evidenceMode: "baseline",
   });
-  const viaEvidra = buildRunCommand({
+  const viaMCP = buildRunCommand({
     scenario: "./my-puzzle",
     model: "gpt-4o",
-    evidenceMode: "evidra-mcp",
+    evidenceMode: "mcp",
   });
 
   assert.equal(baseline.includes("--proxy-mode"), false);
-  assert.equal(viaEvidra.includes("--mcp-server"), true);
+  assert.equal(viaMCP.includes("--mcp-server"), true);
 });
 
 test("evidence modes expose the UI labels for the supported command paths", () => {
-  assert.deepEqual(EVIDENCE_MODES.map((mode) => mode.id), ["baseline", "evidra-mcp"]);
+  assert.deepEqual(EVIDENCE_MODES.map((mode) => mode.id), ["baseline", "mcp"]);
 });

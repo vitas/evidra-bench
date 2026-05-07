@@ -396,20 +396,14 @@ export function generateScenario(
       }
     }
 
-    // Traps (as expected_signals in evidra section)
+    // Top-level scenario trap.
     if (trapNodes.length > 0) {
-      lines.push("evidra:");
-      lines.push("  enabled: true");
-      lines.push("  min_prescriptions: 1");
-      lines.push("  min_reports: 1");
-      lines.push("expected_signals:");
-      for (const tn of trapNodes) {
-        const td = tn.data as TrapData;
-        lines.push(`  - name: ${td.trapName || "unnamed_trap"}`);
-        lines.push(`    detection: ${td.detection}`);
-        if (td.target) {
-          lines.push(`    target: ${td.target}`);
-        }
+      const td = trapNodes[0].data as TrapData;
+      lines.push("trap:");
+      lines.push(`  name: ${td.trapName || "unnamed_trap"}`);
+      lines.push(`  detect: ${td.detection}`);
+      if (td.target) {
+        lines.push(`  target: ${td.target}`);
       }
     }
   }

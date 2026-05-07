@@ -168,7 +168,7 @@ func TestConfig_ResolveSystemPromptFile_UsesEnvFallback(t *testing.T) {
 
 func TestEffectiveEvidenceMode_MCPServer(t *testing.T) {
 	t.Parallel()
-	cfg := Config{MCPServer: "evidra-mcp --signing-mode optional"}
+	cfg := Config{MCPServer: "sample-mcp --stdio"}
 	if got := EffectiveEvidenceMode(cfg); got != "mcp" {
 		t.Fatalf("EffectiveEvidenceMode = %q, want mcp", got)
 	}
@@ -184,7 +184,7 @@ func TestEffectiveEvidenceMode_DefaultNone(t *testing.T) {
 
 func TestEffectiveEvidenceMode_ExplicitNoneWins(t *testing.T) {
 	t.Parallel()
-	cfg := Config{EvidenceMode: "none", MCPServer: "evidra-mcp --signing-mode optional"}
+	cfg := Config{EvidenceMode: "none", MCPServer: "sample-mcp --stdio"}
 	if got := EffectiveEvidenceMode(cfg); got != "none" {
 		t.Fatalf("EffectiveEvidenceMode = %q, want none", got)
 	}
@@ -193,7 +193,7 @@ func TestEffectiveEvidenceMode_ExplicitNoneWins(t *testing.T) {
 func TestApplyEvidenceMode_NoneClearsMCPServer(t *testing.T) {
 	t.Parallel()
 	cfg := ApplyEvidenceMode(Config{
-		MCPServer:        "evidra-mcp --signing-mode optional",
+		MCPServer:        "sample-mcp --stdio",
 		SystemPromptFile: "/tmp/system.md",
 		Role:             "k8s-admin",
 		ContractVersion:  "v1",

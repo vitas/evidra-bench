@@ -19,9 +19,6 @@ in the sibling `../evidra-infra` repo.
 - the local orchestration cluster used by `POST /v1/certify` when direct
   executor mode is enabled
 
-`../evidra` can continue to own evidence runtime, CLI/MCP protocol, and scoring
-while this repo carries the benchmark API surface.
-
 ## Requirements
 
 - Go 1.25+

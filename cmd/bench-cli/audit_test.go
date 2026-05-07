@@ -113,7 +113,7 @@ func writeAuditManifestFixture(t *testing.T, dir, body string) string {
 func writeAuditedRunFixture(t *testing.T, runDir, scenarioID, model, provider string, signalSummary map[string]any) {
 	t.Helper()
 
-	if err := os.MkdirAll(filepath.Join(runDir, "evidra"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(runDir, "evidence"), 0755); err != nil {
 		t.Fatalf("mkdir run fixture: %v", err)
 	}
 	runJSON := map[string]any{
@@ -127,7 +127,7 @@ func writeAuditedRunFixture(t *testing.T, runDir, scenarioID, model, provider st
 		},
 	}
 	writeAuditJSONFixture(t, filepath.Join(runDir, "run.json"), runJSON)
-	writeAuditJSONFixture(t, filepath.Join(runDir, "evidra", "scorecard.json"), map[string]any{
+	writeAuditJSONFixture(t, filepath.Join(runDir, "evidence", "scorecard.json"), map[string]any{
 		"score":          90,
 		"band":           "good",
 		"signal_summary": signalSummary,

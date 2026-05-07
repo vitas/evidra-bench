@@ -35,7 +35,6 @@ interface Scenario {
   category: string;
   tags: string[];
   chaos: boolean;
-  evidra: boolean;
 }
 
 interface ScenariosResponse {
@@ -211,11 +210,6 @@ export function ScenarioDetail() {
             {scenario.chaos && (
               <span className="bg-warning-tint text-warning text-[0.72rem] px-2 py-0.5 rounded">
                 chaos
-              </span>
-            )}
-            {scenario.evidra && (
-              <span className="bg-info-tint text-info text-[0.72rem] px-2 py-0.5 rounded">
-                evidra
               </span>
             )}
           </div>

@@ -45,7 +45,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 className="inline-block w-2 h-2 bg-accent rounded-sm"
                 style={{ transform: "rotate(45deg)" }}
               />
-              <span className="hidden sm:inline">Evidra Bench</span>
+              <span className="hidden sm:inline">Bench Lab</span>
               <span className="sm:hidden">Bench</span>
             </NavLink>
           </div>
@@ -76,7 +76,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="flex-1" />
 
           <a
-            href="https://github.com/vitas/evidra"
+            href="https://github.com/vitas/evidra-bench"
             target="_blank"
             rel="noopener noreferrer"
             className="hidden sm:flex w-[30px] h-[30px] items-center justify-center rounded-md border border-border text-fg-muted hover:border-accent hover:text-accent transition-all"
@@ -129,10 +129,10 @@ export function Layout({ children }: { children: ReactNode }) {
               href="/"
               className="hover:text-accent transition-colors"
             >
-              evidra
+              Bench
             </a>
             <a
-              href="https://github.com/vitas/evidra"
+              href="https://github.com/vitas/evidra-bench"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-accent transition-colors"

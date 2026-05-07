@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-SG_ID=$(cat /tmp/evidra-sg-id)
+SG_ID=$(cat /tmp/bench-sg-id)
 
 # Use --endpoint-url for LocalStack compatibility (AWS_ENDPOINT_URL requires CLI 2.13+)
 aws() { command aws --endpoint-url "${AWS_ENDPOINT_URL:-http://localhost:4566}" "$@"; }

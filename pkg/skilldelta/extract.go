@@ -99,7 +99,7 @@ func loadRunSnapshot(runDir string) (loadedRun, error) {
 
 	evidenceDir := strings.TrimSpace(meta["evidence_dir"])
 	if evidenceDir == "" {
-		if fallback := filepath.Join(runDir, "evidra"); hasSegments(fallback) {
+		if fallback := filepath.Join(runDir, "evidence"); hasSegments(fallback) {
 			evidenceDir = fallback
 		}
 	}
@@ -177,7 +177,7 @@ func countChecks(checks []verifier.CheckResult) (passed, total int) {
 func buildProtocolMetrics(checks []verifier.CheckResult) ProtocolMetrics {
 	var metrics ProtocolMetrics
 	for _, check := range checks {
-		if check.Type != "evidra-protocol" {
+		if check.Type != "protocol" {
 			continue
 		}
 		metrics.ChecksTotal++
@@ -292,7 +292,7 @@ func parseEvidenceSummary(evidenceDir string) (evidenceSummary, error) {
 func loadScorecard(runDir string) (ScorecardMetrics, string, error) {
 	for _, candidate := range []string{
 		filepath.Join(runDir, "scorecard.json"),
-		filepath.Join(runDir, "evidra", "scorecard.json"),
+		filepath.Join(runDir, "evidence", "scorecard.json"),
 	} {
 		if _, err := os.Stat(candidate); err != nil {
 			continue

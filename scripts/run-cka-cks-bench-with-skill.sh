@@ -10,6 +10,8 @@ if [ -f "$PROJECT_DIR/.env" ]; then
   set +a
 fi
 
+MCP_SERVER="${MCP_SERVER:?MCP_SERVER must be set to run MCP benchmark scripts}"
+
 SCENARIOS=(
   "kubernetes/admission-controller-debugging"
   "kubernetes/certificates-api-csr"
@@ -78,10 +80,10 @@ for MODEL in "${MODELS[@]}"; do
       --model "$MODEL" \
       --provider bifrost \
       --role "$ROLE" \
-      --mcp-server "evidra-mcp --signing-mode optional" \
+      --mcp-server "$MCP_SERVER" \
       --reuse-cluster \
       --timeout 10m \
-      --bench-url "https://api.evidra.cc" \
+      --bench-url "$BENCH_API_URL" \
       --bench-api-key "${BENCH_API_KEY:?BENCH_API_KEY must be set}" \
       2>&1; then
       PASSED=$((PASSED + 1))

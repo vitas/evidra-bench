@@ -42,8 +42,8 @@ func TestBuildPairResultFromRuns(t *testing.T) {
 			Passed: false,
 			Checks: []verifier.CheckResult{
 				{Name: "deployment-ready", Type: "deployment-ready", Verdict: verifier.VerdictFail},
-				{Name: "evidra-protocol/prescribe-count-min", Type: "evidra-protocol", Verdict: verifier.VerdictFail},
-				{Name: "evidra-protocol/report-count-min", Type: "evidra-protocol", Verdict: verifier.VerdictFail},
+				{Name: "protocol/prescribe-count-min", Type: "protocol", Verdict: verifier.VerdictFail},
+				{Name: "protocol/report-count-min", Type: "protocol", Verdict: verifier.VerdictFail},
 			},
 		},
 	})
@@ -72,8 +72,8 @@ func TestBuildPairResultFromRuns(t *testing.T) {
 			Passed: true,
 			Checks: []verifier.CheckResult{
 				{Name: "deployment-ready", Type: "deployment-ready", Verdict: verifier.VerdictPass},
-				{Name: "evidra-protocol/prescribe-count-min", Type: "evidra-protocol", Verdict: verifier.VerdictPass},
-				{Name: "evidra-protocol/report-count-min", Type: "evidra-protocol", Verdict: verifier.VerdictPass},
+				{Name: "protocol/prescribe-count-min", Type: "protocol", Verdict: verifier.VerdictPass},
+				{Name: "protocol/report-count-min", Type: "protocol", Verdict: verifier.VerdictPass},
 			},
 		},
 	})
@@ -111,7 +111,7 @@ func TestBuildPairResultFromRuns(t *testing.T) {
 			},
 		}),
 	)
-	writeScorecardFixture(t, filepath.Join(withDir, "evidra", "scorecard.json"), map[string]any{
+	writeScorecardFixture(t, filepath.Join(withDir, "evidence", "scorecard.json"), map[string]any{
 		"score": 96.5,
 		"band":  "good",
 		"signal_summary": map[string]any{
@@ -197,7 +197,7 @@ type runFixture struct {
 func writeRunFixture(t *testing.T, runDir string, fixture runFixture) {
 	t.Helper()
 
-	if err := os.MkdirAll(filepath.Join(runDir, "evidra"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(runDir, "evidence"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(runDir, "transcript.txt"), []byte("transcript"), 0o644); err != nil {

@@ -1,4 +1,4 @@
-# Testing Guide — evidra-infra-bench
+# Testing Guide - Bench
 
 How to run tests, what they cover, and how to add new ones.
 
@@ -23,7 +23,7 @@ make fmt           # gofmt -w .
 | `pkg/config` | 12 | Config defaults, validation, version metadata |
 | `pkg/environment` | 20 | Kind cluster provider, bootstrap step execution |
 | `pkg/harness` | 25+ | Run orchestration, chaos injection, rollout waiting |
-| `pkg/report` | 10 | Evidra JSONL reporting, offline mode |
+| `pkg/report` | 10 | Offline JSONL reporting |
 | `pkg/scenario` | 58 | YAML loading, runtime contract validation, multi-stage |
 | `pkg/skilldelta` | 15 | Paired benchmark aggregation, markdown rendering |
 | `pkg/store` | 30 | SQLite CRUD, JSONL backup/rebuild, filtering |
@@ -40,8 +40,6 @@ The suite covers the CLI plus the core runtime packages listed above.
 2. **Unit tests** — `go test ./... -count=1`
 3. **Race detector** — `go test -race ./... -count=1`
 
-CI requires checkout of the parent `evidra-benchmark` repo (for contract schema validation).
-
 ## Test Categories
 
 ### 1. Scenario Runtime Contracts
@@ -54,7 +52,6 @@ Validates all scenario YAML files at load time — no cluster needed. Catches:
 - Checks referencing resources that don't exist in bootstrap
 - Kubectl wait steps targeting unknown resources
 - Chaos steps with unsupported types
-- Missing Evidra protocol fields on evidra-enabled scenarios
 - Multi-stage scenarios: validates each stage's break and checks independently
 
 ```bash

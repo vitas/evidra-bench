@@ -9,31 +9,30 @@ import (
 
 // Scenario is the parsed representation of a scenario.yaml file.
 type Scenario struct {
-	ID          string             `yaml:"id"`
-	Title       string             `yaml:"title"`
-	Description string             `yaml:"description,omitempty"`
-	Category    string             `yaml:"category,omitempty"`   // Primary category (backward compat). Use Categories for multi-category scenarios.
-	Categories  []string           `yaml:"categories,omitempty"` // Multi-category support: categories: [terraform, aws]
-	Track       string             `yaml:"track,omitempty"`      // workloads, troubleshooting, networking, storage, pod-security, runtime-security, release-ops, platform-eng
-	Level       string             `yaml:"level,omitempty"`      // L1 (fix), L2 (diagnose), L3 (judge), L4 (investigate)
-	Path        string             `yaml:"-"`
-	Dir         string             `yaml:"-"`
-	Tags        []string           `yaml:"tags,omitempty"`
-	Prompt      string             `yaml:"prompt"`
-	Timeout     Duration           `yaml:"timeout,omitempty"`
-	Checks      []Check            `yaml:"checks"`
-	Scope       Scope              `yaml:"scope,omitempty"`
-	Bootstrap   []BootstrapStep    `yaml:"bootstrap,omitempty"`
-	AfterBreak  []BootstrapStep    `yaml:"after_break,omitempty"`
-	Break       Break              `yaml:"break"`
-	Stages      []Stage            `yaml:"stages,omitempty"`
-	Chaos       ChaosConfig        `yaml:"chaos,omitempty"`
-	Baseline    string             `yaml:"baseline,omitempty"`
-	Tools       []string           `yaml:"tools,omitempty"`
-	Environment EnvironmentConfig  `yaml:"environment,omitempty"`
-	Evidra      EvidraExpectations `yaml:"evidra,omitempty"`
-	Skip        bool               `yaml:"skip,omitempty"`
-	SkipReason  string             `yaml:"skip_reason,omitempty"`
+	ID          string            `yaml:"id"`
+	Title       string            `yaml:"title"`
+	Description string            `yaml:"description,omitempty"`
+	Category    string            `yaml:"category,omitempty"`   // Primary category (backward compat). Use Categories for multi-category scenarios.
+	Categories  []string          `yaml:"categories,omitempty"` // Multi-category support: categories: [terraform, aws]
+	Track       string            `yaml:"track,omitempty"`      // workloads, troubleshooting, networking, storage, pod-security, runtime-security, release-ops, platform-eng
+	Level       string            `yaml:"level,omitempty"`      // L1 (fix), L2 (diagnose), L3 (judge), L4 (investigate)
+	Path        string            `yaml:"-"`
+	Dir         string            `yaml:"-"`
+	Tags        []string          `yaml:"tags,omitempty"`
+	Prompt      string            `yaml:"prompt"`
+	Timeout     Duration          `yaml:"timeout,omitempty"`
+	Checks      []Check           `yaml:"checks"`
+	Scope       Scope             `yaml:"scope,omitempty"`
+	Bootstrap   []BootstrapStep   `yaml:"bootstrap,omitempty"`
+	AfterBreak  []BootstrapStep   `yaml:"after_break,omitempty"`
+	Break       Break             `yaml:"break"`
+	Stages      []Stage           `yaml:"stages,omitempty"`
+	Chaos       ChaosConfig       `yaml:"chaos,omitempty"`
+	Baseline    string            `yaml:"baseline,omitempty"`
+	Tools       []string          `yaml:"tools,omitempty"`
+	Environment EnvironmentConfig `yaml:"environment,omitempty"`
+	Skip        bool              `yaml:"skip,omitempty"`
+	SkipReason  string            `yaml:"skip_reason,omitempty"`
 }
 
 // ResolvedCategories returns the effective category list.
@@ -142,23 +141,6 @@ type ChaosStep struct {
 	Duration     string   `yaml:"duration,omitempty"`
 	Args         []string `yaml:"args,omitempty"`
 	AllowFailure bool     `yaml:"allow_failure,omitempty"`
-}
-
-// EvidraExpectations declares protocol compliance assertions for a scenario.
-type EvidraExpectations struct {
-	Enabled               bool           `yaml:"enabled"`
-	MinPrescriptions      int            `yaml:"min_prescriptions,omitempty"`
-	MinReports            int            `yaml:"min_reports,omitempty"`
-	OrphanedPrescriptions int            `yaml:"orphaned_prescriptions,omitempty"`
-	ProtocolViolations    int            `yaml:"protocol_violations,omitempty"`
-	AllReportsHaveVerdict bool           `yaml:"all_reports_have_verdict,omitempty"`
-	ExpectedRiskLevel     string         `yaml:"expected_risk_level,omitempty"`
-	ExpectedRiskTags      []string       `yaml:"expected_risk_tags,omitempty"`
-	DeclinedMin           int            `yaml:"declined_verdicts_min,omitempty"`
-	DeclinedMax           *int           `yaml:"declined_verdicts_max,omitempty"`
-	RetryLoopMax          int            `yaml:"retry_loop_max,omitempty"`
-	ExpectedSignals       map[string]int `yaml:"expected_signals,omitempty"`
-	SimulatedEvidenceDir  string         `yaml:"simulated_evidence_dir,omitempty"`
 }
 
 // EnvironmentConfig describes additional infrastructure for a scenario.

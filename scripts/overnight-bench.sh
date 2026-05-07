@@ -1,11 +1,11 @@
-#!/bin/sh
-set -u
+#!/bin/bash
+set -euo pipefail
 
-# Overnight benchmark — seeds the evidra.cc dashboard with real data.
+# Overnight benchmark — seeds the Bench dashboard with real data.
 #
 # Runs scenarios in two parallel tracks per model:
 #   Track 1: baseline
-#   Track 2: --mcp-server "evidra-mcp --signing-mode optional"
+#   Track 2: --mcp-server "$MCP_SERVER"
 #
 # Each track gets its own k3d cluster to avoid conflicts.
 #
@@ -13,7 +13,7 @@ set -u
 #   - source .env && export $(grep -v '^#' .env | grep -v '^$' | xargs)
 #   - Docker running (for k3d clusters)
 #   - bin/bench-cli built (make build)
-#   - evidra-mcp installed
+#   - MCP server installed
 #
 # Usage:
 #   ./scripts/overnight-bench.sh
@@ -26,7 +26,8 @@ set -u
 REPEATS="${REPEATS:-1}"
 BINARY="${BINARY:-bin/bench-cli}"
 ENVIRONMENT="${ENVIRONMENT:-k3d}"
-BENCH_API_URL="${BENCH_API_URL:-https://api.evidra.cc}"
+BENCH_API_URL="${BENCH_API_URL:?BENCH_API_URL must be set}"
+MCP_SERVER="${MCP_SERVER:-}"
 
 if [ ! -x "$BINARY" ]; then
   echo "ERROR: $BINARY not found. Run 'make build' first."
@@ -36,8 +37,8 @@ if [ -z "${BENCH_API_KEY:-}" ]; then
   echo "ERROR: BENCH_API_KEY not set."
   exit 1
 fi
-if ! command -v evidra-mcp >/dev/null 2>&1; then
-  echo "WARN: evidra-mcp not found — MCP track will be skipped."
+if [ -z "$MCP_SERVER" ]; then
+  echo "WARN: MCP_SERVER not set — MCP track will be skipped."
 fi
 
 STAMP=$(date +%Y%m%d-%H%M%S)
@@ -53,7 +54,8 @@ echo ""
 # run_bench MODEL BASE_URL KEY_VAR CLUSTER MODE [MCP_CMD]
 run_bench() {
   local model="$1" base_url="$2" key_var="$3" cluster="$4" mode="$5" mcp_cmd="${6:-}"
-  local key_val log_file mode_flags
+  local key_val log_file
+  local mode_args=()
 
   eval "key_val=\${${key_var}:-}"
   if [ -z "$key_val" ]; then
@@ -64,9 +66,7 @@ run_bench() {
   log_file="${LOG_DIR}/${model}-${mode}.log"
 
   if [ "$mode" = "mcp" ]; then
-    mode_flags="--mcp-server ${mcp_cmd}"
-  else
-    mode_flags=""
+    mode_args=(--mcp-server "$mcp_cmd")
   fi
 
   echo "  START $model/$mode → $log_file"
@@ -81,7 +81,7 @@ run_bench() {
       --model "$model" --provider bifrost \
       --repeats "$REPEATS" \
       --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "$cluster" \
-      $mode_flags \
+      "${mode_args[@]}" \
       --bench-url "$BENCH_API_URL" --bench-api-key "$BENCH_API_KEY" \
       2>&1 || echo "WARN: $model/$mode k8s+helm exited $?"
 
@@ -91,7 +91,7 @@ run_bench() {
       --model "$model" --provider bifrost \
       --repeats "$REPEATS" \
       --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "${cluster}-argo" \
-      $mode_flags \
+      "${mode_args[@]}" \
       --bench-url "$BENCH_API_URL" --bench-api-key "$BENCH_API_KEY" \
       2>&1 || echo "WARN: $model/$mode argocd exited $?"
 
@@ -101,7 +101,7 @@ run_bench() {
       --model "$model" --provider bifrost \
       --repeats "$REPEATS" \
       --environment "$ENVIRONMENT" --reuse-cluster --cluster-name "$cluster" \
-      $mode_flags \
+      "${mode_args[@]}" \
       --bench-url "$BENCH_API_URL" --bench-api-key "$BENCH_API_KEY" \
       2>&1 || echo "WARN: $model/$mode terraform exited $?"
 
@@ -121,10 +121,10 @@ run_model() {
   # Track 1: baseline mode
   run_bench "$model" "$base_url" "$key_var" "${prefix}-baseline" "baseline"
 
-  # Track 2: MCP mode (if evidra-mcp available)
-  if command -v evidra-mcp >/dev/null 2>&1; then
+  # Track 2: MCP mode.
+  if [ -n "$MCP_SERVER" ]; then
     run_bench "$model" "$base_url" "$key_var" "${prefix}-mcp" "mcp" \
-      "evidra-mcp --signing-mode optional"
+      "$MCP_SERVER"
   fi
 
   # Wait for both tracks to finish before moving to next model.

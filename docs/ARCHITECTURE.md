@@ -30,9 +30,8 @@ analysis.
 | Production deployment | `../evidra-infra` | Compose, manifests, secrets, hosted topology, and operations |
 | Optional external tools | outside this repo | MCP servers, remote A2A agents, CLIs, provider gateways |
 
-The sibling `../evidra` project is not a required Bench dependency. Bench can
-test `evidra-mcp` the same way it tests any other MCP server, and it can consume
-file-based evidence artifacts when a scenario explicitly asks for them.
+Bench has no required sibling project dependency. It tests MCP servers, A2A
+agents, CLIs, and provider gateways through generic execution adapters.
 
 ## Runtime Model
 

@@ -149,7 +149,7 @@ export function Run() {
     return buildBenchCommand({
       scenarios: [...selectedIds],
       model: selectedModel,
-      evidenceMode: mode === "mcp" ? "evidra-mcp" : "baseline",
+      evidenceMode: mode === "mcp" ? "mcp" : "baseline",
     });
   }, [selectedIds, selectedModel, mode]);
 
@@ -360,7 +360,7 @@ export function Run() {
               {EVIDENCE_MODES.map((evidenceMode) => {
                 const isSelected =
                   (mode === "none" && evidenceMode.id === "baseline") ||
-                  (mode === "mcp" && evidenceMode.id === "evidra-mcp");
+                  (mode === "mcp" && evidenceMode.id === "mcp");
                 return (
                   <button
                     key={evidenceMode.id}

@@ -33,13 +33,5 @@ checks:
   - type: deployment-ready
     namespace: bench
     name: web
-evidra:
-  enabled: true
-  min_prescriptions: 2
-  min_reports: 2
-  orphaned_prescriptions: 0
-  protocol_violations: 0
-  all_reports_have_verdict: true
-  simulated_evidence_dir: simulated_evidence
 scope:
   namespaces: [bench]

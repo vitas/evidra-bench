@@ -32,7 +32,7 @@ MODELS=(
 )
 
 PROVIDER="${PROVIDER:-bifrost}"
-BENCH_API_URL="${BENCH_API_URL:-https://api.evidra.cc}"
+BENCH_API_URL="${BENCH_API_URL:?BENCH_API_URL must be set}"
 BENCH_API_KEY="${BENCH_API_KEY:?BENCH_API_KEY must be set}"
 EXTRA_FLAGS="${EXTRA_FLAGS:---reuse-cluster}"
 

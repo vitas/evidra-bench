@@ -21,7 +21,6 @@ interface Scenario {
   category: string;
   tags: string[];
   chaos: boolean;
-  evidra: boolean;
 }
 
 interface ScenariosResponse {
@@ -80,7 +79,7 @@ function firstTriggerRunID(job: TriggerJob) {
   return job.run_ids?.[0] ?? job.progress.find((item) => item.run_id)?.run_id;
 }
 
-const FEATURES = ["All", "Chaos enabled", "Evidra enabled"] as const;
+const FEATURES = ["All", "Chaos enabled"] as const;
 type ViewMode = "cards" | "list";
 
 export function Scenarios() {
@@ -136,7 +135,6 @@ export function Scenarios() {
       }
       if (category !== "All" && s.category !== category) return false;
       if (feature === "Chaos enabled" && !s.chaos) return false;
-      if (feature === "Evidra enabled" && !s.evidra) return false;
       return true;
     });
   }, [data, search, category, feature]);
@@ -414,11 +412,6 @@ export function Scenarios() {
                             chaos
                           </span>
                         )}
-                        {s.evidra && (
-                          <span className="bg-info-tint text-info text-[0.68rem] px-1.5 py-0.5 rounded">
-                            evidra
-                          </span>
-                        )}
                       </div>
                     </td>
                     <td className="py-2.5 px-4 font-mono text-[0.78rem] text-fg-muted">
@@ -655,11 +648,6 @@ function ScenarioCard({
           {scenario.chaos && (
             <span className="bg-warning-tint text-warning font-medium text-[0.72rem] px-2 py-0.5 rounded">
               chaos
-            </span>
-          )}
-          {scenario.evidra && (
-            <span className="bg-info-tint text-info font-medium text-[0.72rem] px-2 py-0.5 rounded">
-              evidra
             </span>
           )}
         </div>

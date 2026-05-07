@@ -77,8 +77,8 @@ func writeAuditRunFixture(t *testing.T, fixture auditRunFixture) string {
 	t.Helper()
 
 	runDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(runDir, "evidra", "segments"), 0755); err != nil {
-		t.Fatalf("mkdir evidra segments: %v", err)
+	if err := os.MkdirAll(filepath.Join(runDir, "evidence", "segments"), 0755); err != nil {
+		t.Fatalf("mkdir evidence segments: %v", err)
 	}
 
 	metadata := map[string]string{}
@@ -86,7 +86,7 @@ func writeAuditRunFixture(t *testing.T, fixture auditRunFixture) string {
 		metadata[key] = value
 	}
 	if _, ok := metadata["evidence_dir"]; !ok {
-		metadata["evidence_dir"] = filepath.Join(runDir, "evidra")
+		metadata["evidence_dir"] = filepath.Join(runDir, "evidence")
 	}
 
 	runJSON := map[string]any{
@@ -99,7 +99,7 @@ func writeAuditRunFixture(t *testing.T, fixture auditRunFixture) string {
 	writeJSONFixture(t, filepath.Join(runDir, "run.json"), runJSON)
 
 	if len(fixture.ScorecardSignals) > 0 {
-		writeJSONFixture(t, filepath.Join(runDir, "evidra", "scorecard.json"), map[string]any{
+		writeJSONFixture(t, filepath.Join(runDir, "evidence", "scorecard.json"), map[string]any{
 			"score":          88.5,
 			"band":           "good",
 			"signal_summary": fixture.ScorecardSignals,
@@ -107,7 +107,7 @@ func writeAuditRunFixture(t *testing.T, fixture auditRunFixture) string {
 	}
 
 	if len(fixture.EvidenceSignals) > 0 {
-		path := filepath.Join(runDir, "evidra", "segments", "0001.jsonl")
+		path := filepath.Join(runDir, "evidence", "segments", "0001.jsonl")
 		file, err := os.Create(path)
 		if err != nil {
 			t.Fatalf("create evidence fixture: %v", err)
@@ -117,7 +117,7 @@ func writeAuditRunFixture(t *testing.T, fixture auditRunFixture) string {
 				"entry_id":  "signal-" + signal,
 				"type":      "signal",
 				"timestamp": "2026-03-15T12:00:00Z",
-				"actor":     map[string]any{"id": "evidra"},
+				"actor":     map[string]any{"id": "bench"},
 				"payload":   map[string]any{"signal_name": signal},
 			}
 			data, err := json.Marshal(entry)

@@ -96,7 +96,6 @@ type ScenarioSummary struct {
 	Timeout     string   `json:"timeout,omitempty"`
 	Tags        []string `json:"tags"`
 	Chaos       bool     `json:"chaos"`
-	Evidra      bool     `json:"evidra"`
 	Skip        bool     `json:"skip,omitempty"`
 }
 

@@ -326,7 +326,7 @@ bench-cli run --scenario my-scenario --dry-run
 
 # Run against a real cluster
 bench-cli run --scenario category/my-scenario \
-  --provider bifrost --model gpt-4o --mcp-server "evidra-mcp --signing-mode optional" --reuse-cluster
+  --provider bifrost --model gpt-4o --mcp-server "$MCP_SERVER" --reuse-cluster
 
 # Run the full track
 bench-cli certify --track my-track --model gpt-4o --provider bifrost
