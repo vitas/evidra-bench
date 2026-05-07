@@ -488,9 +488,7 @@ with optional Evidra reporting for behavioral analysis.`,
 			if addr == "" {
 				addr = ":8090"
 			}
-			if isTruthyEnv("BENCH_CONTROL_PLANE_ONLY") || isTruthyEnv("INFRA_BENCH_CONTROL_PLANE_ONLY") {
-				opts.ControlPlaneOnly = true
-			}
+			opts = applyServeEnvOptions(opts)
 			// Override config from environment for containerized deployment.
 			if v := os.Getenv("INFRA_BENCH_SCENARIOS_DIR"); v != "" {
 				cfg.ScenariosDir = v
@@ -546,6 +544,13 @@ func isTruthyEnv(name string) bool {
 	default:
 		return false
 	}
+}
+
+func applyServeEnvOptions(opts serveOptions) serveOptions {
+	if isTruthyEnv("BENCH_CONTROL_PLANE_ONLY") {
+		opts.ControlPlaneOnly = true
+	}
+	return opts
 }
 
 func applyLabFlagOverrides(labCfg *tui.LabConfig, cfg config.Config, flags *pflag.FlagSet) {

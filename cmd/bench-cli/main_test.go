@@ -32,6 +32,16 @@ func TestRunCommand_MissingScenario(t *testing.T) {
 	}
 }
 
+func TestApplyServeEnvOptions_ControlPlaneOnlyUsesCanonicalEnv(t *testing.T) {
+	t.Setenv("BENCH_CONTROL_PLANE_ONLY", "true")
+
+	opts := applyServeEnvOptions(serveOptions{})
+
+	if !opts.ControlPlaneOnly {
+		t.Fatal("expected BENCH_CONTROL_PLANE_ONLY to enable control-plane-only mode")
+	}
+}
+
 func TestRunCommand_DryRun(t *testing.T) {
 	// Create a temporary scenario directory.
 	dir := t.TempDir()
