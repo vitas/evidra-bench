@@ -1,397 +1,332 @@
-# Architecture
+---
+title: Bench Architecture
+type: architecture
+status: active
+tags:
+  - bench
+  - architecture
+  - agents
+---
 
-## Overview
+# Bench Architecture
 
-evidra-infra-bench is a Go harness that runs AI agents against real Kubernetes
-clusters to measure infrastructure remediation skills. It provisions clusters,
-injects faults, lets agents fix them, and verifies outcomes.
+Bench is a Go harness and control plane for testing infrastructure agents
+against reproducible scenarios. It provisions or reuses test environments,
+injects failures, executes an agent through a selected adapter, verifies the
+final infrastructure state, and stores artifacts for comparison and regression
+analysis.
 
-## Control Plane Boundary
-
-This repo owns scenario execution, workspace isolation, namespace isolation,
-verification, result reporting, and the private bench API/control plane used by
-the dashboard and runners. The sibling `../evidra` repo should stay focused on
-the evidence runtime, CLI/MCP protocol, local flight recorder, and scoring.
-Production deployment, runtime manifests, compose files, and environment wiring
-belong in the sibling `../evidra-infra` repo.
+## System Boundary
 
 | Surface | Owner | Purpose |
-|---------|-------|---------|
-| `bench-cli run`, `bench-cli bench`, `bench-cli certify` | `evidra-bench` | Run scenarios directly or through the local River-backed orchestrator |
-| `bench-cli serve` | `evidra-bench` | Serve bench API, direct executor, runner queue, and local orchestration cluster |
-| `POST /v1/certify` | `evidra-bench` | Direct executor API for scenario execution; request-level `evidence_mode` overrides worker default |
-| `POST /v1/bench/trigger`, `GET /v1/bench/trigger/{id}`, `POST /v1/bench/trigger/{id}/progress`, `/v1/runners/*` | `evidra-bench` | Trigger, persisted job queue, runner registration, progress, and completion |
-| Evidence CLI/MCP, scoring, local flight recorder | sibling `evidra` repo | Runtime/protocol layer used by agents and optional evidence forwarding |
-| Production deployment | sibling `evidra-infra` repo | Deployment topology, compose/manifests, secrets wiring, and hosted environment operations |
+|---|---|---|
+| `bench-cli run`, `bench-cli bench`, `bench-cli certify` | this repo | Local scenario execution and certification |
+| `bench-cli lab` | this repo | Local TUI for browsing scenarios and runs |
+| `bench-cli serve` | this repo | Bench API, direct executor, runner queue, and local orchestration |
+| `/v1/bench/*` | this repo | Runs, artifacts, analytics, triggers, leaderboard, scenario sync |
+| `/v1/runners/*` | this repo | Poll-based remote runner registration, job claim, and completion |
+| `/v1/certify` | this repo | Direct executor API for local service mode |
+| Scenario catalog and schema | this repo | Infrastructure tasks, checks, levels, and tracks |
+| Production deployment | `../evidra-infra` | Compose, manifests, secrets, hosted topology, and operations |
+| Optional external tools | outside this repo | MCP servers, remote A2A agents, CLIs, provider gateways |
 
-The bench service participates in one of two control-plane modes:
+The sibling `../evidra` project is not a required Bench dependency. Bench can
+test `evidra-mcp` the same way it tests any other MCP server, and it can consume
+file-based evidence artifacts when a scenario explicitly asks for them.
 
-- direct executor mode: the bench service accepts `POST /v1/bench/trigger` and invokes an
-  executor implementation that runs scenarios immediately; trigger requests
-  only accept the coarse `none|mcp` evidence modes
-- poll-based runner mode: the bench service persists the job, a registered runner claims
-  it through `GET /v1/runners/jobs`, and the runner completes it through
-  `POST /v1/runners/jobs/{id}/complete`; claimed jobs include `evidence_mode`
+## Runtime Model
 
-The authoritative HTTP contract for the bench surfaces lives in this repo:
-
-- [Bench API Reference](BENCH_API_REFERENCE.md)
-- [Executor Contract v1.0.0](contracts/EXECUTOR_CONTRACT_V1.md)
-- [Bench Runner Control Plane Contract v1](contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md)
-- [Bench Service Setup](guides/bench-service-setup.md)
-
-## Module Diagram
-
+```text
+scenario
+  -> acquire lease
+  -> provision workspace
+  -> bootstrap healthy baseline
+  -> inject failure
+  -> execute agent through adapter
+  -> collect trace and artifacts
+  -> verify infrastructure outcome
+  -> classify behavior
+  -> store result
+  -> report leaderboard/private regression result
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│  Entry Points                                                       │
-│                                                                     │
-│  cmd/bench-cli/main.go     CLI: run, bench, certify, lab, serve    │
-│  cmd/bench-cli/serve.go    REST API: /v1/certify, /v1/bench/*      │
-│  internal/benchsvc         Bench API, runner queue, analytics      │
-└───────────┬─────────────────────────────┬───────────────────────────┘
-            │ sequential                  │ parallel (--parallel N)
-            ▼                             ▼
-┌───────────────────────┐   ┌─────────────────────────────────────────┐
-│  Direct Execution     │   │  pkg/orchestrator                       │
-│                       │   │                                         │
-│  provisioner.Acquire()│   │  Orchestrator.Provision()  ← cluster   │
-│    ↓ lease            │   │  Orchestrator.RunParallel() ← River    │
-│  harness.Run(lease)   │   │  Orchestrator.Teardown()   ← cleanup   │
-│    ↓                  │   └──────────┬──────────────────────────────┘
-│  lease.Release()      │              │
-└───────────┬───────────┘              │
-            │                          ▼
-            │              ┌───────────────────────┐
-            │              │  pkg/jobqueue          │
-            │              │                        │
-            │              │  River Client          │
-            │              │  BenchWorker           │
-            │              │  BenchJobArgs          │
-            │              │    ↓                   │
-            │              │  PostgreSQL job queue   │
-            │              └──────────┬────────────┘
-            │                         │ per job
-            │                         ▼
-            │              ┌───────────────────────┐
-            │              │  pkg/workspace         │
-            │              │                        │
-            │              │  New() → copy scenarios │
-            │              │  RewriteNamespace()    │
-            │              │  Cleanup()             │
-            │              └──────────┬────────────┘
-            │                         │
-            ▼                         ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  pkg/harness                                                        │
-│                                                                     │
-│  Harness.Run(RunRequest)  — receives a lease, never provisions     │
-│    1. Namespace cleanup + recreate                                  │
-│    2. Canary pod check (scheduling verification)                   │
-│    3. Health check (node conditions)                                │
-│    4. Scenario bootstrap (baseline manifests, app-specific setup)  │
-│    5. Inject break (fault)                                          │
-│    6. Execute agent (A2A, provider loop, or MCP)                   │
-│    7. Wait for rollouts                                             │
-│    8. Verify outcome (checks)                                      │
-│    9. Write artifacts                                               │
-│   10. Report to Bench API                                         │
-│   11. Store results (SQLite + JSONL)                               │
-└───────────┬─────────────────────────────────────────────────────────┘
-            │ uses
-            ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  Supporting Packages                                                │
-│                                                                     │
-│  pkg/environment/    ClusterLifecycle, LocalProvisioner, Lease     │
-│  pkg/environment/    KindProvider, K3dProvider, Bootstrapper       │
-│  pkg/environment/    AssetResolver, ProfileRunner (asset-driven)  │
-│  pkg/scenario/       Load, LoadAll, Resolve (YAML schema)         │
-│  pkg/agent/          Bifrost/Claude providers, tool-use loop       │
-│  pkg/agent/          MCPExecutor (MCP server stdio transport)      │
-│  pkg/verifier/       deployment-ready, service-reachable, etc.     │
-│  pkg/artifact/       Run bundle writer (JSON, transcripts)         │
-│  pkg/report/         Bench API reporter (online/offline JSONL)    │
-│  pkg/store/          SQLite + JSONL backup                         │
-│  pkg/config/         Config struct, version collection             │
-│  pkg/adapter/        Legacy CLI/MCP adapter interface              │
-│  pkg/a2a/            Generic A2A discovery + JSON-RPC task client │
-│  pkg/tui/            Bubble Tea interactive lab                    │
-│  pkg/skilldelta/     Paired with/without skill benchmarks          │
-│  pkg/signalaudit/    Signal expectation auditing                   │
-└─────────────────────────────────────────────────────────────────────┘
-```
+
+Bench owns setup and verification. The selected adapter owns how the agent acts
+between failure injection and final checks.
 
 ## Execution Modes
 
-### Agent Dispatch Order
-
-For each scenario run, the harness resolves agent execution in this order:
+### Single Run
 
 ```text
-adapter=a2a      -> bench-cli bootstraps and verifies locally, remote A2A agent executes the task
-provider!=empty  -> bench-cli runs its built-in tool-use loop locally
-adapter=cli/mcp  -> legacy local-process adapter path
+bench-cli run
+  -> acquire one lease
+  -> run one scenario
+  -> write local artifacts and store row
+  -> release lease unless --reuse-cluster is set
 ```
 
-`adapter=a2a` is intentionally separate from provider mode. The provider field is metadata for that path, not a local loop selector.
+Single runs are the simplest path for development and scenario debugging.
 
-### Sequential (default)
+### Sequential Benchmark
 
-```
-CLI: bench-cli run --scenario kubernetes/broken-deployment
-
-main.go → runScenarioOnce() → harness.Run()
-  ↓
-  provision kind cluster
-  ↓
-  bootstrap → break → agent → verify → store
-  ↓
-  teardown (or reuse)
+```text
+bench-cli bench
+  -> acquire one compatible lease
+  -> run scenarios in sequence
+  -> store one run record per scenario
+  -> release lease
 ```
 
-One scenario at a time. No database required. Results in SQLite + JSONL.
+Sequential benchmark mode is useful when cluster startup dominates runtime.
 
-### Parallel (--parallel N)
+### Parallel Benchmark
 
-```
-CLI: bench-cli bench --parallel 4 --database-url postgres://...
-
-main.go → executeBenchParallel()
-  ↓
-  orchestrator.Provision()         ← kind cluster (once)
-  ↓
-  orchestrator.RunParallel()       ← River job queue
-    ├── Worker 0 (bench-w0)        ← workspace + namespace isolation
-    ├── Worker 1 (bench-w1)
-    ├── Worker 2 (bench-w2)
-    └── Worker 3 (bench-w3)
-           ↓ each worker:
-           workspace.New()          ← copy scenarios/manifests/charts
-           workspace.RewriteNamespace()  ← bench → bench-wN
-           harness.Run(KubeconfigPath)   ← skip provision
-           workspace.Cleanup()      ← remove temp dir
-  ↓
-  orchestrator.Teardown()          ← destroy cluster (once)
+```text
+bench-cli bench --parallel N --database-url postgres://...
+  -> provision shared cluster
+  -> enqueue River jobs
+  -> start workers
+  -> copy scenario assets into per-worker workspaces
+  -> rewrite namespaces
+  -> run scenarios
+  -> collect shared results
 ```
 
-Requires PostgreSQL for River job queue. Each worker gets:
-- Isolated temp directory (workspace) — agent writes don't touch repo
-- Isolated namespace (bench-w0..bench-wN) — no cross-worker interference
-- Shared kubeconfig — all workers use the same pre-provisioned cluster
-- Shared results store — results survive workspace cleanup
+Parallel mode isolates each worker with a temporary workspace and namespace.
+PostgreSQL is required for the River job queue.
 
-### REST API (serve)
+### Bench Service
 
-```
-CLI: bench-cli serve --database-url postgres://... --parallel 4
-
-serve.go → serveAPI()
-  ↓
-  orchestrator.Provision()         ← kind cluster (once at startup)
-  ↓
-  POST /v1/certify                 ← enqueues River jobs
-    ↓
-  orchestrator.RunParallel()       ← async, returns immediately
-  ↓
-  GET /healthz                     ← liveness check
+```text
+bench-cli serve
+  -> expose Bench API
+  -> optionally provision a direct executor cluster
+  -> accept trigger jobs
+  -> serve runner queue and analytics
 ```
 
-Same orchestrator, same lifecycle. The API just enqueues and returns.
+Hosted control-plane deployments normally use `BENCH_CONTROL_PLANE_ONLY=true`
+or `--control-plane-only`. In that mode the API process does not provision a
+local cluster and remote runners execute jobs.
 
-This local `POST /v1/certify` surface is the direct executor contract.
-The Run UI targets `POST /v1/bench/trigger`, which uses runner mode when a
-healthy runner advertises the requested model and direct executor mode when an
-executor is configured.
-The local certify request can override the worker's default evidence mode; the
-request value wins over the worker default and does not change trigger aliasing.
+## Agent Adapter Model
+
+Bench normalizes scenario setup, task prompt delivery, artifacts, and
+verification across several execution paths:
+
+| Adapter | Code path | Responsibility |
+|---|---|---|
+| Built-in provider loop | `pkg/agent` | Send messages to a model, execute tool calls locally, feed results back |
+| MCP server | `pkg/agent.MCPExecutor` | Expose tool calls through an MCP server command |
+| A2A remote agent | `pkg/a2a` plus harness dispatch | Send the task to a remote A2A agent while Bench keeps setup and verification local |
+| CLI process | `pkg/adapter` | Launch an external process and capture its output |
+| Skill prompt | provider loop config | Compare behavior with alternate system prompts or role skills |
+
+The target direction is one normalized run trace regardless of adapter:
+
+```text
+turn_started
+assistant_message
+tool_call_started
+tool_call_finished
+environment_observation
+verification_check
+agent_final_answer
+timeout
+token_usage
+```
+
+Current timeline support lives in `pkg/bench/timeline_*`. The failure-autopsy
+layer will build on that timeline plus transcripts, tool calls, verifier output,
+and run metrics.
 
 ## Data Flow
 
-```
-Scenario YAML                Agent LLM
-     │                           │
-     ▼                           ▼
-┌──────────┐              ┌──────────────┐
-│ scenario │──bootstrap──▶│   kind       │◀──tool calls──┤
-│ .yaml    │──break──────▶│   cluster    │               │
-│ fixtures │              │   (bench-wN) │               │
-└──────────┘              └──────┬───────┘               │
-                                 │                       │
-                          verify │              ┌────────┴────────┐
-                                 ▼              │  pkg/agent      │
-                          ┌──────────────┐      │  Bifrost/Claude │
-                          │ pkg/verifier │      │  MCPExecutor    │
-                          │ checks pass? │      └─────────────────┘
-                          └──────┬───────┘
-                                 │
-                    ┌────────────┼────────────┐
-                    ▼            ▼            ▼
-              ┌──────────┐ ┌─────────┐ ┌──────────┐
-              │ SQLite   │ │ JSONL   │ │ Evidra   │
-              │ bench.db │ │ backup  │ │ API      │
-              └──────────┘ └─────────┘ └──────────┘
+```text
+Scenario YAML
+  -> scenario loader
+  -> provisioner lease
+  -> bootstrap steps
+  -> break steps
+  -> agent adapter
+  -> tool calls and transcript
+  -> verifier checks
+  -> artifact writer
+  -> local store / Bench API
 ```
 
-## Package Dependencies
+Stored run data includes:
 
-```
+- model, provider, adapter, evidence mode, and tool server metadata
+- pass/fail outcome and exit code
+- duration, turns, token counts, and estimated cost
+- check results
+- artifact directory
+- transcript and tool-call artifacts when available
+- derived timeline and scorecard artifacts when available
+
+## Storage
+
+Bench has two storage layers:
+
+| Layer | Package | Purpose |
+|---|---|---|
+| Local SQLite plus JSONL backup | `pkg/store` | Local runs, rebuildable history, CLI workflows |
+| PostgreSQL control-plane DB | `internal/benchdb`, `internal/benchsvc` | Hosted API, runners, analytics, leaderboard, trigger jobs |
+
+The current PostgreSQL schema lives in
+`internal/benchdb/migrations/001_init.up.sql`.
+
+## Control Plane
+
+The Bench API is intentionally private except for the leaderboard and health
+check. Static bearer auth maps requests to a tenant in this phase.
+
+Key surfaces:
+
+- `GET /healthz`
+- `GET /v1/bench/leaderboard`
+- `GET /v1/bench/runs`
+- `POST /v1/bench/runs`
+- `POST /v1/bench/runs/batch`
+- `GET /v1/bench/runs/{id}/timeline`
+- `GET /v1/bench/runs/{id}/scorecard`
+- `POST /v1/bench/trigger`
+- `GET /v1/runners/jobs`
+- `POST /v1/runners/jobs/{id}/complete`
+
+The authoritative contracts are:
+
+- [Bench API Reference](BENCH_API_REFERENCE.md)
+- [Executor Contract](contracts/EXECUTOR_CONTRACT_V1.md)
+- [Runner Control Plane Contract](contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md)
+- [Bench Service Setup](guides/bench-service-setup.md)
+
+## Package Map
+
+```text
 cmd/bench-cli
-  ├── pkg/environment   ← LocalProvisioner, Lease, ClusterLifecycle
-  │     ├── KindProvider     ← kind cluster lifecycle
-  │     ├── K3dProvider      ← k3d cluster lifecycle
-  │     ├── kubectlOps       ← shared namespace/canary/health ops
-  │     ├── Bootstrapper     ← step executor
-  │     ├── AssetResolver    ← clusters/ + profiles/ lookup
-  │     ├── ProfileRunner    ← install/healthcheck/cleanup hooks
-  │     └── AddonRegistry    ← falco, gatekeeper, calico, cilium steps
-  ├── pkg/orchestrator  ← parallel lifecycle
-  │     ├── pkg/jobqueue     ← River workers
-  │     ├── pkg/workspace    ← copy + namespace rewrite
-  │     ├── pkg/environment  ← shared cluster lease
-  │     ├── pkg/config       ← constants, settings
-  │     └── pkg/store        ← shared results
-  ├── pkg/harness       ← single scenario execution (no provisioning)
-  │     ├── pkg/environment  ← namespace/canary/health via lease
-  │     ├── pkg/agent        ← LLM providers, MCP
-  │     ├── pkg/a2a          ← A2A remote agent client
-  │     ├── pkg/verifier     ← outcome checks
-  │     ├── pkg/artifact     ← run bundles
-  │     ├── pkg/report       ← Evidra reporting
-  │     ├── pkg/store        ← SQLite + JSONL
-  │     └── pkg/config       ← settings, versions
-  ├── pkg/scenario      ← YAML loading, profiles, provider compat
-  ├── pkg/tui           ← interactive lab
-  └── pkg/skilldelta    ← skill benchmarks
+  CLI, TUI entry point, service startup, certification, audit commands
+
+internal/auth
+  Static bearer-key auth middleware
+
+internal/benchdb
+  PostgreSQL connection and schema migration helpers
+
+internal/benchsvc
+  Bench API service, trigger jobs, runner queue, analytics, leaderboard
+
+pkg/a2a
+  A2A discovery and JSON-RPC task client
+
+pkg/adapter
+  Legacy CLI/MCP process adapter interface
+
+pkg/agent
+  Bifrost and Claude providers, tool-use loop, MCP executor, token costs
+
+pkg/artifact
+  Run bundle writer for transcripts, tool calls, timeline, scorecards
+
+pkg/bench
+  Run records, analytics types, timeline parsing and classification
+
+pkg/config
+  Runtime config, constants, version metadata
+
+pkg/environment
+  Kind/k3d providers, leases, bootstrap hooks, profile assets
+
+pkg/harness
+  Single scenario lifecycle: setup, break, agent, verify, artifacts, report
+
+pkg/jobqueue
+  River job queue client and worker implementation
+
+pkg/orchestrator
+  Parallel lifecycle and shared cluster orchestration
+
+pkg/report
+  Optional local JSONL evidence writer for compatibility workflows
+
+pkg/scenario
+  Scenario YAML loading, catalog resolution, provider compatibility
+
+pkg/signalaudit
+  Signal expectation auditing across run artifacts
+
+pkg/skilldelta
+  Paired with/without skill benchmark aggregation
+
+pkg/store
+  Local SQLite store and JSONL import/export
+
+pkg/tui
+  Bubble Tea local lab UI
+
+pkg/verifier
+  Declarative infrastructure checks
+
+pkg/workspace
+  Per-worker temporary workspace and namespace rewrite
 ```
 
-## Key Design Decisions
+## Workspace And Namespace Isolation
 
-### Workspace Isolation
-Each parallel worker copies `scenarios/`, `manifests/`, and `charts/` to a temp
-directory. Agent writes (terraform state, modified fixtures) stay in the workspace
-and are cleaned up after the run. The source repo is never modified.
+Parallel workers copy scenario assets into temporary directories before running.
+This keeps agent writes, Terraform state, and generated files out of the source
+tree.
 
-### Namespace Isolation
-Each worker gets its own Kubernetes namespace (`bench-w0`, `bench-w1`, etc.)
-via text-based rewriting of YAML and shell files. The harness creates the
-namespace before bootstrap and passes it to all kubectl commands.
+Each worker also gets a namespace such as `bench-w0` or `bench-w1`. Namespace
+rewrite happens before bootstrap so Kubernetes resources do not collide across
+workers.
 
-### Execution Profiles and Leases
-Scenarios declare an `environment.profile` (`default`, `argocd`, `aws-localstack`)
-that determines what infrastructure the provisioner sets up. The `LocalProvisioner`
-returns a `Lease` containing kubeconfig, provider reference, and extra env vars.
-The harness never creates or destroys clusters — it receives a lease from its caller.
+## Profiles And Leases
 
-Lease lifetime varies by execution mode:
-- Single run: one dedicated lease per invocation
-- Sequential bench with --reuse-cluster: one batch lease for all scenarios (must share profile)
-- Parallel mode: restricted to `default` profile (shared state not isolated)
+Scenarios can declare an execution profile such as `default`, `argocd`, or
+`aws-localstack`. Profiles are implemented with checked-in cluster assets and
+hooks rather than hardcoded Go logic:
 
-### Profile Realization Layer (`clusters/` and `profiles/`)
-
-Profile setup is realized through checked-in shell scripts and config files, not
-hardcoded Go logic. The `localstack.go` provisioner was removed; LocalStack
-lifecycle now lives in `profiles/aws-localstack/install.sh`.
-
-```
+```text
 clusters/
-  kind/default.yaml          cluster config per provider + profile
+  kind/default.yaml
   kind/argocd.yaml
   kind/aws-localstack.yaml
   k3d/default.yaml
-  ...
+
 profiles/
-  default/README.md          no hooks — plain cluster
-  argocd/install.sh          install ArgoCD from manifests/
-  argocd/healthcheck.sh      wait for CRDs and pods
-  argocd/cleanup.sh          delete Application objects
-  aws-localstack/install.sh  start LocalStack, write lease.env
+  default/
+  argocd/install.sh
+  argocd/healthcheck.sh
+  argocd/cleanup.sh
+  aws-localstack/install.sh
   aws-localstack/healthcheck.sh
   aws-localstack/cleanup.sh
 ```
 
-The provisioning flow is:
-
-1. `AssetResolver.Resolve(provider, profile)` locates the cluster config and
-   profile directory from the checked-in asset tree.
-2. `ProfileRunner.Prepare(...)` executes `install.sh`, then `healthcheck.sh`,
-   inside a temporary work dir with well-known env vars (`KUBECONFIG`,
-   `BENCH_PROFILE`, `BENCH_PROVIDER`, `BENCH_CLUSTER_NAME`,
-   `BENCH_WORK_DIR`, `BENCH_ASSETS_DIR`).
-3. If the install script writes a `lease.env` file to `$BENCH_WORK_DIR`, the
-   runner parses it and returns the key-value pairs as `Lease.ExtraEnv`.
-4. On release, `cleanup.sh` runs (best-effort) before the cluster is destroyed.
-
-### Provider Compatibility
-Scenarios declare supported providers via `environment.providers: [kind, k3d]`.
-The executor filters incompatible scenarios at every enforcement point (CLI run,
-bench, certify, serve API, orchestrator worker). Incompatible scenarios are counted
-as `skipped`, not `failed`.
-
-### Pre-provisioned Cluster
-When `--kubeconfig` is set, the provisioner skips cluster create/destroy but still
-runs profile hooks (e.g. `profiles/argocd/install.sh`). The orchestrator
-provisions once, shares the kubeconfig with all workers, and tears down once
-after all workers complete.
-
-### River Job Queue
-PostgreSQL-backed job queue provides persistence (crash recovery), retries,
-and parallelism control. Jobs are enqueued by the CLI or API, processed by
-worker goroutines, and tracked via atomic counters.
-
-### Shared Results Store
-Parallel workers write to a shared SQLite store (opened by the orchestrator)
-rather than workspace-local stores. This ensures results survive workspace
-cleanup and are available even if the Bench API is unreachable.
+The provisioner returns a lease with kubeconfig, provider metadata, and extra
+environment variables. The harness receives a lease; it does not own cluster
+lifetime decisions.
 
 ## Docker Images
 
-Two separate images serve different purposes.
+This repo defines local build inputs. Production composition and secret wiring
+belong in `../evidra-infra`.
 
-This repo documents how images are built and run locally. The authoritative
-production deployment composition is kept in `../evidra-infra`.
+| Image | Dockerfile | Purpose |
+|---|---|---|
+| Bench UI | `ui/Dockerfile` | Static React UI served by nginx |
+| Bench runner | `Dockerfile.bench` | `bench-cli serve` plus infrastructure tooling and scenarios |
 
-### Lab UI (`ui/Dockerfile`)
+The runner image uses the host Docker socket to create kind clusters as sibling
+containers. It is not Docker-in-Docker.
 
-Static React SPA served by nginx. Talks to `api.evidra.cc` — no cluster access needed.
+## Documentation Map
 
-```bash
-docker build --build-arg VITE_BENCH_API_KEY=$VITE_BENCH_API_KEY \
-  -t ghcr.io/vitas/bench-ui:latest ui/
-```
-
-Deployable anywhere (CDN, edge, any container host). ~30MB image.
-
-### Bench Runner (`Dockerfile.bench`)
-
-Remote certification runner. Packages `bench-cli serve` with kubectl, kind,
-evidra-mcp, and all scenarios.
-
-```bash
-docker build -f Dockerfile.bench \
-  --build-arg VERSION=v0.3.2 \
-  --build-arg COMMIT=$(git rev-parse --short HEAD) \
-  --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
-  -t ghcr.io/vitas/bench-runner:latest .
-```
-
-**Host requirements:**
-
-- **Docker socket** — must be mounted into the container (`-v /var/run/docker.sock:/var/run/docker.sock`)
-- **Kind node image** — pulled by kind at runtime (e.g. `kindest/node:v1.32.0`); the host Docker daemon stores it
-- **PostgreSQL** — required for the River job queue when using `bench-cli serve`
-
-```bash
-docker run -d \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -e DATABASE_URL=postgres://... \
-  -e BENCH_API_URL=https://api.evidra.cc \
-  -e BENCH_API_KEY=$BENCH_API_KEY \
-  -p 8090:8090 \
-  ghcr.io/vitas/bench-runner:latest
-```
-
-The container creates sibling containers (kind clusters) on the host Docker
-daemon via the mounted socket — not Docker-in-Docker. The host machine needs
-enough resources to run kind clusters (4+ CPU, 8+ GB RAM recommended).
+- [Docs Home](README.md)
+- [Testing Methodology](TESTING_METHODOLOGY.md)
+- [Agent Failure Autopsy](AGENT_FAILURE_AUTOPSY.md)
+- [Scenario Authoring Guide](SCENARIO_AUTHORING_GUIDE.md)
+- [Bench API Reference](BENCH_API_REFERENCE.md)
+- [Bench Service Setup](guides/bench-service-setup.md)
