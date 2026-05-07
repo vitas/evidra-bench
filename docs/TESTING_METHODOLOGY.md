@@ -1,374 +1,345 @@
+---
+title: Testing Methodology
+type: reference
+status: active
+tags:
+  - bench
+  - methodology
+  - scenarios
+  - agents
+---
+
 # Testing Methodology
 
-## What bench-cli Tests
+Bench evaluates infrastructure agents on real operational tasks. A run is not a
+quiz and not a scripted tutorial. The harness creates a working environment,
+injects a known failure, asks the agent to restore the desired state, and then
+verifies the result with declarative checks.
 
-bench-cli evaluates AI infrastructure agents on three dimensions:
+## What Bench Tests
 
 ### 1. Remediation Capability
 
-Can the agent diagnose and fix a real infrastructure problem?
+Can the agent fix the infrastructure problem?
 
-Each scenario breaks something in a Kubernetes cluster (wrong image, missing
-ConfigMap, failed Helm upgrade, ArgoCD drift) and asks the agent to fix it.
-Success is measured by declarative checks: deployment ready, service endpoints
-reachable, Helm release deployed, ArgoCD app healthy, resource still exists.
+Each scenario starts from a healthy baseline and injects a realistic failure:
+wrong image tags, missing secrets, broken NetworkPolicies, Helm drift, Argo CD
+sync errors, Terraform state problems, or LocalStack-backed AWS issues.
 
-Some scenarios also inject deterministic runtime chaos while the agent is
-working, such as deleting pods mid-repair or mutating a ConfigMap after the
-agent has already started reasoning about it.
+Success is measured by final infrastructure checks, not by the method the agent
+used. Examples:
 
-This tests **operational competence** — does the agent understand Kubernetes
-well enough to find and fix real problems?
+- deployment becomes ready
+- service endpoints exist
+- Helm release is deployed
+- Argo CD application becomes healthy
+- resource still exists after remediation
+- security constraint remains in place
 
-### 2. Protocol Compliance
+### 2. Diagnostic Quality
 
-Does the agent follow the prescribe/report protocol while working?
+Did the agent investigate enough before changing state?
 
-The Evidra protocol requires agents to declare intent (prescribe) before
-mutating infrastructure and report the outcome after. This creates an evidence
-chain that enables reliability scoring. Scenarios with `evidra:` expectations
-verify:
+Bench classifies tool calls into timeline phases:
 
-- Every mutation was prescribed before execution
-- Every prescription has exactly one matching report
-- Risk levels match expectations
-- Declined verdicts are recorded with reasoning
+- discovery
+- diagnosis
+- action
+- verification
+- explanation
 
-This tests **operational discipline** — does the agent follow safety protocols
-even when under pressure to fix things quickly?
+The goal is not to force a specific command sequence. The goal is to catch
+behavior such as immediate mutation without inspection, failure to check logs or
+events, and repeated low-value inspection after the root cause is already clear.
 
-### 3. Behavioral Signals
+### 3. Judgment Under Constraints
 
-Does the agent's behavior trigger the right reliability signals?
+Can the agent make the right trade-off?
 
-The Evidra signal engine detects behavioral patterns in evidence chains:
+L3 and L4 scenarios include traps or ambiguity. A good agent must avoid broad
+deletes, unsafe policy changes, weakening security controls, or fixing the
+wrong component just because it is the most visible symptom.
 
-| Signal | What it means | Healthy? |
-|--------|--------------|----------|
-| `retry_loop` | Agent retries the same failed action | No — stuck |
-| `thrashing` | Agent tries many different approaches, all failing | No — flailing |
-| `repair_loop` | Agent fails, adapts, succeeds | Yes — self-correcting |
-| `artifact_drift` | Agent changes what it executes after prescribing | No — inconsistent |
-| `blast_radius` | Destructive operation on many resources | Risky |
-| `protocol_violation` | Missing prescribe or report | No — protocol gap |
-| `risk_escalation` | Agent escalates beyond its baseline risk level | Informational |
+Scenario constraints are outcome-based:
 
-This tests **behavioral quality** — not just whether the agent succeeds,
-but how it gets there.
+- "The application must remain functional."
+- "Do not delete the deployment."
+- "The security hardening must remain in place."
+- "Minimize changes outside the affected namespace."
+
+### 4. Failure Analysis
+
+When the agent fails, Bench should explain why.
+
+The failure-autopsy layer uses transcripts, tool calls, timelines, verifier
+output, turns, tokens, and cost to classify failures such as:
+
+- `gave_up`
+- `timeout_no_progress`
+- `retry_loop`
+- `premature_success`
+- `wrong_root_cause`
+- `unsafe_action`
+- `irrelevant_action`
+- `missed_diagnostic_step`
+- `tool_misuse`
+- `excessive_token_burn`
+
+See [Agent Failure Autopsy](AGENT_FAILURE_AUTOPSY.md).
+
+### 5. Efficiency
+
+Did the agent solve the task with reasonable time and budget?
+
+Runs track:
+
+- turns
+- duration
+- prompt tokens
+- completion tokens
+- estimated cost
+- memory window
+
+Efficiency only matters after correctness. A cheap failed run is still a failed
+run. The useful comparison is between passing runs, or between a previously
+passing run and a regression.
+
+## Scenario Levels
+
+| Level | Name | Prompt style | What it tests |
+|---|---|---|---|
+| L1 | Fix | Give the symptom | Can the agent execute a clear repair? |
+| L2 | Diagnose | Give the affected area | Can the agent find the cause? |
+| L3 | Judge | Give a concern and constraints | Can the agent choose a safe fix? |
+| L4 | Investigate | Give an incident report | Can the agent trace across multiple resources? |
+
+## Scenario Mix
+
+A useful benchmark set should include:
+
+- clean baseline tasks for fast sanity checks
+- ambiguous operational tasks for diagnosis and judgment
+- adversarial or cross-cutting tasks that expose unsafe shortcuts
+- multi-stage tasks where the agent must adapt after the first fix
+- chaos tasks where the environment changes during the run
+
+The recommended distribution is:
+
+- 20% clean baseline tasks
+- 60% ambiguous operational tasks
+- 20% adversarial or cross-cutting tasks
 
 ## Chaos Injection
 
-Not every scenario should use chaos. Static failures are still valuable for
-baseline remediation. Chaos scenarios are for a narrower question:
+Chaos is deliberately narrow and deterministic. It should create repeatable
+operational pressure without turning Bench into a general chaos platform.
 
-**does the agent stay reliable when the environment changes underneath it?**
-
-bench-cli uses a deliberately small chaos model:
-
-- deterministic timed steps
-- the same command vocabulary as bootstrap/break steps
-- no CRDs, controllers, or external chaos framework
-- artifacts that record exactly what changed and when
-
-Current chaos scenarios focus on:
+Current chaos patterns include:
 
 - pod restarts during repair
 - mounted ConfigMap drift during repair
+- staged failures that appear after earlier checks pass
 
-This is enough to surface signals like verification gaps, retry loops, and
-plan/action drift without turning the benchmark into a full chaos engineering
-platform.
+Chaos scenarios are useful when the question is:
 
-## Ambiguous & Cross-cutting Scenarios
-
-Beyond clean remediation puzzles, bench-cli includes scenarios that test
-**agent judgment under operational ambiguity**. These are based on 10
-signal-generating patterns from the research doc:
-
-| Pattern | Scenario | What it tests |
-|---------|----------|---------------|
-| Wrong namespace similarity | K16 | Correct namespace identification with similar names |
-| Shared component trap | K17 | Fix one service without breaking co-dependents |
-| Urgency vs safety | K18 | Resist removing safety policies under pressure |
-| Namespace cleanup trap | X01 | Don't delete namespace with production workloads |
-| Misleading symptoms | X02 | Diagnose root cause, not misleading symptoms |
-| Resource pressure shortcut | X03 | Fix quota without deleting other services |
-| Nearly valid manifest | X04 | Catch subtle errors in pre-made fixes |
-| Safe rollback vs broad patch | X05 | Fix stable track without touching canary |
-| Partial context | X06 | Diagnose before acting with vague information |
-| Repair loop escalation | X07 | Multiple failures requiring re-diagnosis |
-
-These scenarios use additional check types:
-
-- `resource-exists` — verifies a specific resource (NetworkPolicy, PDB,
-  Namespace, ConfigMap) still exists after the agent runs. Uses the
-  `condition` field for the resource kind.
-
-The recommended dataset proportion (from the research doc):
-- 20% clean baseline tasks
-- 60% ambiguous operational tasks
-- 20% adversarial/cross-cutting tasks
+> Does the agent stay reliable when the environment changes underneath it?
 
 ## Memory Window Testing
 
-### Why Test Memory
+`--memory-window` controls how much conversation history the agent sees on each
+turn:
 
-AI agents accumulate context over a conversation. Each tool call result,
-each error message, each observation adds to the message history. This has
-two effects:
+| Value | Behavior | What it tests |
+|---|---|---|
+| `-1` | Full history | Baseline behavior with all context |
+| `0` | Stateless | Can the agent solve each step from the last observation only? |
+| `1` | Last exchange | Minimal short-term memory |
+| `3` | Last 3 exchanges | Short plan retention |
+| `10` | Last 10 exchanges | Moderate history with lower token cost |
 
-1. **More context helps reasoning** — the agent can learn from earlier
-   mistakes, remember what it already tried, and build a coherent plan.
-
-2. **More context costs tokens** — longer conversations consume more
-   input tokens, increasing latency and cost.
-
-The memory window parameter lets you test the trade-off explicitly.
-
-### What `--memory-window` Does
-
-Controls how much conversation history the agent sees on each turn:
-
-| Value | Behavior | Tests |
-|-------|----------|-------|
-| `-1` (default) | Full history — agent sees everything | Baseline: how well does the agent perform with complete context? |
-| `0` | Stateless — agent only sees system prompt + task + last tool result | Can the agent solve problems without memory? Tests pure reasoning. |
-| `1` | Last exchange — agent sees previous action and result | Minimal memory: enough to react to the last result, no long-term plan. |
-| `3` | Last 3 exchanges | Short-term memory: can maintain a brief plan. |
-| `10` | Last 10 exchanges | Moderate memory: enough for most multi-step fixes. |
-
-### What Memory Testing Reveals
-
-**If the agent passes with `--memory-window 0`:** The problem is simple enough
-to solve from scratch each step. The agent doesn't need planning or history.
-
-**If the agent fails with `--memory-window 0` but passes with `-1`:** The
-agent relies on conversation history — it plans across steps, learns from
-failures, or needs to remember what it already tried.
-
-**If the agent fails with both:** The problem is hard regardless of memory.
-
-**If tokens drop significantly with smaller windows but pass rate stays
-similar:** You can save cost without losing quality.
-
-### Running Memory Window Tests
+Examples:
 
 ```bash
-# Full memory (baseline)
-bench-cli run --provider claude --model sonnet \
+# Full memory
+bench-cli run \
+  --provider claude \
+  --model sonnet \
   --scenario kubernetes/broken-deployment \
   --memory-window -1
 
 # Stateless
-bench-cli run --provider claude --model sonnet \
+bench-cli run \
+  --provider claude \
+  --model sonnet \
   --scenario kubernetes/broken-deployment \
   --memory-window 0
-
-# Sliding window of 3
-bench-cli run --provider claude --model sonnet \
-  --scenario kubernetes/broken-deployment \
-  --memory-window 3
 ```
 
-Compare results on the bench dashboard at [evidra.cc/bench](https://evidra.cc/bench).
+Useful findings:
 
-## Model Comparison
+- passes with `0`: the task may not require long-term planning
+- fails with `0` but passes with `-1`: history matters for this scenario
+- pass rate holds while tokens fall: smaller memory windows may be cheaper
+- both fail: model/tooling/scenario difficulty is the limiting factor
 
-### Why Compare Models
+## Model And Tool-Server Comparison
 
-Different models have different strengths:
+Bench comparisons should keep everything fixed except the variable under test:
 
-- **Smaller models** (Haiku, GPT-4o-mini) — faster, cheaper, but may
-  struggle with complex multi-step reasoning
-- **Larger models** (Opus, GPT-4o) — better reasoning, but slower and
-  more expensive
-- **Different providers** — Anthropic vs OpenAI vs Google may have
-  different strengths on infrastructure tasks
+- same scenario set
+- same cluster profile
+- same timeout
+- same memory window
+- same provider settings where possible
+- one changed model, skill, tool server, or adapter
 
-### Running Model Comparisons
+Examples:
 
 ```bash
 # Same scenario, different models
-bench-cli run --provider bifrost --model anthropic/claude-3-5-sonnet --scenario ...
-bench-cli run --provider bifrost --model openai/gpt-4o --scenario ...
-bench-cli run --provider claude --model haiku --scenario ...
+bench-cli run --provider bifrost --model openai/gpt-4o --scenario kubernetes/broken-deployment
+bench-cli run --provider bifrost --model google/gemini-2.5-flash --scenario kubernetes/broken-deployment
 
+# Same model, different MCP server
+bench-cli run --provider bifrost --model sonnet --scenario kubernetes/broken-deployment
+bench-cli run --provider bifrost --model sonnet --scenario kubernetes/broken-deployment \
+  --mcp-server "npx -y @anthropic/mcp-server-kubernetes"
 ```
 
-View results on the bench dashboard at [evidra.cc/bench](https://evidra.cc/bench),
-which shows results grouped by scenario with model, provider, duration, turns,
-and token usage — making it easy to compare.
+## Provider Path
 
-## Provider Architecture
+In provider mode, Bench owns the tool-use loop:
 
-bench-cli supports two execution paths:
-
-### Provider Path (recommended for benchmarking)
-
-bench-cli owns the tool-use loop. It sends prompts to the LLM, executes
-tool calls locally (kubectl, helm, evidra CLI), and feeds results back.
-
-```
-bench-cli → Provider.Chat() → LLM response with tool calls
-                                         ↓
-                               bench-cli executes tools locally
-                                         ↓
-                               feed results back → next turn
+```text
+bench-cli
+  -> Provider.Chat()
+  -> model returns tool calls
+  -> Bench executes tools locally
+  -> tool results feed the next turn
 ```
 
-Providers: `bifrost` (any OpenAI-compatible API), `claude` (Claude CLI).
-
-The Bifrost provider works with any OpenAI-compatible endpoint:
+Supported provider paths include Bifrost-compatible OpenAI-style APIs and the
+Claude CLI provider.
 
 ```bash
-# OpenAI directly
 INFRA_BENCH_BIFROST_URL=https://api.openai.com/v1 \
 INFRA_BENCH_BIFROST_AUTH_BEARER=sk-proj-... \
-bench-cli run --provider bifrost --model gpt-4o ...
-
-# Alibaba DashScope (Qwen)
-INFRA_BENCH_BIFROST_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1 \
-INFRA_BENCH_BIFROST_AUTH_BEARER=sk-... \
-bench-cli run --provider bifrost --model qwen-plus ...
-
-# Any OpenAI-compatible proxy (LiteLLM, vLLM, Ollama, etc.)
-INFRA_BENCH_BIFROST_URL=http://localhost:8080/v1 \
-bench-cli run --provider bifrost --model my-model ...
+bench-cli run --provider bifrost --model gpt-4o --scenario kubernetes/broken-deployment
 ```
 
-Tool schemas are automatically sanitized for strict providers (OpenAI requires
-`items` on array properties).
+Tool schemas are sanitized for strict providers that require complete JSON
+schema metadata.
 
-### Adapter Path (legacy)
+## Adapter Path
 
-The agent is an external process that manages its own tool loop.
-bench-cli just launches it and captures output.
+Adapter mode lets an external process or remote agent manage its own loop while
+Bench keeps setup and verification local.
 
-```
-bench-cli → spawn agent process → agent manages tools internally
-```
+Examples:
 
-Adapters: `cli` (any command), `mcp` (MCP-capable command).
+- CLI process adapter
+- MCP server execution
+- A2A remote agent execution
+
+Adapter comparisons are useful for evaluating tool servers, orchestration
+systems, and agent runtimes without changing the scenario or verifier.
 
 ## Run Comparison
 
-Compare two runs side by side:
+Compare two run directories:
 
 ```bash
 bench-cli compare runs/<run-A>/ runs/<run-B>/
 ```
 
-The output shows: verdict change (improved/regressed/same), duration delta,
-check-level diffs (which checks changed between runs), model/provider/turns/tokens/cost.
+The comparison should focus on:
 
-View detailed results and visual comparisons on the bench dashboard at
-[evidra.cc/bench](https://evidra.cc/bench).
-
-### Comparing models on the same scenario
-
-```bash
-# Run the same scenario with different models
-bench-cli run --provider bifrost --model gpt-4o --scenario kubernetes/broken-deployment \
-  --runs-dir runs/gpt4o --reuse-cluster --cluster-name evidra
-
-bench-cli run --provider bifrost --model qwen-plus --scenario kubernetes/broken-deployment \
-  --runs-dir runs/qwen --reuse-cluster --cluster-name evidra
-
-# Compare
-bench-cli compare runs/gpt4o/<run-dir>/ runs/qwen/<run-dir>/
-```
+- pass/fail change
+- check-level changes
+- duration delta
+- turns delta
+- token and cost delta
+- tool-call or timeline differences when artifacts exist
 
 ## Cost Tracking
 
-Every provider-path run estimates USD cost from token usage. Pricing is
-built-in for Anthropic (opus/sonnet/haiku), OpenAI (gpt-4o/4o-mini/o1),
-Google (gemini-2.5-pro/flash), and Alibaba Qwen (qwen-plus/max/turbo,
-qwen3.5-plus, qwen3-max, qwen3-coder-plus). Cost appears in:
+Every provider-path run estimates cost from token usage when pricing is known.
+Cost appears in:
 
-- Run metadata (`estimated_cost` field in run.json)
-- bench dashboard at [evidra.cc/bench](https://evidra.cc/bench)
-- `db query` output
-- `compare` output
+- run metadata
+- local DB queries
+- compare output
+- Bench API run records
+- dashboard views
 
-## Adaptive Retry
+Cost should not be optimized in isolation. The practical target is lower cost
+for the same or better pass rate.
 
-The Bifrost provider automatically retries on rate limits (HTTP 429) and
-server errors (500-504). Behavior:
+## Results Storage
 
-- Reads `Retry-After` header when available
-- Falls back to exponential backoff: 2s → 4s → 8s → 16s... up to 120s
-- Maximum 5 retries per request
-- Context-aware: cancels on timeout
-
-This means benchmark runs survive transient API issues without manual
-intervention.
-
-## Results Database
-
-Every non-dry-run stores structured results in SQLite with a JSONL backup:
+Every non-dry-run stores structured results locally:
 
 ```bash
-# Aggregate statistics
 bench-cli db stats
-
-# Query by filters
 bench-cli db query --scenario broken-deployment
 bench-cli db query --model haiku --failed
-bench-cli db query --provider bifrost --limit 50
-
-# Rebuild DB from JSONL backup
 bench-cli db rebuild
 ```
 
-**Storage model:**
-- `runs/bench.db` — SQLite, gitignored, queryable
-- `runs/results.jsonl` — append-only, committable (~500 bytes/run)
-- DB is always rebuildable from JSONL
+Storage model:
 
-Records include: scenario, model, provider, pass/fail, duration, turns,
-memory window, prompt/completion tokens, estimated cost, checks passed/total.
+- `runs/bench.db` - SQLite, gitignored, queryable
+- `runs/results.jsonl` - append-only backup
+- run artifacts - transcript, tool calls, verifier output, scorecard, timeline
 
-**Tracking progression:** commit `runs/results.jsonl` to git periodically.
-Query with `db query --scenario X` to see pass rate trending over time.
-The `compare` command shows regressions between specific runs.
+Records include scenario, model, provider, adapter, pass/fail, duration, turns,
+memory window, prompt tokens, completion tokens, estimated cost, and checks.
 
 ## Batch Benchmark Pipeline
 
-`bench-cli bench` runs all scenarios with automated post-processing:
+`bench-cli bench` runs scenarios with repeatable post-processing:
 
+```text
+run scenarios
+  -> write artifacts
+  -> derive timeline and scorecard when available
+  -> audit expected signals
+  -> store local and optional API results
 ```
-run scenarios → write artifacts → generate scorecard → signal audit → report to Evidra
-```
+
+Example:
 
 ```bash
-bench-cli bench --provider claude --model sonnet --reuse-cluster --cluster-name evidra
+bench-cli bench --provider claude --model sonnet --reuse-cluster
 ```
 
-Output:
-```
+Typical artifact layout:
+
+```text
 runs/bench/<timestamp>/
-  summary.json          — pass/fail/error per scenario/model/repeat
-  signal-audit.json     — signal expectation findings
+  summary.json
+  signal-audit.json
   <scenario_model_r1>/
-    run.json            — run metadata with full version tracking
-    scorecard.json      — evidra scorecard (auto-generated from evidence)
-    verifier.json       — check results
-    transcript.txt      — agent conversation
+    run.json
+    verifier.json
+    transcript.txt
+    tool-calls.json
+    scorecard.json
 ```
 
-Scenarios with `skip: true` in scenario.yaml are excluded from bench runs
-with a reason printed to stdout.
+Scenarios with `skip: true` are excluded from benchmark runs with a reason
+printed to stdout.
 
 ## Signal Audit
 
-The signal audit compares observed signals against expectations defined in
+Signal audit compares observed run artifacts against expectations in
 `configs/signal-audit.yaml`:
 
 ```yaml
 broken-deployment:
   primary_signal: retry_loop
   expected_signals: [retry_loop]
-  forbidden_signals: [protocol_violation, blast_radius]
+  forbidden_signals: [blast_radius]
 ```
 
 ```bash
@@ -376,16 +347,20 @@ bench-cli audit signals --runs-dir runs/e2e
 ```
 
 The audit reports:
-- **missing_expected** — expected signal not observed
-- **forbidden_signals** — signal that should not appear was found
-- **unexpected_extras** — signals not in expected or allowed lists
-- **unstable_groups** — repeated runs with different signal sets (inconsistency)
 
-Note: single-operation runs (1 prescribe/report pair) cannot produce
-behavioral signals like `retry_loop` or `blast_radius`. These need
-multi-operation evidence from batch or chained scenarios.
+- missing expected signals
+- forbidden signals
+- unexpected secondary signals
+- unstable repeated-run groups
 
-## Signal Audit
+Signal audit is an intermediate layer. Failure autopsy should turn these
+low-level findings into clearer product reports.
 
-Signal audit reads local run artifacts and checks whether verifier outcomes,
-tool calls, and metadata match the expected scenario signals.
+## Optional Compatibility Checks
+
+Some scenarios can still read file-based evidence artifacts when the run
+explicitly provides an evidence directory. Treat these as compatibility checks,
+not as the core Bench product path.
+
+Normal infrastructure verification always runs regardless of optional artifact
+checks.
