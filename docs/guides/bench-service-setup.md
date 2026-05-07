@@ -81,9 +81,18 @@ curl -H "Authorization: Bearer $BENCH_API_KEY" \
   http://localhost:8090/v1/bench/runs
 ```
 
-The service runs pending migrations on startup. Bootstrap migrations are written
-to tolerate an existing public bench schema when the tables or columns already
-exist.
+The service runs pending migrations on startup. The migration history is folded
+into a single baseline, `001_init.up.sql`, for new bench databases.
+
+If an existing database already ran the older split migration history through
+version `014`, deploy an image with the folded baseline first, then reset only
+the migration marker:
+
+```sql
+UPDATE schema_migrations SET version = 1, dirty = false;
+```
+
+Do not rewrite benchmark data during this reset.
 
 ## Database Tables
 
