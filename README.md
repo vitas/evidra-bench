@@ -13,9 +13,9 @@ Bench answers the questions that matter before an agent touches production:
 - Did a new model, prompt, MCP server, or skill regress behavior?
 - How many tokens and turns did the run waste?
 
-The public leaderboard is the marketing surface. Private regression history,
-scheduled runs, custom scenario packs, and failure reports are the product
-surface.
+The primary product site is `https://bench.evidra.cc`. The public leaderboard
+is the marketing surface. Private regression history, scheduled runs, custom
+scenario packs, and failure reports are the product surface.
 
 ## Why
 

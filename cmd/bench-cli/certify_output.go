@@ -53,7 +53,7 @@ func printCertification(cmd *cobra.Command, cert CertResult) {
 
 	writef(w, "\n")
 	writef(w, "════════════════════════════════════════════════════\n")
-	writef(w, "  EVIDRA AGENT CERTIFICATION\n")
+	writef(w, "  BENCH READINESS REPORT\n")
 	writef(w, "════════════════════════════════════════════════════\n")
 	writef(w, "  Agent:    %s (%s)\n", cert.Model, cert.Provider)
 	writef(w, "  Track:    %s (%s)\n", trackLabel, cert.Track)

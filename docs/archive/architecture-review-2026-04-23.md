@@ -4,6 +4,11 @@
 Ветка: main @ b25ef10
 Объём кодовой базы: 236 Go-файлов, ~11.4K строк в `pkg/` (без тестов), 17 пакетов.
 
+> Archived historical snapshot. This review predates the Bench-only cleanup,
+> the folded bench database baseline, and removal of active Evidra protocol
+> surface from this repository. Keep it as background context only; use
+> `docs/ARCHITECTURE.md` for current architecture.
+
 Фокус ревью: не расползается ли доменная модель, нет ли дублирования одной
 концепции в разных пакетах, нет ли избыточного переусложнения. Все находки
 перепроверены вручную, где агенты сообщали спорные утверждения — это отмечено.

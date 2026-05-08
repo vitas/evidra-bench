@@ -34,7 +34,7 @@ const TERMINAL_LINES = [
   { text: "  PASS  8.1s", delay: 7300, type: "pass" as const },
   { text: "", delay: 7600, type: "blank" as const },
   { text: "════════════════════════════════════════════", delay: 7800, type: "border" as const },
-  { text: "  EVIDRA AGENT CERTIFICATION", delay: 8000, type: "title" as const },
+  { text: "  BENCH READINESS REPORT", delay: 8000, type: "title" as const },
   { text: "════════════════════════════════════════════", delay: 8200, type: "border" as const },
   { text: "  Agent:    sonnet (bifrost)", delay: 8400, type: "info" as const },
   { text: "  Track:    Pod Security", delay: 8600, type: "info" as const },
