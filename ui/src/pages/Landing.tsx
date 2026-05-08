@@ -74,7 +74,7 @@ function TerminalAnimation() {
           <div className="w-2.5 h-2.5 rounded-full bg-[#eab308]/70" />
           <div className="w-2.5 h-2.5 rounded-full bg-accent-bright/70" />
         </div>
-        <span className="text-[0.65rem] text-fg-muted font-mono ml-2">bench-cli — certification run</span>
+        <span className="text-[0.65rem] text-fg-muted font-mono ml-2">bench-cli — live exam run</span>
       </div>
       {/* Terminal body */}
       <div
@@ -137,7 +137,7 @@ export function Landing() {
     { value: String(SCENARIOS.length), label: "Scenarios" },
     { value: String(TRACKS.length), label: "Exam Tracks" },
     { value: String(new Set(SCENARIOS.map((scenario) => scenario.category)).size), label: "Categories" },
-    { value: "4", label: "Cert Levels" },
+    { value: "4", label: "Levels" },
   ];
   return (
     <div className="min-h-screen bg-bg text-fg overflow-hidden">
@@ -186,23 +186,23 @@ export function Landing() {
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent/40 bg-accent/10 text-[0.75rem] text-accent font-medium mb-8 hover:bg-accent/20 hover:border-accent/60 transition-all group"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-accent-bright animate-pulse" />
-              8 models certified — view live results
+              8 models tested — view live results
               <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
             </Link>
 
             <h1 className="text-[3.2rem] leading-[1.08] font-extrabold tracking-tight mb-6">
-              Test your agent skills{" "}
+              Live infra exams{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#34d399] to-[#059669]">
-                before shipping
+                for AI agents
               </span>
             </h1>
 
             <p className="text-[1.05rem] text-fg-muted leading-relaxed mb-10 max-w-lg">
-              A 5-line skill cuts L1 turns by 75% but breaks L2 diagnosis.
-              The current CKA/CKS-aligned scenario catalog tells you which skills
-              help and which hurt — before your users find out.
+              Run models, MCP servers, and skills against real Kubernetes,
+              GitOps, Terraform, and cloud-ops scenarios. See whether the agent
+              diagnosed first, acted safely, and verified recovery.
             </p>
 
             <div className="flex items-center gap-4 mb-12">
@@ -261,10 +261,10 @@ export function Landing() {
             },
             {
               title: "Exams",
-              desc: "CKA/CKS-aligned certification results. Per-model, per-track grades. Skill vs baseline comparison.",
+              desc: "Exam-aligned readiness results. Per-model, per-track grades. Skill and MCP vs baseline comparison.",
               to: BENCH_RUNS_PATH,
               icon: "M4.26 10.147a60.436 60.436 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347",
-              tag: "Certification",
+              tag: "Readiness",
             },
           ].map((p) => (
             <Link
@@ -287,9 +287,9 @@ export function Landing() {
         </div>
       </section>
 
-      {/* Certification levels */}
+      {/* Exam levels */}
       <section className="relative max-w-6xl mx-auto px-6 py-20">
-        <h2 className="text-center text-[1.6rem] font-bold mb-3">Four Certification Levels</h2>
+        <h2 className="text-center text-[1.6rem] font-bold mb-3">Four Exam Levels</h2>
         <p className="text-center text-[0.88rem] text-fg-muted mb-12 max-w-xl mx-auto">
           Not just pass/fail — we measure how your agent thinks. Each level tests deeper capabilities.
         </p>
@@ -331,7 +331,7 @@ export function Landing() {
       <section className="relative max-w-6xl mx-auto px-6 py-20">
         <h2 className="text-center text-[1.6rem] font-bold mb-3">Exam-Aligned Tracks</h2>
         <p className="text-center text-[0.88rem] text-fg-muted mb-12 max-w-xl mx-auto">
-          Mapped to CKA/CKS certification domains. Your agent earns a grade per track.
+          Inspired by public Kubernetes skill domains. Your agent earns a grade per track.
         </p>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -425,7 +425,7 @@ export function Landing() {
       {/* Footer */}
       <footer className="max-w-6xl mx-auto px-6 py-8 border-t border-border">
         <div className="flex items-center justify-between text-[0.72rem] text-fg-muted">
-          <span>bench.lab - test framework for AI infrastructure agent skills</span>
+          <span>bench.lab - live exam suite for AI infrastructure agents</span>
           <div className="flex items-center gap-4">
             <Link to="/bench" className="hover:text-accent transition-colors">Bench</Link>
             <Link to={BENCH_SCENARIOS_PATH} className="hover:text-accent transition-colors">Lab</Link>

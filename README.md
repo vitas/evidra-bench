@@ -1,9 +1,9 @@
 # Bench
 
-Regression testing for infrastructure agents. Run the same real Kubernetes,
-Helm, Argo CD, Terraform, and AWS/LocalStack scenarios across models, MCP
-servers, skills, and remote agents. Track pass rate, cost, turns, token use,
-and failure patterns over time.
+Live infrastructure exams and regression testing for AI agents. Run the same
+real Kubernetes, Helm, Argo CD, Terraform, and AWS/LocalStack scenarios across
+models, MCP servers, skills, and remote agents. Track pass rate, cost, turns,
+token use, and failure patterns over time.
 
 Bench answers the questions that matter before an agent touches production:
 
@@ -13,9 +13,10 @@ Bench answers the questions that matter before an agent touches production:
 - Did a new model, prompt, MCP server, or skill regress behavior?
 - How many tokens and turns did the run waste?
 
-The primary product site is `https://bench.evidra.cc`. The public leaderboard
-is the marketing surface. Private regression history, scheduled runs, custom
-scenario packs, and failure reports are the product surface.
+The primary product site is `https://bench.evidra.cc`. Public exam suites and
+the leaderboard are the marketing surface. Private regression history,
+scheduled runs, customer incident suites, and failure reports are the product
+surface.
 
 ## Why
 
@@ -23,6 +24,11 @@ Agent quality is not a single pass/fail number. The same prompt or tool server
 can make an easy scenario faster and make a harder scenario fail by skipping
 diagnosis. You need repeatable tests with real infrastructure state, artifacts,
 and comparable run history.
+
+The public suites are exam-aligned marketing proof: Kubernetes, security,
+GitOps, Terraform, and cloud-ops tasks that show how agents behave in real
+environments. They are not official CNCF, Linux Foundation, HashiCorp, or AWS
+certifications.
 
 ```bash
 # Baseline model behavior
@@ -55,6 +61,7 @@ bench-cli run \
 | MCP server builders | Does this tool server improve outcomes without raising cost? |
 | Skill authors | Does this skill help on L3/L4, or only on easy L1 tasks? |
 | Security teams | Does the agent fix the issue without weakening controls? |
+| Customers with incidents | Can our past outages become private agent regression tests? |
 
 ## What Bench Measures
 

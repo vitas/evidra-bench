@@ -57,6 +57,7 @@ Use this page as the documentation home in Obsidian and GitHub.
 
 ## Scenario Ideas
 
+- [Infra AI Agent Benchmark Portfolio](ideas/infra-ai-agent-benchmark-portfolio.md)
 - [CKA Scenario Ideas](ideas/cka-scenario-ideas.md)
 - [CKS Scenario Ideas](ideas/cks-scenario-ideas.md)
 - [Helm And Argo CD Scenario Ideas](ideas/helm-scenario-ideas.md)
