@@ -1,8 +1,22 @@
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
-import { applyEvidenceMode, evidenceModeParam, normalizeCatalog, type CatalogResponse } from "../../lib/catalogData.mts";
+import { evidenceModeParam, normalizeCatalog, type CatalogResponse } from "../../lib/catalogData.mts";
+import {
+  EXAM_PACKS,
+  scenarioIDsForExamPack,
+  type ExamPackFilter,
+  type ExamPackScenario,
+} from "../../lib/examPacks.mts";
+import {
+  DEFAULT_RUNS_FILTERS,
+  buildRunsAPIPath,
+  runsFiltersFromSearchParams,
+  runsSearchParamsFromFilters,
+  type RunsFilterState,
+  type RunsStatus,
+} from "../../lib/runFilters.mts";
 import { benchRunPath } from "../../lib/routes.mts";
 import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
@@ -32,6 +46,11 @@ interface RunsResponse {
   total: number;
   limit: number;
   offset: number;
+}
+
+interface ScenariosResponse {
+  scenarios?: ExamPackScenario[];
+  items?: ExamPackScenario[];
 }
 
 type SortField =
@@ -84,27 +103,27 @@ export function Runs() {
   const { request } = useApi();
   const { mode } = useEvidenceMode();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.toString();
+  const initialFilters = runsFiltersFromSearchParams(searchParams);
 
   const [data, setData] = useState<RunsResponse | null>(null);
   const [catalog, setCatalog] = useState<CatalogResponse>({ models: [], providers: [] });
+  const [scenarioCatalog, setScenarioCatalog] = useState<ExamPackScenario[]>([]);
+  const [scenarioCatalogLoaded, setScenarioCatalogLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Filters
-  const [scenario, setScenario] = useState("");
-  const [model, setModel] = useState("All");
-  const [provider, setProvider] = useState("All");
-  const [status, setStatus] = useState("All");
-  const [since, setSince] = useState("");
+  const [scenario, setScenario] = useState(initialFilters.scenario);
+  const [exam, setExam] = useState<ExamPackFilter>(initialFilters.exam);
+  const [model, setModel] = useState(initialFilters.model);
+  const [provider, setProvider] = useState(initialFilters.provider);
+  const [status, setStatus] = useState<RunsStatus>(initialFilters.status);
+  const [since, setSince] = useState(initialFilters.since);
 
   // Applied filters (only update on Apply)
-  const [appliedFilters, setAppliedFilters] = useState({
-    scenario: "",
-    model: "All",
-    provider: "All",
-    status: "All",
-    since: "",
-  });
+  const [appliedFilters, setAppliedFilters] = useState<RunsFilterState>(initialFilters);
 
   // Sort & pagination
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({
@@ -114,29 +133,29 @@ export function Runs() {
   const [page, setPage] = useState(0);
 
   const fetchRuns = useCallback(async () => {
+    if (appliedFilters.exam !== "all" && !scenarioCatalogLoaded) {
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (appliedFilters.scenario) params.set("scenario", appliedFilters.scenario);
-      if (appliedFilters.model !== "All") params.set("model", appliedFilters.model);
-      if (appliedFilters.provider !== "All") params.set("provider", appliedFilters.provider);
-      if (appliedFilters.status === "Passed") params.set("passed", "true");
-      if (appliedFilters.status === "Failed") params.set("passed", "false");
-      if (appliedFilters.since) params.set("since", appliedFilters.since);
-      params.set("limit", String(PAGE_SIZE));
-      params.set("offset", String(page * PAGE_SIZE));
-      applyEvidenceMode(params, mode);
+      const suiteScenarioIDs = scenarioIDsForExamPack(scenarioCatalog, appliedFilters.exam);
+      if (!appliedFilters.scenario && appliedFilters.exam !== "all" && suiteScenarioIDs.length === 0) {
+        setData({ runs: [], total: 0, limit: PAGE_SIZE, offset: page * PAGE_SIZE });
+        return;
+      }
 
-      const qs = params.toString();
-      const resp = await request<RunsResponse>(`/v1/bench/runs${qs ? `?${qs}` : ""}`);
+      const resp = await request<RunsResponse>(
+        buildRunsAPIPath(appliedFilters, page, mode, suiteScenarioIDs, PAGE_SIZE),
+      );
       setData(resp);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load runs");
     } finally {
       setLoading(false);
     }
-  }, [request, appliedFilters, page, mode]);
+  }, [request, appliedFilters, page, mode, scenarioCatalog, scenarioCatalogLoaded]);
 
   useEffect(() => {
     fetchRuns();
@@ -148,19 +167,60 @@ export function Runs() {
       .catch(() => setCatalog({ models: [], providers: [] }));
   }, [request, mode]);
 
-  function handleApply() {
-    setAppliedFilters({ scenario, model, provider, status, since });
+  useEffect(() => {
+    let cancelled = false;
+    setScenarioCatalogLoaded(false);
+    request<ScenariosResponse>("/v1/bench/scenarios")
+      .then((raw) => {
+        if (!cancelled) setScenarioCatalog(raw.items ?? raw.scenarios ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setScenarioCatalog([]);
+      })
+      .finally(() => {
+        if (!cancelled) setScenarioCatalogLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [request]);
+
+  useEffect(() => {
+    const nextFilters = runsFiltersFromSearchParams(new URLSearchParams(search));
+    setScenario(nextFilters.scenario);
+    setExam(nextFilters.exam);
+    setModel(nextFilters.model);
+    setProvider(nextFilters.provider);
+    setStatus(nextFilters.status);
+    setSince(nextFilters.since);
+    setAppliedFilters(nextFilters);
     setPage(0);
+  }, [search]);
+
+  function handleApply() {
+    const nextFilters: RunsFilterState = {
+      scenario: scenario.trim(),
+      exam,
+      model,
+      provider,
+      status,
+      since,
+    };
+    setAppliedFilters(nextFilters);
+    setPage(0);
+    setSearchParams(runsSearchParamsFromFilters(nextFilters));
   }
 
   function handleReset() {
-    setScenario("");
-    setModel("All");
-    setProvider("All");
-    setStatus("All");
-    setSince("");
-    setAppliedFilters({ scenario: "", model: "All", provider: "All", status: "All", since: "" });
+    setScenario(DEFAULT_RUNS_FILTERS.scenario);
+    setExam(DEFAULT_RUNS_FILTERS.exam);
+    setModel(DEFAULT_RUNS_FILTERS.model);
+    setProvider(DEFAULT_RUNS_FILTERS.provider);
+    setStatus(DEFAULT_RUNS_FILTERS.status);
+    setSince(DEFAULT_RUNS_FILTERS.since);
+    setAppliedFilters(DEFAULT_RUNS_FILTERS);
     setPage(0);
+    setSearchParams(new URLSearchParams());
   }
 
   function handleSort(field: SortField) {
@@ -203,6 +263,7 @@ export function Runs() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const rangeStart = total === 0 ? 0 : page * PAGE_SIZE + 1;
   const rangeEnd = Math.min((page + 1) * PAGE_SIZE, total);
+  const selectedExamPack = EXAM_PACKS.find((pack) => pack.id === appliedFilters.exam);
 
   const inputClass =
     "font-sans text-[0.8rem] px-3 py-[0.45rem] border border-border rounded-md bg-bg-elevated text-fg-body focus:outline-none focus:border-accent transition-colors";
@@ -215,7 +276,10 @@ export function Runs() {
       {/* Header */}
       <div className="mb-5">
         <h1 className="text-[1.35rem] font-bold text-fg tracking-tight">Runs</h1>
-        <p className="text-[0.82rem] text-fg-muted mt-0.5">Browse and filter benchmark run results</p>
+        <p className="text-[0.82rem] text-fg-muted mt-0.5">
+          Browse and filter benchmark run results
+          {selectedExamPack ? ` in ${selectedExamPack.title}` : ""}
+        </p>
       </div>
 
       {/* Filters bar */}
@@ -229,6 +293,22 @@ export function Runs() {
             onChange={(e) => setScenario(e.target.value)}
             className={inputClass + " w-36"}
           />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-[0.7rem] font-medium text-fg-muted uppercase tracking-wide">Exam Suite</span>
+          <select
+            value={exam}
+            onChange={(e) => setExam(e.target.value as ExamPackFilter)}
+            className={inputClass + " w-44"}
+          >
+            <option value="all">All Suites</option>
+            {EXAM_PACKS.map((pack) => (
+              <option key={pack.id} value={pack.id}>
+                {pack.shortTitle}
+              </option>
+            ))}
+          </select>
         </label>
 
         <label className="flex flex-col gap-1">
@@ -255,7 +335,11 @@ export function Runs() {
 
         <label className="flex flex-col gap-1">
           <span className="text-[0.7rem] font-medium text-fg-muted uppercase tracking-wide">Status</span>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputClass + " w-28"}>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value as RunsStatus)}
+            className={inputClass + " w-28"}
+          >
             {STATUSES.map((s) => (
               <option key={s} value={s}>
                 {s}

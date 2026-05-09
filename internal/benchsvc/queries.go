@@ -144,6 +144,9 @@ func buildWhere(tenantID string, f bench.RunFilters) (string, []any) {
 	if f.ScenarioID != "" {
 		args = append(args, f.ScenarioID)
 		clauses = append(clauses, fmt.Sprintf("scenario_id = $%d", len(args)))
+	} else if len(f.ScenarioIDs) > 0 {
+		args = append(args, f.ScenarioIDs)
+		clauses = append(clauses, fmt.Sprintf("scenario_id = ANY($%d::text[])", len(args)))
 	}
 	if f.Model != "" {
 		args = append(args, f.Model)

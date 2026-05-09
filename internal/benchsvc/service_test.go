@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -277,6 +278,7 @@ func TestBuildWhere_TenantAlwaysFirst(t *testing.T) {
 		tenant   string
 		filters  bench.RunFilters
 		wantArgs int
+		wantSQL  string
 	}{
 		{
 			name:     "tenant only",
@@ -291,6 +293,16 @@ func TestBuildWhere_TenantAlwaysFirst(t *testing.T) {
 				ScenarioID: "broken-deployment",
 			},
 			wantArgs: 2,
+			wantSQL:  "scenario_id = $2",
+		},
+		{
+			name:   "tenant plus scenario list",
+			tenant: "t2",
+			filters: bench.RunFilters{
+				ScenarioIDs: []string{"s1", "s2"},
+			},
+			wantArgs: 2,
+			wantSQL:  "scenario_id = ANY($2::text[])",
 		},
 		{
 			name:   "tenant plus model and provider",
@@ -315,6 +327,9 @@ func TestBuildWhere_TenantAlwaysFirst(t *testing.T) {
 			}
 			if where == "" {
 				t.Error("WHERE clause is empty")
+			}
+			if tt.wantSQL != "" && !strings.Contains(where, tt.wantSQL) {
+				t.Errorf("WHERE clause = %q, want to contain %q", where, tt.wantSQL)
 			}
 		})
 	}

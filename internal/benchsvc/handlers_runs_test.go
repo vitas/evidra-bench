@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -62,7 +63,7 @@ func TestHandleListRuns_ParsesFilters(t *testing.T) {
 	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-b")
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/v1/bench/runs?model=sonnet&scenario=broken-deployment&evidence_mode=mcp&limit=10&offset=5", nil)
+	req := httptest.NewRequest("GET", "/v1/bench/runs?model=sonnet&scenario=broken-deployment&scenarios=s1,s2&evidence_mode=mcp&limit=10&offset=5", nil)
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
@@ -74,6 +75,9 @@ func TestHandleListRuns_ParsesFilters(t *testing.T) {
 	}
 	if f.ScenarioID != "broken-deployment" {
 		t.Errorf("ScenarioID = %q, want broken-deployment", f.ScenarioID)
+	}
+	if !reflect.DeepEqual(f.ScenarioIDs, []string{"s1", "s2"}) {
+		t.Errorf("ScenarioIDs = %#v, want s1,s2", f.ScenarioIDs)
 	}
 	if f.EvidenceMode != "mcp" {
 		t.Errorf("EvidenceMode = %q, want mcp", f.EvidenceMode)

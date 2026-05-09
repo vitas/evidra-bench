@@ -81,6 +81,11 @@ func (r *handlerRepo) ListRuns(_ context.Context, tenant string, f bench.RunFilt
 		return nil, 0, r.runsErr
 	}
 	filtered := filterRunsByEvidenceMode(r.runs, f.EvidenceMode)
+	if f.ScenarioID != "" {
+		filtered = filterRunsByScenarioIDs(filtered, []string{f.ScenarioID})
+		return filtered, len(filtered), nil
+	}
+	filtered = filterRunsByScenarioIDs(filtered, f.ScenarioIDs)
 	return filtered, len(filtered), nil
 }
 func (r *handlerRepo) GetRun(_ context.Context, tenant, id string) (*bench.RunRecord, error) {

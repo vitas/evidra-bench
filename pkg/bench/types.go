@@ -51,6 +51,7 @@ type RunRecord struct {
 // RunFilters specifies filters for listing runs.
 type RunFilters struct {
 	ScenarioID    string
+	ScenarioIDs   []string
 	Model         string
 	Provider      string
 	EvidenceMode  string // none, mcp, or empty for all

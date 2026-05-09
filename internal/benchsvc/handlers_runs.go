@@ -22,6 +22,7 @@ func handleListRuns(svc *Service) http.HandlerFunc {
 
 		f := bench.RunFilters{
 			ScenarioID:   q.Get("scenario"),
+			ScenarioIDs:  parseCSVQuery(q.Get("scenarios")),
 			Model:        q.Get("model"),
 			Provider:     q.Get("provider"),
 			EvidenceMode: q.Get("evidence_mode"),

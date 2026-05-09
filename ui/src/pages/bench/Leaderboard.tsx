@@ -10,6 +10,7 @@ import {
   type ExamPackFilter,
   type ExamPackScenario,
 } from "../../lib/examPacks.mts";
+import { benchRunsPagePath } from "../../lib/routes.mts";
 import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 /* ── Types ── */
@@ -287,7 +288,10 @@ export function Leaderboard() {
                 {/* Model name */}
                 <td className="px-4 py-3">
                   <Link
-                    to={`/bench/runs?model=${m.model}`}
+                    to={benchRunsPagePath({
+                      model: m.model,
+                      exam: examPack === "all" ? undefined : examPack,
+                    })}
                     className="font-mono text-[0.85rem] font-semibold text-fg hover:text-accent transition-colors"
                     style={{ textDecoration: "none" }}
                   >

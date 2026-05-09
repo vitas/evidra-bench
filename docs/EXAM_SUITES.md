@@ -31,15 +31,16 @@ vendor exam body.
 
 ## Shareable URLs
 
-The public catalog and leaderboard accept an `exam` query parameter:
+The public catalog, leaderboard, and run browser accept an `exam` query
+parameter:
 
-| Suite | Catalog URL | Leaderboard URL |
-|---|---|---|
-| Kubernetes Admin Exam | `/bench/scenarios?exam=kubernetes-admin` | `/bench/leaderboard?exam=kubernetes-admin` |
-| Kubernetes Security Exam | `/bench/scenarios?exam=kubernetes-security` | `/bench/leaderboard?exam=kubernetes-security` |
-| GitOps And Release Exam | `/bench/scenarios?exam=gitops-release` | `/bench/leaderboard?exam=gitops-release` |
-| Terraform And Cloud Ops Exam | `/bench/scenarios?exam=terraform-cloud` | `/bench/leaderboard?exam=terraform-cloud` |
-| MCP Readiness Exam | `/bench/scenarios?exam=mcp-readiness` | `/bench/leaderboard?exam=mcp-readiness` |
+| Suite | Catalog URL | Leaderboard URL | Runs URL |
+|---|---|---|---|
+| Kubernetes Admin Exam | `/bench/scenarios?exam=kubernetes-admin` | `/bench/leaderboard?exam=kubernetes-admin` | `/bench/runs?exam=kubernetes-admin` |
+| Kubernetes Security Exam | `/bench/scenarios?exam=kubernetes-security` | `/bench/leaderboard?exam=kubernetes-security` | `/bench/runs?exam=kubernetes-security` |
+| GitOps And Release Exam | `/bench/scenarios?exam=gitops-release` | `/bench/leaderboard?exam=gitops-release` | `/bench/runs?exam=gitops-release` |
+| Terraform And Cloud Ops Exam | `/bench/scenarios?exam=terraform-cloud` | `/bench/leaderboard?exam=terraform-cloud` | `/bench/runs?exam=terraform-cloud` |
+| MCP Readiness Exam | `/bench/scenarios?exam=mcp-readiness` | `/bench/leaderboard?exam=mcp-readiness` | `/bench/runs?exam=mcp-readiness` |
 
 ## Why This Layer Exists
 
