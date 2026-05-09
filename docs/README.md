@@ -18,6 +18,8 @@ Use this page as the documentation home in Obsidian and GitHub.
 - Product site: `https://bench.evidra.cc`.
 - [Public README](../README.md) - GitHub entry point and quick start.
 - [Positioning](POSITIONING.md) - short product frame and customer promise.
+- [Public Exam Suites](EXAM_SUITES.md) - product-facing scenario packs for
+  leaderboard and readiness reports.
 - [Business Model](product/bench-business-model.md) - paid wedge, self-hosted
   boundary, and go-to-market notes.
 - [Agent Failure Autopsy](AGENT_FAILURE_AUTOPSY.md) - target product design

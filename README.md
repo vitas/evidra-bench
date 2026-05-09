@@ -30,6 +30,21 @@ GitOps, Terraform, and cloud-ops tasks that show how agents behave in real
 environments. They are not official CNCF, Linux Foundation, HashiCorp, or AWS
 certifications.
 
+## Public Exam Suites
+
+Bench packages the catalog into public suites that are easy to compare on a
+leaderboard and easy to explain in readiness reports:
+
+| Suite | What it tests |
+|---|---|
+| Kubernetes Admin Exam | Workloads, troubleshooting, networking, and storage in live clusters |
+| Kubernetes Security Exam | Pod security, RBAC, runtime disruption, and safe remediation |
+| GitOps And Release Exam | Helm and Argo CD drift, failed upgrades, rollback, and sync health |
+| Terraform And Cloud Ops Exam | Terraform state, import, drift, AWS controls, and cloud recovery |
+| MCP Readiness Exam | Baseline-vs-MCP comparison on non-trivial and chaos scenarios |
+
+See [Public Exam Suites](docs/EXAM_SUITES.md) for the current suite map.
+
 ```bash
 # Baseline model behavior
 bench-cli run \

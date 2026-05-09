@@ -4,6 +4,12 @@ import { Link, useNavigate } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { useAppInfo } from "../../hooks/useAppInfo";
 import { evidenceModeParam } from "../../lib/catalogData.mts";
+import {
+  EXAM_PACKS,
+  countExamPackMatches,
+  scenarioMatchesExamPack,
+  type ExamPackID,
+} from "../../lib/examPacks.mts";
 import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 import {
   DEFAULT_RUN_SELECTION,
@@ -19,6 +25,8 @@ interface Scenario {
   title: string;
   description?: string;
   category: string;
+  track?: string;
+  level?: string;
   tags: string[];
   chaos: boolean;
 }
@@ -81,6 +89,7 @@ function firstTriggerRunID(job: TriggerJob) {
 
 const FEATURES = ["All", "Chaos enabled"] as const;
 type ViewMode = "cards" | "list";
+type ExamPackFilter = "all" | ExamPackID;
 
 export function Scenarios() {
   usePageTitle("Scenarios");
@@ -94,6 +103,7 @@ export function Scenarios() {
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
+  const [examPack, setExamPack] = useState<ExamPackFilter>("all");
   const [category, setCategory] = useState<string>("All");
   const [feature, setFeature] = useState<string>("All");
   const [view, setView] = useState<ViewMode>("list");
@@ -129,6 +139,7 @@ export function Scenarios() {
   const filtered = useMemo(() => {
     if (!data) return [];
     return data.items.filter((s) => {
+      if (examPack !== "all" && !scenarioMatchesExamPack(s, examPack)) return false;
       if (search) {
         const q = search.toLowerCase();
         if (!s.id.toLowerCase().includes(q) && !s.title.toLowerCase().includes(q)) return false;
@@ -137,7 +148,12 @@ export function Scenarios() {
       if (feature === "Chaos enabled" && !s.chaos) return false;
       return true;
     });
-  }, [data, search, category, feature]);
+  }, [data, examPack, search, category, feature]);
+
+  const examPackCounts = useMemo(
+    () => countExamPackMatches(data?.items ?? []),
+    [data],
+  );
 
   const grouped = useMemo(() => {
     const groups = new Map<string, Scenario[]>();
@@ -259,11 +275,63 @@ export function Scenarios() {
     <div className="flex flex-col gap-6">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-fg">Scenarios</h1>
+        <h1 className="text-xl font-bold text-fg">Live Agent Exam Catalog</h1>
         <p className="text-[0.83rem] text-fg-muted mt-1">
-          {data?.total ?? 0} scenarios across Kubernetes, Helm, Argo CD, and Terraform
+          {data?.total ?? 0} real scenarios packaged as public exams for AI infrastructure agents
         </p>
       </div>
+
+      {/* Exam packs */}
+      <section className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
+        <button
+          onClick={() => setExamPack("all")}
+          className={`glass-card p-4 text-left transition-all ${
+            examPack === "all"
+              ? "border-accent shadow-[0_0_0_1px_var(--color-accent)]"
+              : "hover:border-accent/50"
+          }`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-[0.9rem] font-bold text-fg">All Exam Scenarios</h2>
+              <p className="text-[0.74rem] text-fg-muted leading-relaxed mt-1">
+                Full live catalog across Kubernetes, GitOps, Terraform, AWS, and MCP readiness work.
+              </p>
+            </div>
+            <span className="font-mono text-[0.82rem] font-bold text-accent">{data?.total ?? 0}</span>
+          </div>
+        </button>
+
+        {EXAM_PACKS.map((pack) => {
+          const active = examPack === pack.id;
+          return (
+            <button
+              key={pack.id}
+              onClick={() => setExamPack(pack.id)}
+              className={`glass-card p-4 text-left transition-all ${
+                active
+                  ? "border-accent shadow-[0_0_0_1px_var(--color-accent)]"
+                  : "hover:border-accent/50"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-[0.9rem] font-bold text-fg">{pack.shortTitle}</h2>
+                  <p className="text-[0.74rem] text-fg-muted leading-relaxed mt-1">
+                    {pack.summary}
+                  </p>
+                </div>
+                <span className="font-mono text-[0.82rem] font-bold text-accent">
+                  {examPackCounts[pack.id] ?? 0}
+                </span>
+              </div>
+              <p className="text-[0.68rem] text-fg-muted/80 leading-relaxed mt-3">
+                {pack.proof}
+              </p>
+            </button>
+          );
+        })}
+      </section>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
