@@ -104,6 +104,14 @@ function TerminalAnimation() {
 }
 
 const EXAM_PACK_COUNTS = countExamPackMatches(SCENARIOS);
+const BENCH_REQUEST_MAILTO =
+  "mailto:bench@evidra.cc?subject=Live%20Agent%20Benchmark%20Request";
+const BENCH_ENGAGEMENTS = [
+  "Private agent/MCP evaluation reports",
+  "Sponsored public benchmark runs",
+  "Custom live scenario packs",
+  "Monthly release regression reports",
+];
 
 export function Landing() {
   const { theme, toggle } = useTheme();
@@ -407,6 +415,54 @@ export function Landing() {
             >
               Exam Leaderboard
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Commercial CTA */}
+      <section className="relative max-w-6xl mx-auto px-6 py-20">
+        <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-8 items-start border-y border-border py-10">
+          <div>
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-accent/30 bg-accent/10 text-[0.68rem] font-semibold uppercase tracking-wider text-accent mb-5">
+              Independent live evaluation
+            </span>
+            <h2 className="text-[1.8rem] md:text-[2.2rem] leading-tight font-extrabold mb-4">
+              Commission a Live Agent Benchmark
+            </h2>
+            <p className="text-[0.95rem] text-fg-muted leading-relaxed max-w-2xl mb-4">
+              Building an AI SRE agent, MCP server, or infrastructure automation tool?
+            </p>
+            <p className="text-[0.9rem] text-fg-muted leading-relaxed max-w-2xl">
+              Evidra Bench can run an independent live evaluation against curated
+              Kubernetes, Helm, Terraform, and GitOps scenarios.
+            </p>
+          </div>
+
+          <div className="border border-border rounded-lg bg-bg-alt/70 p-5">
+            <h3 className="text-[0.82rem] font-semibold uppercase tracking-wider text-fg-muted mb-4">
+              Available engagements
+            </h3>
+            <ul className="space-y-3 mb-5">
+              {BENCH_ENGAGEMENTS.map((item) => (
+                <li key={item} className="flex items-start gap-3 text-[0.85rem] text-fg-body">
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-accent-bright shrink-0" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[0.78rem] text-fg-muted leading-relaxed mb-5">
+              Private reports are confidential. Sponsored reports are clearly
+              labeled, and sponsors do not control scoring or findings.
+            </p>
+            <a
+              href={BENCH_REQUEST_MAILTO}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent hover:bg-accent-bright text-white text-[0.84rem] font-semibold rounded-lg transition-all hover:shadow-[0_0_30px_rgba(5,150,105,0.25)]"
+            >
+              Request a benchmark
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </a>
           </div>
         </div>
       </section>
