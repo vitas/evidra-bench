@@ -66,6 +66,7 @@ type handlerRepo struct {
 	lastTenant       string
 	lastFilter       bench.RunFilters
 	lastMode         string
+	lastScenarios    []string
 	lastModelID      string
 	lastProviderCfg  TenantProviderConfig
 	lastGlobalCfg    GlobalModelConfig
@@ -139,16 +140,17 @@ func (r *handlerRepo) ResolveModelProvider(_ context.Context, modelID string) (*
 	}
 	return r.modelProvider, r.modelProviderErr
 }
-func (r *handlerRepo) Leaderboard(_ context.Context, tenant, mode string, _ int) ([]bench.LeaderboardEntry, error) {
+func (r *handlerRepo) Leaderboard(_ context.Context, tenant, mode string, _ int, scenarios []string) ([]bench.LeaderboardEntry, error) {
 	r.lastTenant = tenant
 	r.lastMode = mode
+	r.lastScenarios = scenarios
 	if r.leadersErr != nil {
 		return nil, r.leadersErr
 	}
 	if r.leaders != nil {
 		return r.leaders, nil
 	}
-	return aggregateLeaderboardRuns(filterRunsByEvidenceMode(r.runs, mode)), nil
+	return aggregateLeaderboardRuns(filterRunsByScenarioIDs(filterRunsByEvidenceMode(r.runs, mode), scenarios)), nil
 }
 func (r *handlerRepo) ListScenarios(_ context.Context) ([]bench.ScenarioSummary, error) {
 	return r.scenarios, r.scenErr
@@ -314,6 +316,35 @@ func filterRunsByEvidenceMode(runs []bench.RunRecord, mode string) []bench.RunRe
 		}
 	}
 	return filtered
+}
+
+func filterRunsByScenarioIDs(runs []bench.RunRecord, scenarios []string) []bench.RunRecord {
+	if len(scenarios) == 0 {
+		return runs
+	}
+	allowed := make(map[string]struct{}, len(scenarios))
+	for _, scenario := range scenarios {
+		allowed[scenario] = struct{}{}
+	}
+	filtered := make([]bench.RunRecord, 0, len(runs))
+	for _, run := range runs {
+		if _, ok := allowed[run.ScenarioID]; ok {
+			filtered = append(filtered, run)
+		}
+	}
+	return filtered
+}
+
+func equalStringSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func aggregateLeaderboardRuns(runs []bench.RunRecord) []bench.LeaderboardEntry {

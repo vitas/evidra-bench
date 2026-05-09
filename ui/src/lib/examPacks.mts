@@ -21,6 +21,7 @@ export interface ExamPack {
 }
 
 export interface ExamPackScenario {
+  id?: string;
   category: string;
   track?: string;
   level?: string;
@@ -124,4 +125,14 @@ export function countExamPackMatches(
 export function resolveExamPackFilter(value: string | null | undefined): ExamPackFilter {
   if (!value) return "all";
   return EXAM_PACKS.some((pack) => pack.id === value) ? (value as ExamPackID) : "all";
+}
+
+export function scenarioIDsForExamPack(
+  scenarios: ExamPackScenario[],
+  pack: ExamPackFilter,
+): string[] {
+  if (pack === "all") return [];
+  return scenarios
+    .filter((scenario) => Boolean(scenario.id) && scenarioMatchesExamPack(scenario, pack))
+    .map((scenario) => scenario.id as string);
 }

@@ -5,6 +5,7 @@ import {
   EXAM_PACKS,
   countExamPackMatches,
   resolveExamPackFilter,
+  scenarioIDsForExamPack,
   scenarioMatchesExamPack,
   type ExamPackScenario,
 } from "./examPacks.mts";
@@ -21,6 +22,11 @@ const scenarios: ExamPackScenario[] = [
   { category: "aws", track: "pod-security", level: "L2" },
   { category: "kubernetes", track: "workloads", level: "L1", chaos: true },
 ];
+
+const identifiedScenarios = scenarios.map((scenario, index) => ({
+  ...scenario,
+  id: `s${index + 1}`,
+}));
 
 test("exam packs expose the public marketing suites in display order", () => {
   assert.deepEqual(
@@ -67,4 +73,15 @@ test("resolveExamPackFilter accepts only known URL values", () => {
   assert.equal(resolveExamPackFilter("unknown"), "all");
   assert.equal(resolveExamPackFilter(""), "all");
   assert.equal(resolveExamPackFilter(null), "all");
+});
+
+test("scenarioIDsForExamPack returns concrete scenario IDs for a suite", () => {
+  assert.deepEqual(
+    scenarioIDsForExamPack(identifiedScenarios, "kubernetes-security"),
+    ["s4", "s5"],
+  );
+  assert.deepEqual(
+    scenarioIDsForExamPack(identifiedScenarios, "all"),
+    [],
+  );
 });

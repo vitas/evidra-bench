@@ -56,7 +56,7 @@ func TestLeaderboard_PassKMath(t *testing.T) {
 		}
 	}
 
-	entries, err := store.Leaderboard(ctx, tenantID, "", 3)
+	entries, err := store.Leaderboard(ctx, tenantID, "", 3, nil)
 	if err != nil {
 		t.Fatalf("Leaderboard: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestLeaderboard_PassKInsufficientTrials(t *testing.T) {
 		}
 	}
 
-	entries, err := store.Leaderboard(ctx, tenantID, "", 3)
+	entries, err := store.Leaderboard(ctx, tenantID, "", 3, nil)
 	if err != nil {
 		t.Fatalf("Leaderboard: %v", err)
 	}

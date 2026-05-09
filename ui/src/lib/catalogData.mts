@@ -29,6 +29,16 @@ export function evidenceModeParam(prefix: "?" | "&", mode?: string): string {
   return m && m !== "all" ? `${prefix}evidence_mode=${encodeURIComponent(m)}` : "";
 }
 
+export function buildLeaderboardPath(k: number, mode?: string, scenarios?: string[]): string {
+  const params = new URLSearchParams();
+  params.set("k", String(k));
+  if (scenarios && scenarios.length > 0) {
+    params.set("scenarios", scenarios.join(","));
+  }
+  applyEvidenceMode(params, mode);
+  return `/v1/bench/leaderboard?${params.toString()}`;
+}
+
 export function buildRunsPath(limit: number, since?: string, mode?: string): string {
   const params = new URLSearchParams();
   params.set("limit", String(limit));

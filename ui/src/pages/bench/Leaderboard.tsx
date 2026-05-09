@@ -1,8 +1,15 @@
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
-import { evidenceModeParam } from "../../lib/catalogData.mts";
+import { buildLeaderboardPath } from "../../lib/catalogData.mts";
+import {
+  EXAM_PACKS,
+  resolveExamPackFilter,
+  scenarioIDsForExamPack,
+  type ExamPackFilter,
+  type ExamPackScenario,
+} from "../../lib/examPacks.mts";
 import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 /* ── Types ── */
@@ -23,6 +30,11 @@ interface LeaderboardEntry {
 interface LeaderboardResponse {
   models: LeaderboardEntry[];
   evidence_mode: string;
+}
+
+interface ScenariosResponse {
+  scenarios?: ExamPackScenario[];
+  items?: ExamPackScenario[];
 }
 
 type SortKey = "pass_rate" | "pass_k" | "runs" | "avg_duration" | "avg_cost" | "scenarios";
@@ -81,18 +93,63 @@ export function Leaderboard() {
   usePageTitle("Model Leaderboard");
   const { request } = useApi();
   const { mode } = useEvidenceMode();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const examPack = resolveExamPackFilter(searchParams.get("exam"));
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [scenarios, setScenarios] = useState<ExamPackScenario[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>("pass_rate");
   const [sortDesc, setSortDesc] = useState(true);
 
   useEffect(() => {
-    const modeParam = evidenceModeParam("&", mode);
-    request<LeaderboardResponse>(`/v1/bench/leaderboard?k=3${modeParam}`)
-      .then((res) => setEntries(res.models ?? []))
-      .catch(() => setEntries([]))
-      .finally(() => setLoading(false));
-  }, [request, mode]);
+    let cancelled = false;
+    setLoading(true);
+    request<ScenariosResponse>("/v1/bench/scenarios")
+      .then((raw) => {
+        const items = raw.items ?? raw.scenarios ?? [];
+        if (!cancelled) setScenarios(items);
+        const scenarioIDs = scenarioIDsForExamPack(items, examPack);
+        if (examPack !== "all" && scenarioIDs.length === 0) {
+          return { models: [], evidence_mode: mode } satisfies LeaderboardResponse;
+        }
+        return request<LeaderboardResponse>(buildLeaderboardPath(3, mode, scenarioIDs));
+      })
+      .then((res) => {
+        if (!cancelled) setEntries(res.models ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setEntries([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [request, mode, examPack]);
+
+  const selectExamPack = useCallback(
+    (next: ExamPackFilter) => {
+      const nextParams = new URLSearchParams(searchParams);
+      if (next === "all") {
+        nextParams.delete("exam");
+      } else {
+        nextParams.set("exam", next);
+      }
+      setSearchParams(nextParams);
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const examPackCounts = useMemo(
+    () =>
+      Object.fromEntries(
+        EXAM_PACKS.map((pack) => [pack.id, scenarioIDsForExamPack(scenarios, pack.id).length]),
+      ) as Record<string, number>,
+    [scenarios],
+  );
+
+  const selectedPack = EXAM_PACKS.find((pack) => pack.id === examPack);
 
   const sorted = useMemo(() => {
     const arr = [...entries];
@@ -139,7 +196,38 @@ export function Leaderboard() {
         </h1>
         <p className="text-[0.85rem] text-fg-muted mt-0.5">
           {totalModels} models ranked across {totalRuns} benchmark runs
+          {selectedPack ? ` in ${selectedPack.title}` : ""}
         </p>
+      </div>
+
+      {/* Exam suite filter */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => selectExamPack("all")}
+          className={`px-3 py-1.5 rounded-md border text-[0.75rem] font-semibold transition-all ${
+            examPack === "all"
+              ? "border-accent bg-accent-tint text-accent"
+              : "border-border bg-bg-elevated text-fg-muted hover:text-fg hover:border-accent/50"
+          }`}
+        >
+          All Suites
+        </button>
+        {EXAM_PACKS.map((pack) => (
+          <button
+            key={pack.id}
+            onClick={() => selectExamPack(pack.id)}
+            className={`px-3 py-1.5 rounded-md border text-[0.75rem] font-semibold transition-all ${
+              examPack === pack.id
+                ? "border-accent bg-accent-tint text-accent"
+                : "border-border bg-bg-elevated text-fg-muted hover:text-fg hover:border-accent/50"
+            }`}
+          >
+            {pack.shortTitle}
+            <span className="ml-1.5 font-mono text-[0.68rem] opacity-75">
+              {examPackCounts[pack.id] ?? 0}
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* Summary cards */}

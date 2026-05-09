@@ -50,7 +50,7 @@ type Repository interface {
 	MarkUnhealthyRunners(ctx context.Context, threshold time.Duration) (int, error)
 	ResetStaleJobs(ctx context.Context, threshold time.Duration) (int, error)
 	UpdateJobProgress(ctx context.Context, jobID string, completed, passed, failed int) error
-	Leaderboard(ctx context.Context, tenantID string, evidenceMode string, k int) ([]bench.LeaderboardEntry, error)
+	Leaderboard(ctx context.Context, tenantID string, evidenceMode string, k int, scenarios []string) ([]bench.LeaderboardEntry, error)
 	ListScenarios(ctx context.Context) ([]bench.ScenarioSummary, error)
 	StoreArtifact(ctx context.Context, runID, artifactType, contentType string, data []byte) error
 	GetArtifact(ctx context.Context, tenantID string, runID, artifactType string) ([]byte, string, error)
@@ -328,11 +328,11 @@ func (s *Service) ArchiveRuns(ctx context.Context, tenantID string, req ArchiveR
 
 // Leaderboard returns the public leaderboard using the configured public tenant.
 // k controls the pass^k reliability metric (minimum 1, default 3).
-func (s *Service) Leaderboard(ctx context.Context, evidenceMode string, k int) ([]bench.LeaderboardEntry, error) {
+func (s *Service) Leaderboard(ctx context.Context, evidenceMode string, k int, scenarios []string) ([]bench.LeaderboardEntry, error) {
 	if s.cfg.PublicTenant == "" {
 		return nil, ErrPublicTenantUnavailable
 	}
-	return s.repo.Leaderboard(ctx, s.cfg.PublicTenant, evidenceMode, k)
+	return s.repo.Leaderboard(ctx, s.cfg.PublicTenant, evidenceMode, k, scenarios)
 }
 
 // ListScenarios returns the global scenario catalog.

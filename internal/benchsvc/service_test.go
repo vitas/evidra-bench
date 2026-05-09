@@ -47,7 +47,7 @@ func (f *fakeRepo) FilteredStats(_ context.Context, _ string, _ bench.RunFilters
 	return nil, nil
 }
 func (f *fakeRepo) Catalog(_ context.Context, _ string) (*bench.RunCatalog, error) { return nil, nil }
-func (f *fakeRepo) Leaderboard(_ context.Context, tenantID string, evidenceMode string, _ int) ([]bench.LeaderboardEntry, error) {
+func (f *fakeRepo) Leaderboard(_ context.Context, tenantID string, evidenceMode string, _ int, _ []string) ([]bench.LeaderboardEntry, error) {
 	f.leaderboardTenant = tenantID
 	f.leaderboardMode = evidenceMode
 	return nil, nil
@@ -161,7 +161,7 @@ func TestServiceLeaderboard_UsesPublicTenant(t *testing.T) {
 
 	// When PublicTenant is empty, Leaderboard must return ErrPublicTenantUnavailable.
 	svc := NewService(&fakeRepo{}, ServiceConfig{})
-	_, err := svc.Leaderboard(context.Background(), "mcp", 3)
+	_, err := svc.Leaderboard(context.Background(), "mcp", 3, nil)
 	if !errors.Is(err, ErrPublicTenantUnavailable) {
 		t.Fatalf("Leaderboard err = %v, want ErrPublicTenantUnavailable", err)
 	}
@@ -170,7 +170,7 @@ func TestServiceLeaderboard_UsesPublicTenant(t *testing.T) {
 	// with the configured public tenant.
 	repo := &fakeRepo{}
 	svc2 := NewService(repo, ServiceConfig{PublicTenant: "bench-public"})
-	_, _ = svc2.Leaderboard(context.Background(), "mcp", 3)
+	_, _ = svc2.Leaderboard(context.Background(), "mcp", 3, nil)
 	if repo.leaderboardTenant != "bench-public" {
 		t.Fatalf("leaderboardTenant = %q, want bench-public", repo.leaderboardTenant)
 	}

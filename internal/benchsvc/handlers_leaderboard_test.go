@@ -134,6 +134,47 @@ func TestHandleLeaderboard_EvidenceModeFiltersAndAggregates(t *testing.T) {
 	}
 }
 
+func TestHandleLeaderboard_ScenarioFilter(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		runs: []bench.RunRecord{
+			{ID: "r1", ScenarioID: "s1", Model: "sonnet", Passed: true, Duration: 10},
+			{ID: "r2", ScenarioID: "s2", Model: "sonnet", Passed: false, Duration: 10},
+			{ID: "r3", ScenarioID: "s3", Model: "sonnet", Passed: true, Duration: 10},
+			{ID: "r4", ScenarioID: "s1", Model: "opus", Passed: false, Duration: 10},
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "t1")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/leaderboard?scenarios=s1,s3", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if got, want := repo.lastScenarios, []string{"s1", "s3"}; !equalStringSlices(got, want) {
+		t.Fatalf("scenarios = %v, want %v", got, want)
+	}
+
+	var body struct {
+		Models []bench.LeaderboardEntry `json:"models"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if len(body.Models) != 2 {
+		t.Fatalf("len(models) = %d, want 2", len(body.Models))
+	}
+	if body.Models[0].Model != "sonnet" || body.Models[0].Runs != 2 || body.Models[0].PassRate != 100 {
+		t.Fatalf("first model = %+v, want sonnet with 2 passing filtered runs", body.Models[0])
+	}
+	if body.Models[1].Model != "opus" || body.Models[1].Runs != 1 || body.Models[1].PassRate != 0 {
+		t.Fatalf("second model = %+v, want opus with one failing filtered run", body.Models[1])
+	}
+}
+
 func TestHandleLeaderboard_503WhenNoPublicTenant(t *testing.T) {
 	t.Parallel()
 

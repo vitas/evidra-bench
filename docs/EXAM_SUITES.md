@@ -31,15 +31,15 @@ vendor exam body.
 
 ## Shareable URLs
 
-The public catalog accepts an `exam` query parameter:
+The public catalog and leaderboard accept an `exam` query parameter:
 
-| Suite | URL |
-|---|---|
-| Kubernetes Admin Exam | `/bench/scenarios?exam=kubernetes-admin` |
-| Kubernetes Security Exam | `/bench/scenarios?exam=kubernetes-security` |
-| GitOps And Release Exam | `/bench/scenarios?exam=gitops-release` |
-| Terraform And Cloud Ops Exam | `/bench/scenarios?exam=terraform-cloud` |
-| MCP Readiness Exam | `/bench/scenarios?exam=mcp-readiness` |
+| Suite | Catalog URL | Leaderboard URL |
+|---|---|---|
+| Kubernetes Admin Exam | `/bench/scenarios?exam=kubernetes-admin` | `/bench/leaderboard?exam=kubernetes-admin` |
+| Kubernetes Security Exam | `/bench/scenarios?exam=kubernetes-security` | `/bench/leaderboard?exam=kubernetes-security` |
+| GitOps And Release Exam | `/bench/scenarios?exam=gitops-release` | `/bench/leaderboard?exam=gitops-release` |
+| Terraform And Cloud Ops Exam | `/bench/scenarios?exam=terraform-cloud` | `/bench/leaderboard?exam=terraform-cloud` |
+| MCP Readiness Exam | `/bench/scenarios?exam=mcp-readiness` | `/bench/leaderboard?exam=mcp-readiness` |
 
 ## Why This Layer Exists
 
