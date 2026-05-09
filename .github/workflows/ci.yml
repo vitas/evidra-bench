@@ -20,6 +20,7 @@ jobs:
         with:
           go-version-file: bench/go.mod
           cache: true
+          cache-dependency-path: bench/go.sum
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -48,6 +49,10 @@ jobs:
       - name: Guard no core evidra dependency
         working-directory: bench
         run: bash tests/test_no_core_evidra_dependency.sh
+
+      - name: Guard workflow hygiene
+        working-directory: bench
+        run: bash tests/test_workflow_hygiene.sh
 
       - name: Test public API smoke script
         working-directory: bench
