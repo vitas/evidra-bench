@@ -9,8 +9,9 @@ import (
 )
 
 // RegisterRoutes adds bench intelligence routes to the given mux.
-// Public routes (leaderboard, scenarios) are registered directly.
-// Authenticated routes go through authMw and extract tenant from context.
+// Public read routes use the configured public tenant. Mutating,
+// configuration, trigger, and runner routes go through authMw and extract the
+// authenticated tenant.
 func RegisterRoutes(mux *http.ServeMux, svc *Service, authMw func(http.Handler) http.Handler) {
 	publicReadMw := publicTenantMiddleware(svc)
 

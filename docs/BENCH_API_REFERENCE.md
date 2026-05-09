@@ -7,6 +7,7 @@ metadata, trigger jobs, and runner registration.
 ```bash
 BENCH_DATABASE_URL=postgres://bench:bench@localhost:5432/bench?sslmode=disable \
 BENCH_API_KEY=dev-secret \
+BENCH_PUBLIC_TENANT=default \
 BENCH_SERVICE_ADDR=:8090 \
 bench-cli serve
 ```
@@ -16,10 +17,14 @@ For hosted control-plane deployments backed by remote runners, start with
 service does not provision a local executor cluster and `POST /v1/certify`
 returns `501 Not Implemented`.
 
-Authentication uses `Authorization: Bearer $BENCH_API_KEY` for every
-authenticated route. `GET /v1/bench/leaderboard` and `GET /healthz` are public.
-Static-key auth maps all authenticated requests to tenant `default` in this
-phase.
+Authentication uses `Authorization: Bearer $BENCH_API_KEY` for mutating routes,
+trigger routes, runner routes, and model-provider configuration. Read-only
+benchmark result, catalog, artifact, analytics, and comparison routes are
+public and read from `BENCH_PUBLIC_TENANT`. If `BENCH_PUBLIC_TENANT` is omitted,
+`bench-cli serve` uses the authenticated tenant, which defaults to `default`.
+
+Static-key auth maps authenticated requests to `BENCH_DEFAULT_TENANT` in this
+phase. `GET /healthz` is always public.
 
 ## Health
 
@@ -39,7 +44,7 @@ Bench list and analytics endpoints accept exact evidence-mode filters:
 
 `POST /v1/bench/trigger` accepts only `none` or `mcp`.
 
-## Public Endpoints
+## Public Read Endpoints
 
 ### GET /v1/bench/leaderboard
 
@@ -51,6 +56,7 @@ Query parameters:
 |---|---|
 | `evidence_mode` | filter using the evidence-mode contract above |
 | `k` | pass^k trial count, 1-10, default `3` |
+| `scenarios` | comma-separated scenario IDs for suite or category slices |
 
 Response:
 
@@ -78,7 +84,7 @@ Response:
 
 ### GET /v1/bench/scenarios
 
-Returns the global scenario catalog. Requires Bearer auth.
+Returns the global scenario catalog. Public read endpoint.
 
 ### POST /v1/bench/scenarios/sync
 
@@ -143,6 +149,7 @@ Query parameters:
 |---|---|
 | `model` | exact model filter |
 | `scenario` | exact scenario ID filter |
+| `scenarios` | comma-separated scenario IDs; ignored when `scenario` is set |
 | `evidence_mode` | filter using the evidence-mode contract above |
 | `since` | RFC3339 timestamp or `YYYY-MM-DD` |
 | `passed` | `true` or `false` |

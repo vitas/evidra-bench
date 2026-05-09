@@ -35,6 +35,7 @@ development database is enough.
 ```bash
 export BENCH_DATABASE_URL=postgres://bench:bench@localhost:5432/bench?sslmode=disable
 export BENCH_API_KEY=dev-secret
+export BENCH_PUBLIC_TENANT=default
 export BENCH_SERVICE_ADDR=:8090
 ```
 
@@ -48,6 +49,9 @@ bench-cli serve \
 
 `BENCH_DATABASE_URL` is also used by parallel bench execution. `BENCH_API_KEY`
 is the static Bearer token for authenticated HTTP routes.
+`BENCH_PUBLIC_TENANT` is the tenant used by unauthenticated read-only benchmark
+routes. If it is omitted, `bench-cli serve` uses `BENCH_DEFAULT_TENANT`, or
+`default` when both tenant env vars are empty.
 
 For hosted control-plane deployments that use remote runners, disable the local
 direct executor:
@@ -74,8 +78,7 @@ Verify:
 
 ```bash
 curl http://localhost:8090/healthz
-curl -H "Authorization: Bearer $BENCH_API_KEY" \
-  http://localhost:8090/v1/bench/runs
+curl http://localhost:8090/v1/bench/runs
 ```
 
 The service runs pending migrations on startup. The migration history is folded
@@ -194,8 +197,10 @@ Canonical UI routes are under `/bench/*`. Legacy `/scenarios`, `/runs`, and
 
 ## Operational Notes
 
-- `GET /v1/bench/leaderboard` is public.
-- All other bench, trigger, and runner routes require Bearer auth.
+- Read-only benchmark result, catalog, artifact, analytics, and comparison
+  routes are public and use `BENCH_PUBLIC_TENANT`.
+- Mutating bench routes, model configuration routes, trigger routes, and runner
+  routes require Bearer auth.
 - `POST /v1/bench/trigger` tries the runner queue before direct executor model
   validation, so runner-local aliases can work without a control-plane API key.
 - If no eligible runner exists and no direct executor is configured, trigger

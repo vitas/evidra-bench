@@ -178,18 +178,17 @@ The current PostgreSQL schema lives in
 
 ## Control Plane
 
-The Bench API is intentionally private except for the leaderboard and health
-check. Static bearer auth maps requests to a tenant in this phase.
+Read-only benchmark API routes can be public and read from the configured
+public tenant. Mutating routes, trigger routes, and runner routes require
+static bearer auth, which maps requests to a tenant in this phase.
 
 Key surfaces:
 
 - `GET /healthz`
-- `GET /v1/bench/leaderboard`
-- `GET /v1/bench/runs`
+- public reads: `GET /v1/bench/leaderboard`, `GET /v1/bench/scenarios`,
+  `GET /v1/bench/runs`, analytics, artifacts, comparisons
 - `POST /v1/bench/runs`
 - `POST /v1/bench/runs/batch`
-- `GET /v1/bench/runs/{id}/timeline`
-- `GET /v1/bench/runs/{id}/scorecard`
 - `POST /v1/bench/trigger`
 - `GET /v1/runners/jobs`
 - `POST /v1/runners/jobs/{id}/complete`
