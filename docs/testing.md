@@ -8,6 +8,7 @@ How to run tests, what they cover, and how to add new ones.
 make test          # all unit tests (go test ./... -v -count=1)
 make test-race     # with race detector (CI-required)
 make smoke         # dry-run all scenarios (build + validate)
+make public-smoke  # live API public-surface smoke, requires BENCH_API_URL
 make lint          # golangci-lint
 make fmt           # gofmt -w .
 ```
@@ -37,8 +38,13 @@ The suite covers the CLI plus the core runtime packages listed above.
 `.github/workflows/ci.yml` runs on every push to `main` and every PR:
 
 1. **Format check** — `gofmt -l .` fails if any file is unformatted
-2. **Unit tests** — `go test ./... -count=1`
-3. **Race detector** — `go test -race ./... -count=1`
+2. **Lint** — `golangci-lint run`
+3. **Dependency guard** — no core Evidra dependency returns to Bench
+4. **Public API smoke script self-test** — fake API validates the post-deploy
+   smoke script
+5. **UI checks** — command builder tests and production build
+6. **Unit tests** — `go test ./... -count=1`
+7. **Race detector** — `go test -race ./... -count=1`
 
 ## Test Categories
 
@@ -149,6 +155,30 @@ Validates:
 - `scenario list` discovers all scenarios
 - `run --dry-run` succeeds for kubernetes, helm, and argocd scenarios
 - Scenario resolution works by path and by ID
+
+### 7. Public API Smoke Tests
+
+**File:** `tests/smoke/run_public_api_smoke.sh`
+
+Post-deploy validation for the public read surface:
+
+```bash
+BENCH_API_URL=https://api.example.com make public-smoke
+```
+
+Validates:
+- `/healthz` returns `{"status":"ok"}`
+- public `GET /v1/bench/scenarios` returns a scenario array
+- public `GET /v1/bench/leaderboard` returns a model array
+- public `GET /v1/bench/runs` returns a run array
+- public `GET /v1/bench/runs?scenarios=...` accepts suite-style filters
+- unauthenticated `POST /v1/bench/runs` returns `401`
+
+The script self-test uses a local fake API and runs in CI:
+
+```bash
+make public-smoke-test
+```
 
 ## Adding a New Scenario
 

@@ -49,6 +49,10 @@ jobs:
         working-directory: bench
         run: bash tests/test_no_core_evidra_dependency.sh
 
+      - name: Test public API smoke script
+        working-directory: bench
+        run: bash tests/smoke/test_public_api_smoke.sh
+
       - name: Install UI deps
         working-directory: bench/ui
         run: npm ci

@@ -81,6 +81,12 @@ curl http://localhost:8090/healthz
 curl http://localhost:8090/v1/bench/runs
 ```
 
+Run the same public read checks used after hosted deploys:
+
+```bash
+BENCH_API_URL=http://localhost:8090 make public-smoke
+```
+
 The service runs pending migrations on startup. The migration history is folded
 into a single baseline, `001_init.up.sql`, for new bench databases.
 
