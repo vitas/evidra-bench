@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   EXAM_PACKS,
   countExamPackMatches,
+  resolveExamPackFilter,
   scenarioMatchesExamPack,
   type ExamPackScenario,
 } from "./examPacks.mts";
@@ -58,4 +59,12 @@ test("countExamPackMatches returns stable counts per pack", () => {
     "terraform-cloud": 2,
     "mcp-readiness": 9,
   });
+});
+
+test("resolveExamPackFilter accepts only known URL values", () => {
+  assert.equal(resolveExamPackFilter("kubernetes-admin"), "kubernetes-admin");
+  assert.equal(resolveExamPackFilter("mcp-readiness"), "mcp-readiness");
+  assert.equal(resolveExamPackFilter("unknown"), "all");
+  assert.equal(resolveExamPackFilter(""), "all");
+  assert.equal(resolveExamPackFilter(null), "all");
 });

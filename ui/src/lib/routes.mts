@@ -9,7 +9,7 @@ export function benchScenarioPath(id: string) {
   return `${BENCH_SCENARIOS_PATH}/${encodeURIComponent(id)}`;
 }
 
-export function benchRunsPagePath(params?: Record<string, string | undefined>) {
+function pagePath(path: string, params?: Record<string, string | undefined>) {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params ?? {})) {
     if (value) {
@@ -17,5 +17,13 @@ export function benchRunsPagePath(params?: Record<string, string | undefined>) {
     }
   }
   const query = search.toString();
-  return query ? `${BENCH_RUNS_PATH}?${query}` : BENCH_RUNS_PATH;
+  return query ? `${path}?${query}` : path;
+}
+
+export function benchScenariosPagePath(params?: Record<string, string | undefined>) {
+  return pagePath(BENCH_SCENARIOS_PATH, params);
+}
+
+export function benchRunsPagePath(params?: Record<string, string | undefined>) {
+  return pagePath(BENCH_RUNS_PATH, params);
 }

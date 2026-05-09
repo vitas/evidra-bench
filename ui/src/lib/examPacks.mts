@@ -4,6 +4,7 @@ export type ExamPackID =
   | "gitops-release"
   | "terraform-cloud"
   | "mcp-readiness";
+export type ExamPackFilter = "all" | ExamPackID;
 
 export interface ExamPack {
   id: ExamPackID;
@@ -118,4 +119,9 @@ export function countExamPackMatches(
       scenarios.filter((scenario) => scenarioMatchesExamPack(scenario, pack.id)).length,
     ]),
   ) as Record<ExamPackID, number>;
+}
+
+export function resolveExamPackFilter(value: string | null | undefined): ExamPackFilter {
+  if (!value) return "all";
+  return EXAM_PACKS.some((pack) => pack.id === value) ? (value as ExamPackID) : "all";
 }

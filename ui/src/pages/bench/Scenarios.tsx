@@ -1,14 +1,15 @@
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { useAppInfo } from "../../hooks/useAppInfo";
 import { evidenceModeParam } from "../../lib/catalogData.mts";
 import {
   EXAM_PACKS,
   countExamPackMatches,
+  resolveExamPackFilter,
   scenarioMatchesExamPack,
-  type ExamPackID,
+  type ExamPackFilter,
 } from "../../lib/examPacks.mts";
 import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 import {
@@ -89,12 +90,12 @@ function firstTriggerRunID(job: TriggerJob) {
 
 const FEATURES = ["All", "Chaos enabled"] as const;
 type ViewMode = "cards" | "list";
-type ExamPackFilter = "all" | ExamPackID;
 
 export function Scenarios() {
   usePageTitle("Scenarios");
   const { request } = useApi();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { mode } = useEvidenceMode();
   const { readonly } = useAppInfo();
   const [data, setData] = useState<ScenariosResponse | null>(null);
@@ -103,10 +104,10 @@ export function Scenarios() {
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
-  const [examPack, setExamPack] = useState<ExamPackFilter>("all");
   const [category, setCategory] = useState<string>("All");
   const [feature, setFeature] = useState<string>("All");
   const [view, setView] = useState<ViewMode>("list");
+  const examPack = resolveExamPackFilter(searchParams.get("exam"));
 
   // Run trigger state
   const [runModal, setRunModal] = useState<string | null>(null); // scenario id
@@ -166,6 +167,19 @@ export function Scenarios() {
   }, [filtered]);
 
   const runModels = useMemo(() => getModelsForProvider(runProvider), [runProvider]);
+
+  const selectExamPack = useCallback(
+    (next: ExamPackFilter) => {
+      const nextParams = new URLSearchParams(searchParams);
+      if (next === "all") {
+        nextParams.delete("exam");
+      } else {
+        nextParams.set("exam", next);
+      }
+      setSearchParams(nextParams);
+    },
+    [searchParams, setSearchParams],
+  );
 
   const cancelPolling = useCallback(() => {
     pollTokenRef.current += 1;
@@ -284,7 +298,7 @@ export function Scenarios() {
       {/* Exam packs */}
       <section className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
         <button
-          onClick={() => setExamPack("all")}
+          onClick={() => selectExamPack("all")}
           className={`glass-card p-4 text-left transition-all ${
             examPack === "all"
               ? "border-accent shadow-[0_0_0_1px_var(--color-accent)]"
@@ -307,7 +321,7 @@ export function Scenarios() {
           return (
             <button
               key={pack.id}
-              onClick={() => setExamPack(pack.id)}
+              onClick={() => selectExamPack(pack.id)}
               className={`glass-card p-4 text-left transition-all ${
                 active
                   ? "border-accent shadow-[0_0_0_1px_var(--color-accent)]"

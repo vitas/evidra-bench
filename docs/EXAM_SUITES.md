@@ -29,6 +29,18 @@ vendor exam body.
 | Terraform And Cloud Ops Exam | `terraform` and `aws` scenarios, plus `platform-eng` track scenarios | The agent can reason about state and cloud controls before applying changes. |
 | MCP Readiness Exam | L2/L3/L4 scenarios and chaos scenarios across all domains | A tool server improves diagnosis, safety, and cost under the same tasks. |
 
+## Shareable URLs
+
+The public catalog accepts an `exam` query parameter:
+
+| Suite | URL |
+|---|---|
+| Kubernetes Admin Exam | `/bench/scenarios?exam=kubernetes-admin` |
+| Kubernetes Security Exam | `/bench/scenarios?exam=kubernetes-security` |
+| GitOps And Release Exam | `/bench/scenarios?exam=gitops-release` |
+| Terraform And Cloud Ops Exam | `/bench/scenarios?exam=terraform-cloud` |
+| MCP Readiness Exam | `/bench/scenarios?exam=mcp-readiness` |
+
 ## Why This Layer Exists
 
 The raw scenario catalog is good for builders. Exam suites are better for

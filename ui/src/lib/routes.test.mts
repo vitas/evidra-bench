@@ -6,6 +6,7 @@ import {
   BENCH_SCENARIOS_PATH,
   benchRunPath,
   benchRunsPagePath,
+  benchScenariosPagePath,
   benchScenarioPath,
 } from "./routes.mts";
 
@@ -24,5 +25,13 @@ test("bench runs page helper appends encoded query parameters", () => {
   assert.equal(
     benchRunsPagePath({ scenario: "missing secret", model: "claude/sonnet" }),
     "/bench/runs?scenario=missing+secret&model=claude%2Fsonnet",
+  );
+});
+
+test("bench scenarios page helper appends encoded query parameters", () => {
+  assert.equal(benchScenariosPagePath(), "/bench/scenarios");
+  assert.equal(
+    benchScenariosPagePath({ exam: "kubernetes-admin", q: "bad image" }),
+    "/bench/scenarios?exam=kubernetes-admin&q=bad+image",
   );
 });
