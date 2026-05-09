@@ -52,6 +52,22 @@ func TestTriggerStore_CreateAndGet(t *testing.T) {
 	}
 }
 
+func TestNewRemoteExecutorUsesDedicatedTransport(t *testing.T) {
+	t.Parallel()
+
+	exec := NewRemoteExecutor("https://bench.example")
+
+	if exec.HTTPClient == nil {
+		t.Fatal("HTTPClient is nil")
+	}
+	if exec.HTTPClient.Transport == nil {
+		t.Fatal("HTTPClient.Transport is nil; expected dedicated transport")
+	}
+	if exec.HTTPClient.Transport == http.DefaultTransport {
+		t.Fatal("HTTPClient.Transport uses http.DefaultTransport")
+	}
+}
+
 func TestTriggerStore_UpdateNotifiesSubscriber(t *testing.T) {
 	t.Parallel()
 

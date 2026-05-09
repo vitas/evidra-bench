@@ -17,9 +17,11 @@ type RemoteExecutor struct {
 
 // NewRemoteExecutor creates a RemoteExecutor pointing at the given service URL.
 func NewRemoteExecutor(serviceURL string) *RemoteExecutor {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+
 	return &RemoteExecutor{
 		ServiceURL: serviceURL,
-		HTTPClient: &http.Client{Timeout: 30 * time.Second},
+		HTTPClient: &http.Client{Timeout: 30 * time.Second, Transport: transport},
 	}
 }
 
