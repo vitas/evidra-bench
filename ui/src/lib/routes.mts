@@ -1,3 +1,4 @@
+export const BENCH_LEADERBOARD_PATH = "/bench/leaderboard";
 export const BENCH_RUNS_PATH = "/bench/runs";
 export const BENCH_SCENARIOS_PATH = "/bench/scenarios";
 
@@ -22,6 +23,10 @@ function pagePath(path: string, params?: Record<string, string | undefined>) {
 
 export function benchScenariosPagePath(params?: Record<string, string | undefined>) {
   return pagePath(BENCH_SCENARIOS_PATH, params);
+}
+
+export function benchLeaderboardPagePath(params?: Record<string, string | undefined>) {
+  return pagePath(BENCH_LEADERBOARD_PATH, params);
 }
 
 export function benchRunsPagePath(params?: Record<string, string | undefined>) {

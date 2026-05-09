@@ -2,18 +2,13 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { useTheme } from "../hooks/useTheme";
 import { SCENARIOS } from "../data/catalog";
-import { BENCH_RUNS_PATH, BENCH_SCENARIOS_PATH } from "../lib/routes.mts";
-
-const TRACKS = [
-  { id: "workloads", label: "Workloads", source: "CKA", icon: "cube" },
-  { id: "troubleshooting", label: "Troubleshooting", source: "CKA", icon: "search" },
-  { id: "networking", label: "Networking", source: "CKA", icon: "globe" },
-  { id: "pod-security", label: "Pod Security", source: "CKS", icon: "shield" },
-  { id: "runtime-security", label: "Runtime Security", source: "CKS", icon: "zap" },
-  { id: "release-ops", label: "Release Ops", source: "Custom", icon: "rocket" },
-  { id: "storage", label: "Storage", source: "CKA", icon: "database" },
-  { id: "platform-eng", label: "Platform Eng", source: "Custom", icon: "cloud" },
-] as const;
+import { EXAM_PACKS, countExamPackMatches } from "../lib/examPacks.mts";
+import {
+  BENCH_LEADERBOARD_PATH,
+  BENCH_SCENARIOS_PATH,
+  benchLeaderboardPagePath,
+  benchScenariosPagePath,
+} from "../lib/routes.mts";
 
 const TERMINAL_LINES = [
   { text: "$ bench-cli certify --track pod-security --model sonnet", delay: 0, type: "input" as const },
@@ -108,34 +103,13 @@ function TerminalAnimation() {
   );
 }
 
-function TrackIcon({ icon }: { icon: string }) {
-  const paths: Record<string, string> = {
-    cube: "M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z",
-    search: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
-    globe: "M12 2a10 10 0 100 20 10 10 0 000-20zM2 12h20M12 2a15 15 0 014 10 15 15 0 01-4 10M12 2a15 15 0 00-4 10 15 15 0 004 10",
-    shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
-    zap: "M13 2L3 14h9l-1 10 10-12h-9l1-10z",
-    rocket: "M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09zM12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z",
-    database: "M12 2C6.48 2 2 4.02 2 6.5v11C2 19.98 6.48 22 12 22s10-2.02 10-4.5v-11C22 4.02 17.52 2 12 2zM2 11.5c0 2.48 4.48 4.5 10 4.5s10-2.02 10-4.5",
-    cloud: "M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z",
-  };
-  return (
-    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-      <path d={paths[icon] || paths.cube} />
-    </svg>
-  );
-}
-
-const TRACK_COUNTS = SCENARIOS.reduce<Record<string, number>>((acc, scenario) => {
-  acc[scenario.track] = (acc[scenario.track] || 0) + 1;
-  return acc;
-}, {});
+const EXAM_PACK_COUNTS = countExamPackMatches(SCENARIOS);
 
 export function Landing() {
   const { theme, toggle } = useTheme();
   const stats = [
     { value: String(SCENARIOS.length), label: "Scenarios" },
-    { value: String(TRACKS.length), label: "Exam Tracks" },
+    { value: String(EXAM_PACKS.length), label: "Exam Suites" },
     { value: String(new Set(SCENARIOS.map((scenario) => scenario.category)).size), label: "Categories" },
     { value: "4", label: "Levels" },
   ];
@@ -182,7 +156,7 @@ export function Landing() {
           {/* Left: messaging */}
           <div>
             <Link
-              to={BENCH_RUNS_PATH}
+              to={BENCH_LEADERBOARD_PATH}
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent/40 bg-accent/10 text-[0.75rem] text-accent font-medium mb-8 hover:bg-accent/20 hover:border-accent/60 transition-all group"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-accent-bright animate-pulse" />
@@ -216,10 +190,10 @@ export function Landing() {
                 </svg>
               </Link>
               <Link
-                to={BENCH_RUNS_PATH}
+                to={BENCH_LEADERBOARD_PATH}
                 className="inline-flex items-center gap-2 px-6 py-3 border border-border text-fg-body text-[0.88rem] font-medium rounded-lg hover:border-accent/50 hover:text-fg transition-all"
               >
-                Exam Results
+                Exam Leaderboard
               </Link>
             </div>
 
@@ -261,8 +235,8 @@ export function Landing() {
             },
             {
               title: "Exams",
-              desc: "Exam-aligned readiness results. Per-model, per-track grades. Skill and MCP vs baseline comparison.",
-              to: BENCH_RUNS_PATH,
+              desc: "Public suite leaderboards for Kubernetes, security, GitOps, Terraform/cloud, and MCP readiness.",
+              to: BENCH_LEADERBOARD_PATH,
               icon: "M4.26 10.147a60.436 60.436 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347",
               tag: "Readiness",
             },
@@ -327,35 +301,50 @@ export function Landing() {
         </div>
       </section>
 
-      {/* Tracks */}
+      {/* Public exam suites */}
       <section className="relative max-w-6xl mx-auto px-6 py-20">
-        <h2 className="text-center text-[1.6rem] font-bold mb-3">Exam-Aligned Tracks</h2>
+        <h2 className="text-center text-[1.6rem] font-bold mb-3">Public Exam Suites</h2>
         <p className="text-center text-[0.88rem] text-fg-muted mb-12 max-w-xl mx-auto">
-          Inspired by public Kubernetes skill domains. Your agent earns a grade per track.
+          Shareable slices of the live catalog, with matching scenario lists and leaderboard views.
         </p>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {TRACKS.map((track) => (
-            <Link
-              key={track.id}
-              to={`${BENCH_SCENARIOS_PATH}?track=${track.id}`}
-              className="flex items-center gap-3 p-4 glass-card transition-all group"
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {EXAM_PACKS.map((pack) => (
+            <div
+              key={pack.id}
+              className="glass-card p-5 transition-all group"
             >
-              <div className="text-accent opacity-60 group-hover:opacity-100 transition-opacity">
-                <TrackIcon icon={track.icon} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[0.82rem] font-semibold text-fg group-hover:text-accent transition-colors truncate">
-                  {track.label}
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div>
+                  <h3 className="text-[0.92rem] font-bold text-fg group-hover:text-accent transition-colors">
+                    {pack.title}
+                  </h3>
+                  <p className="text-[0.76rem] text-fg-muted leading-relaxed mt-1">
+                    {pack.summary}
+                  </p>
                 </div>
-                <div className="text-[0.65rem] text-fg-muted">
-                  {TRACK_COUNTS[track.id] || 0} scenarios · {track.source}
-                </div>
+                <span className="font-mono text-[0.82rem] font-bold text-accent">
+                  {EXAM_PACK_COUNTS[pack.id] ?? 0}
+                </span>
               </div>
-              <svg className="w-3.5 h-3.5 text-border group-hover:text-accent transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M9 18l6-6-6-6" />
-              </svg>
-            </Link>
+              <p className="text-[0.7rem] text-fg-muted leading-relaxed mb-4">
+                {pack.proof}
+              </p>
+              <div className="flex items-center gap-2">
+                <Link
+                  to={benchScenariosPagePath({ exam: pack.id })}
+                  className="text-[0.72rem] font-semibold px-3 py-1.5 rounded-md bg-accent-tint text-accent hover:bg-accent-subtle transition-colors"
+                >
+                  Catalog
+                </Link>
+                <Link
+                  to={benchLeaderboardPagePath({ exam: pack.id })}
+                  className="text-[0.72rem] font-semibold px-3 py-1.5 rounded-md border border-border text-fg-muted hover:text-fg hover:border-accent/50 transition-colors"
+                >
+                  Leaderboard
+                </Link>
+              </div>
+            </div>
           ))}
         </div>
       </section>
@@ -413,10 +402,10 @@ export function Landing() {
               View All {SCENARIOS.length} Scenarios
             </Link>
             <Link
-              to={BENCH_RUNS_PATH}
+              to={BENCH_LEADERBOARD_PATH}
               className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-fg-body text-[0.82rem] font-medium rounded-lg hover:border-accent/50 transition-colors"
             >
-              Exam Results
+              Exam Leaderboard
             </Link>
           </div>
         </div>
@@ -429,7 +418,7 @@ export function Landing() {
           <div className="flex items-center gap-4">
             <Link to="/bench" className="hover:text-accent transition-colors">Bench</Link>
             <Link to={BENCH_SCENARIOS_PATH} className="hover:text-accent transition-colors">Lab</Link>
-            <Link to={BENCH_RUNS_PATH} className="hover:text-accent transition-colors">Exams</Link>
+            <Link to={BENCH_LEADERBOARD_PATH} className="hover:text-accent transition-colors">Exams</Link>
             <a href="https://github.com/vitas/evidra-bench" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">
               GitHub
             </a>

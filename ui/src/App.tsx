@@ -4,6 +4,7 @@ import { Layout } from "./components/Layout";
 import { Landing } from "./pages/Landing";
 import { Designer } from "./pages/Designer";
 import {
+  BENCH_LEADERBOARD_PATH,
   BENCH_RUNS_PATH,
   BENCH_SCENARIOS_PATH,
   benchRunPath,
@@ -33,6 +34,7 @@ export function App() {
 
           {/* Bench routes (rich dashboard with leaderboard, runs, compare) */}
           <Route path="/bench" element={<BenchLayout><Leaderboard /></BenchLayout>} />
+          <Route path={BENCH_LEADERBOARD_PATH} element={<BenchLayout><Leaderboard /></BenchLayout>} />
           <Route path="/bench/dashboard" element={<BenchLayout><Dashboard /></BenchLayout>} />
           <Route path="/bench/runs" element={<BenchLayout><Runs /></BenchLayout>} />
           <Route path="/bench/runs/:id" element={<BenchLayout><RunDetail /></BenchLayout>} />
