@@ -26,9 +26,9 @@ RUN apk add --no-cache ca-certificates curl docker-cli && \
         aarch64) BIN_ARCH=arm64 ;; \
         *) BIN_ARCH=amd64 ;; \
     esac && \
-    curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${BIN_ARCH}/kubectl" && \
+    curl --fail --location --retry 5 --retry-all-errors -O "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${BIN_ARCH}/kubectl" && \
     chmod +x kubectl && mv kubectl /usr/local/bin/ && \
-    curl -Lo kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-${BIN_ARCH}" && \
+    curl --fail --location --retry 5 --retry-all-errors -o kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-${BIN_ARCH}" && \
     chmod +x kind && mv kind /usr/local/bin/ && \
     rm -rf /var/cache/apk/*
 
