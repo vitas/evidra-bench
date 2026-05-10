@@ -13,6 +13,7 @@ const navItems = [
   { to: "/bench/runs", label: "Runs" },
   { to: "/bench/scenarios", label: "Scenarios" },
   { to: "/bench/compare", label: "Compare" },
+  { to: "/bench/mcp-readiness", label: "MCP Readiness" },
   { to: "/bench/benchmarks", label: "Benchmarks" },
 ];
 

@@ -5,6 +5,7 @@ import { Landing } from "./pages/Landing";
 import { Designer } from "./pages/Designer";
 import {
   BENCH_LEADERBOARD_PATH,
+  BENCH_MCP_READINESS_PATH,
   BENCH_RUNS_PATH,
   BENCH_SCENARIOS_PATH,
   benchRunPath,
@@ -24,6 +25,7 @@ import { SkillImpact } from "./pages/bench/SkillImpact";
 import { Benchmarks } from "./pages/bench/Benchmarks";
 import { Regressions } from "./pages/bench/Regressions";
 import { Insights } from "./pages/bench/Insights";
+import { ToolServerReport } from "./pages/bench/ToolServerReport";
 
 export function App() {
   return (
@@ -41,6 +43,7 @@ export function App() {
           <Route path="/bench/scenarios" element={<BenchLayout><BenchScenarios /></BenchLayout>} />
           <Route path="/bench/scenarios/:id" element={<BenchLayout><ScenarioDetail /></BenchLayout>} />
           <Route path="/bench/compare" element={<BenchLayout><Compare /></BenchLayout>} />
+          <Route path={BENCH_MCP_READINESS_PATH} element={<BenchLayout><ToolServerReport /></BenchLayout>} />
           <Route path="/bench/skill-impact" element={<BenchLayout><SkillImpact /></BenchLayout>} />
           <Route path="/bench/regressions" element={<BenchLayout><Regressions /></BenchLayout>} />
           <Route path="/bench/insights" element={<BenchLayout><Insights /></BenchLayout>} />
