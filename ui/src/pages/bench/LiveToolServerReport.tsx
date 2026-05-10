@@ -280,6 +280,12 @@ export function LiveToolServerReport() {
   if (!report) return null;
 
   const generatedAt = report.generated_at ? new Date(report.generated_at).toLocaleString() : "";
+  const scenarios = report.scenarios ?? [];
+  const autopsies = report.autopsies ?? [];
+  const costBuckets = report.cost_buckets ?? [];
+  const findings = report.findings ?? [];
+  const recommendations = report.recommendations ?? [];
+  const evidenceLinks = report.evidence_links ?? [];
 
   return (
     <article className="space-y-10">
@@ -416,7 +422,7 @@ export function LiveToolServerReport() {
 
           <ReportSection id="suite" title="3. Scenario Suite">
             <DataTable headers={["Scenario", "Category", "Level", "Title"]}>
-              {report.scenarios.map((row) => (
+              {scenarios.map((row) => (
                 <tr key={row.id} className="border-t border-border-subtle">
                   <td className="whitespace-nowrap px-4 py-3 font-mono text-[0.8rem] text-fg">{row.id}</td>
                   <td className="px-4 py-3 text-fg-body">{row.category || "-"}</td>
@@ -429,7 +435,7 @@ export function LiveToolServerReport() {
 
           <ReportSection id="results" title="4. Results Table">
             <DataTable headers={["Scenario", "Result", "Classification", "Turns", "Tokens", "Duration", "Cost", "Delta"]}>
-              {report.scenarios.map((row) => (
+              {scenarios.map((row) => (
                 <tr key={row.id} className="border-t border-border-subtle">
                   <td className="whitespace-nowrap px-4 py-3 font-mono text-[0.8rem] text-fg">{row.id}</td>
                   <td className="px-4 py-3 text-fg-body">{row.result}</td>
@@ -469,13 +475,13 @@ export function LiveToolServerReport() {
           </ReportSection>
 
           <ReportSection id="autopsy" title="6. Failure Autopsy">
-            {report.autopsies.length === 0 ? (
+            {autopsies.length === 0 ? (
               <div className="rounded-lg border border-border bg-bg-elevated p-5 text-sm text-fg-muted">
                 No failure autopsy rows for this report slice.
               </div>
             ) : (
               <div className="space-y-4">
-                {report.autopsies.map((item) => (
+                {autopsies.map((item) => (
                   <div key={`${item.scenario_id}-${item.run_id || "missing"}`} className="rounded-lg border border-border bg-bg-elevated p-5">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <h3 className="font-mono text-sm font-semibold text-fg">{item.scenario_id}</h3>
@@ -504,7 +510,7 @@ export function LiveToolServerReport() {
 
           <ReportSection id="cost" title="7. Cost / Tokens / Turns">
             <DataTable headers={["Bucket", "Scenarios", "Avg turns", "Avg tokens", "Avg duration", "Avg cost"]}>
-              {report.cost_buckets.map((row) => (
+              {costBuckets.map((row) => (
                 <tr key={row.classification} className="border-t border-border-subtle">
                   <td className="px-4 py-3">
                     <span className={`inline-flex rounded px-2 py-1 text-[0.68rem] font-semibold ${classificationClass(row.classification)}`}>
@@ -523,7 +529,7 @@ export function LiveToolServerReport() {
 
           <ReportSection id="findings" title="8. Top Findings">
             <ol className="space-y-3">
-              {report.findings.map((finding, index) => (
+              {findings.map((finding, index) => (
                 <li key={finding} className="flex gap-3 text-sm text-fg-body">
                   <span className="font-mono text-accent">{String(index + 1).padStart(2, "0")}</span>
                   <span>{finding}</span>
@@ -534,7 +540,7 @@ export function LiveToolServerReport() {
 
           <ReportSection id="recommendations" title="9. Recommendations">
             <ol className="space-y-3">
-              {report.recommendations.map((recommendation, index) => (
+              {recommendations.map((recommendation, index) => (
                 <li key={recommendation} className="flex gap-3 text-sm text-fg-body">
                   <span className="font-mono text-accent">{String(index + 1).padStart(2, "0")}</span>
                   <span>{recommendation}</span>
@@ -544,11 +550,11 @@ export function LiveToolServerReport() {
           </ReportSection>
 
           <ReportSection id="evidence" title="10. Raw Evidence Links / Artifacts">
-            {report.evidence_links.length === 0 ? (
+            {evidenceLinks.length === 0 ? (
               <p className="text-sm text-fg-muted">No candidate evidence links available.</p>
             ) : (
               <DataTable headers={["Artifact", "Link"]}>
-                {report.evidence_links.map((link, index) => (
+                {evidenceLinks.map((link, index) => (
                   <tr key={`${link.url}-${index}`} className="border-t border-border-subtle">
                     <td className="px-4 py-3 text-fg-body">{link.label}</td>
                     <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-muted">{link.url}</td>

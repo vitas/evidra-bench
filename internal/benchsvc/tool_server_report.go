@@ -264,7 +264,29 @@ func (s *Service) BuildToolServerReport(ctx context.Context, tenantID string, re
 	report.ExecutiveSummary = reportExecutiveSummary(report.Summary, req.ToolServer)
 	report.Findings = reportFindings(report)
 	report.Recommendations = reportRecommendations(report)
+	normalizeToolServerReportSlices(report)
 	return report, nil
+}
+
+func normalizeToolServerReportSlices(report *ToolServerReport) {
+	if report.Scenarios == nil {
+		report.Scenarios = []ToolServerReportScenario{}
+	}
+	if report.CostBuckets == nil {
+		report.CostBuckets = []ToolServerReportCostBucket{}
+	}
+	if report.Autopsies == nil {
+		report.Autopsies = []ToolServerReportAutopsy{}
+	}
+	if report.Findings == nil {
+		report.Findings = []string{}
+	}
+	if report.Recommendations == nil {
+		report.Recommendations = []string{}
+	}
+	if report.EvidenceLinks == nil {
+		report.EvidenceLinks = []ToolServerReportEvidenceLink{}
+	}
 }
 
 func (s *Service) loadReportAutopsy(ctx context.Context, tenantID string, run bench.RunRecord) (reportAutopsyArtifact, bool) {

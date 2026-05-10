@@ -59,6 +59,39 @@ func TestHandleToolServerReport_ReturnsMarkdown(t *testing.T) {
 	}
 }
 
+func TestHandleToolServerReport_UsesEmptyArraysForMissingOptionalSections(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	repo := &handlerRepo{
+		scenarios: []bench.ScenarioSummary{
+			{ID: "s1", Title: "Scenario 1", Category: "kubernetes", Level: "L2"},
+		},
+		runs: []bench.RunRecord{
+			reportRun("baseline-s1", "s1", "", "", true, start),
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "bench-public"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/v1/bench/reports/tool-server?model=sonnet&tool_server=kubernetes-mcp&scenarios=s1", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	var body map[string]json.RawMessage
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode report: %v", err)
+	}
+	for _, field := range []string{"autopsies", "evidence_links"} {
+		if string(body[field]) != "[]" {
+			t.Fatalf("%s = %s, want []", field, body[field])
+		}
+	}
+}
+
 func TestHandleToolServerReport_RequiresModelAndToolServer(t *testing.T) {
 	t.Parallel()
 
