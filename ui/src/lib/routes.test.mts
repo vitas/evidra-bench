@@ -5,11 +5,13 @@ import {
   BENCH_LEADERBOARD_PATH,
   BENCH_MCP_READINESS_PATH,
   BENCH_RUNS_PATH,
+  BENCH_SAMPLE_REPORT_PATH,
   BENCH_SCENARIOS_PATH,
   benchMCPReadinessPagePath,
   benchLeaderboardPagePath,
   benchRunPath,
   benchRunsPagePath,
+  benchSampleReportPagePath,
   benchScenariosPagePath,
   benchScenarioPath,
 } from "./routes.mts";
@@ -18,6 +20,7 @@ test("bench route constants use canonical bench paths", () => {
   assert.equal(BENCH_LEADERBOARD_PATH, "/bench/leaderboard");
   assert.equal(BENCH_MCP_READINESS_PATH, "/bench/mcp-readiness");
   assert.equal(BENCH_RUNS_PATH, "/bench/runs");
+  assert.equal(BENCH_SAMPLE_REPORT_PATH, "/bench/sample-report");
   assert.equal(BENCH_SCENARIOS_PATH, "/bench/scenarios");
 });
 
@@ -55,5 +58,13 @@ test("bench MCP readiness page helper appends encoded query parameters", () => {
   assert.equal(
     benchMCPReadinessPagePath({ model: "qwen plus", tool_server: "kubernetes-mcp" }),
     "/bench/mcp-readiness?model=qwen+plus&tool_server=kubernetes-mcp",
+  );
+});
+
+test("bench sample report page helper appends encoded query parameters", () => {
+  assert.equal(benchSampleReportPagePath(), "/bench/sample-report");
+  assert.equal(
+    benchSampleReportPagePath({ source: "landing cta" }),
+    "/bench/sample-report?source=landing+cta",
   );
 });

@@ -5,6 +5,7 @@ import { SCENARIOS } from "../data/catalog";
 import { EXAM_PACKS, countExamPackMatches } from "../lib/examPacks.mts";
 import {
   BENCH_LEADERBOARD_PATH,
+  BENCH_SAMPLE_REPORT_PATH,
   BENCH_SCENARIOS_PATH,
   benchLeaderboardPagePath,
   benchScenariosPagePath,
@@ -104,8 +105,10 @@ function TerminalAnimation() {
 }
 
 const EXAM_PACK_COUNTS = countExamPackMatches(SCENARIOS);
-const BENCH_REQUEST_MAILTO =
-  "mailto:bench@evidra.cc?subject=Live%20Agent%20Benchmark%20Request";
+const BENCH_PRIVATE_REQUEST_MAILTO =
+  "mailto:bench@evidra.cc?subject=Private%20Agent%20Benchmark%20Request";
+const BENCH_SPONSOR_REQUEST_MAILTO =
+  "mailto:bench@evidra.cc?subject=Sponsored%20Public%20Benchmark%20Run";
 const BENCH_ENGAGEMENTS = [
   "Private agent/MCP evaluation reports",
   "Sponsored public benchmark runs",
@@ -454,15 +457,29 @@ export function Landing() {
               Private reports are confidential. Sponsored reports are clearly
               labeled, and sponsors do not control scoring or findings.
             </p>
-            <a
-              href={BENCH_REQUEST_MAILTO}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent hover:bg-accent-bright text-white text-[0.84rem] font-semibold rounded-lg transition-all hover:shadow-[0_0_30px_rgba(5,150,105,0.25)]"
-            >
-              Request a benchmark
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </a>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href={BENCH_PRIVATE_REQUEST_MAILTO}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent hover:bg-accent-bright text-white text-[0.84rem] font-semibold rounded-lg transition-all hover:shadow-[0_0_30px_rgba(5,150,105,0.25)]"
+              >
+                Request a private benchmark
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </a>
+              <a
+                href={BENCH_SPONSOR_REQUEST_MAILTO}
+                className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-fg-body text-[0.84rem] font-semibold rounded-lg transition-all hover:border-accent/50 hover:text-fg"
+              >
+                Sponsor a public run
+              </a>
+              <Link
+                to={BENCH_SAMPLE_REPORT_PATH}
+                className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-fg-body text-[0.84rem] font-semibold rounded-lg transition-all hover:border-accent/50 hover:text-fg"
+              >
+                View sample report
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -470,9 +487,10 @@ export function Landing() {
       {/* Footer */}
       <footer className="max-w-6xl mx-auto px-6 py-8 border-t border-border">
         <div className="flex items-center justify-between text-[0.72rem] text-fg-muted">
-          <span>bench.lab - live exam suite for AI infrastructure agents</span>
+          <span>Evidra Bench — live regression testing for AI infrastructure agents</span>
           <div className="flex items-center gap-4">
             <Link to="/bench" className="hover:text-accent transition-colors">Bench</Link>
+            <Link to={BENCH_SAMPLE_REPORT_PATH} className="hover:text-accent transition-colors">Report</Link>
             <Link to={BENCH_SCENARIOS_PATH} className="hover:text-accent transition-colors">Lab</Link>
             <Link to={BENCH_LEADERBOARD_PATH} className="hover:text-accent transition-colors">Exams</Link>
             <a href="https://github.com/vitas/evidra-bench" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">
