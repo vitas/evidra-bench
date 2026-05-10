@@ -200,10 +200,12 @@ Examples:
 bench-cli run --provider bifrost --model openai/gpt-4o --scenario kubernetes/broken-deployment
 bench-cli run --provider bifrost --model google/gemini-2.5-flash --scenario kubernetes/broken-deployment
 
-# Same model, different MCP server
+# Same model, selected MCP server
 bench-cli run --provider bifrost --model sonnet --scenario kubernetes/broken-deployment
 bench-cli run --provider bifrost --model sonnet --scenario kubernetes/broken-deployment \
-  --mcp-server "npx -y @anthropic/mcp-server-kubernetes"
+  --mcp-server "$MCP_SERVER" \
+  --tool-server-id "$TOOL_SERVER_ID" \
+  --tool-server-version "$TOOL_SERVER_VERSION"
 ```
 
 ## Provider Path

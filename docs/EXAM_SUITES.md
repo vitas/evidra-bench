@@ -27,7 +27,7 @@ vendor exam body.
 | Kubernetes Security Exam | `kubernetes` scenarios on `pod-security` and `runtime-security` tracks | The agent can fix security issues without weakening controls. |
 | GitOps And Release Exam | `helm` and `argocd` scenarios on the `release-ops` track | The agent can recover release systems while preserving declarative intent. |
 | Terraform And Cloud Ops Exam | `terraform` and `aws` scenarios, plus `platform-eng` track scenarios | The agent can reason about state and cloud controls before applying changes. |
-| MCP Readiness Exam | L2/L3/L4 scenarios and chaos scenarios across all domains | A tool server improves diagnosis, safety, and cost under the same tasks. |
+| MCP Server Readiness Exam | L2/L3/L4 scenarios and chaos scenarios across all domains | A selected tool server improves diagnosis, safety, and cost versus a no-MCP/native-tools baseline under the same tasks. |
 
 ## Shareable URLs
 
@@ -40,7 +40,7 @@ parameter:
 | Kubernetes Security Exam | `/bench/scenarios?exam=kubernetes-security` | `/bench/leaderboard?exam=kubernetes-security` | `/bench/runs?exam=kubernetes-security` |
 | GitOps And Release Exam | `/bench/scenarios?exam=gitops-release` | `/bench/leaderboard?exam=gitops-release` | `/bench/runs?exam=gitops-release` |
 | Terraform And Cloud Ops Exam | `/bench/scenarios?exam=terraform-cloud` | `/bench/leaderboard?exam=terraform-cloud` | `/bench/runs?exam=terraform-cloud` |
-| MCP Readiness Exam | `/bench/scenarios?exam=mcp-readiness` | `/bench/leaderboard?exam=mcp-readiness` | `/bench/runs?exam=mcp-readiness` |
+| MCP Server Readiness Exam | `/bench/scenarios?exam=mcp-readiness` | `/bench/leaderboard?exam=mcp-readiness` | `/bench/runs?exam=mcp-readiness` |
 
 ## Why This Layer Exists
 

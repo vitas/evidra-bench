@@ -243,7 +243,7 @@ export function Landing() {
             },
             {
               title: "Exams",
-              desc: "Public suite leaderboards for Kubernetes, security, GitOps, Terraform/cloud, and MCP readiness.",
+              desc: "Public suite leaderboards for Kubernetes, security, GitOps, Terraform/cloud, and MCP server readiness.",
               to: BENCH_LEADERBOARD_PATH,
               icon: "M4.26 10.147a60.436 60.436 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347",
               tag: "Readiness",
@@ -365,13 +365,13 @@ export function Landing() {
           {[
             {
               step: "01",
-              title: "Run without your skill",
-              desc: "Baseline: same model, same scenarios, no skill prompt. Measure turns, tokens, pass rate.",
+              title: "Run a fixed baseline",
+              desc: "Same model and scenarios without the candidate MCP server, skill, or plugin. Measure turns, tokens, and pass rate.",
             },
             {
               step: "02",
-              title: "Run with your skill",
-              desc: "Add your skill prompt, MCP tool, or plugin. Same scenarios. Compare everything.",
+              title: "Run the candidate stack",
+              desc: "Add the selected MCP server, skill prompt, or plugin. Keep the scenarios fixed. Compare everything.",
             },
             {
               step: "03",

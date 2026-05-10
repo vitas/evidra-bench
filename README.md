@@ -41,7 +41,7 @@ leaderboard and easy to explain in readiness reports:
 | Kubernetes Security Exam | Pod security, RBAC, runtime disruption, and safe remediation |
 | GitOps And Release Exam | Helm and Argo CD drift, failed upgrades, rollback, and sync health |
 | Terraform And Cloud Ops Exam | Terraform state, import, drift, AWS controls, and cloud recovery |
-| MCP Readiness Exam | Baseline-vs-MCP comparison on non-trivial and chaos scenarios |
+| MCP Server Readiness Exam | No-MCP/native-tools baseline versus a selected MCP server on non-trivial and chaos scenarios |
 
 See [Public Exam Suites](docs/EXAM_SUITES.md) for the current suite map.
 
@@ -59,12 +59,14 @@ bench-cli run \
   --model gemini-2.5-flash \
   --system-prompt-file skills/k8s-admin.md
 
-# Same scenario through an MCP server
+# Same scenario through a selected MCP server
 bench-cli run \
   --scenario kubernetes/broken-deployment \
   --provider bifrost \
   --model gemini-2.5-flash \
-  --mcp-server "npx -y @anthropic/mcp-server-kubernetes"
+  --mcp-server "$MCP_SERVER" \
+  --tool-server-id "$TOOL_SERVER_ID" \
+  --tool-server-version "$TOOL_SERVER_VERSION"
 ```
 
 ## Use Cases
@@ -150,7 +152,9 @@ bench-cli run \
   --scenario kubernetes/broken-deployment \
   --provider bifrost \
   --model sonnet \
-  --mcp-server "$MCP_SERVER"
+  --mcp-server "$MCP_SERVER" \
+  --tool-server-id "$TOOL_SERVER_ID" \
+  --tool-server-version "$TOOL_SERVER_VERSION"
 ```
 
 ## How It Works

@@ -75,10 +75,10 @@ export const EXAM_PACKS: ExamPack[] = [
   },
   {
     id: "mcp-readiness",
-    title: "MCP Readiness Exam",
+    title: "MCP Server Readiness Exam",
     shortTitle: "MCP Readiness",
-    summary: "Non-trivial scenarios intended for baseline-vs-MCP comparison.",
-    proof: "Shows whether a tool server improves diagnosis, safety, and cost under the same tasks.",
+    summary: "Non-trivial scenarios for comparing a selected MCP server against a no-MCP/native-tools baseline.",
+    proof: "Shows whether the tested tool server improves diagnosis, safety, and cost under the same tasks.",
     filters: {
       levels: ["L2", "L3", "L4"],
       includeChaos: true,

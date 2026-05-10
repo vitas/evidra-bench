@@ -38,4 +38,4 @@ fail_found "scenario-level evidra expectations" \
   sh -c "git grep -nE '^evidra:' -- scenarios"
 
 fail_found "bench-owned evidra-mcp special mode" \
-  sh -c "git grep -nE 'evidra-mcp' -- cmd pkg internal scripts ui/src docs README.md CLAUDE.md ':(exclude)docs/archive/**' ':(exclude)docs/backlog/**' ':(exclude)docs/ideas/**' ':(exclude)docs/plans/**' ':(exclude)*_test.go' ':(exclude)*.test.mts' ':(exclude)*.test.ts' ':(exclude)*.test.tsx'"
+  sh -c "git grep -nE 'evidra-mcp|Evidra MCP|evidra mcp' -- cmd pkg internal scripts ui/src docs README.md CLAUDE.md ':(exclude)docs/archive/**' ':(exclude)docs/backlog/**' ':(exclude)docs/ideas/**' ':(exclude)docs/plans/**' ':(exclude)*_test.go' ':(exclude)*.test.mts' ':(exclude)*.test.ts' ':(exclude)*.test.tsx'"

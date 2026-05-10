@@ -36,7 +36,7 @@ Public exam suites are the marketing wedge:
 Private incident suites are the paid wedge:
 
 - customer incidents converted into repeatable Bench cases
-- baseline-vs-MCP and model comparison on customer-specific failures
+- no-MCP/native-tools baseline versus a customer's chosen MCP server
 - scheduled regression runs and private readiness reports
 
 ## Product Frame
@@ -52,7 +52,7 @@ Private incident suites are the paid wedge:
 ## What Bench Is Not
 
 Bench is not an official certification authority and does not require the
-Evidra MCP project. Exam-aligned suites can reference public skill domains, but
-they are not affiliated with CNCF, Linux Foundation, HashiCorp, or AWS.
-External MCP servers and future agent protocols are systems under test,
-connected through adapters into the same benchmark harness.
+user to adopt any particular MCP server. Exam-aligned suites can reference
+public skill domains, but they are not affiliated with CNCF, Linux Foundation,
+HashiCorp, or AWS. External MCP servers and future agent protocols are systems
+under test, connected through adapters into the same benchmark harness.

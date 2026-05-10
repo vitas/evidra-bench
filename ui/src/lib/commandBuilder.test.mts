@@ -30,6 +30,8 @@ test("mcp bench command uses the generic MCP server placeholder", () => {
   });
 
   assert.match(command, /--mcp-server "\$MCP_SERVER"/);
+  assert.match(command, /--tool-server-id "\$TOOL_SERVER_ID"/);
+  assert.match(command, /--tool-server-version "\$TOOL_SERVER_VERSION"/);
   assert.equal(command.includes("--smart-prescribe"), false);
 });
 

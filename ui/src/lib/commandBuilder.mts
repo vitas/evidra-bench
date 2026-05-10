@@ -19,7 +19,11 @@ export const EVIDENCE_MODES: Array<{
 
 function evidenceFlags(evidenceMode: EvidenceModeId): string[] {
   if (evidenceMode === "mcp") {
-    return ['--mcp-server "$MCP_SERVER"'];
+    return [
+      '--mcp-server "$MCP_SERVER"',
+      '--tool-server-id "$TOOL_SERVER_ID"',
+      '--tool-server-version "$TOOL_SERVER_VERSION"',
+    ];
   }
   return [];
 }

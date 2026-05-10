@@ -12,7 +12,8 @@ tags:
 # Tool Server And Evidence Compatibility
 
 Bench uses a generic integration model. Tool servers are external processes,
-not project-specific modes.
+not project-specific modes. No MCP server is privileged or treated as the Bench
+reference implementation.
 
 ## MCP Servers
 
@@ -23,7 +24,7 @@ bench-cli run \
   --scenario kubernetes/broken-deployment \
   --provider bifrost \
   --model sonnet \
-  --mcp-server "npx -y @anthropic/mcp-server-kubernetes"
+  --mcp-server "$MCP_SERVER"
 ```
 
 Bench does not auto-start or auto-build MCP server binaries. Install them in
@@ -96,14 +97,14 @@ bench-cli bench \
   --provider bifrost \
   --reuse-cluster
 
-# Same benchmark through one MCP server
+# Same benchmark through the selected MCP server
 bench-cli bench \
   --scenario kubernetes \
   --model sonnet \
   --provider bifrost \
-  --mcp-server "npx -y @anthropic/mcp-server-kubernetes" \
-  --tool-server-id anthropic-kubernetes-mcp \
-  --tool-server-version 1.0.0 \
+  --mcp-server "$MCP_SERVER" \
+  --tool-server-id "$TOOL_SERVER_ID" \
+  --tool-server-version "$TOOL_SERVER_VERSION" \
   --reuse-cluster
 
 # Same benchmark through another MCP server
