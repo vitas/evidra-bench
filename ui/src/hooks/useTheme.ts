@@ -11,7 +11,9 @@ export function useTheme() {
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
+    document.documentElement.removeAttribute("data-palette");
     localStorage.setItem("bench-theme", theme);
+    localStorage.removeItem("bench-palette");
   }, [theme]);
 
   const toggle = useCallback(() => {
