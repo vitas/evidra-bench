@@ -42,7 +42,10 @@ Request:
     "timeout_per_scenario": 300,
     "adapter": "a2a",
     "a2a_agent_url": "http://agent:8080",
-    "evidence_mode": "mcp"
+    "evidence_mode": "mcp",
+    "mcp_server": "npx -y @vendor/kubernetes-mcp --stdio",
+    "tool_server": "kubernetes-mcp",
+    "tool_server_version": "1.2.3"
   },
   "callback": {
     "progress_url": "http://bench:8090/v1/bench/trigger/trigger-01KMH.../progress",
@@ -65,6 +68,9 @@ Fields:
 | `config.adapter` | no | `provider`, `a2a`, `cli`, or `mcp` depending on executor support |
 | `config.a2a_agent_url` | no | A2A endpoint when `adapter=a2a` |
 | `config.evidence_mode` | no | `none` or `mcp`; request value overrides worker default |
+| `config.mcp_server` | no | Executable MCP server command |
+| `config.tool_server` | no | Stable MCP server identity for filtering/comparison |
+| `config.tool_server_version` | no | Stable MCP server version for reports |
 | `callback.progress_url` | yes | Trigger progress webhook |
 | `callback.bench_url` | yes | API base URL for run/artifact delivery |
 | `callback.bench_api_key` | yes | Bearer token for API auth |
@@ -143,6 +149,8 @@ Content-Type: application/json
   "provider": "anthropic",
   "adapter": "a2a",
   "evidence_mode": "mcp",
+  "tool_server": "kubernetes-mcp",
+  "tool_server_version": "1.2.3",
   "passed": true,
   "duration_seconds": 35.2,
   "exit_code": 0,

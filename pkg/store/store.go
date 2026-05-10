@@ -59,6 +59,9 @@ func (s *Store) migrate() error {
 			model            TEXT NOT NULL DEFAULT '',
 			provider         TEXT NOT NULL DEFAULT '',
 			adapter          TEXT NOT NULL DEFAULT '',
+			evidence_mode    TEXT NOT NULL DEFAULT 'none',
+			tool_server      TEXT NOT NULL DEFAULT '',
+			tool_server_version TEXT NOT NULL DEFAULT '',
 			passed           BOOLEAN NOT NULL DEFAULT 0,
 			duration_seconds REAL NOT NULL DEFAULT 0,
 			exit_code        INTEGER NOT NULL DEFAULT 0,
@@ -78,6 +81,7 @@ func (s *Store) migrate() error {
 		CREATE INDEX IF NOT EXISTS idx_runs_scenario ON runs(scenario_id);
 		CREATE INDEX IF NOT EXISTS idx_runs_model ON runs(model);
 		CREATE INDEX IF NOT EXISTS idx_runs_provider ON runs(provider);
+		CREATE INDEX IF NOT EXISTS idx_runs_tool_server ON runs(tool_server);
 		CREATE INDEX IF NOT EXISTS idx_runs_created ON runs(created_at);
 	`)
 	if err != nil {
@@ -86,7 +90,17 @@ func (s *Store) migrate() error {
 	if err := s.ensureColumn("runs", "metadata_json", "TEXT NOT NULL DEFAULT ''"); err != nil {
 		return err
 	}
-	return s.ensureColumn("runs", "evidence_mode", "TEXT NOT NULL DEFAULT 'none'")
+	if err := s.ensureColumn("runs", "evidence_mode", "TEXT NOT NULL DEFAULT 'none'"); err != nil {
+		return err
+	}
+	if err := s.ensureColumn("runs", "tool_server", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
+	if err := s.ensureColumn("runs", "tool_server_version", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
+	_, err = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_runs_tool_server ON runs(tool_server)")
+	return err
 }
 
 // Insert adds a run record to the database and appends to JSONL backup.
@@ -99,12 +113,12 @@ func (s *Store) Insert(r RunRecord) error {
 	}
 	_, err := s.db.Exec(`
 		INSERT OR REPLACE INTO runs (
-			id, scenario_id, model, provider, adapter, evidence_mode, passed,
+			id, scenario_id, model, provider, adapter, evidence_mode, tool_server, tool_server_version, passed,
 			duration_seconds, exit_code, turns, memory_window,
 			prompt_tokens, completion_tokens, estimated_cost,
 			checks_passed, checks_total, checks_json, metadata_json, artifact_dir, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		r.ID, r.ScenarioID, r.Model, r.Provider, r.Adapter, r.EvidenceMode, r.Passed,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		r.ID, r.ScenarioID, r.Model, r.Provider, r.Adapter, r.EvidenceMode, r.ToolServer, r.ToolServerVersion, r.Passed,
 		r.Duration, r.ExitCode, r.Turns, r.MemoryWindow,
 		r.PromptTokens, r.CompletionTokens, r.EstimatedCost,
 		r.ChecksPassed, r.ChecksTotal, r.ChecksJSON, r.MetadataJSON, r.ArtifactDir, r.CreatedAt,
@@ -131,7 +145,7 @@ func (s *Store) appendJSONL(r RunRecord) error {
 
 // Query returns runs matching the given filters.
 func (s *Store) Query(filters QueryFilters) ([]RunRecord, error) {
-	query := "SELECT id, scenario_id, model, provider, adapter, passed, duration_seconds, exit_code, turns, memory_window, prompt_tokens, completion_tokens, estimated_cost, checks_passed, checks_total, checks_json, metadata_json, artifact_dir, created_at FROM runs WHERE 1=1"
+	query := "SELECT id, scenario_id, model, provider, adapter, evidence_mode, tool_server, tool_server_version, passed, duration_seconds, exit_code, turns, memory_window, prompt_tokens, completion_tokens, estimated_cost, checks_passed, checks_total, checks_json, metadata_json, artifact_dir, created_at FROM runs WHERE 1=1"
 	var args []any
 
 	if filters.ScenarioID != "" {
@@ -145,6 +159,10 @@ func (s *Store) Query(filters QueryFilters) ([]RunRecord, error) {
 	if filters.Provider != "" {
 		query += " AND provider = ?"
 		args = append(args, filters.Provider)
+	}
+	if filters.ToolServer != "" {
+		query += " AND tool_server = ?"
+		args = append(args, filters.ToolServer)
 	}
 	if filters.PassedOnly {
 		query += " AND passed = 1"
@@ -171,7 +189,7 @@ func (s *Store) Query(filters QueryFilters) ([]RunRecord, error) {
 	var records []RunRecord
 	for rows.Next() {
 		var r RunRecord
-		if err := rows.Scan(&r.ID, &r.ScenarioID, &r.Model, &r.Provider, &r.Adapter, &r.Passed, &r.Duration, &r.ExitCode, &r.Turns, &r.MemoryWindow, &r.PromptTokens, &r.CompletionTokens, &r.EstimatedCost, &r.ChecksPassed, &r.ChecksTotal, &r.ChecksJSON, &r.MetadataJSON, &r.ArtifactDir, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.ScenarioID, &r.Model, &r.Provider, &r.Adapter, &r.EvidenceMode, &r.ToolServer, &r.ToolServerVersion, &r.Passed, &r.Duration, &r.ExitCode, &r.Turns, &r.MemoryWindow, &r.PromptTokens, &r.CompletionTokens, &r.EstimatedCost, &r.ChecksPassed, &r.ChecksTotal, &r.ChecksJSON, &r.MetadataJSON, &r.ArtifactDir, &r.CreatedAt); err != nil {
 			return nil, fmt.Errorf("store.Query: scan: %w", err)
 		}
 		records = append(records, r)
@@ -184,6 +202,7 @@ type QueryFilters struct {
 	ScenarioID string
 	Model      string
 	Provider   string
+	ToolServer string
 	PassedOnly bool
 	FailedOnly bool
 	Since      time.Time
@@ -251,12 +270,12 @@ func (s *Store) Rebuild() (int, error) {
 		}
 		if _, err := s.db.Exec(`
 			INSERT OR REPLACE INTO runs (
-				id, scenario_id, model, provider, adapter, evidence_mode, passed,
+				id, scenario_id, model, provider, adapter, evidence_mode, tool_server, tool_server_version, passed,
 				duration_seconds, exit_code, turns, memory_window,
 				prompt_tokens, completion_tokens, estimated_cost,
 				checks_passed, checks_total, checks_json, metadata_json, artifact_dir, created_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			r.ID, r.ScenarioID, r.Model, r.Provider, r.Adapter, r.EvidenceMode, r.Passed,
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			r.ID, r.ScenarioID, r.Model, r.Provider, r.Adapter, r.EvidenceMode, r.ToolServer, r.ToolServerVersion, r.Passed,
 			r.Duration, r.ExitCode, r.Turns, r.MemoryWindow,
 			r.PromptTokens, r.CompletionTokens, r.EstimatedCost,
 			r.ChecksPassed, r.ChecksTotal, r.ChecksJSON, r.MetadataJSON, r.ArtifactDir, r.CreatedAt,

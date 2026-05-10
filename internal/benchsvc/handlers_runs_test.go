@@ -63,7 +63,7 @@ func TestHandleListRuns_ParsesFilters(t *testing.T) {
 	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-b")
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/v1/bench/runs?model=sonnet&scenario=broken-deployment&scenarios=s1,s2&evidence_mode=mcp&limit=10&offset=5", nil)
+	req := httptest.NewRequest("GET", "/v1/bench/runs?model=sonnet&scenario=broken-deployment&scenarios=s1,s2&evidence_mode=mcp&tool_server=kubernetes-mcp&limit=10&offset=5", nil)
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
@@ -81,6 +81,9 @@ func TestHandleListRuns_ParsesFilters(t *testing.T) {
 	}
 	if f.EvidenceMode != "mcp" {
 		t.Errorf("EvidenceMode = %q, want mcp", f.EvidenceMode)
+	}
+	if f.ToolServer != "kubernetes-mcp" {
+		t.Errorf("ToolServer = %q, want kubernetes-mcp", f.ToolServer)
 	}
 	if f.Limit != 10 {
 		t.Errorf("Limit = %d, want 10", f.Limit)

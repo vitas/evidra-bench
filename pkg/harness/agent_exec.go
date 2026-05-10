@@ -195,6 +195,17 @@ func buildRunMetadata(cfg config.Config, loopResult *agent.LoopResult, evidenceD
 	for k, v := range vi.ToMetadata() {
 		meta[k] = v
 	}
+	if toolServer, toolServerVersion := resolveToolServerIdentity(cfg); toolServer != "" || toolServerVersion != "" || cfg.MCPServer != "" {
+		if toolServer != "" {
+			meta["tool_server"] = toolServer
+		}
+		if toolServerVersion != "" {
+			meta["tool_server_version"] = toolServerVersion
+		}
+		if cfg.MCPServer != "" {
+			meta["tool_server_cmd"] = cfg.MCPServer
+		}
+	}
 	return meta
 }
 

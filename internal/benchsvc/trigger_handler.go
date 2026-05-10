@@ -46,15 +46,18 @@ func handleTrigger(svc *Service, store *TriggerStore, executor RunExecutor) http
 		}
 
 		job := &TriggerJob{
-			ID:            NewJobID(),
-			Status:        "pending",
-			Model:         req.Model,
-			Provider:      provider,
-			EvidenceMode:  req.EvidenceMode,
-			ExecutionMode: req.ExecutionMode,
-			Total:         len(req.Scenarios),
-			Progress:      pendingScenarioProgress(req.Scenarios),
-			CreatedAt:     time.Now(),
+			ID:                NewJobID(),
+			Status:            "pending",
+			Model:             req.Model,
+			Provider:          provider,
+			EvidenceMode:      req.EvidenceMode,
+			ExecutionMode:     req.ExecutionMode,
+			MCPServer:         req.MCPServer,
+			ToolServer:        req.ToolServer,
+			ToolServerVersion: req.ToolServerVersion,
+			Total:             len(req.Scenarios),
+			Progress:          pendingScenarioProgress(req.Scenarios),
+			CreatedAt:         time.Now(),
 		}
 		store.Create(job)
 
@@ -236,10 +239,13 @@ func findPinnedRunner(ctx context.Context, svc *Service, tenantID, runnerID, mod
 
 func enqueueRunnerTrigger(ctx context.Context, svc *Service, store *TriggerStore, tenantID string, req TriggerRequest, provider string, runner *Runner) (string, error) {
 	cfg := JobConfig{
-		Scenarios:     req.Scenarios,
-		RunnerID:      req.RunnerID,
-		EvidenceMode:  req.EvidenceMode,
-		ExecutionMode: req.ExecutionMode,
+		Scenarios:         req.Scenarios,
+		RunnerID:          req.RunnerID,
+		EvidenceMode:      req.EvidenceMode,
+		ExecutionMode:     req.ExecutionMode,
+		MCPServer:         req.MCPServer,
+		ToolServer:        req.ToolServer,
+		ToolServerVersion: req.ToolServerVersion,
 	}
 	benchJob, err := svc.repo.EnqueueJob(ctx, tenantID, req.Model, provider, cfg)
 	if err != nil {
@@ -250,15 +256,18 @@ func enqueueRunnerTrigger(ctx context.Context, svc *Service, store *TriggerStore
 	}
 
 	store.Create(&TriggerJob{
-		ID:            benchJob.ID,
-		Status:        "pending",
-		Model:         req.Model,
-		Provider:      provider,
-		EvidenceMode:  req.EvidenceMode,
-		ExecutionMode: req.ExecutionMode,
-		Total:         len(req.Scenarios),
-		Progress:      pendingScenarioProgress(req.Scenarios),
-		CreatedAt:     time.Now(),
+		ID:                benchJob.ID,
+		Status:            "pending",
+		Model:             req.Model,
+		Provider:          provider,
+		EvidenceMode:      req.EvidenceMode,
+		ExecutionMode:     req.ExecutionMode,
+		MCPServer:         req.MCPServer,
+		ToolServer:        req.ToolServer,
+		ToolServerVersion: req.ToolServerVersion,
+		Total:             len(req.Scenarios),
+		Progress:          pendingScenarioProgress(req.Scenarios),
+		CreatedAt:         time.Now(),
 	})
 	return benchJob.ID, nil
 }

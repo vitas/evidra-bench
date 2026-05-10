@@ -54,6 +54,7 @@ type RunFilters struct {
 	ScenarioIDs   []string
 	Model         string
 	Provider      string
+	ToolServer    string
 	EvidenceMode  string // none, mcp, or empty for all
 	PassedOnly    bool
 	FailedOnly    bool
@@ -67,8 +68,9 @@ type RunFilters struct {
 
 // RunCatalog holds distinct metadata values used for UI filters.
 type RunCatalog struct {
-	Models    []string `json:"models"`
-	Providers []string `json:"providers"`
+	Models      []string `json:"models"`
+	Providers   []string `json:"providers"`
+	ToolServers []string `json:"tool_servers"`
 }
 
 // StatsResult holds aggregate run statistics.

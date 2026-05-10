@@ -43,7 +43,15 @@ func TestHandleTrigger_WithRunner_QueuesJob(t *testing.T) {
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"sonnet","execution_mode":"a2a","evidence_mode":"mcp","scenarios":["s1"]}`
+	body := `{
+		"model":"sonnet",
+		"execution_mode":"a2a",
+		"evidence_mode":"mcp",
+		"mcp_server":"npx -y @vendor/kubernetes-mcp --stdio",
+		"tool_server":"kubernetes-mcp",
+		"tool_server_version":"1.2.3",
+		"scenarios":["s1"]
+	}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
@@ -68,6 +76,15 @@ func TestHandleTrigger_WithRunner_QueuesJob(t *testing.T) {
 	if repo.lastEnqueueCfg.ExecutionMode != "a2a" {
 		t.Fatalf("enqueue execution mode = %q, want a2a", repo.lastEnqueueCfg.ExecutionMode)
 	}
+	if repo.lastEnqueueCfg.MCPServer != "npx -y @vendor/kubernetes-mcp --stdio" {
+		t.Fatalf("enqueue mcp server = %q, want command", repo.lastEnqueueCfg.MCPServer)
+	}
+	if repo.lastEnqueueCfg.ToolServer != "kubernetes-mcp" {
+		t.Fatalf("enqueue tool server = %q, want kubernetes-mcp", repo.lastEnqueueCfg.ToolServer)
+	}
+	if repo.lastEnqueueCfg.ToolServerVersion != "1.2.3" {
+		t.Fatalf("enqueue tool server version = %q, want 1.2.3", repo.lastEnqueueCfg.ToolServerVersion)
+	}
 	stored := store.Get("job-q-1")
 	if stored == nil {
 		t.Fatal("stored runner trigger job missing")
@@ -77,6 +94,15 @@ func TestHandleTrigger_WithRunner_QueuesJob(t *testing.T) {
 	}
 	if stored.ExecutionMode != "a2a" {
 		t.Fatalf("stored execution mode = %q, want a2a", stored.ExecutionMode)
+	}
+	if stored.MCPServer != "npx -y @vendor/kubernetes-mcp --stdio" {
+		t.Fatalf("stored mcp server = %q, want command", stored.MCPServer)
+	}
+	if stored.ToolServer != "kubernetes-mcp" {
+		t.Fatalf("stored tool server = %q, want kubernetes-mcp", stored.ToolServer)
+	}
+	if stored.ToolServerVersion != "1.2.3" {
+		t.Fatalf("stored tool server version = %q, want 1.2.3", stored.ToolServerVersion)
 	}
 }
 

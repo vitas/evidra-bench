@@ -63,6 +63,34 @@ func TestBenchReporter_SubmitBenchRunUsesA2AAdapter(t *testing.T) {
 	}
 }
 
+func TestBenchReporter_SubmitBenchRunIncludesToolServerIdentity(t *testing.T) {
+	t.Parallel()
+
+	var got map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		w.WriteHeader(http.StatusCreated)
+	}))
+	t.Cleanup(server.Close)
+
+	reporter := &benchReporter{
+		benchURL:          server.URL,
+		evidenceMode:      "mcp",
+		toolServer:        "kubernetes-mcp",
+		toolServerVersion: "1.2.3",
+	}
+	reporter.submitBenchRun(orchestratorScenarioEventForTest())
+
+	if got["tool_server"] != "kubernetes-mcp" {
+		t.Fatalf("tool_server = %v, want kubernetes-mcp", got["tool_server"])
+	}
+	if got["tool_server_version"] != "1.2.3" {
+		t.Fatalf("tool_server_version = %v, want 1.2.3", got["tool_server_version"])
+	}
+}
+
 func orchestratorScenarioEventForTest() orchestrator.ScenarioEvent {
 	return orchestrator.ScenarioEvent{
 		JobID:      "job-1",

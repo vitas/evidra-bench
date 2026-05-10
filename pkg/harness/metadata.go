@@ -2,9 +2,11 @@ package harness
 
 import (
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
+	"samebits.com/evidra-infra-bench/pkg/config"
 	"samebits.com/evidra-infra-bench/pkg/verifier"
 )
 
@@ -39,14 +41,60 @@ func parseFloatMeta(meta map[string]string, key string) float64 {
 	return n
 }
 
-// mcpServerName extracts the binary name from a full MCP server command.
-// "my-mcp-server --stdio" -> "my-mcp-server"
-func mcpServerName(cmd string) string {
-	if cmd == "" {
+func resolveToolServerIdentity(cfg config.Config) (string, string) {
+	if config.IsSupportedEvidenceMode(cfg.EvidenceMode) {
+		cfg = config.ApplyEvidenceMode(cfg, cfg.EvidenceMode)
+	}
+
+	id := strings.TrimSpace(cfg.ToolServerID)
+	if id == "" {
+		id = inferToolServerID(cfg.MCPServer)
+	}
+
+	version := strings.TrimSpace(cfg.ToolServerVersion)
+	if version == "" {
+		version = mcpServerVersion(cfg.MCPServer)
+	}
+	return id, version
+}
+
+func inferToolServerID(cmd string) string {
+	parts := strings.Fields(cmd)
+	if len(parts) == 0 {
 		return ""
 	}
-	parts := strings.Fields(cmd)
-	return parts[0]
+
+	first := filepath.Base(parts[0])
+	switch first {
+	case "npx", "pnpm", "bunx", "yarn":
+		if pkg := inferPackageRunnerTarget(parts[1:]); pkg != "" {
+			return pkg
+		}
+	}
+	return first
+}
+
+func inferPackageRunnerTarget(args []string) string {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch arg {
+		case "-y", "--yes", "--stdio", "--":
+			continue
+		case "-p", "--package":
+			if i+1 < len(args) {
+				i++
+			}
+			continue
+		}
+		if strings.HasPrefix(arg, "--package=") {
+			continue
+		}
+		if strings.HasPrefix(arg, "-") {
+			continue
+		}
+		return arg
+	}
+	return ""
 }
 
 // mcpServerVersion queries the MCP server binary for its version string.

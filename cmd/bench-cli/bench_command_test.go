@@ -194,6 +194,17 @@ func TestBenchParallel_RejectsNonDefaultSharedProfiles(t *testing.T) {
 	}
 }
 
+func TestBenchCommand_RegistersToolServerFlags(t *testing.T) {
+	t.Parallel()
+
+	cmd := newBenchCommand()
+	for _, flag := range []string{"tool-server-id", "tool-server-version"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Fatalf("expected --%s flag to be registered", flag)
+		}
+	}
+}
+
 func TestBenchCommand_SkipsIncompatibleProvider(t *testing.T) {
 	t.Parallel()
 

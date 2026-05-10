@@ -110,11 +110,23 @@ func (h *Harness) storeRun(req RunRequest, agentResult *adapter.RunResult, verif
 		return
 	}
 
-	if req.Config.MCPServer != "" {
-		agentResult.Metadata["tool_server"] = mcpServerName(req.Config.MCPServer)
-		agentResult.Metadata["tool_server_cmd"] = req.Config.MCPServer
-		if ver := mcpServerVersion(req.Config.MCPServer); ver != "" {
-			agentResult.Metadata["tool_server_version"] = ver
+	runCfg := req.Config
+	if config.IsSupportedEvidenceMode(runCfg.EvidenceMode) {
+		runCfg = config.ApplyEvidenceMode(runCfg, runCfg.EvidenceMode)
+	}
+	toolServer, toolServerVersion := resolveToolServerIdentity(runCfg)
+	if runCfg.MCPServer != "" || toolServer != "" || toolServerVersion != "" {
+		if agentResult.Metadata == nil {
+			agentResult.Metadata = map[string]string{}
+		}
+		if toolServer != "" {
+			agentResult.Metadata["tool_server"] = toolServer
+		}
+		if runCfg.MCPServer != "" {
+			agentResult.Metadata["tool_server_cmd"] = runCfg.MCPServer
+		}
+		if toolServerVersion != "" {
+			agentResult.Metadata["tool_server_version"] = toolServerVersion
 		}
 	}
 	checksPassed, checksTotal := countChecks(verifyResult)
@@ -123,27 +135,28 @@ func (h *Harness) storeRun(req RunRequest, agentResult *adapter.RunResult, verif
 
 	s := req.Scenario
 	rec := store.RunRecord{
-		ID:               fmt.Sprintf("%s-%s-%s", startTime.Format("20060102-150405"), s.ID, req.Config.Adapter),
-		ScenarioID:       s.ID,
-		Model:            req.Config.Model,
-		Provider:         req.Config.Provider,
-		Adapter:          req.Config.Adapter,
-		EvidenceMode:     config.EffectiveEvidenceMode(req.Config),
-		ToolServer:       mcpServerName(req.Config.MCPServer),
-		Passed:           verifyResult.Passed,
-		Duration:         endTime.Sub(startTime).Seconds(),
-		ExitCode:         agentResult.ExitCode,
-		Turns:            parseIntMeta(agentResult.Metadata, "turns"),
-		MemoryWindow:     req.Config.MemoryWindow,
-		PromptTokens:     parseIntMeta(agentResult.Metadata, "prompt_tokens"),
-		CompletionTokens: parseIntMeta(agentResult.Metadata, "completion_tokens"),
-		EstimatedCost:    parseFloatMeta(agentResult.Metadata, "estimated_cost"),
-		ChecksPassed:     checksPassed,
-		ChecksTotal:      checksTotal,
-		ChecksJSON:       string(checksJSON),
-		MetadataJSON:     string(metadataJSON),
-		ArtifactDir:      artifactDir,
-		CreatedAt:        startTime,
+		ID:                fmt.Sprintf("%s-%s-%s", startTime.Format("20060102-150405"), s.ID, req.Config.Adapter),
+		ScenarioID:        s.ID,
+		Model:             req.Config.Model,
+		Provider:          req.Config.Provider,
+		Adapter:           req.Config.Adapter,
+		EvidenceMode:      config.EffectiveEvidenceMode(runCfg),
+		ToolServer:        toolServer,
+		ToolServerVersion: toolServerVersion,
+		Passed:            verifyResult.Passed,
+		Duration:          endTime.Sub(startTime).Seconds(),
+		ExitCode:          agentResult.ExitCode,
+		Turns:             parseIntMeta(agentResult.Metadata, "turns"),
+		MemoryWindow:      req.Config.MemoryWindow,
+		PromptTokens:      parseIntMeta(agentResult.Metadata, "prompt_tokens"),
+		CompletionTokens:  parseIntMeta(agentResult.Metadata, "completion_tokens"),
+		EstimatedCost:     parseFloatMeta(agentResult.Metadata, "estimated_cost"),
+		ChecksPassed:      checksPassed,
+		ChecksTotal:       checksTotal,
+		ChecksJSON:        string(checksJSON),
+		MetadataJSON:      string(metadataJSON),
+		ArtifactDir:       artifactDir,
+		CreatedAt:         startTime,
 	}
 	if err := h.deps.Store.Insert(rec); err != nil {
 		log.Printf("[harness] warning: store insert failed: %v", err)

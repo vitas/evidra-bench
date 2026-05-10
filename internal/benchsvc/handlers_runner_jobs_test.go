@@ -76,7 +76,10 @@ func TestHandlePollJob_ReturnsEvidenceMode(t *testing.T) {
 				"scenarios":["s1"],
 				"runner_id":"runner-1",
 				"evidence_mode":"mcp",
-				"execution_mode":"a2a"
+				"execution_mode":"a2a",
+				"mcp_server":"npx -y @vendor/kubernetes-mcp --stdio",
+				"tool_server":"kubernetes-mcp",
+				"tool_server_version":"1.2.3"
 			}`),
 		},
 	}
@@ -104,6 +107,15 @@ func TestHandlePollJob_ReturnsEvidenceMode(t *testing.T) {
 	}
 	if resp["execution_mode"] != "a2a" {
 		t.Fatalf("execution_mode = %v, want a2a", resp["execution_mode"])
+	}
+	if resp["mcp_server"] != "npx -y @vendor/kubernetes-mcp --stdio" {
+		t.Fatalf("mcp_server = %v, want command", resp["mcp_server"])
+	}
+	if resp["tool_server"] != "kubernetes-mcp" {
+		t.Fatalf("tool_server = %v, want kubernetes-mcp", resp["tool_server"])
+	}
+	if resp["tool_server_version"] != "1.2.3" {
+		t.Fatalf("tool_server_version = %v, want 1.2.3", resp["tool_server_version"])
 	}
 }
 

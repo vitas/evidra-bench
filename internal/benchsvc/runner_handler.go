@@ -124,15 +124,24 @@ func handlePollJob(svc *Service) http.HandlerFunc {
 		if cfg.ExecutionMode == "" {
 			cfg.ExecutionMode = "provider" // default for legacy jobs without execution_mode
 		}
+		if cfg.ToolServer == "" {
+			cfg.ToolServer = job.ToolServer
+		}
+		if cfg.ToolServerVersion == "" {
+			cfg.ToolServerVersion = job.ToolServerVersion
+		}
 
 		apiutil.WriteJSON(w, http.StatusOK, map[string]any{
-			"job_id":         job.ID,
-			"model":          job.Model,
-			"provider":       job.Provider,
-			"scenarios":      cfg.Scenarios,
-			"timeout":        cfg.Timeout,
-			"evidence_mode":  cfg.EvidenceMode,
-			"execution_mode": cfg.ExecutionMode,
+			"job_id":              job.ID,
+			"model":               job.Model,
+			"provider":            job.Provider,
+			"scenarios":           cfg.Scenarios,
+			"timeout":             cfg.Timeout,
+			"evidence_mode":       cfg.EvidenceMode,
+			"execution_mode":      cfg.ExecutionMode,
+			"mcp_server":          cfg.MCPServer,
+			"tool_server":         cfg.ToolServer,
+			"tool_server_version": cfg.ToolServerVersion,
 		})
 	}
 }

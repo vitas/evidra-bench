@@ -40,6 +40,9 @@ Request:
   "execution_mode": "provider",
   "evidence_mode": "mcp",
   "runner_id": "01K...",
+  "mcp_server": "npx -y @vendor/kubernetes-mcp --stdio",
+  "tool_server": "kubernetes-mcp",
+  "tool_server_version": "1.2.3",
   "scenarios": ["broken-deployment", "repair-loop-escalation"]
 }
 ```
@@ -53,6 +56,10 @@ Rules:
 - `provider` may be supplied by the caller, inherited from the runner config,
   or resolved from the global model catalog.
 - `runner_id` is optional. When present, the job is pinned to that runner.
+- `mcp_server` is the executable command a runner should start for MCP tool
+  execution.
+- `tool_server` and `tool_server_version` are stable comparison labels stored
+  on jobs and run records.
 - Pinned runner requests fail unless the runner is healthy and advertises the
   requested model.
 - If no healthy runner is available and no direct executor is configured, the
@@ -154,6 +161,9 @@ Response when a job is claimed:
   "provider": "anthropic",
   "evidence_mode": "mcp",
   "execution_mode": "provider",
+  "mcp_server": "npx -y @vendor/kubernetes-mcp --stdio",
+  "tool_server": "kubernetes-mcp",
+  "tool_server_version": "1.2.3",
   "scenarios": ["broken-deployment", "repair-loop-escalation"],
   "timeout": 300
 }

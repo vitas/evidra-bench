@@ -16,6 +16,7 @@ func handleStats(svc *Service) http.HandlerFunc {
 			ScenarioID:   q.Get("scenario"),
 			Model:        q.Get("model"),
 			Provider:     q.Get("provider"),
+			ToolServer:   q.Get("tool_server"),
 			EvidenceMode: q.Get("evidence_mode"),
 			Since:        parseSince(q.Get("since")),
 		}
@@ -36,6 +37,7 @@ func handleSignals(svc *Service) http.HandlerFunc {
 			ScenarioID:   q.Get("scenario"),
 			Model:        q.Get("model"),
 			Provider:     q.Get("provider"),
+			ToolServer:   q.Get("tool_server"),
 			EvidenceMode: q.Get("evidence_mode"),
 			Since:        parseSince(q.Get("since")),
 		}

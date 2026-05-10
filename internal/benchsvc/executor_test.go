@@ -150,12 +150,15 @@ func TestRemoteExecutor_StartSendsEvidenceMode(t *testing.T) {
 
 	exec := NewRemoteExecutor(srv.URL)
 	job := &TriggerJob{
-		ID:           "job-123",
-		Status:       "pending",
-		Model:        "sonnet",
-		Provider:     "bifrost",
-		EvidenceMode: "mcp",
-		Total:        1,
+		ID:                "job-123",
+		Status:            "pending",
+		Model:             "sonnet",
+		Provider:          "bifrost",
+		EvidenceMode:      "mcp",
+		MCPServer:         "npx -y @vendor/kubernetes-mcp --stdio",
+		ToolServer:        "kubernetes-mcp",
+		ToolServerVersion: "1.2.3",
+		Total:             1,
 		Progress: []ScenarioProgress{
 			{Scenario: "s1", Status: "pending"},
 		},
@@ -172,6 +175,15 @@ func TestRemoteExecutor_StartSendsEvidenceMode(t *testing.T) {
 	}
 	if got := cfg["evidence_mode"]; got != "mcp" {
 		t.Fatalf("evidence_mode = %v, want mcp", got)
+	}
+	if got := cfg["mcp_server"]; got != "npx -y @vendor/kubernetes-mcp --stdio" {
+		t.Fatalf("mcp_server = %v, want command", got)
+	}
+	if got := cfg["tool_server"]; got != "kubernetes-mcp" {
+		t.Fatalf("tool_server = %v, want kubernetes-mcp", got)
+	}
+	if got := cfg["tool_server_version"]; got != "1.2.3" {
+		t.Fatalf("tool_server_version = %v, want 1.2.3", got)
 	}
 	callback, ok := payload["callback"].(map[string]any)
 	if !ok {

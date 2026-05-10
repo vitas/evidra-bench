@@ -189,6 +189,31 @@ func TestBuildCertifyRunConfig_EvidenceModeMCPPreservesGenericMCPServer(t *testi
 	}
 }
 
+func TestBuildCertifyRunConfig_UsesRequestMCPToolServerIdentity(t *testing.T) {
+	t.Parallel()
+
+	base := config.Default()
+	base.Provider = "claude"
+
+	req := CertifyRequest{Model: "sonnet"}
+	req.Config.EvidenceMode = "mcp"
+	req.Config.MCPServer = "npx -y @vendor/kubernetes-mcp --stdio"
+	req.Config.ToolServer = "kubernetes-mcp"
+	req.Config.ToolServerVersion = "1.2.3"
+
+	got := buildCertifyRunConfig(base, req)
+
+	if got.MCPServer != "npx -y @vendor/kubernetes-mcp --stdio" {
+		t.Fatalf("MCPServer = %q, want request command", got.MCPServer)
+	}
+	if got.ToolServerID != "kubernetes-mcp" {
+		t.Fatalf("ToolServerID = %q, want kubernetes-mcp", got.ToolServerID)
+	}
+	if got.ToolServerVersion != "1.2.3" {
+		t.Fatalf("ToolServerVersion = %q, want 1.2.3", got.ToolServerVersion)
+	}
+}
+
 func TestBuildCertifyRunConfig_EmptyEvidenceModePreservesDefaultInference(t *testing.T) {
 	t.Parallel()
 

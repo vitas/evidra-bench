@@ -47,6 +47,15 @@ func buildCertifyConfig(job *TriggerJob) map[string]any {
 		"timeout_per_scenario": 300,
 		"evidence_mode":        job.EvidenceMode,
 	}
+	if job.MCPServer != "" {
+		cfg["mcp_server"] = job.MCPServer
+	}
+	if job.ToolServer != "" {
+		cfg["tool_server"] = job.ToolServer
+	}
+	if job.ToolServerVersion != "" {
+		cfg["tool_server_version"] = job.ToolServerVersion
+	}
 	if job.ExecutionMode == "a2a" {
 		cfg["adapter"] = "a2a"
 	}

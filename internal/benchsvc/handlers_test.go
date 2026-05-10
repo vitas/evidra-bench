@@ -81,6 +81,7 @@ func (r *handlerRepo) ListRuns(_ context.Context, tenant string, f bench.RunFilt
 		return nil, 0, r.runsErr
 	}
 	filtered := filterRunsByEvidenceMode(r.runs, f.EvidenceMode)
+	filtered = filterRunsByToolServer(filtered, f.ToolServer)
 	if f.ScenarioID != "" {
 		filtered = filterRunsByScenarioIDs(filtered, []string{f.ScenarioID})
 		return filtered, len(filtered), nil
@@ -113,7 +114,7 @@ func (r *handlerRepo) FilteredStats(_ context.Context, tenant string, f bench.Ru
 	if r.stats != nil {
 		return r.stats, nil
 	}
-	return aggregateStatsRuns(filterRunsByEvidenceMode(r.runs, f.EvidenceMode)), nil
+	return aggregateStatsRuns(filterRunsByToolServer(filterRunsByEvidenceMode(r.runs, f.EvidenceMode), f.ToolServer)), nil
 }
 func (r *handlerRepo) Catalog(_ context.Context, tenant string) (*bench.RunCatalog, error) {
 	r.lastTenant = tenant
@@ -317,6 +318,19 @@ func filterRunsByEvidenceMode(runs []bench.RunRecord, mode string) []bench.RunRe
 	filtered := make([]bench.RunRecord, 0, len(runs))
 	for _, run := range runs {
 		if evidenceModeMatchesQuery(mode, run.EvidenceMode) {
+			filtered = append(filtered, run)
+		}
+	}
+	return filtered
+}
+
+func filterRunsByToolServer(runs []bench.RunRecord, toolServer string) []bench.RunRecord {
+	if toolServer == "" {
+		return runs
+	}
+	filtered := make([]bench.RunRecord, 0, len(runs))
+	for _, run := range runs {
+		if run.ToolServer == toolServer {
 			filtered = append(filtered, run)
 		}
 	}

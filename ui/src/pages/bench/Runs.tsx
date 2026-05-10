@@ -108,7 +108,7 @@ export function Runs() {
   const initialFilters = runsFiltersFromSearchParams(searchParams);
 
   const [data, setData] = useState<RunsResponse | null>(null);
-  const [catalog, setCatalog] = useState<CatalogResponse>({ models: [], providers: [] });
+  const [catalog, setCatalog] = useState<CatalogResponse>({ models: [], providers: [], tool_servers: [] });
   const [scenarioCatalog, setScenarioCatalog] = useState<ExamPackScenario[]>([]);
   const [scenarioCatalogLoaded, setScenarioCatalogLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -119,6 +119,7 @@ export function Runs() {
   const [exam, setExam] = useState<ExamPackFilter>(initialFilters.exam);
   const [model, setModel] = useState(initialFilters.model);
   const [provider, setProvider] = useState(initialFilters.provider);
+  const [toolServer, setToolServer] = useState(initialFilters.toolServer);
   const [status, setStatus] = useState<RunsStatus>(initialFilters.status);
   const [since, setSince] = useState(initialFilters.since);
 
@@ -164,7 +165,7 @@ export function Runs() {
   useEffect(() => {
     request<CatalogResponse>(`/v1/bench/catalog${evidenceModeParam("?", mode)}`)
       .then((res) => setCatalog(normalizeCatalog(res)))
-      .catch(() => setCatalog({ models: [], providers: [] }));
+      .catch(() => setCatalog({ models: [], providers: [], tool_servers: [] }));
   }, [request, mode]);
 
   useEffect(() => {
@@ -191,6 +192,7 @@ export function Runs() {
     setExam(nextFilters.exam);
     setModel(nextFilters.model);
     setProvider(nextFilters.provider);
+    setToolServer(nextFilters.toolServer);
     setStatus(nextFilters.status);
     setSince(nextFilters.since);
     setAppliedFilters(nextFilters);
@@ -203,6 +205,7 @@ export function Runs() {
       exam,
       model,
       provider,
+      toolServer,
       status,
       since,
     };
@@ -216,6 +219,7 @@ export function Runs() {
     setExam(DEFAULT_RUNS_FILTERS.exam);
     setModel(DEFAULT_RUNS_FILTERS.model);
     setProvider(DEFAULT_RUNS_FILTERS.provider);
+    setToolServer(DEFAULT_RUNS_FILTERS.toolServer);
     setStatus(DEFAULT_RUNS_FILTERS.status);
     setSince(DEFAULT_RUNS_FILTERS.since);
     setAppliedFilters(DEFAULT_RUNS_FILTERS);
@@ -328,6 +332,21 @@ export function Runs() {
             {["All", ...catalog.providers].map((p) => (
               <option key={p} value={p}>
                 {p}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-[0.7rem] font-medium text-fg-muted uppercase tracking-wide">Tool Server</span>
+          <select
+            value={toolServer}
+            onChange={(e) => setToolServer(e.target.value)}
+            className={inputClass + " w-40"}
+          >
+            {["All", ...catalog.tool_servers].map((tool) => (
+              <option key={tool} value={tool}>
+                {tool}
               </option>
             ))}
           </select>

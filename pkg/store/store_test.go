@@ -257,3 +257,141 @@ func TestInsertAndQuery_PersistsMetadataJSONAndEstimatedCost(t *testing.T) {
 		t.Fatalf("jsonl metadata_json = %q", decoded.MetadataJSON)
 	}
 }
+
+func TestInsertAndQuery_PreservesEvidenceAndToolServerIdentity(t *testing.T) {
+	t.Parallel()
+
+	s := testStore(t)
+	now := time.Now().UTC()
+
+	rec := RunRecord{
+		ID:                "run-tool-server",
+		ScenarioID:        "s1",
+		EvidenceMode:      "mcp",
+		ToolServer:        "kubernetes-mcp",
+		ToolServerVersion: "1.2.3",
+		CreatedAt:         now,
+	}
+	if err := s.Insert(rec); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+
+	runs, err := s.Query(QueryFilters{ScenarioID: "s1"})
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("expected 1 run, got %d", len(runs))
+	}
+	if runs[0].EvidenceMode != "mcp" {
+		t.Fatalf("evidence_mode = %q, want mcp", runs[0].EvidenceMode)
+	}
+	if runs[0].ToolServer != "kubernetes-mcp" {
+		t.Fatalf("tool_server = %q, want kubernetes-mcp", runs[0].ToolServer)
+	}
+	if runs[0].ToolServerVersion != "1.2.3" {
+		t.Fatalf("tool_server_version = %q, want 1.2.3", runs[0].ToolServerVersion)
+	}
+}
+
+func TestRebuild_PreservesToolServerIdentity(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+
+	mustInsert(t, s, RunRecord{
+		ID:                "run-tool-server",
+		ScenarioID:        "s1",
+		EvidenceMode:      "mcp",
+		ToolServer:        "kubernetes-mcp",
+		ToolServerVersion: "1.2.3",
+		CreatedAt:         time.Now().UTC(),
+	})
+	if err := s.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	if err := os.Remove(filepath.Join(dir, "bench.db")); err != nil {
+		t.Fatalf("remove db: %v", err)
+	}
+
+	s2, err := Open(dir)
+	if err != nil {
+		t.Fatalf("reopen store: %v", err)
+	}
+	defer func() {
+		if err := s2.Close(); err != nil {
+			t.Errorf("close rebuilt store: %v", err)
+		}
+	}()
+
+	if _, err := s2.Rebuild(); err != nil {
+		t.Fatalf("rebuild: %v", err)
+	}
+	runs, err := s2.Query(QueryFilters{ScenarioID: "s1"})
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("expected 1 run, got %d", len(runs))
+	}
+	if runs[0].ToolServer != "kubernetes-mcp" {
+		t.Fatalf("tool_server = %q, want kubernetes-mcp", runs[0].ToolServer)
+	}
+	if runs[0].ToolServerVersion != "1.2.3" {
+		t.Fatalf("tool_server_version = %q, want 1.2.3", runs[0].ToolServerVersion)
+	}
+}
+
+func TestImportFromArtifacts_PreservesToolServerIdentity(t *testing.T) {
+	t.Parallel()
+
+	s := testStore(t)
+	runsDir := t.TempDir()
+	artifactDir := filepath.Join(runsDir, "run-1")
+	if err := os.MkdirAll(artifactDir, 0o755); err != nil {
+		t.Fatalf("mkdir artifact dir: %v", err)
+	}
+	body := `{
+		"scenario_id": "s1",
+		"adapter": "bench-cli",
+		"start_time": "2026-05-10T10:00:00Z",
+		"end_time": "2026-05-10T10:00:05Z",
+		"exit_code": 0,
+		"passed": true,
+		"checks": {"checks":[{"verdict":"pass"}]},
+		"metadata": {
+			"evidence_mode": "mcp",
+			"tool_server": "kubernetes-mcp",
+			"tool_server_version": "1.2.3"
+		}
+	}`
+	if err := os.WriteFile(filepath.Join(artifactDir, "run.json"), []byte(body), 0o644); err != nil {
+		t.Fatalf("write run.json: %v", err)
+	}
+
+	count, err := s.ImportFromArtifacts(runsDir)
+	if err != nil {
+		t.Fatalf("import artifacts: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("count = %d, want 1", count)
+	}
+	runs, err := s.Query(QueryFilters{ScenarioID: "s1"})
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("expected 1 run, got %d", len(runs))
+	}
+	if runs[0].ToolServer != "kubernetes-mcp" {
+		t.Fatalf("tool_server = %q, want kubernetes-mcp", runs[0].ToolServer)
+	}
+	if runs[0].ToolServerVersion != "1.2.3" {
+		t.Fatalf("tool_server_version = %q, want 1.2.3", runs[0].ToolServerVersion)
+	}
+}

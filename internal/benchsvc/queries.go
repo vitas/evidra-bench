@@ -88,28 +88,34 @@ type RegisterRunnerRequest struct {
 
 // BenchJob represents a queued or running benchmark job from bench_jobs.
 type BenchJob struct {
-	ID           string          `json:"id"`
-	TenantID     string          `json:"tenant_id"`
-	InfraID      string          `json:"infra_id,omitempty"`
-	Model        string          `json:"model"`
-	Provider     string          `json:"provider"`
-	Status       string          `json:"status"`
-	Total        int             `json:"total"`
-	Completed    int             `json:"completed"`
-	Passed       int             `json:"passed"`
-	Failed       int             `json:"failed"`
-	ErrorMessage string          `json:"error_message,omitempty"`
-	ConfigJSON   json.RawMessage `json:"config_json,omitempty"`
-	CreatedAt    time.Time       `json:"created_at"`
+	ID                string          `json:"id"`
+	TenantID          string          `json:"tenant_id"`
+	InfraID           string          `json:"infra_id,omitempty"`
+	Model             string          `json:"model"`
+	Provider          string          `json:"provider"`
+	Status            string          `json:"status"`
+	Total             int             `json:"total"`
+	Completed         int             `json:"completed"`
+	Passed            int             `json:"passed"`
+	Failed            int             `json:"failed"`
+	EvidenceMode      string          `json:"evidence_mode,omitempty"`
+	ToolServer        string          `json:"tool_server,omitempty"`
+	ToolServerVersion string          `json:"tool_server_version,omitempty"`
+	ErrorMessage      string          `json:"error_message,omitempty"`
+	ConfigJSON        json.RawMessage `json:"config_json,omitempty"`
+	CreatedAt         time.Time       `json:"created_at"`
 }
 
 // JobConfig holds the scenario list and options stored in bench_jobs.config_json.
 type JobConfig struct {
-	Scenarios     []string `json:"scenarios"`
-	Timeout       int      `json:"timeout,omitempty"`
-	RunnerID      string   `json:"runner_id,omitempty"` // manual pinning
-	EvidenceMode  string   `json:"evidence_mode,omitempty"`
-	ExecutionMode string   `json:"execution_mode,omitempty"`
+	Scenarios         []string `json:"scenarios"`
+	Timeout           int      `json:"timeout,omitempty"`
+	RunnerID          string   `json:"runner_id,omitempty"` // manual pinning
+	EvidenceMode      string   `json:"evidence_mode,omitempty"`
+	ExecutionMode     string   `json:"execution_mode,omitempty"`
+	MCPServer         string   `json:"mcp_server,omitempty"`
+	ToolServer        string   `json:"tool_server,omitempty"`
+	ToolServerVersion string   `json:"tool_server_version,omitempty"`
 }
 
 // scanRunRecord scans a row into a bench.RunRecord.
@@ -155,6 +161,10 @@ func buildWhere(tenantID string, f bench.RunFilters) (string, []any) {
 	if f.Provider != "" {
 		args = append(args, f.Provider)
 		clauses = append(clauses, fmt.Sprintf("provider = $%d", len(args)))
+	}
+	if f.ToolServer != "" {
+		args = append(args, f.ToolServer)
+		clauses = append(clauses, fmt.Sprintf("tool_server = $%d", len(args)))
 	}
 	if clause, clauseArgs := evidenceModeClause(len(args)+1, f.EvidenceMode); clause != "" {
 		clauses = append(clauses, clause)

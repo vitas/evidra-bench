@@ -7,10 +7,12 @@ test("normalizeCatalog deduplicates and sorts models/providers", () => {
   const catalog = normalizeCatalog({
     models: ["sonnet", "haiku", "sonnet", ""],
     providers: ["bifrost", "claude", "bifrost", ""],
+    tool_servers: ["kubernetes-mcp", "legacy-mcp", "kubernetes-mcp", ""],
   });
 
   assert.deepEqual(catalog.models, ["haiku", "sonnet"]);
   assert.deepEqual(catalog.providers, ["bifrost", "claude"]);
+  assert.deepEqual(catalog.tool_servers, ["kubernetes-mcp", "legacy-mcp"]);
 });
 
 test("buildRunsPath applies limit and optional since filter", () => {

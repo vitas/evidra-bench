@@ -35,6 +35,12 @@ func newServeCommand(cfg *config.Config) *cobra.Command {
 			if v := os.Getenv("INFRA_BENCH_MCP_SERVER"); v != "" {
 				cfg.MCPServer = v
 			}
+			if v := os.Getenv("INFRA_BENCH_TOOL_SERVER_ID"); v != "" {
+				cfg.ToolServerID = v
+			}
+			if v := os.Getenv("INFRA_BENCH_TOOL_SERVER_VERSION"); v != "" {
+				cfg.ToolServerVersion = v
+			}
 			if v := os.Getenv("INFRA_BENCH_CLUSTER_NAME"); v != "" {
 				cfg.ClusterName = v
 			}

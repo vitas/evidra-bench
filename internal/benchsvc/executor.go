@@ -13,30 +13,36 @@ const ExecutorContractVersion = "v1.0.0"
 
 // TriggerRequest is the payload for POST /v1/bench/trigger.
 type TriggerRequest struct {
-	Model         string   `json:"model"`
-	Provider      string   `json:"provider,omitempty"`
-	RunnerID      string   `json:"runner_id,omitempty"`
-	EvidenceMode  string   `json:"evidence_mode"`
-	ExecutionMode string   `json:"execution_mode,omitempty"`
-	Scenarios     []string `json:"scenarios"`
+	Model             string   `json:"model"`
+	Provider          string   `json:"provider,omitempty"`
+	RunnerID          string   `json:"runner_id,omitempty"`
+	EvidenceMode      string   `json:"evidence_mode"`
+	ExecutionMode     string   `json:"execution_mode,omitempty"`
+	MCPServer         string   `json:"mcp_server,omitempty"`
+	ToolServer        string   `json:"tool_server,omitempty"`
+	ToolServerVersion string   `json:"tool_server_version,omitempty"`
+	Scenarios         []string `json:"scenarios"`
 }
 
 // TriggerJob tracks a bench trigger execution.
 type TriggerJob struct {
-	ID              string             `json:"id"`
-	Status          string             `json:"status"` // pending, running, completed, failed
-	Model           string             `json:"model"`
-	Provider        string             `json:"provider,omitempty"`
-	EvidenceMode    string             `json:"evidence_mode,omitempty"`
-	ExecutionMode   string             `json:"execution_mode,omitempty"`
-	Total           int                `json:"total"`
-	Completed       int                `json:"completed"`
-	Passed          int                `json:"passed"`
-	Failed          int                `json:"failed"`
-	CurrentScenario string             `json:"current_scenario,omitempty"`
-	RunIDs          []string           `json:"run_ids,omitempty"`
-	Progress        []ScenarioProgress `json:"progress"`
-	CreatedAt       time.Time          `json:"created_at"`
+	ID                string             `json:"id"`
+	Status            string             `json:"status"` // pending, running, completed, failed
+	Model             string             `json:"model"`
+	Provider          string             `json:"provider,omitempty"`
+	EvidenceMode      string             `json:"evidence_mode,omitempty"`
+	ExecutionMode     string             `json:"execution_mode,omitempty"`
+	MCPServer         string             `json:"mcp_server,omitempty"`
+	ToolServer        string             `json:"tool_server,omitempty"`
+	ToolServerVersion string             `json:"tool_server_version,omitempty"`
+	Total             int                `json:"total"`
+	Completed         int                `json:"completed"`
+	Passed            int                `json:"passed"`
+	Failed            int                `json:"failed"`
+	CurrentScenario   string             `json:"current_scenario,omitempty"`
+	RunIDs            []string           `json:"run_ids,omitempty"`
+	Progress          []ScenarioProgress `json:"progress"`
+	CreatedAt         time.Time          `json:"created_at"`
 }
 
 // ScenarioProgress tracks the status of a single scenario within a job.

@@ -180,6 +180,7 @@ CREATE INDEX IF NOT EXISTS idx_bench_runs_tenant ON bench_runs(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_bench_runs_model ON bench_runs(tenant_id, model);
 CREATE INDEX IF NOT EXISTS idx_bench_runs_scenario ON bench_runs(tenant_id, scenario_id);
 CREATE INDEX IF NOT EXISTS idx_bench_runs_evidence_mode ON bench_runs(tenant_id, evidence_mode);
+CREATE INDEX IF NOT EXISTS idx_bench_runs_tool_server ON bench_runs(tenant_id, tool_server);
 CREATE INDEX IF NOT EXISTS idx_bench_runs_created ON bench_runs(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_bench_runs_archived ON bench_runs(tenant_id, archived_at)
     WHERE archived_at IS NOT NULL;

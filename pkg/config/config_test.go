@@ -193,16 +193,24 @@ func TestEffectiveEvidenceMode_ExplicitNoneWins(t *testing.T) {
 func TestApplyEvidenceMode_NoneClearsMCPServer(t *testing.T) {
 	t.Parallel()
 	cfg := ApplyEvidenceMode(Config{
-		MCPServer:        "sample-mcp --stdio",
-		SystemPromptFile: "/tmp/system.md",
-		Role:             "k8s-admin",
-		ContractVersion:  "v1",
+		MCPServer:         "sample-mcp --stdio",
+		ToolServerID:      "sample-mcp",
+		ToolServerVersion: "1.2.3",
+		SystemPromptFile:  "/tmp/system.md",
+		Role:              "k8s-admin",
+		ContractVersion:   "v1",
 	}, "none")
 	if cfg.EvidenceMode != "none" {
 		t.Fatalf("EvidenceMode = %q, want none", cfg.EvidenceMode)
 	}
 	if cfg.MCPServer != "" {
 		t.Fatalf("MCPServer = %q, want empty", cfg.MCPServer)
+	}
+	if cfg.ToolServerID != "" {
+		t.Fatalf("ToolServerID = %q, want empty", cfg.ToolServerID)
+	}
+	if cfg.ToolServerVersion != "" {
+		t.Fatalf("ToolServerVersion = %q, want empty", cfg.ToolServerVersion)
 	}
 }
 

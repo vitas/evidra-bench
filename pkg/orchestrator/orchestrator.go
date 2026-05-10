@@ -222,6 +222,10 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 		workerCfg.RunsDir = ws.RunsDir
 		workerCfg.EvidenceDir = ws.EvidenceDir
 		workerCfg.Model = args.Model
+		workerCfg.Provider = args.Provider
+		workerCfg.MCPServer = args.MCPServer
+		workerCfg.ToolServerID = args.ToolServer
+		workerCfg.ToolServerVersion = args.ToolServerVersion
 
 		// Report scenario started.
 		c := int(atomic.LoadInt64(&completed))
@@ -310,7 +314,7 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 	for _, model := range models {
 		for rep := 1; rep <= repeats; rep++ {
 			jobID := fmt.Sprintf("bench-%s-r%d-%s", model, rep, time.Now().UTC().Format("20060102-150405"))
-			if err := client.InsertBatch(ctx, scenarios, model, cfg.Provider, cfg.MCPServer, jobID, "", parallel); err != nil {
+			if err := client.InsertBatch(ctx, scenarios, model, cfg.Provider, cfg.MCPServer, cfg.ToolServerID, cfg.ToolServerVersion, jobID, "", parallel); err != nil {
 				return nil, fmt.Errorf("orchestrator: enqueue: %w", err)
 			}
 		}

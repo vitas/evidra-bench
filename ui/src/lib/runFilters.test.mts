@@ -19,9 +19,16 @@ test("runs filters are initialized from URL search params", () => {
     exam: "kubernetes-security",
     model: "claude-sonnet",
     provider: "anthropic",
+    toolServer: "All",
     status: "Passed",
     since: "2026-05-01",
   });
+});
+
+test("runs filters include tool server from URL search params", () => {
+  const filters = runsFiltersFromSearchParams(new URLSearchParams("tool_server=kubernetes-mcp"));
+
+  assert.equal(filters.toolServer, "kubernetes-mcp");
 });
 
 test("runs filters ignore unknown exam ids", () => {
@@ -37,11 +44,12 @@ test("runs filters serialize only active URL filters", () => {
     exam: "kubernetes-security",
     model: "claude-sonnet",
     provider: "All",
+    toolServer: "kubernetes-mcp",
     status: "All",
     since: "",
   });
 
-  assert.equal(params.toString(), "exam=kubernetes-security&model=claude-sonnet");
+  assert.equal(params.toString(), "exam=kubernetes-security&model=claude-sonnet&tool_server=kubernetes-mcp");
 });
 
 test("runs API path maps selected exam suite to scenario ids", () => {
@@ -51,6 +59,7 @@ test("runs API path maps selected exam suite to scenario ids", () => {
       exam: "kubernetes-security",
       model: "claude-sonnet",
       provider: "All",
+      toolServer: "kubernetes-mcp",
       status: "All",
       since: "",
     },
@@ -62,7 +71,7 @@ test("runs API path maps selected exam suite to scenario ids", () => {
 
   assert.equal(
     path,
-    "/v1/bench/runs?scenarios=s1%2Cs2&model=claude-sonnet&limit=25&offset=25&evidence_mode=mcp",
+    "/v1/bench/runs?scenarios=s1%2Cs2&model=claude-sonnet&tool_server=kubernetes-mcp&limit=25&offset=25&evidence_mode=mcp",
   );
 });
 
@@ -73,6 +82,7 @@ test("runs API path keeps explicit scenario above exam suite ids", () => {
       exam: "kubernetes-security",
       model: "All",
       provider: "All",
+      toolServer: "All",
       status: "All",
       since: "",
     },

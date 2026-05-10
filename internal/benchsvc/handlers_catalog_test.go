@@ -95,8 +95,9 @@ func TestHandleCatalog_ReturnsModelsAndProviders(t *testing.T) {
 
 	repo := &handlerRepo{
 		catalog: &bench.RunCatalog{
-			Models:    []string{"sonnet", "opus"},
-			Providers: []string{"anthropic", "bifrost"},
+			Models:      []string{"sonnet", "opus"},
+			Providers:   []string{"anthropic", "bifrost"},
+			ToolServers: []string{"kubernetes-mcp", "legacy-mcp"},
 		},
 	}
 	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
@@ -117,6 +118,9 @@ func TestHandleCatalog_ReturnsModelsAndProviders(t *testing.T) {
 	}
 	if len(body.Providers) != 2 {
 		t.Fatalf("len(Providers) = %d, want 2", len(body.Providers))
+	}
+	if len(body.ToolServers) != 2 {
+		t.Fatalf("len(ToolServers) = %d, want 2", len(body.ToolServers))
 	}
 }
 

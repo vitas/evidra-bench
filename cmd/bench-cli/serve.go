@@ -47,6 +47,9 @@ type CertifyRequest struct {
 		Adapter            string `json:"adapter,omitempty"`
 		A2AAgentURL        string `json:"a2a_agent_url,omitempty"`
 		EvidenceMode       string `json:"evidence_mode,omitempty"`
+		MCPServer          string `json:"mcp_server,omitempty"`
+		ToolServer         string `json:"tool_server,omitempty"`
+		ToolServerVersion  string `json:"tool_server_version,omitempty"`
 	} `json:"config"`
 	Callback struct {
 		ProgressURL string `json:"progress_url"`
@@ -264,11 +267,13 @@ func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string
 		}
 
 		reporter := &benchReporter{
-			progressURL:  progressURL,
-			benchURL:     benchURL,
-			authToken:    authToken,
-			evidenceMode: config.EffectiveEvidenceMode(runCfg),
-			adapter:      runCfg.Adapter,
+			progressURL:       progressURL,
+			benchURL:          benchURL,
+			authToken:         authToken,
+			evidenceMode:      config.EffectiveEvidenceMode(runCfg),
+			adapter:           runCfg.Adapter,
+			toolServer:        runCfg.ToolServerID,
+			toolServerVersion: runCfg.ToolServerVersion,
 		}
 
 		go func() {
@@ -309,6 +314,15 @@ func buildCertifyRunConfig(baseCfg config.Config, req CertifyRequest) config.Con
 	if req.Config.TimeoutPerScenario > 0 {
 		runCfg.Timeout = time.Duration(req.Config.TimeoutPerScenario) * time.Second
 	}
+	if req.Config.MCPServer != "" {
+		runCfg.MCPServer = req.Config.MCPServer
+	}
+	if req.Config.ToolServer != "" {
+		runCfg.ToolServerID = req.Config.ToolServer
+	}
+	if req.Config.ToolServerVersion != "" {
+		runCfg.ToolServerVersion = req.Config.ToolServerVersion
+	}
 	runCfg = config.ApplyEvidenceMode(runCfg, req.Config.EvidenceMode)
 	return runCfg
 }
@@ -324,11 +338,13 @@ func writeJSON(w http.ResponseWriter, status int, data any) {
 // benchReporter implements orchestrator.ProgressReporter by sending
 // progress webhooks and bench run submissions to the Bench API.
 type benchReporter struct {
-	progressURL  string // POST progress updates here
-	benchURL     string // POST bench runs here
-	authToken    string // Bearer token for both endpoints
-	evidenceMode string // explicit evidence mode for run submissions
-	adapter      string // configured bench execution mode
+	progressURL       string // POST progress updates here
+	benchURL          string // POST bench runs here
+	authToken         string // Bearer token for both endpoints
+	evidenceMode      string // explicit evidence mode for run submissions
+	adapter           string // configured bench execution mode
+	toolServer        string // stable MCP server identity for run submissions
+	toolServerVersion string // stable MCP server version for run submissions
 }
 
 // OnScenario sends a progress webhook and (on completion) submits the bench run.
@@ -405,6 +421,12 @@ func (r *benchReporter) submitBenchRun(ev orchestrator.ScenarioEvent) {
 		"duration_seconds": ev.Duration.Seconds(),
 		"checks_passed":    boolToInt(ev.Passed),
 		"checks_total":     1,
+	}
+	if r.toolServer != "" {
+		run["tool_server"] = r.toolServer
+	}
+	if r.toolServerVersion != "" {
+		run["tool_server_version"] = r.toolServerVersion
 	}
 	body, err := json.Marshal(run)
 	if err != nil {

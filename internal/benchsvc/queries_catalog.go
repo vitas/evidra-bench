@@ -44,7 +44,7 @@ func (s *PgStore) FilteredStats(ctx context.Context, tenantID string, f bench.Ru
 
 // Catalog returns distinct models and providers from bench_runs.
 func (s *PgStore) Catalog(ctx context.Context, tenantID string) (*bench.RunCatalog, error) {
-	var models, providers []string
+	var models, providers, toolServers []string
 
 	rows, err := s.db.Query(ctx,
 		"SELECT DISTINCT model FROM bench_runs WHERE tenant_id = $1 AND archived_at IS NULL ORDER BY model", tenantID)
@@ -80,7 +80,24 @@ func (s *PgStore) Catalog(ctx context.Context, tenantID string) (*bench.RunCatal
 		return nil, fmt.Errorf("bench.Catalog: providers rows: %w", err)
 	}
 
-	return &bench.RunCatalog{Models: models, Providers: providers}, nil
+	rows3, err := s.db.Query(ctx,
+		"SELECT DISTINCT tool_server FROM bench_runs WHERE tenant_id = $1 AND archived_at IS NULL AND tool_server != '' ORDER BY tool_server", tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("bench.Catalog: tool servers: %w", err)
+	}
+	defer rows3.Close()
+	for rows3.Next() {
+		var toolServer string
+		if err := rows3.Scan(&toolServer); err != nil {
+			return nil, fmt.Errorf("bench.Catalog: scan tool server: %w", err)
+		}
+		toolServers = append(toolServers, toolServer)
+	}
+	if err := rows3.Err(); err != nil {
+		return nil, fmt.Errorf("bench.Catalog: tool server rows: %w", err)
+	}
+
+	return &bench.RunCatalog{Models: models, Providers: providers, ToolServers: toolServers}, nil
 }
 
 // ListScenarios returns all scenarios from the global catalog.

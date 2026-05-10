@@ -37,6 +37,8 @@ type Config struct {
 	ContractVersion     string
 	Role                string // role-based skill (k8s-admin, security-ops, release-manager, platform-eng)
 	MCPServer           string // MCP server command
+	ToolServerID        string // stable MCP server identity for comparison/filtering
+	ToolServerVersion   string // stable MCP server version for comparison/filtering
 	EvidenceMode        string // explicit per-run override for evidence mode
 	Parallel            int    // number of parallel workers (0 or 1 = sequential, >1 requires --database-url)
 	DatabaseURL         string // PostgreSQL connection string for River job queue (env: BENCH_DATABASE_URL)
@@ -115,6 +117,8 @@ func ApplyEvidenceMode(cfg Config, mode string) Config {
 	switch mode {
 	case "none":
 		cfg.MCPServer = ""
+		cfg.ToolServerID = ""
+		cfg.ToolServerVersion = ""
 		cfg.SystemPromptFile = ""
 		cfg.Role = ""
 		cfg.ContractVersion = ""

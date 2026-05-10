@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"samebits.com/evidra-infra-bench/pkg/config"
 	"samebits.com/evidra-infra-bench/pkg/scenario"
 )
 
@@ -229,5 +230,18 @@ checks:
 	}
 	if got := s.ResolvedProfile(); got != scenario.ProfileArgocd {
 		t.Fatalf("expected profile argocd, got %q", got)
+	}
+}
+
+func TestRunCommand_RegistersToolServerFlags(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.Default()
+	cmd := newRunCommand(&cfg)
+
+	for _, flag := range []string{"tool-server-id", "tool-server-version"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Fatalf("expected --%s flag to be registered", flag)
+		}
 	}
 }

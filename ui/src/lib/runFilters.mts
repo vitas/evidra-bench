@@ -8,6 +8,7 @@ export interface RunsFilterState {
   exam: ExamPackFilter;
   model: string;
   provider: string;
+  toolServer: string;
   status: RunsStatus;
   since: string;
 }
@@ -17,6 +18,7 @@ export const DEFAULT_RUNS_FILTERS: RunsFilterState = {
   exam: "all",
   model: "All",
   provider: "All",
+  toolServer: "All",
   status: "All",
   since: "",
 };
@@ -33,6 +35,7 @@ export function runsFiltersFromSearchParams(params: URLSearchParams): RunsFilter
     exam: resolveExamPackFilter(params.get("exam")),
     model: params.get("model") || "All",
     provider: params.get("provider") || "All",
+    toolServer: params.get("tool_server") || "All",
     status: statusFromPassedParam(params.get("passed")),
     since: params.get("since") ?? "",
   };
@@ -46,6 +49,7 @@ export function runsSearchParamsFromFilters(filters: RunsFilterState): URLSearch
   if (scenario) params.set("scenario", scenario);
   if (filters.model !== "All") params.set("model", filters.model);
   if (filters.provider !== "All") params.set("provider", filters.provider);
+  if (filters.toolServer !== "All") params.set("tool_server", filters.toolServer);
   if (filters.status === "Passed") params.set("passed", "true");
   if (filters.status === "Failed") params.set("passed", "false");
   if (filters.since) params.set("since", filters.since);
@@ -71,6 +75,7 @@ export function buildRunsAPIPath(
 
   if (filters.model !== "All") params.set("model", filters.model);
   if (filters.provider !== "All") params.set("provider", filters.provider);
+  if (filters.toolServer !== "All") params.set("tool_server", filters.toolServer);
   if (filters.status === "Passed") params.set("passed", "true");
   if (filters.status === "Failed") params.set("passed", "false");
   if (filters.since) params.set("since", filters.since);

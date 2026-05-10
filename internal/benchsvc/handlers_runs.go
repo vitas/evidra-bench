@@ -25,6 +25,7 @@ func handleListRuns(svc *Service) http.HandlerFunc {
 			ScenarioIDs:  parseCSVQuery(q.Get("scenarios")),
 			Model:        q.Get("model"),
 			Provider:     q.Get("provider"),
+			ToolServer:   q.Get("tool_server"),
 			EvidenceMode: q.Get("evidence_mode"),
 			Since:        parseSince(q.Get("since")),
 			Limit:        limit,

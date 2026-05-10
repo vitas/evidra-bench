@@ -44,6 +44,11 @@ Bench list and analytics endpoints accept exact evidence-mode filters:
 
 `POST /v1/bench/trigger` accepts only `none` or `mcp`.
 
+MCP runs can also carry `mcp_server`, `tool_server`, and
+`tool_server_version`. `mcp_server` is the executable command for the runner;
+`tool_server` and `tool_server_version` are stable labels used for filtering,
+comparison, and private reports.
+
 ## Public Read Endpoints
 
 ### GET /v1/bench/leaderboard
@@ -123,6 +128,8 @@ artifact fields:
   "provider": "anthropic",
   "adapter": "a2a",
   "evidence_mode": "mcp",
+  "tool_server": "kubernetes-mcp",
+  "tool_server_version": "1.2.3",
   "passed": true,
   "duration_seconds": 35.2,
   "exit_code": 0,
@@ -148,6 +155,7 @@ Query parameters:
 | Name | Description |
 |---|---|
 | `model` | exact model filter |
+| `tool_server` | exact MCP tool-server identity filter |
 | `scenario` | exact scenario ID filter |
 | `scenarios` | comma-separated scenario IDs; ignored when `scenario` is set |
 | `evidence_mode` | filter using the evidence-mode contract above |
@@ -155,7 +163,7 @@ Query parameters:
 | `passed` | `true` or `false` |
 | `limit` | page size |
 | `offset` | page offset |
-| `sort_by` | `created_at`, `duration_seconds`, `estimated_cost_usd`, `scenario_id`, `model`, `provider`, `checks_passed`, `turns`, or `passed` |
+| `sort_by` | `created_at`, `duration_seconds`, `estimated_cost_usd`, `scenario_id`, `model`, `provider`, `tool_server`, `checks_passed`, `turns`, or `passed` |
 | `sort_order` | `asc` or `desc` |
 
 ### GET /v1/bench/runs/{id}
@@ -216,7 +224,15 @@ Aggregate run counts and pass/fail breakdown. Accepts the same filters as
 
 ### GET /v1/bench/catalog
 
-Distinct models and providers observed in stored runs.
+Distinct models, providers, and MCP tool servers observed in stored runs.
+
+```json
+{
+  "models": ["sonnet"],
+  "providers": ["anthropic"],
+  "tool_servers": ["kubernetes-mcp", "legacy-mcp"]
+}
+```
 
 ### GET /v1/bench/models
 
@@ -291,6 +307,9 @@ Starts a benchmark run. Requires `model`, `scenarios`, and `evidence_mode`.
   "execution_mode": "provider",
   "evidence_mode": "mcp",
   "runner_id": "01K...",
+  "mcp_server": "npx -y @vendor/kubernetes-mcp --stdio",
+  "tool_server": "kubernetes-mcp",
+  "tool_server_version": "1.2.3",
   "scenarios": ["broken-deployment"]
 }
 ```
@@ -396,6 +415,9 @@ Response when a job is available:
   "provider": "anthropic",
   "evidence_mode": "mcp",
   "execution_mode": "provider",
+  "mcp_server": "npx -y @vendor/kubernetes-mcp --stdio",
+  "tool_server": "kubernetes-mcp",
+  "tool_server_version": "1.2.3",
   "scenarios": ["broken-deployment"],
   "timeout": 300
 }

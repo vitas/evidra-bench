@@ -313,6 +313,15 @@ func TestBuildWhere_TenantAlwaysFirst(t *testing.T) {
 			},
 			wantArgs: 3,
 		},
+		{
+			name:   "tenant plus tool server",
+			tenant: "t4",
+			filters: bench.RunFilters{
+				ToolServer: "kubernetes-mcp",
+			},
+			wantArgs: 2,
+			wantSQL:  "tool_server = $2",
+		},
 	}
 
 	for _, tt := range tests {

@@ -29,6 +29,24 @@ bench-cli run \
 Bench does not auto-start or auto-build MCP server binaries. Install them in
 the runner environment the same way you would install any other tool server.
 
+`--mcp-server` is the executable command. Use `--tool-server-id` and
+`--tool-server-version` as stable comparison labels when the command is not a
+good product identity:
+
+```bash
+bench-cli bench \
+  --scenario kubernetes \
+  --provider bifrost \
+  --model sonnet \
+  --mcp-server "npx -y @vendor/kubernetes-mcp --stdio" \
+  --tool-server-id kubernetes-mcp \
+  --tool-server-version 1.2.3
+```
+
+If labels are omitted, Bench infers a best-effort ID from the command. Explicit
+labels always win and are recommended for private reports and release
+regression comparisons.
+
 ## Evidence Modes
 
 API and stored run records use two coarse modes:
@@ -38,10 +56,15 @@ API and stored run records use two coarse modes:
 | `none` | baseline or direct provider-loop run |
 | `mcp` | run used an MCP server |
 
-The trigger endpoint accepts `evidence_mode` values `none` and `mcp`.
+The trigger endpoint accepts `evidence_mode` values `none` and `mcp`. For MCP
+runs it may also carry:
 
-Use `tool_server` and `tool_server_version` metadata to distinguish individual
-MCP servers when comparing results.
+- `mcp_server`: executable command for the runner
+- `tool_server`: stable server identity used for filtering/comparison
+- `tool_server_version`: stable server version used in reports
+
+Legacy MCP rows with no stored server identity are backfilled as `legacy-mcp`
+so they remain visible in filters without inventing an exact server name.
 
 ## Optional File-Based Checks
 
@@ -79,6 +102,8 @@ bench-cli bench \
   --model sonnet \
   --provider bifrost \
   --mcp-server "npx -y @anthropic/mcp-server-kubernetes" \
+  --tool-server-id anthropic-kubernetes-mcp \
+  --tool-server-version 1.0.0 \
   --reuse-cluster
 
 # Same benchmark through another MCP server
@@ -87,6 +112,8 @@ bench-cli bench \
   --model sonnet \
   --provider bifrost \
   --mcp-server "$OTHER_MCP_SERVER" \
+  --tool-server-id other-kubernetes-mcp \
+  --tool-server-version "$OTHER_MCP_VERSION" \
   --reuse-cluster
 ```
 
