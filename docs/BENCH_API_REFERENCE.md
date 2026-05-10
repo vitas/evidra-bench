@@ -202,7 +202,10 @@ Returns scorecard artifact JSON.
 
 ### GET /v1/bench/runs/{id}/autopsy
 
-Returns failure autopsy artifact JSON when the run has one.
+Returns failure autopsy artifact JSON when the run has one. Current generated
+artifacts use `version: "autopsy.v1"` and include a deterministic `confidence`
+value. Older artifacts may omit `version`; clients should treat those as legacy
+v0 reports and continue rendering the common fields.
 
 ## Analytics
 

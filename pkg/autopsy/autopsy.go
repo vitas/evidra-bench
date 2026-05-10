@@ -9,6 +9,9 @@ import (
 	bench "samebits.com/evidra-infra-bench/pkg/bench"
 )
 
+// ReportVersion is the current failure autopsy artifact schema version.
+const ReportVersion = "autopsy.v1"
+
 // FailureKind is a deterministic failure classification.
 type FailureKind string
 
@@ -34,6 +37,15 @@ const (
 	SeverityCritical Severity = "critical"
 )
 
+// Confidence is how strongly the deterministic analyzer supports the report.
+type Confidence string
+
+const (
+	ConfidenceLow    Confidence = "low"
+	ConfidenceMedium Confidence = "medium"
+	ConfidenceHigh   Confidence = "high"
+)
+
 // Input is the subset of run data used for deterministic failure analysis.
 type Input struct {
 	Run        bench.RunRecord
@@ -44,9 +56,11 @@ type Input struct {
 
 // Report is the machine-readable failure autopsy artifact.
 type Report struct {
+	Version        string      `json:"version,omitempty"`
 	Outcome        string      `json:"outcome"`
 	PrimaryFailure FailureKind `json:"primary_failure,omitempty"`
 	Summary        string      `json:"summary"`
+	Confidence     Confidence  `json:"confidence,omitempty"`
 	Findings       []Finding   `json:"findings,omitempty"`
 	Metrics        Metrics     `json:"metrics"`
 	WastedTurns    int         `json:"wasted_turns,omitempty"`
@@ -85,8 +99,10 @@ func Analyze(in Input) Report {
 	}
 
 	report := Report{
-		Outcome: outcome,
-		Summary: "Run passed; no failure autopsy findings.",
+		Version:    ReportVersion,
+		Outcome:    outcome,
+		Summary:    "Run passed; no failure autopsy findings.",
+		Confidence: ConfidenceHigh,
 		Metrics: Metrics{
 			Turns:            in.Run.Turns,
 			PromptTokens:     in.Run.PromptTokens,
@@ -104,6 +120,7 @@ func Analyze(in Input) Report {
 	if in.Run.Passed {
 		return report
 	}
+	report.Confidence = ConfidenceLow
 
 	var maxRepeatedWaste int
 	if cmd, count := mostRepeatedCommand(in.ToolCalls); count >= 3 {
@@ -163,6 +180,7 @@ func Analyze(in Input) Report {
 		report.Summary = "Run failed; no deterministic failure pattern matched yet."
 	} else {
 		report.Summary = fmt.Sprintf("Run failed with primary failure %s.", report.PrimaryFailure)
+		report.Confidence = ConfidenceMedium
 	}
 	return report
 }

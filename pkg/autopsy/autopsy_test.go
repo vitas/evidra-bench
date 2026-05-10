@@ -29,6 +29,19 @@ func hasFinding(report Report, kind FailureKind) bool {
 	return false
 }
 
+func TestAnalyze_EmitsVersionedReport(t *testing.T) {
+	t.Parallel()
+
+	report := Analyze(Input{Run: bench.RunRecord{Passed: false}})
+
+	if report.Version != ReportVersion {
+		t.Fatalf("version = %q, want %q", report.Version, ReportVersion)
+	}
+	if report.Confidence != ConfidenceLow {
+		t.Fatalf("confidence = %q, want %q", report.Confidence, ConfidenceLow)
+	}
+}
+
 func TestAnalyze_DetectsRetryLoop(t *testing.T) {
 	t.Parallel()
 
@@ -49,6 +62,9 @@ func TestAnalyze_DetectsRetryLoop(t *testing.T) {
 	}
 	if report.PrimaryFailure != FailureRetryLoop {
 		t.Fatalf("primary_failure = %q, want %q", report.PrimaryFailure, FailureRetryLoop)
+	}
+	if report.Confidence != ConfidenceMedium {
+		t.Fatalf("confidence = %q, want %q", report.Confidence, ConfidenceMedium)
 	}
 	if report.WastedTurns != 2 {
 		t.Fatalf("wasted_turns = %d, want 2", report.WastedTurns)
@@ -137,5 +153,8 @@ func TestAnalyze_PassingRunHasNoPrimaryFailure(t *testing.T) {
 	}
 	if len(report.Findings) != 0 {
 		t.Fatalf("findings = %#v, want none for passing run", report.Findings)
+	}
+	if report.Confidence != ConfidenceHigh {
+		t.Fatalf("confidence = %q, want %q", report.Confidence, ConfidenceHigh)
 	}
 }
