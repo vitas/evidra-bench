@@ -37,7 +37,7 @@ func (h *Harness) writeRunArtifacts(req RunRequest, agentResult *adapter.RunResu
 		ChecksTotal:      checksTotalForAutopsy,
 		ChecksJSON:       string(checksJSON),
 		CreatedAt:        startTime,
-	}, toolCallsJSON, agentResult.Transcript, checksJSON)
+	}, toolCallsJSON, agentResult.Transcript, checksJSON, s.Autopsy)
 
 	chaosJSON, chaosLog := chaosArtifacts(chaosRunner)
 	chaosStepCount := 0
