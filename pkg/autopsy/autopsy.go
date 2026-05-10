@@ -241,8 +241,13 @@ func containsAny(text string, phrases []string) bool {
 	return false
 }
 
+type commandFingerprint struct {
+	Command string
+	Result  string
+}
+
 func mostRepeatedCommand(calls []bench.ToolCall) (string, int) {
-	counts := make(map[string]int)
+	counts := make(map[commandFingerprint]int)
 	for _, call := range calls {
 		if call.Tool != "run_command" {
 			continue
@@ -251,14 +256,17 @@ func mostRepeatedCommand(calls []bench.ToolCall) (string, int) {
 		if cmd == "" {
 			continue
 		}
-		counts[cmd]++
+		counts[commandFingerprint{
+			Command: cmd,
+			Result:  normalizeResult(call.Result),
+		}]++
 	}
 
 	var best string
 	var bestCount int
-	for cmd, count := range counts {
+	for fp, count := range counts {
 		if count > bestCount {
-			best = cmd
+			best = fp.Command
 			bestCount = count
 		}
 	}
@@ -277,4 +285,8 @@ func extractCommand(args json.RawMessage) string {
 
 func normalizeCommand(cmd string) string {
 	return strings.ToLower(strings.Join(strings.Fields(cmd), " "))
+}
+
+func normalizeResult(result string) string {
+	return strings.ToLower(strings.Join(strings.Fields(result), " "))
 }

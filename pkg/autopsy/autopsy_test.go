@@ -71,6 +71,26 @@ func TestAnalyze_DetectsRetryLoop(t *testing.T) {
 	}
 }
 
+func TestAnalyze_DoesNotFlagProgressingRepeatedCommandAsRetryLoop(t *testing.T) {
+	t.Parallel()
+
+	report := Analyze(Input{
+		Run: bench.RunRecord{
+			Passed: false,
+			Turns:  6,
+		},
+		ToolCalls: []bench.ToolCall{
+			toolCall(t, "kubectl rollout status deployment/web -n bench", "Waiting for deployment spec update to be observed..."),
+			toolCall(t, "kubectl rollout status deployment/web -n bench", "Waiting for deployment web rollout to finish: 1 old replicas are pending termination..."),
+			toolCall(t, "kubectl rollout status deployment/web -n bench", "Waiting for deployment web rollout to finish: 1 of 2 updated replicas are available..."),
+		},
+	})
+
+	if hasFinding(report, FailureRetryLoop) {
+		t.Fatalf("did not expect retry_loop finding for progressing repeated command, got %#v", report.Findings)
+	}
+}
+
 func TestAnalyze_DetectsPrematureSuccess(t *testing.T) {
 	t.Parallel()
 
