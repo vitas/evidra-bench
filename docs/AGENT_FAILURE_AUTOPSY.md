@@ -16,6 +16,10 @@ only that it failed. The goal is to turn raw transcripts, tool calls, timeline
 events, verifier output, tokens, and costs into a report a platform team can
 act on.
 
+The MVP scope and implementation sequence are tracked in
+[Autopsy MVP Design](plans/2026-05-10-autopsy-mvp-design.md) and
+[Autopsy MVP Implementation Plan](plans/2026-05-10-autopsy-mvp.md).
+
 ## Problem
 
 Pass/fail is too coarse for agent regression testing. A failed run can mean many

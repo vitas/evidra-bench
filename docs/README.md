@@ -24,6 +24,8 @@ Use this page as the documentation home in Obsidian and GitHub.
   boundary, and go-to-market notes.
 - [Agent Failure Autopsy](AGENT_FAILURE_AUTOPSY.md) - target product design
   for explaining where and why an agent failed.
+- [Autopsy MVP Design](plans/2026-05-10-autopsy-mvp-design.md) - next
+  first-class failure-analysis release slice.
 
 ## Architecture
 
