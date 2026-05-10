@@ -122,6 +122,9 @@ func Analyze(in Input) Report {
 	}
 	report.Confidence = ConfidenceLow
 
+	claimText, hasFinalAssistant := finalAssistantText(in.Transcript)
+	transcriptFallback := !hasFinalAssistant && claimText != ""
+
 	var maxRepeatedWaste int
 	if cmd, count := mostRepeatedCommand(in.ToolCalls); count >= 3 {
 		maxRepeatedWaste = count - 1
@@ -133,7 +136,7 @@ func Analyze(in Input) Report {
 		})
 	}
 
-	if containsAny(in.Transcript, gaveUpPhrases) {
+	if containsAny(claimText, gaveUpPhrases) {
 		report.add(Finding{
 			Kind:     FailureGaveUp,
 			Severity: SeverityCritical,
@@ -141,7 +144,7 @@ func Analyze(in Input) Report {
 		})
 	}
 
-	if containsAny(in.Transcript, prematureSuccessPhrases) {
+	if containsAny(claimText, prematureSuccessPhrases) {
 		report.add(Finding{
 			Kind:     FailurePrematureSuccess,
 			Severity: SeverityCritical,
@@ -181,6 +184,9 @@ func Analyze(in Input) Report {
 	} else {
 		report.Summary = fmt.Sprintf("Run failed with primary failure %s.", report.PrimaryFailure)
 		report.Confidence = ConfidenceMedium
+		if transcriptFallback && isTranscriptClaimFailure(report.PrimaryFailure) {
+			report.Confidence = ConfidenceLow
+		}
 	}
 	return report
 }
@@ -239,6 +245,59 @@ func containsAny(text string, phrases []string) bool {
 		}
 	}
 	return false
+}
+
+func isTranscriptClaimFailure(kind FailureKind) bool {
+	return kind == FailureGaveUp || kind == FailurePrematureSuccess
+}
+
+func finalAssistantText(transcript string) (string, bool) {
+	var current []string
+	var last string
+	collecting := false
+
+	for _, line := range strings.Split(transcript, "\n") {
+		if strings.HasPrefix(line, "[assistant]") {
+			if collecting {
+				last = strings.TrimSpace(strings.Join(current, "\n"))
+			}
+			collecting = true
+			current = []string{strings.TrimSpace(strings.TrimPrefix(line, "[assistant]"))}
+			continue
+		}
+
+		if isTranscriptRoleLine(line) {
+			if collecting {
+				last = strings.TrimSpace(strings.Join(current, "\n"))
+				collecting = false
+				current = nil
+			}
+			continue
+		}
+
+		if collecting {
+			current = append(current, line)
+		}
+	}
+
+	if collecting {
+		last = strings.TrimSpace(strings.Join(current, "\n"))
+	}
+	if last == "" {
+		return transcript, false
+	}
+	return last, true
+}
+
+func isTranscriptRoleLine(line string) bool {
+	if !strings.HasPrefix(line, "[") {
+		return false
+	}
+	end := strings.Index(line, "]")
+	if end <= 1 {
+		return false
+	}
+	return len(line) == end+1 || line[end+1] == ' '
 }
 
 type commandFingerprint struct {

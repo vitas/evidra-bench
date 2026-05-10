@@ -105,6 +105,21 @@ func TestAnalyze_DetectsPrematureSuccess(t *testing.T) {
 	}
 }
 
+func TestAnalyze_FinalAssistantAnswerAvoidsEarlyPrematureSuccess(t *testing.T) {
+	t.Parallel()
+
+	report := Analyze(Input{
+		Run: bench.RunRecord{Passed: false, ChecksPassed: 1, ChecksTotal: 2},
+		Transcript: `[assistant] The deployment is fixed and everything is working.
+[tool] verifier failed: deployment/web not ready
+[assistant] The checks are still failing. I need to inspect deployment events next.`,
+	})
+
+	if hasFinding(report, FailurePrematureSuccess) {
+		t.Fatalf("did not expect premature_success from non-final assistant text, got %#v", report.Findings)
+	}
+}
+
 func TestAnalyze_DetectsMissedDiagnosticStep(t *testing.T) {
 	t.Parallel()
 
