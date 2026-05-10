@@ -81,6 +81,7 @@ func (r *handlerRepo) ListRuns(_ context.Context, tenant string, f bench.RunFilt
 		return nil, 0, r.runsErr
 	}
 	filtered := filterRunsByEvidenceMode(r.runs, f.EvidenceMode)
+	filtered = filterRunsByModel(filtered, f.Model)
 	filtered = filterRunsByToolServer(filtered, f.ToolServer)
 	filtered = filterRunsByToolServerVersion(filtered, f.ToolServerVersion)
 	if f.ScenarioID != "" {
@@ -116,6 +117,7 @@ func (r *handlerRepo) FilteredStats(_ context.Context, tenant string, f bench.Ru
 		return r.stats, nil
 	}
 	filtered := filterRunsByEvidenceMode(r.runs, f.EvidenceMode)
+	filtered = filterRunsByModel(filtered, f.Model)
 	filtered = filterRunsByToolServer(filtered, f.ToolServer)
 	filtered = filterRunsByToolServerVersion(filtered, f.ToolServerVersion)
 	return aggregateStatsRuns(filtered), nil
@@ -322,6 +324,19 @@ func filterRunsByEvidenceMode(runs []bench.RunRecord, mode string) []bench.RunRe
 	filtered := make([]bench.RunRecord, 0, len(runs))
 	for _, run := range runs {
 		if evidenceModeMatchesQuery(mode, run.EvidenceMode) {
+			filtered = append(filtered, run)
+		}
+	}
+	return filtered
+}
+
+func filterRunsByModel(runs []bench.RunRecord, model string) []bench.RunRecord {
+	if model == "" {
+		return runs
+	}
+	filtered := make([]bench.RunRecord, 0, len(runs))
+	for _, run := range runs {
+		if run.Model == model {
 			filtered = append(filtered, run)
 		}
 	}

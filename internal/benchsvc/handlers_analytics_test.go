@@ -120,6 +120,153 @@ func TestHandleCompareModels_MatrixPassesEvidenceMode(t *testing.T) {
 	}
 }
 
+func TestHandleCompareToolServer_ReturnsBaselineVsSelectedVersion(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		runs: []bench.RunRecord{
+			{
+				ID:               "baseline-s1",
+				ScenarioID:       "s1",
+				Model:            "sonnet",
+				EvidenceMode:     "none",
+				Passed:           false,
+				Turns:            10,
+				PromptTokens:     1000,
+				CompletionTokens: 200,
+				EstimatedCost:    0.12,
+				Duration:         50,
+			},
+			{
+				ID:                "candidate-s1",
+				ScenarioID:        "s1",
+				Model:             "sonnet",
+				EvidenceMode:      "mcp",
+				ToolServer:        "kubernetes-mcp",
+				ToolServerVersion: "1.2.3",
+				Passed:            true,
+				Turns:             6,
+				PromptTokens:      700,
+				CompletionTokens:  150,
+				EstimatedCost:     0.08,
+				Duration:          32,
+			},
+			{
+				ID:               "baseline-s2",
+				ScenarioID:       "s2",
+				Model:            "sonnet",
+				EvidenceMode:     "none",
+				Passed:           true,
+				Turns:            4,
+				PromptTokens:     400,
+				CompletionTokens: 100,
+				EstimatedCost:    0.04,
+				Duration:         21,
+			},
+			{
+				ID:                "candidate-s2",
+				ScenarioID:        "s2",
+				Model:             "sonnet",
+				EvidenceMode:      "mcp",
+				ToolServer:        "kubernetes-mcp",
+				ToolServerVersion: "1.2.3",
+				Passed:            false,
+				Turns:             12,
+				PromptTokens:      1100,
+				CompletionTokens:  300,
+				EstimatedCost:     0.15,
+				Duration:          60,
+			},
+			{
+				ID:                "candidate-wrong-version",
+				ScenarioID:        "s1",
+				Model:             "sonnet",
+				EvidenceMode:      "mcp",
+				ToolServer:        "kubernetes-mcp",
+				ToolServerVersion: "2.0.0",
+				Passed:            true,
+			},
+			{
+				ID:           "candidate-wrong-model",
+				ScenarioID:   "s1",
+				Model:        "opus",
+				EvidenceMode: "mcp",
+				ToolServer:   "kubernetes-mcp",
+				Passed:       true,
+			},
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/compare/tool-server?model=sonnet&tool_server=kubernetes-mcp&tool_server_version=1.2.3&scenarios=s1,s2", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	var body struct {
+		Model             string `json:"model"`
+		ToolServer        string `json:"tool_server"`
+		ToolServerVersion string `json:"tool_server_version"`
+		Baseline          struct {
+			Runs   int `json:"runs"`
+			Passed int `json:"passed"`
+		} `json:"baseline"`
+		Candidate struct {
+			Runs   int `json:"runs"`
+			Passed int `json:"passed"`
+		} `json:"candidate"`
+		ImprovedScenarios []struct {
+			ScenarioID string `json:"scenario_id"`
+		} `json:"improved_scenarios"`
+		RegressedScenarios []struct {
+			ScenarioID string `json:"scenario_id"`
+		} `json:"regressed_scenarios"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+
+	if body.Model != "sonnet" {
+		t.Fatalf("model = %q, want sonnet", body.Model)
+	}
+	if body.ToolServer != "kubernetes-mcp" {
+		t.Fatalf("tool_server = %q, want kubernetes-mcp", body.ToolServer)
+	}
+	if body.ToolServerVersion != "1.2.3" {
+		t.Fatalf("tool_server_version = %q, want 1.2.3", body.ToolServerVersion)
+	}
+	if body.Baseline.Runs != 2 || body.Baseline.Passed != 1 {
+		t.Fatalf("baseline = %+v, want runs=2 passed=1", body.Baseline)
+	}
+	if body.Candidate.Runs != 2 || body.Candidate.Passed != 1 {
+		t.Fatalf("candidate = %+v, want runs=2 passed=1", body.Candidate)
+	}
+	if len(body.ImprovedScenarios) != 1 || body.ImprovedScenarios[0].ScenarioID != "s1" {
+		t.Fatalf("improved_scenarios = %+v, want [s1]", body.ImprovedScenarios)
+	}
+	if len(body.RegressedScenarios) != 1 || body.RegressedScenarios[0].ScenarioID != "s2" {
+		t.Fatalf("regressed_scenarios = %+v, want [s2]", body.RegressedScenarios)
+	}
+}
+
+func TestHandleCompareToolServer_RequiresModelAndToolServer(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/compare/tool-server?model=sonnet", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+}
+
 // compareModelsRepo is a fake that returns canned CompareModels data.
 type compareModelsRepo struct {
 	handlerRepo

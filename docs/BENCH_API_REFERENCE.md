@@ -273,6 +273,76 @@ Compares two runs. Requires `a` and `b` query parameters.
 Compares model performance. Pairwise mode uses `a` and `b`; matrix mode uses
 comma-separated `models` and optional comma-separated `scenarios`.
 
+### GET /v1/bench/compare/tool-server
+
+Compares no-MCP/native-tools baseline runs against runs for one selected MCP
+tool server. Use this for private MCP readiness reports and release regression
+reports where the model and scenario slice stay fixed and only the tool server
+changes.
+
+Query parameters:
+
+| Name | Description |
+|---|---|
+| `model` | required exact model ID |
+| `tool_server` | required exact MCP tool-server identity |
+| `tool_server_version` | optional exact MCP tool-server version |
+| `scenario` | optional exact scenario ID |
+| `scenarios` | optional comma-separated scenario IDs; ignored when `scenario` is set |
+
+Response:
+
+```json
+{
+  "model": "sonnet",
+  "tool_server": "kubernetes-mcp",
+  "tool_server_version": "1.2.3",
+  "scenario_ids": ["broken-deployment", "stuck-rollout"],
+  "baseline": {
+    "runs": 2,
+    "passed": 1,
+    "pass_rate": 50,
+    "avg_turns": 7,
+    "avg_tokens": 850,
+    "avg_cost_usd": 0.08,
+    "avg_duration_seconds": 35.5
+  },
+  "candidate": {
+    "runs": 2,
+    "passed": 2,
+    "pass_rate": 100,
+    "avg_turns": 5,
+    "avg_tokens": 620,
+    "avg_cost_usd": 0.05,
+    "avg_duration_seconds": 28
+  },
+  "delta": {
+    "pass_rate_delta": 50,
+    "avg_turns_delta": -2,
+    "avg_tokens_delta": -230,
+    "avg_cost_usd_delta": -0.03,
+    "avg_duration_seconds_delta": -7.5
+  },
+  "scenarios": [
+    {
+      "scenario_id": "broken-deployment",
+      "baseline": { "runs": 1, "passed": 0, "pass_rate": 0 },
+      "candidate": { "runs": 1, "passed": 1, "pass_rate": 100 },
+      "delta": { "pass_rate_delta": 100 }
+    }
+  ],
+  "improved_scenarios": [
+    {
+      "scenario_id": "broken-deployment",
+      "baseline": { "runs": 1, "passed": 0, "pass_rate": 0 },
+      "candidate": { "runs": 1, "passed": 1, "pass_rate": 100 },
+      "delta": { "pass_rate_delta": 100 }
+    }
+  ],
+  "regressed_scenarios": []
+}
+```
+
 ### GET /v1/bench/signals
 
 Aggregates behavioral signals parsed from scorecard artifacts.

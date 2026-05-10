@@ -70,3 +70,33 @@ func handleCompareModels(svc *Service) http.HandlerFunc {
 		apiutil.WriteJSON(w, http.StatusOK, result)
 	}
 }
+
+func handleCompareToolServer(svc *Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenantID := auth.TenantID(r.Context())
+		q := r.URL.Query()
+		model := q.Get("model")
+		toolServer := q.Get("tool_server")
+		if model == "" || toolServer == "" {
+			apiutil.WriteError(w, http.StatusBadRequest, "query params 'model' and 'tool_server' are required")
+			return
+		}
+
+		scenarios := parseCSVQuery(q.Get("scenarios"))
+		if scenario := q.Get("scenario"); scenario != "" {
+			scenarios = parseCSVQuery(scenario)
+		}
+
+		result, err := svc.CompareToolServer(r.Context(), tenantID, ToolServerCompareRequest{
+			Model:             model,
+			ToolServer:        toolServer,
+			ToolServerVersion: q.Get("tool_server_version"),
+			ScenarioIDs:       scenarios,
+		})
+		if err != nil {
+			apiutil.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		apiutil.WriteJSON(w, http.StatusOK, result)
+	}
+}
