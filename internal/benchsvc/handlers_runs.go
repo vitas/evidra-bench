@@ -21,17 +21,18 @@ func handleListRuns(svc *Service) http.HandlerFunc {
 		offset, _ := strconv.Atoi(q.Get("offset"))
 
 		f := bench.RunFilters{
-			ScenarioID:   q.Get("scenario"),
-			ScenarioIDs:  parseCSVQuery(q.Get("scenarios")),
-			Model:        q.Get("model"),
-			Provider:     q.Get("provider"),
-			ToolServer:   q.Get("tool_server"),
-			EvidenceMode: q.Get("evidence_mode"),
-			Since:        parseSince(q.Get("since")),
-			Limit:        limit,
-			Offset:       offset,
-			SortBy:       q.Get("sort_by"),
-			SortOrder:    q.Get("sort_order"),
+			ScenarioID:        q.Get("scenario"),
+			ScenarioIDs:       parseCSVQuery(q.Get("scenarios")),
+			Model:             q.Get("model"),
+			Provider:          q.Get("provider"),
+			ToolServer:        q.Get("tool_server"),
+			ToolServerVersion: q.Get("tool_server_version"),
+			EvidenceMode:      q.Get("evidence_mode"),
+			Since:             parseSince(q.Get("since")),
+			Limit:             limit,
+			Offset:            offset,
+			SortBy:            q.Get("sort_by"),
+			SortOrder:         q.Get("sort_order"),
 		}
 		if q.Get("passed") == "true" {
 			f.PassedOnly = true

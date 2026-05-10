@@ -50,27 +50,29 @@ type RunRecord struct {
 
 // RunFilters specifies filters for listing runs.
 type RunFilters struct {
-	ScenarioID    string
-	ScenarioIDs   []string
-	Model         string
-	Provider      string
-	ToolServer    string
-	EvidenceMode  string // none, mcp, or empty for all
-	PassedOnly    bool
-	FailedOnly    bool
-	Since         *time.Time // cutoff time — handler parses, store just uses
-	Limit         int
-	Offset        int
-	SortBy        string // column to sort by
-	SortOrder     string // asc or desc (default: desc)
-	ExcludeErrors bool   // exclude infra errors (exit_code < 0)
+	ScenarioID        string
+	ScenarioIDs       []string
+	Model             string
+	Provider          string
+	ToolServer        string
+	ToolServerVersion string
+	EvidenceMode      string // none, mcp, or empty for all
+	PassedOnly        bool
+	FailedOnly        bool
+	Since             *time.Time // cutoff time — handler parses, store just uses
+	Limit             int
+	Offset            int
+	SortBy            string // column to sort by
+	SortOrder         string // asc or desc (default: desc)
+	ExcludeErrors     bool   // exclude infra errors (exit_code < 0)
 }
 
 // RunCatalog holds distinct metadata values used for UI filters.
 type RunCatalog struct {
-	Models      []string `json:"models"`
-	Providers   []string `json:"providers"`
-	ToolServers []string `json:"tool_servers"`
+	Models             []string `json:"models"`
+	Providers          []string `json:"providers"`
+	ToolServers        []string `json:"tool_servers"`
+	ToolServerVersions []string `json:"tool_server_versions"`
 }
 
 // StatsResult holds aggregate run statistics.

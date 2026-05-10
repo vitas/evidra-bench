@@ -166,6 +166,10 @@ func buildWhere(tenantID string, f bench.RunFilters) (string, []any) {
 		args = append(args, f.ToolServer)
 		clauses = append(clauses, fmt.Sprintf("tool_server = $%d", len(args)))
 	}
+	if f.ToolServerVersion != "" {
+		args = append(args, f.ToolServerVersion)
+		clauses = append(clauses, fmt.Sprintf("tool_server_version = $%d", len(args)))
+	}
 	if clause, clauseArgs := evidenceModeClause(len(args)+1, f.EvidenceMode); clause != "" {
 		clauses = append(clauses, clause)
 		args = append(args, clauseArgs...)

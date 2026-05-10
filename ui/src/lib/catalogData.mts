@@ -2,6 +2,7 @@ export interface CatalogResponse {
   models: string[];
   providers: string[];
   tool_servers: string[];
+  tool_server_versions?: string[];
 }
 
 function normalizeList(values: string[]): string[] {
@@ -13,6 +14,7 @@ export function normalizeCatalog(catalog: CatalogResponse): CatalogResponse {
     models: normalizeList(catalog.models),
     providers: normalizeList(catalog.providers),
     tool_servers: normalizeList(catalog.tool_servers ?? []),
+    tool_server_versions: normalizeList(catalog.tool_server_versions ?? []),
   };
 }
 

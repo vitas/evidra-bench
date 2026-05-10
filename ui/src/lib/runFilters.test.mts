@@ -10,7 +10,7 @@ import {
 test("runs filters are initialized from URL search params", () => {
   const filters = runsFiltersFromSearchParams(
     new URLSearchParams(
-      "model=claude-sonnet&scenario=broken-deployment&exam=kubernetes-security&provider=anthropic&passed=true&since=2026-05-01",
+      "model=claude-sonnet&scenario=broken-deployment&exam=kubernetes-security&provider=anthropic&tool_server_version=1.2.3&passed=true&since=2026-05-01",
     ),
   );
 
@@ -20,6 +20,7 @@ test("runs filters are initialized from URL search params", () => {
     model: "claude-sonnet",
     provider: "anthropic",
     toolServer: "All",
+    toolServerVersion: "1.2.3",
     status: "Passed",
     since: "2026-05-01",
   });
@@ -45,11 +46,15 @@ test("runs filters serialize only active URL filters", () => {
     model: "claude-sonnet",
     provider: "All",
     toolServer: "kubernetes-mcp",
+    toolServerVersion: "1.2.3",
     status: "All",
     since: "",
   });
 
-  assert.equal(params.toString(), "exam=kubernetes-security&model=claude-sonnet&tool_server=kubernetes-mcp");
+  assert.equal(
+    params.toString(),
+    "exam=kubernetes-security&model=claude-sonnet&tool_server=kubernetes-mcp&tool_server_version=1.2.3",
+  );
 });
 
 test("runs API path maps selected exam suite to scenario ids", () => {
@@ -60,6 +65,7 @@ test("runs API path maps selected exam suite to scenario ids", () => {
       model: "claude-sonnet",
       provider: "All",
       toolServer: "kubernetes-mcp",
+      toolServerVersion: "1.2.3",
       status: "All",
       since: "",
     },
@@ -71,7 +77,7 @@ test("runs API path maps selected exam suite to scenario ids", () => {
 
   assert.equal(
     path,
-    "/v1/bench/runs?scenarios=s1%2Cs2&model=claude-sonnet&tool_server=kubernetes-mcp&limit=25&offset=25&evidence_mode=mcp",
+    "/v1/bench/runs?scenarios=s1%2Cs2&model=claude-sonnet&tool_server=kubernetes-mcp&tool_server_version=1.2.3&limit=25&offset=25&evidence_mode=mcp",
   );
 });
 
@@ -83,6 +89,7 @@ test("runs API path keeps explicit scenario above exam suite ids", () => {
       model: "All",
       provider: "All",
       toolServer: "All",
+      toolServerVersion: "All",
       status: "All",
       since: "",
     },

@@ -8,11 +8,13 @@ test("normalizeCatalog deduplicates and sorts models/providers", () => {
     models: ["sonnet", "haiku", "sonnet", ""],
     providers: ["bifrost", "claude", "bifrost", ""],
     tool_servers: ["kubernetes-mcp", "legacy-mcp", "kubernetes-mcp", ""],
+    tool_server_versions: ["1.2.4", "1.2.3", "1.2.3", ""],
   });
 
   assert.deepEqual(catalog.models, ["haiku", "sonnet"]);
   assert.deepEqual(catalog.providers, ["bifrost", "claude"]);
   assert.deepEqual(catalog.tool_servers, ["kubernetes-mcp", "legacy-mcp"]);
+  assert.deepEqual(catalog.tool_server_versions, ["1.2.3", "1.2.4"]);
 });
 
 test("buildRunsPath applies limit and optional since filter", () => {

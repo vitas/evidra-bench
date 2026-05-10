@@ -62,7 +62,8 @@ runs it may also carry:
 
 - `mcp_server`: executable command for the runner
 - `tool_server`: stable server identity used for filtering/comparison
-- `tool_server_version`: stable server version used in reports
+- `tool_server_version`: stable server version used for filtering/comparison
+  and reports
 
 Legacy MCP rows with no stored server identity are backfilled as `legacy-mcp`
 so they remain visible in filters without inventing an exact server name.

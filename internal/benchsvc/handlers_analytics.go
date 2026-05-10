@@ -13,12 +13,13 @@ func handleStats(svc *Service) http.HandlerFunc {
 		tenantID := auth.TenantID(r.Context())
 		q := r.URL.Query()
 		f := bench.RunFilters{
-			ScenarioID:   q.Get("scenario"),
-			Model:        q.Get("model"),
-			Provider:     q.Get("provider"),
-			ToolServer:   q.Get("tool_server"),
-			EvidenceMode: q.Get("evidence_mode"),
-			Since:        parseSince(q.Get("since")),
+			ScenarioID:        q.Get("scenario"),
+			Model:             q.Get("model"),
+			Provider:          q.Get("provider"),
+			ToolServer:        q.Get("tool_server"),
+			ToolServerVersion: q.Get("tool_server_version"),
+			EvidenceMode:      q.Get("evidence_mode"),
+			Since:             parseSince(q.Get("since")),
 		}
 		st, err := svc.FilteredStats(r.Context(), tenantID, f)
 		if err != nil {
@@ -34,12 +35,13 @@ func handleSignals(svc *Service) http.HandlerFunc {
 		tenantID := auth.TenantID(r.Context())
 		q := r.URL.Query()
 		f := bench.RunFilters{
-			ScenarioID:   q.Get("scenario"),
-			Model:        q.Get("model"),
-			Provider:     q.Get("provider"),
-			ToolServer:   q.Get("tool_server"),
-			EvidenceMode: q.Get("evidence_mode"),
-			Since:        parseSince(q.Get("since")),
+			ScenarioID:        q.Get("scenario"),
+			Model:             q.Get("model"),
+			Provider:          q.Get("provider"),
+			ToolServer:        q.Get("tool_server"),
+			ToolServerVersion: q.Get("tool_server_version"),
+			EvidenceMode:      q.Get("evidence_mode"),
+			Since:             parseSince(q.Get("since")),
 		}
 
 		agg, err := svc.SignalSummary(r.Context(), tenantID, f)

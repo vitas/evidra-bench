@@ -28,7 +28,7 @@ func (s *PgStore) ListRuns(ctx context.Context, tenantID string, f bench.RunFilt
 	validSortColumns := map[string]bool{
 		"created_at": true, "duration_seconds": true, "estimated_cost_usd": true,
 		"scenario_id": true, "model": true, "provider": true,
-		"tool_server": true, "checks_passed": true, "turns": true, "passed": true,
+		"tool_server": true, "tool_server_version": true, "checks_passed": true, "turns": true, "passed": true,
 	}
 	if f.SortBy != "" && validSortColumns[f.SortBy] {
 		orderCol = f.SortBy

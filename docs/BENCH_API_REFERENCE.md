@@ -156,6 +156,7 @@ Query parameters:
 |---|---|
 | `model` | exact model filter |
 | `tool_server` | exact MCP tool-server identity filter |
+| `tool_server_version` | exact MCP tool-server version filter |
 | `scenario` | exact scenario ID filter |
 | `scenarios` | comma-separated scenario IDs; ignored when `scenario` is set |
 | `evidence_mode` | filter using the evidence-mode contract above |
@@ -163,7 +164,7 @@ Query parameters:
 | `passed` | `true` or `false` |
 | `limit` | page size |
 | `offset` | page offset |
-| `sort_by` | `created_at`, `duration_seconds`, `estimated_cost_usd`, `scenario_id`, `model`, `provider`, `tool_server`, `checks_passed`, `turns`, or `passed` |
+| `sort_by` | `created_at`, `duration_seconds`, `estimated_cost_usd`, `scenario_id`, `model`, `provider`, `tool_server`, `tool_server_version`, `checks_passed`, `turns`, or `passed` |
 | `sort_order` | `asc` or `desc` |
 
 ### GET /v1/bench/runs/{id}
@@ -224,13 +225,15 @@ Aggregate run counts and pass/fail breakdown. Accepts the same filters as
 
 ### GET /v1/bench/catalog
 
-Distinct models, providers, and MCP tool servers observed in stored runs.
+Distinct models, providers, MCP tool servers, and MCP tool-server versions
+observed in stored runs.
 
 ```json
 {
   "models": ["sonnet"],
   "providers": ["anthropic"],
-  "tool_servers": ["kubernetes-mcp", "legacy-mcp"]
+  "tool_servers": ["kubernetes-mcp", "legacy-mcp"],
+  "tool_server_versions": ["1.2.3"]
 }
 ```
 

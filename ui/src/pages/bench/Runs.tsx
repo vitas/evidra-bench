@@ -108,7 +108,12 @@ export function Runs() {
   const initialFilters = runsFiltersFromSearchParams(searchParams);
 
   const [data, setData] = useState<RunsResponse | null>(null);
-  const [catalog, setCatalog] = useState<CatalogResponse>({ models: [], providers: [], tool_servers: [] });
+  const [catalog, setCatalog] = useState<CatalogResponse>({
+    models: [],
+    providers: [],
+    tool_servers: [],
+    tool_server_versions: [],
+  });
   const [scenarioCatalog, setScenarioCatalog] = useState<ExamPackScenario[]>([]);
   const [scenarioCatalogLoaded, setScenarioCatalogLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -120,6 +125,7 @@ export function Runs() {
   const [model, setModel] = useState(initialFilters.model);
   const [provider, setProvider] = useState(initialFilters.provider);
   const [toolServer, setToolServer] = useState(initialFilters.toolServer);
+  const [toolServerVersion, setToolServerVersion] = useState(initialFilters.toolServerVersion);
   const [status, setStatus] = useState<RunsStatus>(initialFilters.status);
   const [since, setSince] = useState(initialFilters.since);
 
@@ -165,7 +171,14 @@ export function Runs() {
   useEffect(() => {
     request<CatalogResponse>(`/v1/bench/catalog${evidenceModeParam("?", mode)}`)
       .then((res) => setCatalog(normalizeCatalog(res)))
-      .catch(() => setCatalog({ models: [], providers: [], tool_servers: [] }));
+      .catch(() =>
+        setCatalog({
+          models: [],
+          providers: [],
+          tool_servers: [],
+          tool_server_versions: [],
+        }),
+      );
   }, [request, mode]);
 
   useEffect(() => {
@@ -193,6 +206,7 @@ export function Runs() {
     setModel(nextFilters.model);
     setProvider(nextFilters.provider);
     setToolServer(nextFilters.toolServer);
+    setToolServerVersion(nextFilters.toolServerVersion);
     setStatus(nextFilters.status);
     setSince(nextFilters.since);
     setAppliedFilters(nextFilters);
@@ -206,6 +220,7 @@ export function Runs() {
       model,
       provider,
       toolServer,
+      toolServerVersion,
       status,
       since,
     };
@@ -220,6 +235,7 @@ export function Runs() {
     setModel(DEFAULT_RUNS_FILTERS.model);
     setProvider(DEFAULT_RUNS_FILTERS.provider);
     setToolServer(DEFAULT_RUNS_FILTERS.toolServer);
+    setToolServerVersion(DEFAULT_RUNS_FILTERS.toolServerVersion);
     setStatus(DEFAULT_RUNS_FILTERS.status);
     setSince(DEFAULT_RUNS_FILTERS.since);
     setAppliedFilters(DEFAULT_RUNS_FILTERS);
@@ -353,6 +369,21 @@ export function Runs() {
         </label>
 
         <label className="flex flex-col gap-1">
+          <span className="text-[0.7rem] font-medium text-fg-muted uppercase tracking-wide">Version</span>
+          <select
+            value={toolServerVersion}
+            onChange={(e) => setToolServerVersion(e.target.value)}
+            className={inputClass + " w-40"}
+          >
+            {["All", ...(catalog.tool_server_versions ?? [])].map((version) => (
+              <option key={version} value={version}>
+                {version}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1">
           <span className="text-[0.7rem] font-medium text-fg-muted uppercase tracking-wide">Status</span>
           <select
             value={status}
@@ -469,7 +500,10 @@ export function Runs() {
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-body">{run.model}</td>
                     <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-muted">
-                      {run.tool_server || "baseline"}
+                      <span className="block">{run.tool_server || "baseline"}</span>
+                      {run.tool_server_version && (
+                        <span className="block text-[0.7rem] text-fg-muted/80">{run.tool_server_version}</span>
+                      )}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-muted">
                       {formatDuration(run.duration_seconds)}
