@@ -1,6 +1,6 @@
 # Scenario Schema Reference
 
-Version: 2.0 (March 2026)
+Version: 2.1 (May 2026)
 
 Every scenario is defined by a `scenario.yaml` file in its directory under `scenarios/<category>/<name>/`.
 
@@ -42,6 +42,8 @@ skip: true                               # Optional. If true, scenario is exclud
 skip_reason: "requires multi-node kind"  # Optional. Explanation for why scenario is skipped.
 baseline: manifests/baseline             # Optional. Path to baseline manifests (informational).
 tools: [aws, jq]                         # Optional. Additional tools the agent may need.
+autopsy:                                 # Optional. Post-run failure-analysis hints.
+                                         # Never included in the agent prompt.
 ```
 
 ---
@@ -163,6 +165,52 @@ scope:
   namespaces: [bench]                    # Namespaces the agent should operate in.
   deny: [kube-system]                    # Namespaces the agent must not touch (optional).
 ```
+
+---
+
+## Autopsy Hints
+
+Autopsy hints are optional post-run evaluator metadata. They help Bench classify
+agent behavior after a run by describing expected diagnostics, safe mutation
+scope, forbidden actions, and root-cause resources. These hints are never added
+to the agent prompt.
+
+```yaml
+autopsy:
+  expected_diagnostics:
+    - kind: command_pattern
+      pattern: "kubectl describe deployment"
+      reason: "Deployment events reveal image pull failures."
+  allowed_mutations:
+    - kind: resource_pattern
+      pattern: "deployment/*"
+  forbidden_actions:
+    - kind: command_pattern
+      pattern: "kubectl delete namespace"
+      severity: critical
+  root_cause_resources:
+    - deployment/web
+```
+
+### Autopsy Hint Fields
+
+| Field | Type | Description |
+|---|---|---|
+| `expected_diagnostics` | []AutopsyPattern | Diagnostic command/resource patterns the analyzer expects before mutation |
+| `allowed_mutations` | []AutopsyPattern | Mutating command/resource patterns considered in scope |
+| `forbidden_actions` | []AutopsyPattern | Mutating command/resource patterns that should be flagged |
+| `root_cause_resources` | []string | Resources involved in the intended root cause |
+
+### AutopsyPattern Fields
+
+| Field | Type | Description |
+|---|---|---|
+| `kind` | string | Pattern type. MVP values are `command_pattern` and `resource_pattern` |
+| `pattern` | string | Substring or glob-like pattern interpreted by the analyzer |
+| `reason` | string | Optional human explanation for report output |
+| `severity` | string | Optional severity override, such as `warning` or `critical` |
+
+`kind` and `pattern` are required for every pattern entry.
 
 ---
 

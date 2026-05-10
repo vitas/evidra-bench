@@ -457,6 +457,27 @@ checks:
 	}
 }
 
+func TestValidate_AutopsyPatternRequiresKindAndPattern(t *testing.T) {
+	t.Parallel()
+
+	s := &Scenario{
+		ID:       "test",
+		Title:    "test",
+		Category: "kubernetes",
+		Prompt:   "task.md",
+		Break:    Break{Type: "kubectl-apply", Path: "fixtures/broken.yaml"},
+		Checks:   []Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+		Autopsy: AutopsyHints{
+			ExpectedDiagnostics: []AutopsyPattern{{Kind: "command_pattern"}},
+			ForbiddenActions:    []AutopsyPattern{{Pattern: "kubectl delete namespace"}},
+		},
+	}
+
+	if err := validate(s); err == nil {
+		t.Fatal("expected error for incomplete autopsy hints")
+	}
+}
+
 func TestValidate_MissingBreakAndStages(t *testing.T) {
 	t.Parallel()
 	s := &Scenario{

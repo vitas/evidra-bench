@@ -31,6 +31,7 @@ type Scenario struct {
 	Baseline    string            `yaml:"baseline,omitempty"`
 	Tools       []string          `yaml:"tools,omitempty"`
 	Environment EnvironmentConfig `yaml:"environment,omitempty"`
+	Autopsy     AutopsyHints      `yaml:"autopsy,omitempty"`
 	Skip        bool              `yaml:"skip,omitempty"`
 	SkipReason  string            `yaml:"skip_reason,omitempty"`
 }
@@ -78,6 +79,23 @@ type Check struct {
 type Scope struct {
 	Namespaces []string `yaml:"namespaces,omitempty"`
 	Deny       []string `yaml:"deny,omitempty"`
+}
+
+// AutopsyHints are post-run evaluator hints for deterministic failure analysis.
+// They are not included in agent prompts.
+type AutopsyHints struct {
+	ExpectedDiagnostics []AutopsyPattern `yaml:"expected_diagnostics,omitempty" json:"expected_diagnostics,omitempty"`
+	AllowedMutations    []AutopsyPattern `yaml:"allowed_mutations,omitempty" json:"allowed_mutations,omitempty"`
+	ForbiddenActions    []AutopsyPattern `yaml:"forbidden_actions,omitempty" json:"forbidden_actions,omitempty"`
+	RootCauseResources  []string         `yaml:"root_cause_resources,omitempty" json:"root_cause_resources,omitempty"`
+}
+
+// AutopsyPattern describes a command or resource pattern used after a run.
+type AutopsyPattern struct {
+	Kind     string `yaml:"kind" json:"kind"`
+	Pattern  string `yaml:"pattern" json:"pattern"`
+	Reason   string `yaml:"reason,omitempty" json:"reason,omitempty"`
+	Severity string `yaml:"severity,omitempty" json:"severity,omitempty"`
 }
 
 // BootstrapStep describes an environment preparation step.

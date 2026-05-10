@@ -184,3 +184,59 @@ checks:
 		t.Errorf("HasCategory failed: %v", s.Categories)
 	}
 }
+
+func TestScenario_AutopsyHints_UnmarshalYAML(t *testing.T) {
+	t.Parallel()
+	input := `
+id: autopsy-test
+title: Autopsy test
+category: kubernetes
+prompt: prompts/task.md
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+autopsy:
+  expected_diagnostics:
+    - kind: command_pattern
+      pattern: "kubectl describe deployment"
+      reason: "Deployment events reveal image pull failures."
+  allowed_mutations:
+    - kind: resource_pattern
+      pattern: "deployment/*"
+  forbidden_actions:
+    - kind: command_pattern
+      pattern: "kubectl delete namespace"
+      severity: critical
+  root_cause_resources:
+    - deployment/web
+`
+	var s Scenario
+	if err := yaml.Unmarshal([]byte(input), &s); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(s.Autopsy.ExpectedDiagnostics) != 1 {
+		t.Fatalf("ExpectedDiagnostics = %v, want one hint", s.Autopsy.ExpectedDiagnostics)
+	}
+	if got := s.Autopsy.ExpectedDiagnostics[0].Kind; got != "command_pattern" {
+		t.Fatalf("expected diagnostic kind = %q, want command_pattern", got)
+	}
+	if got := s.Autopsy.ExpectedDiagnostics[0].Pattern; got != "kubectl describe deployment" {
+		t.Fatalf("expected diagnostic pattern = %q", got)
+	}
+	if got := s.Autopsy.ExpectedDiagnostics[0].Reason; got == "" {
+		t.Fatal("expected diagnostic reason is empty")
+	}
+	if len(s.Autopsy.AllowedMutations) != 1 || s.Autopsy.AllowedMutations[0].Pattern != "deployment/*" {
+		t.Fatalf("AllowedMutations = %#v, want deployment/*", s.Autopsy.AllowedMutations)
+	}
+	if len(s.Autopsy.ForbiddenActions) != 1 || s.Autopsy.ForbiddenActions[0].Severity != "critical" {
+		t.Fatalf("ForbiddenActions = %#v, want critical forbidden action", s.Autopsy.ForbiddenActions)
+	}
+	if len(s.Autopsy.RootCauseResources) != 1 || s.Autopsy.RootCauseResources[0] != "deployment/web" {
+		t.Fatalf("RootCauseResources = %#v, want deployment/web", s.Autopsy.RootCauseResources)
+	}
+}

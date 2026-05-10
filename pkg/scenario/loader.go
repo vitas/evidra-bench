@@ -211,6 +211,9 @@ func validate(s *Scenario) error {
 	if err := validateChaos(s); err != nil {
 		return err
 	}
+	if err := validateAutopsyHints(s); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -240,6 +243,29 @@ func validateChaos(s *Scenario) error {
 		}
 		if !step.At.Set {
 			return fmt.Errorf("scenario %s: chaos step %d missing at", s.ID, i)
+		}
+	}
+	return nil
+}
+
+func validateAutopsyHints(s *Scenario) error {
+	groups := []struct {
+		name     string
+		patterns []AutopsyPattern
+	}{
+		{name: "expected_diagnostics", patterns: s.Autopsy.ExpectedDiagnostics},
+		{name: "allowed_mutations", patterns: s.Autopsy.AllowedMutations},
+		{name: "forbidden_actions", patterns: s.Autopsy.ForbiddenActions},
+	}
+
+	for _, group := range groups {
+		for i, pattern := range group.patterns {
+			if pattern.Kind == "" {
+				return fmt.Errorf("scenario %s: autopsy.%s[%d] missing kind", s.ID, group.name, i)
+			}
+			if pattern.Pattern == "" {
+				return fmt.Errorf("scenario %s: autopsy.%s[%d] missing pattern", s.ID, group.name, i)
+			}
 		}
 	}
 	return nil
