@@ -9,7 +9,7 @@ import {
 } from "../../lib/routes.mts";
 
 const MARKDOWN_REPORT_URL =
-  "https://github.com/vitas/evidra-bench/blob/main/docs/SAMPLE_EVIDRA_BENCH_REPORT.md";
+  "https://github.com/vitas/evidra-bench/blob/main/docs/SAMPLE_BENCH_REPORT.md";
 
 const summaryStats = [
   { label: "Scenarios", value: "12" },
