@@ -9,6 +9,7 @@ import {
   scenarioIdsForCategory,
   type ScenarioCategoryRecord,
 } from "../../lib/compareData.mts";
+import { benchToolServerReportPagePath } from "../../lib/routes.mts";
 import {
   buildToolServerComparePath,
   toolServerRunsPagePath,
@@ -255,6 +256,15 @@ export function ToolServerReport() {
 
   const canLoadReport = model && toolServer;
   const emptyReport = data && data.baseline.runs === 0 && data.candidate.runs === 0;
+  const liveReportPath = canLoadReport
+    ? benchToolServerReportPagePath({
+        model,
+        tool_server: toolServer,
+        tool_server_version: toolServerVersion,
+        category: scenario ? undefined : category,
+        scenarios: scenario || undefined,
+      })
+    : "";
 
   return (
     <div className="space-y-5">
@@ -275,12 +285,20 @@ export function ToolServerReport() {
           </p>
         </div>
         {data && (
-          <div className="flex gap-2 text-[0.76rem] text-fg-muted">
+          <div className="flex flex-wrap items-center gap-2 text-[0.76rem] text-fg-muted">
             <span>{data.scenarios.length} scenarios</span>
             <span>&middot;</span>
             <span>{data.improved_scenarios.length} improved</span>
             <span>&middot;</span>
             <span>{data.regressed_scenarios.length} regressed</span>
+            {liveReportPath && (
+              <>
+                <span>&middot;</span>
+                <Link to={liveReportPath} className="font-semibold text-accent hover:underline">
+                  View report
+                </Link>
+              </>
+            )}
           </div>
         )}
       </div>

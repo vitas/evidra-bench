@@ -421,6 +421,45 @@ func TestServiceIngestRun_StoresFailureAutopsyArtifact(t *testing.T) {
 	}
 }
 
+func TestServiceIngestRun_PreservesToolServerIdentity(t *testing.T) {
+	t.Parallel()
+
+	tx := &fakeTx{}
+	repo := &fakeRepo{tx: tx}
+	svc := NewService(repo, ServiceConfig{})
+
+	err := svc.IngestRun(context.Background(), "tenant-a", IngestRunRequest{
+		RunRecord: bench.RunRecord{
+			ID:                "run-1",
+			ScenarioID:        "s1",
+			Model:             "m1",
+			EvidenceMode:      "mcp",
+			ToolServer:        "kubernetes-mcp",
+			ToolServerVersion: "1.2.3",
+			ScenarioVersion:   "scenario-sha",
+		},
+	})
+	if err != nil {
+		t.Fatalf("IngestRun: %v", err)
+	}
+	if len(tx.execArgs) != 1 {
+		t.Fatalf("exec count = %d, want 1", len(tx.execArgs))
+	}
+	args := tx.execArgs[0]
+	if len(args) != 23 {
+		t.Fatalf("insert args = %d, want 23", len(args))
+	}
+	if got := args[7]; got != "kubernetes-mcp" {
+		t.Fatalf("tool_server arg = %v, want kubernetes-mcp", got)
+	}
+	if got := args[8]; got != "1.2.3" {
+		t.Fatalf("tool_server_version arg = %v, want 1.2.3", got)
+	}
+	if got := args[9]; got != "scenario-sha" {
+		t.Fatalf("scenario_version arg = %v, want scenario-sha", got)
+	}
+}
+
 func TestServiceConfig_Defaults(t *testing.T) {
 	t.Parallel()
 

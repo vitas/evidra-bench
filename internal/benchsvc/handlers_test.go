@@ -36,6 +36,8 @@ type handlerRepo struct {
 	artifact         []byte
 	artCT            string
 	artErr           error
+	artifacts        map[string][]byte
+	artifactTypes    map[string]string
 	lastArtifactType string
 
 	// delete / archive
@@ -171,6 +173,18 @@ func (r *handlerRepo) StoreArtifact(_ context.Context, _, _, _ string, _ []byte)
 func (r *handlerRepo) GetArtifact(_ context.Context, tenant, runID, artType string) ([]byte, string, error) {
 	r.lastTenant = tenant
 	r.lastArtifactType = artType
+	if r.artifacts != nil {
+		key := runID + ":" + artType
+		data, ok := r.artifacts[key]
+		if !ok {
+			return nil, "", ErrNotFound
+		}
+		contentType := "application/json"
+		if r.artifactTypes != nil && r.artifactTypes[key] != "" {
+			contentType = r.artifactTypes[key]
+		}
+		return data, contentType, nil
+	}
 	return r.artifact, r.artCT, r.artErr
 }
 func (r *handlerRepo) CompareModels(_ context.Context, _, _, _, _ string) ([]ScenarioModelComparison, error) {
@@ -266,6 +280,7 @@ func TestRegisterRoutes_PublicReadEndpointsUsePublicTenantWithoutAuth(t *testing
 		{name: "runs", path: "/v1/bench/runs"},
 		{name: "stats", path: "/v1/bench/stats"},
 		{name: "catalog", path: "/v1/bench/catalog"},
+		{name: "tool server report", path: "/v1/bench/reports/tool-server?model=sonnet&tool_server=kubernetes-mcp"},
 		{name: "signals", path: "/v1/bench/signals"},
 		{name: "regressions", path: "/v1/bench/regressions"},
 		{name: "insights", path: "/v1/bench/insights?scenario=s1"},

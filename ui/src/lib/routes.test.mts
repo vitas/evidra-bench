@@ -7,6 +7,7 @@ import {
   BENCH_RUNS_PATH,
   BENCH_SAMPLE_REPORT_PATH,
   BENCH_SCENARIOS_PATH,
+  BENCH_TOOL_SERVER_REPORT_PATH,
   benchMCPReadinessPagePath,
   benchLeaderboardPagePath,
   benchRunPath,
@@ -14,6 +15,7 @@ import {
   benchSampleReportPagePath,
   benchScenariosPagePath,
   benchScenarioPath,
+  benchToolServerReportPagePath,
 } from "./routes.mts";
 
 test("bench route constants use canonical bench paths", () => {
@@ -22,6 +24,7 @@ test("bench route constants use canonical bench paths", () => {
   assert.equal(BENCH_RUNS_PATH, "/bench/runs");
   assert.equal(BENCH_SAMPLE_REPORT_PATH, "/bench/sample-report");
   assert.equal(BENCH_SCENARIOS_PATH, "/bench/scenarios");
+  assert.equal(BENCH_TOOL_SERVER_REPORT_PATH, "/bench/reports/tool-server");
 });
 
 test("bench detail helpers encode path ids", () => {
@@ -66,5 +69,18 @@ test("bench sample report page helper appends encoded query parameters", () => {
   assert.equal(
     benchSampleReportPagePath({ source: "landing cta" }),
     "/bench/sample-report?source=landing+cta",
+  );
+});
+
+test("bench tool server report page helper preserves report filters", () => {
+  assert.equal(
+    benchToolServerReportPagePath({
+      model: "qwen plus",
+      tool_server: "kubernetes-mcp",
+      tool_server_version: "1.2.3+build 4",
+      category: "kubernetes",
+      scenarios: "broken-deployment,stuck rollout",
+    }),
+    "/bench/reports/tool-server?model=qwen+plus&tool_server=kubernetes-mcp&tool_server_version=1.2.3%2Bbuild+4&category=kubernetes&scenarios=broken-deployment%2Cstuck+rollout",
   );
 });

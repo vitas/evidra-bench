@@ -9,6 +9,7 @@ import {
   BENCH_RUNS_PATH,
   BENCH_SAMPLE_REPORT_PATH,
   BENCH_SCENARIOS_PATH,
+  BENCH_TOOL_SERVER_REPORT_PATH,
   benchRunPath,
   benchScenarioPath,
 } from "./lib/routes.mts";
@@ -28,6 +29,7 @@ import { Regressions } from "./pages/bench/Regressions";
 import { Insights } from "./pages/bench/Insights";
 import { ToolServerReport } from "./pages/bench/ToolServerReport";
 import { SampleReport } from "./pages/bench/SampleReport";
+import { LiveToolServerReport } from "./pages/bench/LiveToolServerReport";
 
 export function App() {
   return (
@@ -47,6 +49,7 @@ export function App() {
           <Route path="/bench/compare" element={<BenchLayout><Compare /></BenchLayout>} />
           <Route path={BENCH_MCP_READINESS_PATH} element={<BenchLayout><ToolServerReport /></BenchLayout>} />
           <Route path={BENCH_SAMPLE_REPORT_PATH} element={<BenchLayout><SampleReport /></BenchLayout>} />
+          <Route path={BENCH_TOOL_SERVER_REPORT_PATH} element={<BenchLayout><LiveToolServerReport /></BenchLayout>} />
           <Route path="/bench/skill-impact" element={<BenchLayout><SkillImpact /></BenchLayout>} />
           <Route path="/bench/regressions" element={<BenchLayout><Regressions /></BenchLayout>} />
           <Route path="/bench/insights" element={<BenchLayout><Insights /></BenchLayout>} />

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildToolServerComparePath,
+  buildToolServerReportApiPath,
   toolServerRunsPagePath,
 } from "./toolServerCompare.mts";
 
@@ -27,6 +28,27 @@ test("buildToolServerComparePath omits empty optional filters", () => {
       scenarioIds: [],
     }),
     "/v1/bench/compare/tool-server?model=sonnet&tool_server=kubernetes-mcp",
+  );
+});
+
+test("buildToolServerReportApiPath builds JSON and markdown report endpoints", () => {
+  assert.equal(
+    buildToolServerReportApiPath({
+      model: "qwen plus",
+      toolServer: "kubernetes-mcp",
+      toolServerVersion: "1.2.3+build 4",
+      scenarioIds: ["broken-deployment", "stuck rollout"],
+    }),
+    "/v1/bench/reports/tool-server?model=qwen+plus&tool_server=kubernetes-mcp&tool_server_version=1.2.3%2Bbuild+4&scenarios=broken-deployment%2Cstuck+rollout",
+  );
+
+  assert.equal(
+    buildToolServerReportApiPath({
+      model: "qwen-plus",
+      toolServer: "kubernetes-mcp",
+      format: "markdown",
+    }),
+    "/v1/bench/reports/tool-server?model=qwen-plus&tool_server=kubernetes-mcp&format=markdown",
   );
 });
 

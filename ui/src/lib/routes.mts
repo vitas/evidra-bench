@@ -3,6 +3,7 @@ export const BENCH_MCP_READINESS_PATH = "/bench/mcp-readiness";
 export const BENCH_RUNS_PATH = "/bench/runs";
 export const BENCH_SAMPLE_REPORT_PATH = "/bench/sample-report";
 export const BENCH_SCENARIOS_PATH = "/bench/scenarios";
+export const BENCH_TOOL_SERVER_REPORT_PATH = "/bench/reports/tool-server";
 
 export function benchRunPath(id: string) {
   return `${BENCH_RUNS_PATH}/${encodeURIComponent(id)}`;
@@ -37,6 +38,10 @@ export function benchMCPReadinessPagePath(params?: Record<string, string | undef
 
 export function benchSampleReportPagePath(params?: Record<string, string | undefined>) {
   return pagePath(BENCH_SAMPLE_REPORT_PATH, params);
+}
+
+export function benchToolServerReportPagePath(params?: Record<string, string | undefined>) {
+  return pagePath(BENCH_TOOL_SERVER_REPORT_PATH, params);
 }
 
 export function benchRunsPagePath(params?: Record<string, string | undefined>) {

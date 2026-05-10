@@ -115,10 +115,11 @@ func (s *Service) IngestRun(ctx context.Context, tenantID string, req IngestRunR
 	// Build the insert query inline using the transaction.
 	insertQ := `INSERT INTO bench_runs (
 		id, tenant_id, scenario_id, model, provider, adapter, evidence_mode,
+		tool_server, tool_server_version, scenario_version,
 		passed, duration_seconds, exit_code, turns, memory_window,
 		prompt_tokens, completion_tokens, estimated_cost_usd,
 		checks_passed, checks_total, checks_json, metadata_json, created_at
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`
 
 	checksJSON := nullableJSONB(req.ChecksJSON)
 	metadataJSON := nullableJSONB(req.MetadataJSON)
@@ -129,6 +130,7 @@ func (s *Service) IngestRun(ctx context.Context, tenantID string, req IngestRunR
 
 	_, err = tx.Exec(ctx, insertQ,
 		req.ID, tenantID, req.ScenarioID, req.Model, req.Provider, req.Adapter, req.EvidenceMode,
+		req.ToolServer, req.ToolServerVersion, req.ScenarioVersion,
 		req.Passed, req.Duration, req.ExitCode, req.Turns, req.MemoryWindow,
 		req.PromptTokens, req.CompletionTokens, req.EstimatedCost,
 		req.ChecksPassed, req.ChecksTotal, checksJSON, metadataJSON, createdAt,
@@ -183,10 +185,11 @@ func (s *Service) IngestRunBatch(ctx context.Context, tenantID string, runs []In
 
 	insertQ := `INSERT INTO bench_runs (
 		id, tenant_id, scenario_id, model, provider, adapter, evidence_mode,
+		tool_server, tool_server_version, scenario_version,
 		passed, duration_seconds, exit_code, turns, memory_window,
 		prompt_tokens, completion_tokens, estimated_cost_usd,
 		checks_passed, checks_total, checks_json, metadata_json, created_at
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
 	ON CONFLICT (id) DO NOTHING`
 
 	artifactQ := `INSERT INTO bench_artifacts (run_id, artifact_type, content_type, data)
@@ -204,6 +207,7 @@ func (s *Service) IngestRunBatch(ctx context.Context, tenantID string, runs []In
 
 		ct, err := tx.Exec(ctx, insertQ,
 			run.ID, tenantID, run.ScenarioID, run.Model, run.Provider, run.Adapter, run.EvidenceMode,
+			run.ToolServer, run.ToolServerVersion, run.ScenarioVersion,
 			run.Passed, run.Duration, run.ExitCode, run.Turns, run.MemoryWindow,
 			run.PromptTokens, run.CompletionTokens, run.EstimatedCost,
 			run.ChecksPassed, run.ChecksTotal, checksJSON, metadataJSON, createdAt,

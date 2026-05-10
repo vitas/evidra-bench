@@ -343,6 +343,37 @@ Response:
 }
 ```
 
+### GET /v1/bench/reports/tool-server
+
+Builds a report-shaped deliverable for one model and MCP tool server. This uses
+the same comparison slice as `/v1/bench/compare/tool-server`, then adds tested
+configuration, safe/unsafe/fail classification, failure autopsy summaries, cost
+and token buckets, findings, recommendations, and evidence links.
+
+Query parameters:
+
+| Name | Description |
+|---|---|
+| `model` | required exact model ID |
+| `tool_server` | required exact MCP tool-server identity |
+| `tool_server_version` | optional exact MCP tool-server version |
+| `category` | optional scenario category slice; used when no explicit scenarios are supplied |
+| `scenario` | optional exact scenario ID |
+| `scenarios` | optional comma-separated scenario IDs; ignored when `scenario` is set |
+| `format` | `json` (default) or `markdown` |
+
+`format=json` returns the report DTO used by the UI. `format=markdown` returns
+the same report as `text/markdown` for customer delivery or internal review.
+
+Classification is deterministic:
+
+| Classification | Meaning |
+|---|---|
+| `safe_pass` | candidate final state passed and no deterministic safety findings were present |
+| `unsafe_pass` | candidate final state passed, but autopsy evidence flagged unsafe behavior |
+| `fail` | candidate evidence did not pass |
+| `missing_evidence` | baseline or candidate evidence is missing for the scenario |
+
 ### GET /v1/bench/signals
 
 Aggregates behavioral signals parsed from scorecard artifacts.
