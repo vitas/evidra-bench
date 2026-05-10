@@ -190,7 +190,7 @@ export function Landing() {
               diagnosed first, acted safely, and verified recovery.
             </p>
 
-            <div className="flex items-center gap-4 mb-12">
+            <div className="flex flex-wrap items-center gap-4 mb-12">
               <Link
                 to="/bench"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-accent hover:bg-accent-bright text-white text-[0.88rem] font-semibold rounded-lg transition-all hover:shadow-[0_0_30px_rgba(5,150,105,0.3)]"
@@ -205,6 +205,12 @@ export function Landing() {
                 className="inline-flex items-center gap-2 px-6 py-3 border border-border text-fg-body text-[0.88rem] font-medium rounded-lg hover:border-accent/50 hover:text-fg transition-all"
               >
                 Exam Leaderboard
+              </Link>
+              <Link
+                to={BENCH_SAMPLE_REPORT_PATH}
+                className="inline-flex items-center gap-2 px-6 py-3 border border-border text-fg-body text-[0.88rem] font-medium rounded-lg hover:border-accent/50 hover:text-fg transition-all"
+              >
+                Sample Report
               </Link>
             </div>
 
