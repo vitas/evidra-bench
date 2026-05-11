@@ -45,6 +45,10 @@ export function benchPublicKubernetesMCPReportPagePath(params?: Record<string, s
   return pagePath(BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH, params);
 }
 
+export function benchToolServerMatrixReportPagePath(reportId: string, params?: Record<string, string | undefined>) {
+  return pagePath(`/bench/reports/${encodeURIComponent(reportId)}`, params);
+}
+
 export function benchToolServerReportPagePath(params?: Record<string, string | undefined>) {
   return pagePath(BENCH_TOOL_SERVER_REPORT_PATH, params);
 }

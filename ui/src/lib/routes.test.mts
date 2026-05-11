@@ -17,6 +17,7 @@ import {
   benchSampleReportPagePath,
   benchScenariosPagePath,
   benchScenarioPath,
+  benchToolServerMatrixReportPagePath,
   benchToolServerReportPagePath,
 } from "./routes.mts";
 
@@ -35,6 +36,16 @@ test("bench public Kubernetes MCP report helper appends encoded query parameters
   assert.equal(
     benchPublicKubernetesMCPReportPagePath({ variant: "pilot run" }),
     "/bench/reports/kubernetes-mcp-readiness-2026-05?variant=pilot+run",
+  );
+});
+
+test("bench tool server matrix report helper encodes report id and filters", () => {
+  assert.equal(
+    benchToolServerMatrixReportPagePath("kubernetes-mcp-readiness-2026-05-pilot", {
+      model: "qwen plus",
+      tool_servers: "flux159-mcp-server-kubernetes,containers-kubernetes-mcp-server",
+    }),
+    "/bench/reports/kubernetes-mcp-readiness-2026-05-pilot?model=qwen+plus&tool_servers=flux159-mcp-server-kubernetes%2Ccontainers-kubernetes-mcp-server",
   );
 });
 

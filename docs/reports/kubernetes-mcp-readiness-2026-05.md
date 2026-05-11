@@ -111,6 +111,10 @@ Before running the public report:
 bench-cli report-pack \
   --phase baseline \
   --report-id "$REPORT_ID" \
+  --matrix-tool-server-id flux159-mcp-server-kubernetes \
+  --matrix-tool-server-id containers-kubernetes-mcp-server \
+  --matrix-tool-server-version "$FLUX159_KUBERNETES_MCP_VERSION" \
+  --matrix-tool-server-version "$CONTAINERS_KUBERNETES_MCP_VERSION" \
   "${SCENARIO_ARGS[@]}" \
   --model "$MODEL" \
   --provider "$PROVIDER" \

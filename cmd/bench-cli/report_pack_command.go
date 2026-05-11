@@ -73,12 +73,14 @@ func newReportPackCommand() *cobra.Command {
 	benchUIURL := ""
 	strict := false
 	phase := reportPackPhaseBoth
+	matrixToolServers := []string{}
+	matrixToolServerVersions := []string{}
 
 	cmd := &cobra.Command{
 		Use:   "report-pack",
 		Short: "Run baseline vs MCP tool-server scenarios and print live report links",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return executeReportPack(cmd, cfg, scenarios, repeats, benchUIURL, phase, strict, runScenarioOnceWithLease)
+			return executeReportPack(cmd, cfg, scenarios, repeats, benchUIURL, phase, matrixToolServers, matrixToolServerVersions, strict, runScenarioOnceWithLease)
 		},
 	}
 
@@ -108,6 +110,8 @@ func newReportPackCommand() *cobra.Command {
 	f.StringVar(&cfg.MCPServer, "mcp-server", cfg.MCPServer, "MCP server command for candidate phase")
 	f.StringVar(&cfg.ToolServerID, "tool-server-id", cfg.ToolServerID, "stable MCP server identity for report filtering")
 	f.StringVar(&cfg.ToolServerVersion, "tool-server-version", cfg.ToolServerVersion, "stable MCP server version for report filtering")
+	f.StringSliceVar(&matrixToolServers, "matrix-tool-server-id", nil, "candidate MCP server identity for matrix report links (repeatable)")
+	f.StringSliceVar(&matrixToolServerVersions, "matrix-tool-server-version", nil, "candidate MCP server version for matrix report links (aligned with --matrix-tool-server-id)")
 	f.StringVar(&cfg.ReportID, "report-id", cfg.ReportID, "stable report campaign identifier for filtering")
 	f.BoolVar(&strict, "strict", strict, "return non-zero when benchmark scenario verifications fail")
 	return cmd
@@ -120,6 +124,8 @@ func executeReportPack(
 	repeats int,
 	benchUIURL string,
 	phase string,
+	matrixToolServers []string,
+	matrixToolServerVersions []string,
 	strict bool,
 	runner reportPackRunFunc,
 ) error {
@@ -157,7 +163,7 @@ func executeReportPack(
 	}
 
 	ids := reportPackScenarioIDs(runnable)
-	links, err := buildReportPackLinks(cfg, benchUIURL, ids)
+	links, err := buildReportPackLinks(cfg, benchUIURL, ids, matrixToolServers, matrixToolServerVersions)
 	if err != nil {
 		return err
 	}
@@ -438,10 +444,25 @@ func runReportPackPhase(
 	return summary, batchLease, nil
 }
 
-func buildReportPackLinks(cfg config.Config, benchUIURL string, scenarioIDs []string) (reportPackLinks, error) {
-	if strings.TrimSpace(cfg.ToolServerID) == "" {
-		return reportPackLinks{}, nil
+func buildReportPackLinks(
+	cfg config.Config,
+	benchUIURL string,
+	scenarioIDs []string,
+	matrixToolServers []string,
+	matrixToolServerVersions []string,
+) (reportPackLinks, error) {
+	matrixToolServers = normalizeReportPackStrings(matrixToolServers)
+	matrixToolServerVersions = normalizeReportPackStrings(matrixToolServerVersions)
+	if len(matrixToolServers) > 0 {
+		return buildReportPackMatrixLinks(cfg, benchUIURL, scenarioIDs, matrixToolServers, matrixToolServerVersions)
 	}
+	if strings.TrimSpace(cfg.ToolServerID) != "" {
+		return buildReportPackToolServerLinks(cfg, benchUIURL, scenarioIDs)
+	}
+	return reportPackLinks{}, nil
+}
+
+func buildReportPackToolServerLinks(cfg config.Config, benchUIURL string, scenarioIDs []string) (reportPackLinks, error) {
 	query := url.Values{}
 	query.Set("model", cfg.Model)
 	query.Set("tool_server", cfg.ToolServerID)
@@ -474,6 +495,62 @@ func buildReportPackLinks(cfg config.Config, benchUIURL string, scenarioIDs []st
 		return reportPackLinks{}, fmt.Errorf("build markdown report URL: %w", err)
 	}
 	return reportPackLinks{UI: ui, JSON: api, Markdown: markdown}, nil
+}
+
+func buildReportPackMatrixLinks(
+	cfg config.Config,
+	benchUIURL string,
+	scenarioIDs []string,
+	toolServers []string,
+	toolServerVersions []string,
+) (reportPackLinks, error) {
+	if cfg.ReportID == "" {
+		return reportPackLinks{}, fmt.Errorf("report-pack: --report-id is required for matrix report links")
+	}
+	if len(toolServerVersions) > 0 && len(toolServerVersions) != len(toolServers) {
+		return reportPackLinks{}, fmt.Errorf("report-pack: --matrix-tool-server-version count must match --matrix-tool-server-id count")
+	}
+	query := url.Values{}
+	query.Set("model", cfg.Model)
+	query.Set("report_id", cfg.ReportID)
+	query.Set("tool_servers", strings.Join(toolServers, ","))
+	if len(toolServerVersions) > 0 {
+		query.Set("tool_server_versions", strings.Join(toolServerVersions, ","))
+	}
+	if len(scenarioIDs) > 0 {
+		query.Set("scenarios", strings.Join(scenarioIDs, ","))
+	}
+
+	uiBase, err := deriveReportPackUIBase(cfg.BenchURL, benchUIURL)
+	if err != nil {
+		return reportPackLinks{}, err
+	}
+	ui, err := appendReportPackURL(uiBase, "/bench/reports/"+url.PathEscape(cfg.ReportID), query)
+	if err != nil {
+		return reportPackLinks{}, fmt.Errorf("build UI matrix report URL: %w", err)
+	}
+	api, err := appendReportPackURL(cfg.BenchURL, "/v1/bench/reports/tool-server-matrix", query)
+	if err != nil {
+		return reportPackLinks{}, fmt.Errorf("build API matrix report URL: %w", err)
+	}
+	markdownQuery := cloneURLValues(query)
+	markdownQuery.Set("format", "markdown")
+	markdown, err := appendReportPackURL(cfg.BenchURL, "/v1/bench/reports/tool-server-matrix", markdownQuery)
+	if err != nil {
+		return reportPackLinks{}, fmt.Errorf("build markdown matrix report URL: %w", err)
+	}
+	return reportPackLinks{UI: ui, JSON: api, Markdown: markdown}, nil
+}
+
+func normalizeReportPackStrings(values []string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			out = append(out, value)
+		}
+	}
+	return out
 }
 
 func reportPackLinksEmpty(links reportPackLinks) bool {

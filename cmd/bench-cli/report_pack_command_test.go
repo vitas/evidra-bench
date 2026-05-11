@@ -100,6 +100,52 @@ func TestReportPackCommand_BaselinePhaseDoesNotRequireMCPServer(t *testing.T) {
 	}
 }
 
+func TestReportPackCommand_BaselinePhasePrintsMatrixLinks(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeReportPackScenario(t, dir, "kubernetes/broken-deployment", "broken-deployment", "kubernetes")
+	writeReportPackScenario(t, dir, "kubernetes/network-policy-fix", "network-policy-fix", "kubernetes")
+
+	var buf strings.Builder
+	cmd := newRootCommand()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{
+		"report-pack",
+		"--scenarios-dir", dir,
+		"--runs-dir", filepath.Join(dir, "runs"),
+		"--dry-run",
+		"--phase", "baseline",
+		"--model", "sonnet",
+		"--provider", "claude",
+		"--bench-url", "https://api.evidra.cc",
+		"--bench-ui-url", "https://bench.evidra.cc",
+		"--report-id", "kubernetes-mcp-readiness-2026-05-pilot",
+		"--matrix-tool-server-id", "flux159-mcp-server-kubernetes",
+		"--matrix-tool-server-id", "containers-kubernetes-mcp-server",
+		"--matrix-tool-server-version", "1.0.0",
+		"--matrix-tool-server-version", "2.0.0",
+	})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("baseline phase dry-run failed: %v", err)
+	}
+
+	output := buf.String()
+	for _, want := range []string{
+		"Phase:       baseline",
+		"https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05-pilot?",
+		"https://api.evidra.cc/v1/bench/reports/tool-server-matrix?",
+		"tool_servers=flux159-mcp-server-kubernetes%2Ccontainers-kubernetes-mcp-server",
+		"tool_server_versions=1.0.0%2C2.0.0",
+		"format=markdown",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("expected output to contain %q, got:\n%s", want, output)
+		}
+	}
+}
+
 func TestReportPackCommand_CandidatePhaseRequiresMCPIdentity(t *testing.T) {
 	t.Parallel()
 
@@ -182,7 +228,7 @@ func TestBuildReportPackLinks_DerivesProductionUIURL(t *testing.T) {
 		ToolServerID:      "kubernetes-mcp",
 		ToolServerVersion: "1.2.3",
 	}
-	links, err := buildReportPackLinks(cfg, "", []string{"broken-deployment", "network-policy-fix"})
+	links, err := buildReportPackLinks(cfg, "", []string{"broken-deployment", "network-policy-fix"}, nil, nil)
 	if err != nil {
 		t.Fatalf("build links: %v", err)
 	}

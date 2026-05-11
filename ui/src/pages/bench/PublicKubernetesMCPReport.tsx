@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { BENCH_MCP_READINESS_PATH, BENCH_RUNS_PATH } from "../../lib/routes.mts";
@@ -12,11 +12,16 @@ import {
 
 const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
 
-const PUBLIC_REPORT_FILTERS = {
+const DEFAULT_PUBLIC_REPORT_FILTERS = {
   model: "sonnet",
   reportId: "kubernetes-mcp-readiness-2026-05",
   toolServers: ["flux159-mcp-server-kubernetes", "containers-kubernetes-mcp-server"],
 };
+
+function parseCSVParam(value: string | null): string[] {
+  if (!value) return [];
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
 
 function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`;
@@ -114,14 +119,31 @@ function resultCell(arm: ToolServerMatrixScenarioArm) {
 export function PublicKubernetesMCPReport() {
   usePageTitle("Kubernetes MCP Report");
   const { request } = useApi();
+  const { reportId: routeReportId } = useParams();
+  const [searchParams] = useSearchParams();
   const [report, setReport] = useState<ToolServerMatrixReportResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const apiPath = useMemo(() => buildToolServerMatrixReportApiPath(PUBLIC_REPORT_FILTERS), []);
+  const searchKey = searchParams.toString();
+  const reportFilters = useMemo(() => {
+    const scenarioIds = parseCSVParam(searchParams.get("scenarios") ?? searchParams.get("scenario"));
+    const toolServerVersions = parseCSVParam(searchParams.get("tool_server_versions"));
+    return {
+      model: searchParams.get("model") || DEFAULT_PUBLIC_REPORT_FILTERS.model,
+      reportId: searchParams.get("report_id") || routeReportId || DEFAULT_PUBLIC_REPORT_FILTERS.reportId,
+      toolServers: parseCSVParam(searchParams.get("tool_servers")).length > 0
+        ? parseCSVParam(searchParams.get("tool_servers"))
+        : DEFAULT_PUBLIC_REPORT_FILTERS.toolServers,
+      toolServerVersions: toolServerVersions.length > 0 ? toolServerVersions : undefined,
+      scenarioIds: scenarioIds.length > 0 ? scenarioIds : undefined,
+    };
+  }, [routeReportId, searchKey, searchParams]);
+
+  const apiPath = useMemo(() => buildToolServerMatrixReportApiPath(reportFilters), [reportFilters]);
   const markdownURL = useMemo(
-    () => `${API_BASE}${buildToolServerMatrixReportApiPath({ ...PUBLIC_REPORT_FILTERS, format: "markdown" })}`,
-    [],
+    () => `${API_BASE}${buildToolServerMatrixReportApiPath({ ...reportFilters, format: "markdown" })}`,
+    [reportFilters],
   );
   const rawJSONURL = `${API_BASE}${apiPath}`;
 

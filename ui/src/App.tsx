@@ -53,6 +53,7 @@ export function App() {
           <Route path={BENCH_SAMPLE_REPORT_PATH} element={<BenchLayout><SampleReport /></BenchLayout>} />
           <Route path={BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH} element={<BenchLayout><PublicKubernetesMCPReport /></BenchLayout>} />
           <Route path={BENCH_TOOL_SERVER_REPORT_PATH} element={<BenchLayout><LiveToolServerReport /></BenchLayout>} />
+          <Route path="/bench/reports/:reportId" element={<BenchLayout><PublicKubernetesMCPReport /></BenchLayout>} />
           <Route path="/bench/skill-impact" element={<BenchLayout><SkillImpact /></BenchLayout>} />
           <Route path="/bench/regressions" element={<BenchLayout><Regressions /></BenchLayout>} />
           <Route path="/bench/insights" element={<BenchLayout><Insights /></BenchLayout>} />

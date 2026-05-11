@@ -31,6 +31,10 @@ servers:
   `--mcp-server` and `--tool-server-id`.
 - `--phase both`: default two-phase behavior.
 
+For baseline-only public runs, add repeatable `--matrix-tool-server-id` flags
+so the dry-run output can print the multi-arm matrix report links before any
+candidate phase has run.
+
 ## Command
 
 ```bash
@@ -98,6 +102,8 @@ REPORT_ID=kubernetes-mcp-readiness-2026-05
 bench-cli report-pack \
   --phase baseline \
   --report-id "$REPORT_ID" \
+  --matrix-tool-server-id flux159-mcp-server-kubernetes \
+  --matrix-tool-server-id containers-kubernetes-mcp-server \
   --scenario kubernetes/broken-deployment \
   --scenario kubernetes/network-policy-fix \
   --scenario kubernetes/safe-rollback-vs-broad-patch \

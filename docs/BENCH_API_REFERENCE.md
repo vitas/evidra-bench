@@ -378,6 +378,34 @@ Classification is deterministic:
 | `fail` | candidate evidence did not pass |
 | `missing_evidence` | baseline or candidate evidence is missing for the scenario |
 
+### GET /v1/bench/reports/tool-server-matrix
+
+Builds a public multi-arm report for one native-tools baseline and multiple MCP
+tool-server candidates under one `report_id`. This is the report shape used for
+public MCP server readiness pages and sponsored public benchmark runs.
+
+Query parameters:
+
+| Name | Description |
+|---|---|
+| `model` | required exact model ID |
+| `report_id` | required exact report/campaign ID; isolates all arms to one run slice |
+| `tool_servers` | required comma-separated MCP tool-server identities |
+| `tool_server_versions` | optional comma-separated versions aligned with `tool_servers` |
+| `scenario` | optional exact scenario ID |
+| `scenarios` | optional comma-separated scenario IDs; ignored when `scenario` is set |
+| `format` | `json` (default) or `markdown` |
+
+Example:
+
+```text
+GET /v1/bench/reports/tool-server-matrix?model=sonnet&report_id=kubernetes-mcp-readiness-2026-05&tool_servers=flux159-mcp-server-kubernetes,containers-kubernetes-mcp-server&format=markdown
+```
+
+The response includes `arms`, per-scenario matrix rows, candidate-cell
+classification counts, methodology, failure autopsy highlights, findings,
+recommendations, and raw evidence links.
+
 ### GET /v1/bench/signals
 
 Aggregates behavioral signals parsed from scorecard artifacts.
