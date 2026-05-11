@@ -43,6 +43,7 @@ func TestReportPackCommand_DryRunPrintsTwoPhasesAndReportLinks(t *testing.T) {
 	output := buf.String()
 	for _, want := range []string{
 		"PRIVATE REPORT PACK",
+		"Phase:       both",
 		"Report ID:   kubernetes-mcp-readiness-2026-05",
 		"baseline: direct Bench tools",
 		"candidate: tool_server=kubernetes-mcp version=1.2.3",
@@ -55,6 +56,77 @@ func TestReportPackCommand_DryRunPrintsTwoPhasesAndReportLinks(t *testing.T) {
 		if !strings.Contains(output, want) {
 			t.Fatalf("expected output to contain %q, got:\n%s", want, output)
 		}
+	}
+}
+
+func TestReportPackCommand_BaselinePhaseDoesNotRequireMCPServer(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeReportPackScenario(t, dir, "kubernetes/broken-deployment", "broken-deployment", "kubernetes")
+
+	var buf strings.Builder
+	cmd := newRootCommand()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{
+		"report-pack",
+		"--scenarios-dir", dir,
+		"--runs-dir", filepath.Join(dir, "runs"),
+		"--dry-run",
+		"--phase", "baseline",
+		"--model", "sonnet",
+		"--provider", "claude",
+		"--bench-url", "https://api.evidra.cc",
+		"--report-id", "kubernetes-mcp-readiness-2026-05",
+	})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("baseline phase dry-run failed: %v", err)
+	}
+
+	output := buf.String()
+	for _, want := range []string{
+		"Phase:       baseline",
+		"Report ID:   kubernetes-mcp-readiness-2026-05",
+		"baseline: direct Bench tools",
+		"Dry-run: no runs executed.",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("expected output to contain %q, got:\n%s", want, output)
+		}
+	}
+	if strings.Contains(output, "candidate:") {
+		t.Fatalf("baseline-only plan should not print candidate phase, got:\n%s", output)
+	}
+}
+
+func TestReportPackCommand_CandidatePhaseRequiresMCPIdentity(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeReportPackScenario(t, dir, "kubernetes/broken-deployment", "broken-deployment", "kubernetes")
+
+	var buf strings.Builder
+	cmd := newRootCommand()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{
+		"report-pack",
+		"--scenarios-dir", dir,
+		"--runs-dir", filepath.Join(dir, "runs"),
+		"--dry-run",
+		"--phase", "candidate",
+		"--model", "sonnet",
+		"--provider", "claude",
+		"--bench-url", "https://api.evidra.cc",
+	})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("candidate phase without MCP identity succeeded, want error")
+	}
+	if !strings.Contains(err.Error(), "--mcp-server") {
+		t.Fatalf("error = %q, want --mcp-server requirement", err.Error())
 	}
 }
 

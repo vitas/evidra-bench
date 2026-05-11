@@ -33,6 +33,12 @@ var defaultPrivateReportPackScenarioIDs = []string{
 	"risky-shortcut",
 }
 
+const (
+	reportPackPhaseBaseline  = "baseline"
+	reportPackPhaseCandidate = "candidate"
+	reportPackPhaseBoth      = "both"
+)
+
 type reportPackRunFunc func(context.Context, config.Config, *scenario.Scenario, *environment.Lease) (*harness.RunResult, error)
 
 type reportPackLinks struct {
@@ -66,12 +72,13 @@ func newReportPackCommand() *cobra.Command {
 	repeats := 1
 	benchUIURL := ""
 	strict := false
+	phase := reportPackPhaseBoth
 
 	cmd := &cobra.Command{
 		Use:   "report-pack",
 		Short: "Run baseline vs MCP tool-server scenarios and print live report links",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return executeReportPack(cmd, cfg, scenarios, repeats, benchUIURL, strict, runScenarioOnceWithLease)
+			return executeReportPack(cmd, cfg, scenarios, repeats, benchUIURL, phase, strict, runScenarioOnceWithLease)
 		},
 	}
 
@@ -94,6 +101,7 @@ func newReportPackCommand() *cobra.Command {
 	f.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "print the plan and report links without executing runs")
 	f.IntVar(&cfg.MemoryWindow, "memory-window", -1, "memory window")
 	f.IntVar(&repeats, "repeats", repeats, "repeats per phase/scenario")
+	f.StringVar(&phase, "phase", phase, "phase to run: baseline, candidate, or both")
 	f.StringVar(&cfg.BenchURL, "bench-url", cfg.BenchURL, "Bench API URL for reporting results")
 	f.StringVar(&cfg.BenchAPIKey, "bench-api-key", cfg.BenchAPIKey, "Bench API key")
 	f.StringVar(&benchUIURL, "bench-ui-url", os.Getenv("BENCH_UI_URL"), "Bench UI URL for printed report links (env: BENCH_UI_URL)")
@@ -111,13 +119,19 @@ func executeReportPack(
 	scenarioFilters []string,
 	repeats int,
 	benchUIURL string,
+	phase string,
 	strict bool,
 	runner reportPackRunFunc,
 ) error {
 	if !cfg.DryRun && cfg.Provider == "" && cfg.Adapter != "a2a" {
 		cfg.Provider = "claude"
 	}
-	if err := prepareReportPackConfig(&cfg, repeats); err != nil {
+	normalizedPhase, err := normalizeReportPackPhase(phase)
+	if err != nil {
+		return err
+	}
+	phase = normalizedPhase
+	if err := prepareReportPackConfig(&cfg, repeats, phase); err != nil {
 		return err
 	}
 
@@ -147,7 +161,7 @@ func executeReportPack(
 	if err != nil {
 		return err
 	}
-	printReportPackPlan(cmd, cfg, ids, repeats, skipped, links)
+	printReportPackPlan(cmd, cfg, phase, ids, repeats, skipped, links)
 	if cfg.DryRun {
 		writef(cmd.OutOrStdout(), "\nDry-run: no runs executed.\n")
 		return nil
@@ -159,7 +173,7 @@ func executeReportPack(
 
 	baselineCfg, candidateCfg := reportPackRunConfigs(cfg)
 	stamp := time.Now().UTC().Format("20060102-150405")
-	outDir := filepath.Join(cfg.RunsDir, "report-pack", safePathComponent(cfg.ToolServerID), stamp)
+	outDir := filepath.Join(cfg.RunsDir, "report-pack", safePathComponent(reportPackOutputIdentity(cfg, phase)), stamp)
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return fmt.Errorf("create report-pack output: %w", err)
 	}
@@ -186,20 +200,26 @@ func executeReportPack(
 		}()
 	}
 
-	baseline, batchLease, err := runReportPackPhase(cmd, baselineCfg, "baseline", runnable, repeats, outDir, batchLease, runner)
-	if err != nil {
-		return err
+	baseline := reportPackPhaseSummary{Name: reportPackPhaseBaseline}
+	if reportPackPhaseRunsBaseline(phase) {
+		baseline, batchLease, err = runReportPackPhase(cmd, baselineCfg, reportPackPhaseBaseline, runnable, repeats, outDir, batchLease, runner)
+		if err != nil {
+			return err
+		}
 	}
-	candidate, batchLease, err := runReportPackPhase(cmd, candidateCfg, "candidate", runnable, repeats, outDir, batchLease, runner)
-	if err != nil {
-		return err
+	candidate := reportPackPhaseSummary{Name: reportPackPhaseCandidate}
+	if reportPackPhaseRunsCandidate(phase) {
+		candidate, batchLease, err = runReportPackPhase(cmd, candidateCfg, reportPackPhaseCandidate, runnable, repeats, outDir, batchLease, runner)
+		if err != nil {
+			return err
+		}
 	}
 
-	summaryPath, err := writeReportPackSummary(outDir, cfg, ids, skipped, links, baseline, candidate)
+	summaryPath, err := writeReportPackSummary(outDir, cfg, phase, ids, skipped, links, baseline, candidate)
 	if err != nil {
 		return err
 	}
-	printReportPackSummary(cmd, baseline, candidate, skipped, summaryPath, cfg.ReportID, links)
+	printReportPackSummary(cmd, phase, baseline, candidate, skipped, summaryPath, cfg.ReportID, links)
 
 	totalErrors := baseline.Errors + candidate.Errors
 	totalFailed := baseline.Failed + candidate.Failed
@@ -212,7 +232,7 @@ func executeReportPack(
 	return nil
 }
 
-func prepareReportPackConfig(cfg *config.Config, repeats int) error {
+func prepareReportPackConfig(cfg *config.Config, repeats int, phase string) error {
 	cfg.Model = strings.TrimSpace(cfg.Model)
 	cfg.Provider = strings.TrimSpace(cfg.Provider)
 	cfg.BenchURL = strings.TrimSpace(cfg.BenchURL)
@@ -231,11 +251,13 @@ func prepareReportPackConfig(cfg *config.Config, repeats int) error {
 	if cfg.BenchURL == "" {
 		return fmt.Errorf("report-pack: --bench-url or BENCH_API_URL is required")
 	}
-	if cfg.MCPServer == "" {
-		return fmt.Errorf("report-pack: --mcp-server is required")
-	}
-	if cfg.ToolServerID == "" {
-		return fmt.Errorf("report-pack: --tool-server-id is required")
+	if reportPackPhaseRunsCandidate(phase) {
+		if cfg.MCPServer == "" {
+			return fmt.Errorf("report-pack: --mcp-server is required for candidate phase")
+		}
+		if cfg.ToolServerID == "" {
+			return fmt.Errorf("report-pack: --tool-server-id is required for candidate phase")
+		}
 	}
 	if !cfg.DryRun && cfg.BenchAPIKey == "" {
 		return fmt.Errorf("report-pack: --bench-api-key or BENCH_API_KEY is required")
@@ -294,6 +316,37 @@ func reportPackRunConfigs(base config.Config) (config.Config, config.Config) {
 	candidate := base
 	candidate.EvidenceMode = ""
 	return baseline, candidate
+}
+
+func normalizeReportPackPhase(phase string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(phase)) {
+	case "", reportPackPhaseBoth:
+		return reportPackPhaseBoth, nil
+	case reportPackPhaseBaseline:
+		return reportPackPhaseBaseline, nil
+	case reportPackPhaseCandidate:
+		return reportPackPhaseCandidate, nil
+	default:
+		return "", fmt.Errorf("report-pack: --phase must be baseline, candidate, or both")
+	}
+}
+
+func reportPackPhaseRunsBaseline(phase string) bool {
+	return phase == reportPackPhaseBaseline || phase == reportPackPhaseBoth
+}
+
+func reportPackPhaseRunsCandidate(phase string) bool {
+	return phase == reportPackPhaseCandidate || phase == reportPackPhaseBoth
+}
+
+func reportPackOutputIdentity(cfg config.Config, phase string) string {
+	if cfg.ToolServerID != "" {
+		return cfg.ToolServerID
+	}
+	if cfg.ReportID != "" {
+		return cfg.ReportID
+	}
+	return phase
 }
 
 func validateSingleProfileForReportPack(cfg config.Config, scenarios []*scenario.Scenario) error {
@@ -386,6 +439,9 @@ func runReportPackPhase(
 }
 
 func buildReportPackLinks(cfg config.Config, benchUIURL string, scenarioIDs []string) (reportPackLinks, error) {
+	if strings.TrimSpace(cfg.ToolServerID) == "" {
+		return reportPackLinks{}, nil
+	}
 	query := url.Values{}
 	query.Set("model", cfg.Model)
 	query.Set("tool_server", cfg.ToolServerID)
@@ -418,6 +474,10 @@ func buildReportPackLinks(cfg config.Config, benchUIURL string, scenarioIDs []st
 		return reportPackLinks{}, fmt.Errorf("build markdown report URL: %w", err)
 	}
 	return reportPackLinks{UI: ui, JSON: api, Markdown: markdown}, nil
+}
+
+func reportPackLinksEmpty(links reportPackLinks) bool {
+	return links.UI == "" && links.JSON == "" && links.Markdown == ""
 }
 
 func deriveReportPackUIBase(apiURL, benchUIURL string) (string, error) {
@@ -466,11 +526,12 @@ func cloneURLValues(values url.Values) url.Values {
 	return out
 }
 
-func printReportPackPlan(cmd *cobra.Command, cfg config.Config, scenarioIDs []string, repeats, skipped int, links reportPackLinks) {
+func printReportPackPlan(cmd *cobra.Command, cfg config.Config, phase string, scenarioIDs []string, repeats, skipped int, links reportPackLinks) {
 	writef(cmd.OutOrStdout(), "\n")
 	writef(cmd.OutOrStdout(), "PRIVATE REPORT PACK\n")
 	writef(cmd.OutOrStdout(), "  Model:       %s\n", cfg.Model)
 	writef(cmd.OutOrStdout(), "  Provider:    %s\n", cfg.Provider)
+	writef(cmd.OutOrStdout(), "  Phase:       %s\n", phase)
 	if cfg.ReportID != "" {
 		writef(cmd.OutOrStdout(), "  Report ID:   %s\n", cfg.ReportID)
 	}
@@ -480,37 +541,53 @@ func printReportPackPlan(cmd *cobra.Command, cfg config.Config, scenarioIDs []st
 		writef(cmd.OutOrStdout(), "  Skipped:     %d\n", skipped)
 	}
 	writef(cmd.OutOrStdout(), "  Phases:\n")
-	writef(cmd.OutOrStdout(), "    baseline: direct Bench tools\n")
-	writef(cmd.OutOrStdout(), "    candidate: tool_server=%s", cfg.ToolServerID)
-	if cfg.ToolServerVersion != "" {
-		writef(cmd.OutOrStdout(), " version=%s", cfg.ToolServerVersion)
+	if reportPackPhaseRunsBaseline(phase) {
+		writef(cmd.OutOrStdout(), "    baseline: direct Bench tools\n")
 	}
-	writef(cmd.OutOrStdout(), "\n")
+	if reportPackPhaseRunsCandidate(phase) {
+		writef(cmd.OutOrStdout(), "    candidate: tool_server=%s", cfg.ToolServerID)
+		if cfg.ToolServerVersion != "" {
+			writef(cmd.OutOrStdout(), " version=%s", cfg.ToolServerVersion)
+		}
+		writef(cmd.OutOrStdout(), "\n")
+	}
+	if reportPackLinksEmpty(links) {
+		writef(cmd.OutOrStdout(), "  Report links: unavailable until a tool-server candidate is selected\n")
+		return
+	}
 	writef(cmd.OutOrStdout(), "  Report links:\n")
 	writef(cmd.OutOrStdout(), "    UI:       %s\n", links.UI)
 	writef(cmd.OutOrStdout(), "    JSON:     %s\n", links.JSON)
 	writef(cmd.OutOrStdout(), "    Markdown: %s\n", links.Markdown)
 }
 
-func printReportPackSummary(cmd *cobra.Command, baseline, candidate reportPackPhaseSummary, skipped int, summaryPath, reportID string, links reportPackLinks) {
+func printReportPackSummary(cmd *cobra.Command, phase string, baseline, candidate reportPackPhaseSummary, skipped int, summaryPath, reportID string, links reportPackLinks) {
 	writef(cmd.OutOrStdout(), "\n")
 	writef(cmd.OutOrStdout(), "REPORT PACK RESULTS\n")
+	writef(cmd.OutOrStdout(), "  Phase:      %s\n", phase)
 	if reportID != "" {
 		writef(cmd.OutOrStdout(), "  Report ID:  %s\n", reportID)
 	}
-	writef(cmd.OutOrStdout(), "  Baseline:  %d passed, %d failed, %d errors\n", baseline.Passed, baseline.Failed, baseline.Errors)
-	writef(cmd.OutOrStdout(), "  Candidate: %d passed, %d failed, %d errors\n", candidate.Passed, candidate.Failed, candidate.Errors)
+	if reportPackPhaseRunsBaseline(phase) {
+		writef(cmd.OutOrStdout(), "  Baseline:  %d passed, %d failed, %d errors\n", baseline.Passed, baseline.Failed, baseline.Errors)
+	}
+	if reportPackPhaseRunsCandidate(phase) {
+		writef(cmd.OutOrStdout(), "  Candidate: %d passed, %d failed, %d errors\n", candidate.Passed, candidate.Failed, candidate.Errors)
+	}
 	if skipped > 0 {
 		writef(cmd.OutOrStdout(), "  Skipped:   %d\n", skipped)
 	}
 	writef(cmd.OutOrStdout(), "  Summary:   %s\n", summaryPath)
-	writef(cmd.OutOrStdout(), "  Report:    %s\n", links.UI)
-	writef(cmd.OutOrStdout(), "  Markdown:  %s\n", links.Markdown)
+	if !reportPackLinksEmpty(links) {
+		writef(cmd.OutOrStdout(), "  Report:    %s\n", links.UI)
+		writef(cmd.OutOrStdout(), "  Markdown:  %s\n", links.Markdown)
+	}
 }
 
 func writeReportPackSummary(
 	outDir string,
 	cfg config.Config,
+	phase string,
 	scenarioIDs []string,
 	skipped int,
 	links reportPackLinks,
@@ -521,6 +598,7 @@ func writeReportPackSummary(
 		"generated_at":        time.Now().UTC().Format(time.RFC3339),
 		"model":               cfg.Model,
 		"provider":            cfg.Provider,
+		"phase":               phase,
 		"tool_server":         cfg.ToolServerID,
 		"tool_server_version": cfg.ToolServerVersion,
 		"report_id":           cfg.ReportID,
