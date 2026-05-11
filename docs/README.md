@@ -36,6 +36,8 @@ Use this page as the documentation home in Obsidian and GitHub.
   and file-based compatibility notes.
 - [Private Report Pack](PRIVATE_REPORT_PACK.md) - CLI workflow for private
   baseline versus MCP tool-server reports.
+- [Kubernetes MCP Readiness 2026-05](reports/kubernetes-mcp-readiness-2026-05.md)
+  - public baseline versus two Kubernetes MCP server candidates.
 - [Evidence Modes](EVIDENCE_MODES.md) - run-record modes used by API filters
   and MCP runs.
 

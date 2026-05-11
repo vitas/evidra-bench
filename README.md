@@ -173,7 +173,8 @@ bench-cli report-pack \
 ```
 
 See [Private Report Pack](docs/PRIVATE_REPORT_PACK.md) for the reporting
-workflow.
+workflow. The first public multi-server report is tracked in
+[Kubernetes MCP Readiness 2026-05](docs/reports/kubernetes-mcp-readiness-2026-05.md).
 
 ## How It Works
 
