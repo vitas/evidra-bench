@@ -194,11 +194,11 @@ func TestBenchParallel_RejectsNonDefaultSharedProfiles(t *testing.T) {
 	}
 }
 
-func TestBenchCommand_RegistersToolServerFlags(t *testing.T) {
+func TestBenchCommand_RegistersReportIdentityFlags(t *testing.T) {
 	t.Parallel()
 
 	cmd := newBenchCommand()
-	for _, flag := range []string{"tool-server-id", "tool-server-version"} {
+	for _, flag := range []string{"tool-server-id", "tool-server-version", "report-id"} {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Fatalf("expected --%s flag to be registered", flag)
 		}

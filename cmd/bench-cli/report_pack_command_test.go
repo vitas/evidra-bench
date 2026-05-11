@@ -31,6 +31,7 @@ func TestReportPackCommand_DryRunPrintsTwoPhasesAndReportLinks(t *testing.T) {
 		"--provider", "claude",
 		"--bench-url", "https://api.evidra.cc",
 		"--bench-ui-url", "https://bench.evidra.cc",
+		"--report-id", "kubernetes-mcp-readiness-2026-05",
 		"--mcp-server", "npx -y @vendor/kubernetes-mcp --stdio",
 		"--tool-server-id", "kubernetes-mcp",
 		"--tool-server-version", "1.2.3",
@@ -42,6 +43,7 @@ func TestReportPackCommand_DryRunPrintsTwoPhasesAndReportLinks(t *testing.T) {
 	output := buf.String()
 	for _, want := range []string{
 		"PRIVATE REPORT PACK",
+		"Report ID:   kubernetes-mcp-readiness-2026-05",
 		"baseline: direct Bench tools",
 		"candidate: tool_server=kubernetes-mcp version=1.2.3",
 		"broken-deployment",

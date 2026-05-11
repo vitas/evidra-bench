@@ -88,6 +88,16 @@ func TestBuildRunMetadata_IncludesToolServerIdentity(t *testing.T) {
 	}
 }
 
+func TestBuildRunMetadata_IncludesReportID(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.Config{ReportID: "kubernetes-mcp-readiness-2026-05"}
+	meta := buildRunMetadata(cfg, &agent.LoopResult{}, "/tmp/evidence")
+	if meta["report_id"] != "kubernetes-mcp-readiness-2026-05" {
+		t.Fatalf("report_id metadata = %q", meta["report_id"])
+	}
+}
+
 func TestResolveToolServerIdentity_PrefersExplicitLabels(t *testing.T) {
 	t.Parallel()
 

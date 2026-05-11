@@ -39,6 +39,7 @@ type Config struct {
 	MCPServer           string // MCP server command
 	ToolServerID        string // stable MCP server identity for comparison/filtering
 	ToolServerVersion   string // stable MCP server version for comparison/filtering
+	ReportID            string // stable public/private report campaign identifier
 	EvidenceMode        string // explicit per-run override for evidence mode
 	Parallel            int    // number of parallel workers (0 or 1 = sequential, >1 requires --database-url)
 	DatabaseURL         string // PostgreSQL connection string for River job queue (env: BENCH_DATABASE_URL)

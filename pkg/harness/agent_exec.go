@@ -206,6 +206,9 @@ func buildRunMetadata(cfg config.Config, loopResult *agent.LoopResult, evidenceD
 			meta["tool_server_cmd"] = cfg.MCPServer
 		}
 	}
+	if reportID := strings.TrimSpace(cfg.ReportID); reportID != "" {
+		meta["report_id"] = reportID
+	}
 	return meta
 }
 

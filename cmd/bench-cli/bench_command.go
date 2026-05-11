@@ -60,6 +60,7 @@ func newBenchCommand() *cobra.Command {
 	f.StringVar(&cfg.MCPServer, "mcp-server", "", "MCP server command")
 	f.StringVar(&cfg.ToolServerID, "tool-server-id", "", "stable MCP server identity for result comparison")
 	f.StringVar(&cfg.ToolServerVersion, "tool-server-version", "", "stable MCP server version for result comparison")
+	f.StringVar(&cfg.ReportID, "report-id", "", "stable report campaign identifier for filtering")
 	f.IntVar(&cfg.Parallel, "parallel", 1, "number of parallel workers (1 = sequential)")
 	f.StringVar(&cfg.DatabaseURL, "database-url", "", "PostgreSQL URL for job queue (env: BENCH_DATABASE_URL)")
 	return cmd

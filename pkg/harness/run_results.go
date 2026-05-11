@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"samebits.com/evidra-infra-bench/pkg/adapter"
@@ -128,6 +129,12 @@ func (h *Harness) storeRun(req RunRequest, agentResult *adapter.RunResult, verif
 		if toolServerVersion != "" {
 			agentResult.Metadata["tool_server_version"] = toolServerVersion
 		}
+	}
+	if reportID := strings.TrimSpace(runCfg.ReportID); reportID != "" {
+		if agentResult.Metadata == nil {
+			agentResult.Metadata = map[string]string{}
+		}
+		agentResult.Metadata["report_id"] = reportID
 	}
 	checksPassed, checksTotal := countChecks(verifyResult)
 	checksJSON, _ := json.Marshal(verifyResult)

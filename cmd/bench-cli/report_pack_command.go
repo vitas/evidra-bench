@@ -100,6 +100,7 @@ func newReportPackCommand() *cobra.Command {
 	f.StringVar(&cfg.MCPServer, "mcp-server", cfg.MCPServer, "MCP server command for candidate phase")
 	f.StringVar(&cfg.ToolServerID, "tool-server-id", cfg.ToolServerID, "stable MCP server identity for report filtering")
 	f.StringVar(&cfg.ToolServerVersion, "tool-server-version", cfg.ToolServerVersion, "stable MCP server version for report filtering")
+	f.StringVar(&cfg.ReportID, "report-id", cfg.ReportID, "stable report campaign identifier for filtering")
 	f.BoolVar(&strict, "strict", strict, "return non-zero when benchmark scenario verifications fail")
 	return cmd
 }
@@ -198,7 +199,7 @@ func executeReportPack(
 	if err != nil {
 		return err
 	}
-	printReportPackSummary(cmd, baseline, candidate, skipped, summaryPath, links)
+	printReportPackSummary(cmd, baseline, candidate, skipped, summaryPath, cfg.ReportID, links)
 
 	totalErrors := baseline.Errors + candidate.Errors
 	totalFailed := baseline.Failed + candidate.Failed
@@ -219,6 +220,7 @@ func prepareReportPackConfig(cfg *config.Config, repeats int) error {
 	cfg.MCPServer = strings.TrimSpace(cfg.MCPServer)
 	cfg.ToolServerID = strings.TrimSpace(cfg.ToolServerID)
 	cfg.ToolServerVersion = strings.TrimSpace(cfg.ToolServerVersion)
+	cfg.ReportID = strings.TrimSpace(cfg.ReportID)
 
 	if repeats < 1 {
 		return fmt.Errorf("report-pack: --repeats must be at least 1")
@@ -390,6 +392,9 @@ func buildReportPackLinks(cfg config.Config, benchUIURL string, scenarioIDs []st
 	if cfg.ToolServerVersion != "" {
 		query.Set("tool_server_version", cfg.ToolServerVersion)
 	}
+	if cfg.ReportID != "" {
+		query.Set("report_id", cfg.ReportID)
+	}
 	if len(scenarioIDs) > 0 {
 		query.Set("scenarios", strings.Join(scenarioIDs, ","))
 	}
@@ -466,6 +471,9 @@ func printReportPackPlan(cmd *cobra.Command, cfg config.Config, scenarioIDs []st
 	writef(cmd.OutOrStdout(), "PRIVATE REPORT PACK\n")
 	writef(cmd.OutOrStdout(), "  Model:       %s\n", cfg.Model)
 	writef(cmd.OutOrStdout(), "  Provider:    %s\n", cfg.Provider)
+	if cfg.ReportID != "" {
+		writef(cmd.OutOrStdout(), "  Report ID:   %s\n", cfg.ReportID)
+	}
 	writef(cmd.OutOrStdout(), "  Scenarios:   %s\n", strings.Join(scenarioIDs, ", "))
 	writef(cmd.OutOrStdout(), "  Repeats:     %d\n", repeats)
 	if skipped > 0 {
@@ -484,9 +492,12 @@ func printReportPackPlan(cmd *cobra.Command, cfg config.Config, scenarioIDs []st
 	writef(cmd.OutOrStdout(), "    Markdown: %s\n", links.Markdown)
 }
 
-func printReportPackSummary(cmd *cobra.Command, baseline, candidate reportPackPhaseSummary, skipped int, summaryPath string, links reportPackLinks) {
+func printReportPackSummary(cmd *cobra.Command, baseline, candidate reportPackPhaseSummary, skipped int, summaryPath, reportID string, links reportPackLinks) {
 	writef(cmd.OutOrStdout(), "\n")
 	writef(cmd.OutOrStdout(), "REPORT PACK RESULTS\n")
+	if reportID != "" {
+		writef(cmd.OutOrStdout(), "  Report ID:  %s\n", reportID)
+	}
 	writef(cmd.OutOrStdout(), "  Baseline:  %d passed, %d failed, %d errors\n", baseline.Passed, baseline.Failed, baseline.Errors)
 	writef(cmd.OutOrStdout(), "  Candidate: %d passed, %d failed, %d errors\n", candidate.Passed, candidate.Failed, candidate.Errors)
 	if skipped > 0 {
@@ -512,6 +523,7 @@ func writeReportPackSummary(
 		"provider":            cfg.Provider,
 		"tool_server":         cfg.ToolServerID,
 		"tool_server_version": cfg.ToolServerVersion,
+		"report_id":           cfg.ReportID,
 		"scenarios":           scenarioIDs,
 		"skipped":             skipped,
 		"links":               links,
