@@ -27,6 +27,7 @@ func handleListRuns(svc *Service) http.HandlerFunc {
 			Provider:          q.Get("provider"),
 			ToolServer:        q.Get("tool_server"),
 			ToolServerVersion: q.Get("tool_server_version"),
+			ReportID:          q.Get("report_id"),
 			EvidenceMode:      q.Get("evidence_mode"),
 			Since:             parseSince(q.Get("since")),
 			Limit:             limit,

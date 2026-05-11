@@ -56,6 +56,7 @@ type RunFilters struct {
 	Provider          string
 	ToolServer        string
 	ToolServerVersion string
+	ReportID          string
 	ToolServerUnset   bool   // exact baseline/native-tool runs where tool_server is empty
 	EvidenceMode      string // deprecated coarse mode; empty for all
 	PassedOnly        bool

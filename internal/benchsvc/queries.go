@@ -172,6 +172,10 @@ func buildWhere(tenantID string, f bench.RunFilters) (string, []any) {
 		args = append(args, f.ToolServerVersion)
 		clauses = append(clauses, fmt.Sprintf("tool_server_version = $%d", len(args)))
 	}
+	if f.ReportID != "" {
+		args = append(args, f.ReportID)
+		clauses = append(clauses, fmt.Sprintf("metadata_json->>'report_id' = $%d", len(args)))
+	}
 	if clause, clauseArgs := evidenceModeClause(len(args)+1, f.EvidenceMode); clause != "" {
 		clauses = append(clauses, clause)
 		args = append(args, clauseArgs...)

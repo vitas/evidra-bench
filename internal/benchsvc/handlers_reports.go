@@ -27,6 +27,7 @@ func handleToolServerReport(svc *Service) http.HandlerFunc {
 			Model:             model,
 			ToolServer:        toolServer,
 			ToolServerVersion: q.Get("tool_server_version"),
+			ReportID:          q.Get("report_id"),
 			Category:          q.Get("category"),
 			ScenarioIDs:       scenarios,
 		})

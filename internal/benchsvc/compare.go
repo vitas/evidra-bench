@@ -133,6 +133,7 @@ type ToolServerCompareRequest struct {
 	Model             string
 	ToolServer        string
 	ToolServerVersion string
+	ReportID          string
 	ScenarioIDs       []string
 }
 
@@ -141,6 +142,7 @@ type ToolServerComparison struct {
 	Model              string                         `json:"model"`
 	ToolServer         string                         `json:"tool_server"`
 	ToolServerVersion  string                         `json:"tool_server_version,omitempty"`
+	ReportID           string                         `json:"report_id,omitempty"`
 	ScenarioIDs        []string                       `json:"scenario_ids,omitempty"`
 	Baseline           ToolServerAggregate            `json:"baseline"`
 	Candidate          ToolServerAggregate            `json:"candidate"`
@@ -183,6 +185,7 @@ func (s *Service) CompareToolServer(ctx context.Context, tenantID string, req To
 	baselineRuns, _, err := s.repo.ListRuns(ctx, tenantID, bench.RunFilters{
 		Model:           req.Model,
 		ToolServerUnset: true,
+		ReportID:        req.ReportID,
 		ScenarioIDs:     req.ScenarioIDs,
 	})
 	if err != nil {
@@ -193,6 +196,7 @@ func (s *Service) CompareToolServer(ctx context.Context, tenantID string, req To
 		Model:             req.Model,
 		ToolServer:        req.ToolServer,
 		ToolServerVersion: req.ToolServerVersion,
+		ReportID:          req.ReportID,
 		ScenarioIDs:       req.ScenarioIDs,
 	})
 	if err != nil {
@@ -208,6 +212,7 @@ func (s *Service) CompareToolServer(ctx context.Context, tenantID string, req To
 		Model:              req.Model,
 		ToolServer:         req.ToolServer,
 		ToolServerVersion:  req.ToolServerVersion,
+		ReportID:           req.ReportID,
 		ScenarioIDs:        append([]string(nil), req.ScenarioIDs...),
 		Baseline:           baseline,
 		Candidate:          candidate,

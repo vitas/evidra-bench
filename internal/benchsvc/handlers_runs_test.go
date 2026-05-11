@@ -63,7 +63,7 @@ func TestHandleListRuns_ParsesFilters(t *testing.T) {
 	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-b")
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/v1/bench/runs?model=sonnet&scenario=broken-deployment&scenarios=s1,s2&evidence_mode=mcp&tool_server=kubernetes-mcp&tool_server_version=1.2.3&limit=10&offset=5", nil)
+	req := httptest.NewRequest("GET", "/v1/bench/runs?model=sonnet&scenario=broken-deployment&scenarios=s1,s2&evidence_mode=mcp&tool_server=kubernetes-mcp&tool_server_version=1.2.3&report_id=public-report&limit=10&offset=5", nil)
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
@@ -87,6 +87,9 @@ func TestHandleListRuns_ParsesFilters(t *testing.T) {
 	}
 	if f.ToolServerVersion != "1.2.3" {
 		t.Errorf("ToolServerVersion = %q, want 1.2.3", f.ToolServerVersion)
+	}
+	if f.ReportID != "public-report" {
+		t.Errorf("ReportID = %q, want public-report", f.ReportID)
 	}
 	if f.Limit != 10 {
 		t.Errorf("Limit = %d, want 10", f.Limit)
@@ -147,6 +150,39 @@ func TestHandleListRuns_EvidenceModeFiltersItems(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestHandleListRuns_FiltersByReportID(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		runs: []bench.RunRecord{
+			{ID: "public-run", ScenarioID: "s1", Model: "sonnet", MetadataJSON: `{"report_id":"public-report"}`},
+			{ID: "other-run", ScenarioID: "s1", Model: "sonnet", MetadataJSON: `{"report_id":"other-report"}`},
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/runs?report_id=public-report", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	var body struct {
+		Items []bench.RunRecord `json:"runs"`
+		Total int               `json:"total"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body.Total != 1 || len(body.Items) != 1 {
+		t.Fatalf("runs = %+v total=%d, want one public-report run", body.Items, body.Total)
+	}
+	if body.Items[0].ID != "public-run" {
+		t.Fatalf("run ID = %q, want public-run", body.Items[0].ID)
 	}
 }
 

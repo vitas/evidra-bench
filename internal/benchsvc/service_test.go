@@ -340,6 +340,15 @@ func TestBuildWhere_TenantAlwaysFirst(t *testing.T) {
 			wantArgs: 2,
 			wantSQL:  "tool_server_version = $2",
 		},
+		{
+			name:   "tenant plus report id",
+			tenant: "t6",
+			filters: bench.RunFilters{
+				ReportID: "public-report",
+			},
+			wantArgs: 2,
+			wantSQL:  "metadata_json->>'report_id' = $2",
+		},
 	}
 
 	for _, tt := range tests {

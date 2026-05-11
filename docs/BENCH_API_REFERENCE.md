@@ -157,6 +157,7 @@ Query parameters:
 | `model` | exact model filter |
 | `tool_server` | exact MCP tool-server identity filter |
 | `tool_server_version` | exact MCP tool-server version filter |
+| `report_id` | exact report/campaign ID stored in run metadata |
 | `scenario` | exact scenario ID filter |
 | `scenarios` | comma-separated scenario IDs; ignored when `scenario` is set |
 | `evidence_mode` | filter using the evidence-mode contract above |
@@ -287,6 +288,7 @@ Query parameters:
 | `model` | required exact model ID |
 | `tool_server` | required exact MCP tool-server identity |
 | `tool_server_version` | optional exact MCP tool-server version |
+| `report_id` | optional exact report/campaign ID; isolates baseline and candidate runs to one report slice |
 | `scenario` | optional exact scenario ID |
 | `scenarios` | optional comma-separated scenario IDs; ignored when `scenario` is set |
 
@@ -297,6 +299,7 @@ Response:
   "model": "sonnet",
   "tool_server": "kubernetes-mcp",
   "tool_server_version": "1.2.3",
+  "report_id": "kubernetes-mcp-readiness-2026-05",
   "scenario_ids": ["broken-deployment", "stuck-rollout"],
   "baseline": {
     "runs": 2,
@@ -357,6 +360,7 @@ Query parameters:
 | `model` | required exact model ID |
 | `tool_server` | required exact MCP tool-server identity |
 | `tool_server_version` | optional exact MCP tool-server version |
+| `report_id` | optional exact report/campaign ID; isolates the report to matching baseline and candidate runs |
 | `category` | optional scenario category slice; used when no explicit scenarios are supplied |
 | `scenario` | optional exact scenario ID |
 | `scenarios` | optional comma-separated scenario IDs; ignored when `scenario` is set |

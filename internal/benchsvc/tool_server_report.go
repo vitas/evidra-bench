@@ -24,6 +24,7 @@ type ToolServerReportRequest struct {
 	Model             string
 	ToolServer        string
 	ToolServerVersion string
+	ReportID          string
 	Category          string
 	ScenarioIDs       []string
 }
@@ -51,6 +52,7 @@ type ToolServerReportConfiguration struct {
 	Provider          string `json:"provider,omitempty"`
 	ToolServer        string `json:"tool_server"`
 	ToolServerVersion string `json:"tool_server_version,omitempty"`
+	ReportID          string `json:"report_id,omitempty"`
 	ScenarioSlice     string `json:"scenario_slice"`
 }
 
@@ -121,6 +123,7 @@ func (s *Service) BuildToolServerReport(ctx context.Context, tenantID string, re
 	req.Model = strings.TrimSpace(req.Model)
 	req.ToolServer = strings.TrimSpace(req.ToolServer)
 	req.ToolServerVersion = strings.TrimSpace(req.ToolServerVersion)
+	req.ReportID = strings.TrimSpace(req.ReportID)
 	req.Category = strings.TrimSpace(req.Category)
 	req.ScenarioIDs = normalizeReportScenarioIDs(req.ScenarioIDs)
 	if req.Model == "" || req.ToolServer == "" {
@@ -148,6 +151,7 @@ func (s *Service) BuildToolServerReport(ctx context.Context, tenantID string, re
 		Model:             req.Model,
 		ToolServer:        req.ToolServer,
 		ToolServerVersion: req.ToolServerVersion,
+		ReportID:          req.ReportID,
 		ScenarioIDs:       req.ScenarioIDs,
 	})
 	if err != nil {
@@ -157,6 +161,7 @@ func (s *Service) BuildToolServerReport(ctx context.Context, tenantID string, re
 	baselineRuns, _, err := s.repo.ListRuns(ctx, tenantID, bench.RunFilters{
 		Model:           req.Model,
 		ToolServerUnset: true,
+		ReportID:        req.ReportID,
 		ScenarioIDs:     req.ScenarioIDs,
 	})
 	if err != nil {
@@ -166,6 +171,7 @@ func (s *Service) BuildToolServerReport(ctx context.Context, tenantID string, re
 		Model:             req.Model,
 		ToolServer:        req.ToolServer,
 		ToolServerVersion: req.ToolServerVersion,
+		ReportID:          req.ReportID,
 		ScenarioIDs:       req.ScenarioIDs,
 	})
 	if err != nil {
@@ -193,6 +199,7 @@ func (s *Service) BuildToolServerReport(ctx context.Context, tenantID string, re
 			Provider:          provider,
 			ToolServer:        req.ToolServer,
 			ToolServerVersion: req.ToolServerVersion,
+			ReportID:          req.ReportID,
 			ScenarioSlice:     reportScenarioSlice(req, scenarioIDs),
 		},
 		Comparison: *comparison,
@@ -598,6 +605,7 @@ func RenderToolServerReportMarkdown(report *ToolServerReport) string {
 		{"Provider", report.Configuration.Provider},
 		{"Tool server", report.Configuration.ToolServer},
 		{"Tool server version", report.Configuration.ToolServerVersion},
+		{"Report ID", report.Configuration.ReportID},
 		{"Scenario slice", report.Configuration.ScenarioSlice},
 		{"Generated at", report.GeneratedAt.Format(time.RFC3339)},
 	}

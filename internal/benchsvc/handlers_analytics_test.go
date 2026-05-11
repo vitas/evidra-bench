@@ -301,6 +301,70 @@ func TestHandleCompareToolServer_UsesToolServerIdentityNotEvidenceMode(t *testin
 	}
 }
 
+func TestHandleCompareToolServer_FiltersByReportID(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		runs: []bench.RunRecord{
+			{
+				ID:           "baseline-public",
+				ScenarioID:   "s1",
+				Model:        "sonnet",
+				ToolServer:   "",
+				Passed:       true,
+				MetadataJSON: `{"report_id":"public-report"}`,
+			},
+			{
+				ID:           "baseline-other",
+				ScenarioID:   "s1",
+				Model:        "sonnet",
+				ToolServer:   "",
+				Passed:       false,
+				MetadataJSON: `{"report_id":"other-report"}`,
+			},
+			{
+				ID:           "candidate-public",
+				ScenarioID:   "s1",
+				Model:        "sonnet",
+				ToolServer:   "kubernetes-mcp",
+				Passed:       true,
+				MetadataJSON: `{"report_id":"public-report"}`,
+			},
+			{
+				ID:           "candidate-other",
+				ScenarioID:   "s1",
+				Model:        "sonnet",
+				ToolServer:   "kubernetes-mcp",
+				Passed:       false,
+				MetadataJSON: `{"report_id":"other-report"}`,
+			},
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/compare/tool-server?model=sonnet&tool_server=kubernetes-mcp&scenarios=s1&report_id=public-report", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	var body ToolServerComparison
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.ReportID != "public-report" {
+		t.Fatalf("report_id = %q, want public-report", body.ReportID)
+	}
+	if body.Baseline.Runs != 1 || body.Baseline.Passed != 1 {
+		t.Fatalf("baseline = %+v, want runs=1 passed=1", body.Baseline)
+	}
+	if body.Candidate.Runs != 1 || body.Candidate.Passed != 1 {
+		t.Fatalf("candidate = %+v, want runs=1 passed=1", body.Candidate)
+	}
+}
+
 func TestHandleCompareToolServer_RequiresModelAndToolServer(t *testing.T) {
 	t.Parallel()
 

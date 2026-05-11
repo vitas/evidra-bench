@@ -2,6 +2,7 @@ package benchsvc
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -89,6 +90,7 @@ func (r *handlerRepo) ListRuns(_ context.Context, tenant string, f bench.RunFilt
 	}
 	filtered = filterRunsByToolServer(filtered, f.ToolServer)
 	filtered = filterRunsByToolServerVersion(filtered, f.ToolServerVersion)
+	filtered = filterRunsByReportID(filtered, f.ReportID)
 	if f.ScenarioID != "" {
 		filtered = filterRunsByScenarioIDs(filtered, []string{f.ScenarioID})
 		return filtered, len(filtered), nil
@@ -125,6 +127,7 @@ func (r *handlerRepo) FilteredStats(_ context.Context, tenant string, f bench.Ru
 	filtered = filterRunsByModel(filtered, f.Model)
 	filtered = filterRunsByToolServer(filtered, f.ToolServer)
 	filtered = filterRunsByToolServerVersion(filtered, f.ToolServerVersion)
+	filtered = filterRunsByReportID(filtered, f.ReportID)
 	return aggregateStatsRuns(filtered), nil
 }
 func (r *handlerRepo) Catalog(_ context.Context, tenant string) (*bench.RunCatalog, error) {
@@ -395,6 +398,27 @@ func filterRunsByToolServerVersion(runs []bench.RunRecord, version string) []ben
 		}
 	}
 	return filtered
+}
+
+func filterRunsByReportID(runs []bench.RunRecord, reportID string) []bench.RunRecord {
+	if reportID == "" {
+		return runs
+	}
+	filtered := make([]bench.RunRecord, 0, len(runs))
+	for _, run := range runs {
+		if runReportID(run) == reportID {
+			filtered = append(filtered, run)
+		}
+	}
+	return filtered
+}
+
+func runReportID(run bench.RunRecord) string {
+	var metadata map[string]string
+	if err := json.Unmarshal([]byte(run.MetadataJSON), &metadata); err != nil {
+		return ""
+	}
+	return metadata["report_id"]
 }
 
 func filterRunsByScenarioIDs(runs []bench.RunRecord, scenarios []string) []bench.RunRecord {
