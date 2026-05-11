@@ -48,22 +48,22 @@ If labels are omitted, Bench infers a best-effort ID from the command. Explicit
 labels always win and are recommended for private reports and release
 regression comparisons.
 
-## Evidence Modes
+## Stored Tool Server Identity
 
-API and stored run records use two coarse modes:
+Tool-server comparison and reports use `tool_server` as the source of truth:
 
-| Mode | Meaning |
-|---|---|
-| `none` | baseline or direct provider-loop run |
-| `mcp` | run used an MCP server |
+- empty `tool_server`: baseline or direct provider-loop run
+- non-empty `tool_server`: run used the selected external tool server
 
-The trigger endpoint accepts `evidence_mode` values `none` and `mcp`. For MCP
-runs it may also carry:
+For tool-server runs the trigger endpoint and runner config may carry:
 
 - `mcp_server`: executable command for the runner
 - `tool_server`: stable server identity used for filtering/comparison
 - `tool_server_version`: stable server version used for filtering/comparison
   and reports
+
+`evidence_mode` still exists as a legacy coarse filter in older API surfaces,
+but new tool-server comparisons should not depend on it.
 
 Legacy MCP rows with no stored server identity are backfilled as `legacy-mcp`
 so they remain visible in filters without inventing an exact server name.
@@ -118,6 +118,24 @@ bench-cli bench \
   --tool-server-version "$OTHER_MCP_VERSION" \
   --reuse-cluster
 ```
+
+For a private report deliverable, prefer the paired workflow:
+
+```bash
+bench-cli report-pack \
+  --model sonnet \
+  --provider bifrost \
+  --bench-url https://api.evidra.cc \
+  --bench-api-key "$BENCH_API_KEY" \
+  --mcp-server "$MCP_SERVER" \
+  --tool-server-id "$TOOL_SERVER_ID" \
+  --tool-server-version "$TOOL_SERVER_VERSION" \
+  --reuse-cluster
+```
+
+It runs the direct baseline and candidate MCP server phases under the same
+scenario slice, sends both sides to Bench, and prints live report links. See
+[Private Report Pack](PRIVATE_REPORT_PACK.md).
 
 ## Bench Job Contracts
 

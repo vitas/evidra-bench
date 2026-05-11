@@ -1,0 +1,16 @@
+{
+  "name": "Evidra Bench",
+  "short_name": "Bench",
+  "description": "AI infrastructure agent benchmark and MCP server regression testing.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f7f5",
+  "theme_color": "#101312",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "64x64",
+      "type": "image/svg+xml"
+    }
+  ]
+}

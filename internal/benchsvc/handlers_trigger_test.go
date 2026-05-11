@@ -1,10 +1,12 @@
 package benchsvc
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHandleTrigger_NoExecutor_Returns501(t *testing.T) {
@@ -33,17 +35,18 @@ func TestHandleTrigger_NoExecutor_Returns501(t *testing.T) {
 	}
 }
 
-func TestHandleTrigger_RequiresEvidenceMode(t *testing.T) {
+func TestHandleTrigger_DefaultsMissingEvidenceMode(t *testing.T) {
 	t.Parallel()
 
 	store := NewTriggerStore()
+	startedCh := make(chan struct{})
 	repo := &handlerRepo{
 		modelProvider: &ModelProviderInfo{Provider: "bifrost"},
 	}
 	svc := NewService(repo, ServiceConfig{
 		PublicTenant: "pub",
 		TriggerStore: store,
-		Executor:     &spyExecutor{},
+		Executor:     &spyExecutor{startedCh: startedCh},
 	})
 	mux := http.NewServeMux()
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
@@ -54,8 +57,25 @@ func TestHandleTrigger_RequiresEvidenceMode(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusAccepted, rec.Body.String())
+	}
+	select {
+	case <-startedCh:
+	case <-time.After(time.Second):
+		t.Fatal("executor Start was not called")
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	stored := store.Get(resp["id"].(string))
+	if stored == nil {
+		t.Fatal("stored trigger job missing")
+	}
+	if stored.EvidenceMode != "none" {
+		t.Fatalf("stored evidence mode = %q, want none", stored.EvidenceMode)
 	}
 }
 

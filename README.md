@@ -157,6 +157,24 @@ bench-cli run \
   --tool-server-version "$TOOL_SERVER_VERSION"
 ```
 
+For a private report deliverable, use the report pack workflow. It runs a
+direct baseline and the selected MCP server over the same scenario slice, sends
+both sides to Bench, then prints live report URLs:
+
+```bash
+bench-cli report-pack \
+  --model sonnet \
+  --provider bifrost \
+  --bench-url https://api.evidra.cc \
+  --bench-api-key "$BENCH_API_KEY" \
+  --mcp-server "$MCP_SERVER" \
+  --tool-server-id "$TOOL_SERVER_ID" \
+  --tool-server-version "$TOOL_SERVER_VERSION"
+```
+
+See [Private Report Pack](docs/PRIVATE_REPORT_PACK.md) for the reporting
+workflow.
+
 ## How It Works
 
 ```text

@@ -181,9 +181,9 @@ type ToolServerScenarioComparison struct {
 // CompareToolServer compares direct/native-tool runs to runs using one MCP server.
 func (s *Service) CompareToolServer(ctx context.Context, tenantID string, req ToolServerCompareRequest) (*ToolServerComparison, error) {
 	baselineRuns, _, err := s.repo.ListRuns(ctx, tenantID, bench.RunFilters{
-		Model:        req.Model,
-		EvidenceMode: "none",
-		ScenarioIDs:  req.ScenarioIDs,
+		Model:           req.Model,
+		ToolServerUnset: true,
+		ScenarioIDs:     req.ScenarioIDs,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("benchsvc.CompareToolServer: baseline: %w", err)
@@ -191,7 +191,6 @@ func (s *Service) CompareToolServer(ctx context.Context, tenantID string, req To
 
 	candidateRuns, _, err := s.repo.ListRuns(ctx, tenantID, bench.RunFilters{
 		Model:             req.Model,
-		EvidenceMode:      "mcp",
 		ToolServer:        req.ToolServer,
 		ToolServerVersion: req.ToolServerVersion,
 		ScenarioIDs:       req.ScenarioIDs,

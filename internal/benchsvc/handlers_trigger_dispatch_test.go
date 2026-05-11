@@ -73,10 +73,11 @@ func TestHandleTrigger_ValidRequest_Returns202_WithEvidenceModeNone(t *testing.T
 	t.Parallel()
 
 	store := NewTriggerStore()
+	startedCh := make(chan struct{})
 	repo := &handlerRepo{
 		modelProvider: &ModelProviderInfo{Provider: "bifrost"},
 	}
-	spy := &spyExecutor{}
+	spy := &spyExecutor{startedCh: startedCh}
 	svc := NewService(repo, ServiceConfig{
 		PublicTenant: "pub",
 		TriggerStore: store,
@@ -94,6 +95,11 @@ func TestHandleTrigger_ValidRequest_Returns202_WithEvidenceModeNone(t *testing.T
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusAccepted, rec.Body.String())
 	}
+	select {
+	case <-startedCh:
+	case <-time.After(time.Second):
+		t.Fatal("executor Start was not called")
+	}
 
 	var resp map[string]any
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
@@ -108,6 +114,54 @@ func TestHandleTrigger_ValidRequest_Returns202_WithEvidenceModeNone(t *testing.T
 	}
 	if stored.ExecutionMode != "provider" {
 		t.Fatalf("stored execution mode = %q, want provider", stored.ExecutionMode)
+	}
+}
+
+func TestHandleTrigger_InfersMCPModeFromToolServer(t *testing.T) {
+	t.Parallel()
+
+	store := NewTriggerStore()
+	startedCh := make(chan struct{})
+	repo := &handlerRepo{
+		modelProvider: &ModelProviderInfo{Provider: "bifrost"},
+	}
+	spy := &spyExecutor{startedCh: startedCh}
+	svc := NewService(repo, ServiceConfig{
+		PublicTenant: "pub",
+		TriggerStore: store,
+		Executor:     spy,
+	})
+	mux := http.NewServeMux()
+	RegisterRoutes(mux, svc, passthroughAuth("t1"))
+
+	rec := httptest.NewRecorder()
+	body := `{"model":"sonnet","tool_server":"kubernetes-mcp","scenarios":["s1"]}`
+	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusAccepted, rec.Body.String())
+	}
+	select {
+	case <-startedCh:
+	case <-time.After(time.Second):
+		t.Fatal("executor Start was not called")
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	stored := store.Get(resp["id"].(string))
+	if stored == nil {
+		t.Fatal("stored trigger job missing")
+	}
+	if stored.EvidenceMode != "mcp" {
+		t.Fatalf("stored evidence mode = %q, want mcp", stored.EvidenceMode)
+	}
+	if spy.job == nil || spy.job.EvidenceMode != "mcp" {
+		t.Fatalf("executor job evidence mode = %v, want mcp", spy.job)
 	}
 }
 

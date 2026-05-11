@@ -1,6 +1,13 @@
 # Evidence Modes
 
-`bench-cli` has two run-record evidence modes:
+`evidence_mode` is a legacy coarse run-record field. New tool-server
+comparison logic should use `tool_server` as the source of truth:
+
+- empty `tool_server`: baseline or direct provider-loop run
+- non-empty `tool_server`: run used the selected external tool server
+
+Existing API filters still accept two evidence modes for backward-compatible
+views:
 
 | Mode | How to select it | Meaning |
 |---|---|---|
@@ -43,6 +50,6 @@ bench-cli bench --scenario kubernetes --model sonnet --provider bifrost \
   --reuse-cluster
 ```
 
-Infrastructure verification is independent of evidence mode. Scenario checks
+Infrastructure verification is independent of `evidence_mode`. Scenario checks
 always run; MCP-specific artifacts are interpreted only when a scenario or a
 separate verifier explicitly points at an evidence directory.

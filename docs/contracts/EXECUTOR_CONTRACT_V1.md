@@ -67,7 +67,7 @@ Fields:
 | `config.timeout_per_scenario` | no | Timeout per scenario in seconds |
 | `config.adapter` | no | `provider`, `a2a`, `cli`, or `mcp` depending on executor support |
 | `config.a2a_agent_url` | no | A2A endpoint when `adapter=a2a` |
-| `config.evidence_mode` | no | `none` or `mcp`; request value overrides worker default |
+| `config.evidence_mode` | no | Legacy coarse mode, `none` or `mcp`; derive from `tool_server` when absent |
 | `config.mcp_server` | no | Executable MCP server command |
 | `config.tool_server` | no | Stable MCP server identity for filtering/comparison |
 | `config.tool_server_version` | no | Stable MCP server version for reports |

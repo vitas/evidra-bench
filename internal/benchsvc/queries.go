@@ -162,7 +162,9 @@ func buildWhere(tenantID string, f bench.RunFilters) (string, []any) {
 		args = append(args, f.Provider)
 		clauses = append(clauses, fmt.Sprintf("provider = $%d", len(args)))
 	}
-	if f.ToolServer != "" {
+	if f.ToolServerUnset {
+		clauses = append(clauses, "tool_server = ''")
+	} else if f.ToolServer != "" {
 		args = append(args, f.ToolServer)
 		clauses = append(clauses, fmt.Sprintf("tool_server = $%d", len(args)))
 	}

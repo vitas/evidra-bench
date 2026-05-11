@@ -323,6 +323,15 @@ func TestBuildWhere_TenantAlwaysFirst(t *testing.T) {
 			wantSQL:  "tool_server = $2",
 		},
 		{
+			name:   "tenant plus empty tool server",
+			tenant: "t4",
+			filters: bench.RunFilters{
+				ToolServerUnset: true,
+			},
+			wantArgs: 1,
+			wantSQL:  "tool_server = ''",
+		},
+		{
 			name:   "tenant plus tool server version",
 			tenant: "t5",
 			filters: bench.RunFilters{

@@ -34,6 +34,8 @@ Use this page as the documentation home in Obsidian and GitHub.
 - [Testing Methodology](TESTING_METHODOLOGY.md) - what Bench measures and why.
 - [Evidence and Tool-Server Integration](TOOL_SERVER_INTEGRATION.md) - optional MCP
   and file-based compatibility notes.
+- [Private Report Pack](PRIVATE_REPORT_PACK.md) - CLI workflow for private
+  baseline versus MCP tool-server reports.
 - [Evidence Modes](EVIDENCE_MODES.md) - run-record modes used by API filters
   and MCP runs.
 

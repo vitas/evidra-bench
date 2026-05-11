@@ -49,8 +49,10 @@ Request:
 
 Rules:
 
-- `model`, `scenarios`, and `evidence_mode` are required.
-- `evidence_mode` must be `none` or `mcp`.
+- `model` and `scenarios` are required.
+- `evidence_mode` is optional and must be `none` or `mcp` when provided.
+  When omitted, the control plane derives `mcp` from `mcp_server` or
+  `tool_server`, otherwise `none`.
 - `execution_mode` is optional and must be `provider` or `a2a`; omitted means
   `provider`.
 - `provider` may be supplied by the caller, inherited from the runner config,

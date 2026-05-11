@@ -98,14 +98,12 @@ func decodeTriggerRequest(w http.ResponseWriter, r *http.Request) (TriggerReques
 		apiutil.WriteError(w, http.StatusBadRequest, "scenarios is required")
 		return TriggerRequest{}, false
 	}
-	if req.EvidenceMode == "" {
-		apiutil.WriteError(w, http.StatusBadRequest, "evidence_mode is required")
-		return TriggerRequest{}, false
-	}
-	if !isSupportedTriggerEvidenceMode(req.EvidenceMode) {
+	evidenceMode, validEvidenceMode := normalizeTriggerEvidenceMode(req)
+	if !validEvidenceMode {
 		apiutil.WriteError(w, http.StatusBadRequest, "evidence_mode must be none or mcp")
 		return TriggerRequest{}, false
 	}
+	req.EvidenceMode = evidenceMode
 	var ok bool
 	req.ExecutionMode, ok = normalizeTriggerExecutionMode(req.ExecutionMode)
 	if !ok {
@@ -117,6 +115,17 @@ func decodeTriggerRequest(w http.ResponseWriter, r *http.Request) (TriggerReques
 
 func isSupportedTriggerEvidenceMode(mode string) bool {
 	return mode == "none" || mode == "mcp"
+}
+
+func normalizeTriggerEvidenceMode(req TriggerRequest) (string, bool) {
+	switch {
+	case req.EvidenceMode != "":
+		return req.EvidenceMode, isSupportedTriggerEvidenceMode(req.EvidenceMode)
+	case req.MCPServer != "" || req.ToolServer != "":
+		return "mcp", true
+	default:
+		return "none", true
+	}
 }
 
 func normalizeTriggerExecutionMode(mode string) (string, bool) {

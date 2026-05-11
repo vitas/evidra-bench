@@ -402,7 +402,9 @@ See [Executor Contract v1.0.0](contracts/EXECUTOR_CONTRACT_V1.md) and
 
 ### POST /v1/bench/trigger
 
-Starts a benchmark run. Requires `model`, `scenarios`, and `evidence_mode`.
+Starts a benchmark run. Requires `model` and `scenarios`. `evidence_mode` is
+accepted for backward compatibility; when omitted, the service derives `mcp`
+from `mcp_server` or `tool_server`, otherwise `none`.
 
 ```json
 {

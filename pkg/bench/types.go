@@ -56,7 +56,8 @@ type RunFilters struct {
 	Provider          string
 	ToolServer        string
 	ToolServerVersion string
-	EvidenceMode      string // none, mcp, or empty for all
+	ToolServerUnset   bool   // exact baseline/native-tool runs where tool_server is empty
+	EvidenceMode      string // deprecated coarse mode; empty for all
 	PassedOnly        bool
 	FailedOnly        bool
 	Since             *time.Time // cutoff time — handler parses, store just uses

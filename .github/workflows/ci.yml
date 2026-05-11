@@ -54,6 +54,10 @@ jobs:
         working-directory: bench
         run: bash tests/test_workflow_hygiene.sh
 
+      - name: Guard SEO assets
+        working-directory: bench
+        run: bash tests/test_seo_assets.sh
+
       - name: Test public API smoke script
         working-directory: bench
         run: bash tests/smoke/test_public_api_smoke.sh

@@ -41,7 +41,6 @@ interface ReportConfiguration {
   provider?: string;
   tool_server: string;
   tool_server_version?: string;
-  evidence_mode: string;
   scenario_slice: string;
 }
 
@@ -408,7 +407,6 @@ export function LiveToolServerReport() {
                 ["Provider", report.configuration.provider || "-"],
                 ["Tool server", report.configuration.tool_server],
                 ["Tool server version", report.configuration.tool_server_version || "-"],
-                ["Evidence mode", report.configuration.evidence_mode],
                 ["Scenario slice", report.configuration.scenario_slice],
                 ["Generated at", generatedAt],
               ].map(([label, value]) => (

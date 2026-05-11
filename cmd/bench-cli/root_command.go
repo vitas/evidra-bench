@@ -28,6 +28,7 @@ with optional Bench reporting for behavioral analysis.`,
 		newSkillDeltaCommand(),
 		newAuditCommand(cfg.RunsDir),
 		newBenchCommand(),
+		newReportPackCommand(),
 		newCertifyCommand(),
 		newServeCommand(&cfg),
 	)

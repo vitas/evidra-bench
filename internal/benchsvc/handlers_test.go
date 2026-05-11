@@ -84,6 +84,9 @@ func (r *handlerRepo) ListRuns(_ context.Context, tenant string, f bench.RunFilt
 	}
 	filtered := filterRunsByEvidenceMode(r.runs, f.EvidenceMode)
 	filtered = filterRunsByModel(filtered, f.Model)
+	if f.ToolServerUnset {
+		filtered = filterRunsByToolServerUnset(filtered)
+	}
 	filtered = filterRunsByToolServer(filtered, f.ToolServer)
 	filtered = filterRunsByToolServerVersion(filtered, f.ToolServerVersion)
 	if f.ScenarioID != "" {
@@ -365,6 +368,16 @@ func filterRunsByToolServer(runs []bench.RunRecord, toolServer string) []bench.R
 	filtered := make([]bench.RunRecord, 0, len(runs))
 	for _, run := range runs {
 		if run.ToolServer == toolServer {
+			filtered = append(filtered, run)
+		}
+	}
+	return filtered
+}
+
+func filterRunsByToolServerUnset(runs []bench.RunRecord) []bench.RunRecord {
+	filtered := make([]bench.RunRecord, 0, len(runs))
+	for _, run := range runs {
+		if run.ToolServer == "" {
 			filtered = append(filtered, run)
 		}
 	}

@@ -252,6 +252,55 @@ func TestHandleCompareToolServer_ReturnsBaselineVsSelectedVersion(t *testing.T) 
 	}
 }
 
+func TestHandleCompareToolServer_UsesToolServerIdentityNotEvidenceMode(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		runs: []bench.RunRecord{
+			{
+				ID:           "baseline",
+				ScenarioID:   "s1",
+				Model:        "sonnet",
+				EvidenceMode: "mcp",
+				ToolServer:   "",
+				Passed:       false,
+			},
+			{
+				ID:           "candidate",
+				ScenarioID:   "s1",
+				Model:        "sonnet",
+				EvidenceMode: "none",
+				ToolServer:   "kubernetes-mcp",
+				Passed:       true,
+			},
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/compare/tool-server?model=sonnet&tool_server=kubernetes-mcp&scenarios=s1", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	var body struct {
+		Baseline struct {
+			Runs int `json:"runs"`
+		} `json:"baseline"`
+		Candidate struct {
+			Runs int `json:"runs"`
+		} `json:"candidate"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Baseline.Runs != 1 || body.Candidate.Runs != 1 {
+		t.Fatalf("comparison should use tool_server identity, got baseline=%+v candidate=%+v", body.Baseline, body.Candidate)
+	}
+}
+
 func TestHandleCompareToolServer_RequiresModelAndToolServer(t *testing.T) {
 	t.Parallel()
 

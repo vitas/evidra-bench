@@ -51,7 +51,6 @@ type ToolServerReportConfiguration struct {
 	Provider          string `json:"provider,omitempty"`
 	ToolServer        string `json:"tool_server"`
 	ToolServerVersion string `json:"tool_server_version,omitempty"`
-	EvidenceMode      string `json:"evidence_mode"`
 	ScenarioSlice     string `json:"scenario_slice"`
 }
 
@@ -156,16 +155,15 @@ func (s *Service) BuildToolServerReport(ctx context.Context, tenantID string, re
 	}
 
 	baselineRuns, _, err := s.repo.ListRuns(ctx, tenantID, bench.RunFilters{
-		Model:        req.Model,
-		EvidenceMode: "none",
-		ScenarioIDs:  req.ScenarioIDs,
+		Model:           req.Model,
+		ToolServerUnset: true,
+		ScenarioIDs:     req.ScenarioIDs,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("benchsvc.BuildToolServerReport: baseline runs: %w", err)
 	}
 	candidateRuns, _, err := s.repo.ListRuns(ctx, tenantID, bench.RunFilters{
 		Model:             req.Model,
-		EvidenceMode:      "mcp",
 		ToolServer:        req.ToolServer,
 		ToolServerVersion: req.ToolServerVersion,
 		ScenarioIDs:       req.ScenarioIDs,
@@ -195,7 +193,6 @@ func (s *Service) BuildToolServerReport(ctx context.Context, tenantID string, re
 			Provider:          provider,
 			ToolServer:        req.ToolServer,
 			ToolServerVersion: req.ToolServerVersion,
-			EvidenceMode:      "mcp",
 			ScenarioSlice:     reportScenarioSlice(req, scenarioIDs),
 		},
 		Comparison: *comparison,
@@ -601,7 +598,6 @@ func RenderToolServerReportMarkdown(report *ToolServerReport) string {
 		{"Provider", report.Configuration.Provider},
 		{"Tool server", report.Configuration.ToolServer},
 		{"Tool server version", report.Configuration.ToolServerVersion},
-		{"Evidence mode", report.Configuration.EvidenceMode},
 		{"Scenario slice", report.Configuration.ScenarioSlice},
 		{"Generated at", report.GeneratedAt.Format(time.RFC3339)},
 	}
