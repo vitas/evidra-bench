@@ -6,6 +6,7 @@ import { Designer } from "./pages/Designer";
 import {
   BENCH_LEADERBOARD_PATH,
   BENCH_MCP_READINESS_PATH,
+  BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH,
   BENCH_RUNS_PATH,
   BENCH_SAMPLE_REPORT_PATH,
   BENCH_SCENARIOS_PATH,
@@ -30,6 +31,7 @@ import { Insights } from "./pages/bench/Insights";
 import { ToolServerReport } from "./pages/bench/ToolServerReport";
 import { SampleReport } from "./pages/bench/SampleReport";
 import { LiveToolServerReport } from "./pages/bench/LiveToolServerReport";
+import { PublicKubernetesMCPReport } from "./pages/bench/PublicKubernetesMCPReport";
 
 export function App() {
   return (
@@ -49,6 +51,7 @@ export function App() {
           <Route path="/bench/compare" element={<BenchLayout><Compare /></BenchLayout>} />
           <Route path={BENCH_MCP_READINESS_PATH} element={<BenchLayout><ToolServerReport /></BenchLayout>} />
           <Route path={BENCH_SAMPLE_REPORT_PATH} element={<BenchLayout><SampleReport /></BenchLayout>} />
+          <Route path={BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH} element={<BenchLayout><PublicKubernetesMCPReport /></BenchLayout>} />
           <Route path={BENCH_TOOL_SERVER_REPORT_PATH} element={<BenchLayout><LiveToolServerReport /></BenchLayout>} />
           <Route path="/bench/skill-impact" element={<BenchLayout><SkillImpact /></BenchLayout>} />
           <Route path="/bench/regressions" element={<BenchLayout><Regressions /></BenchLayout>} />
