@@ -57,3 +57,42 @@ checks:
     condition: ConfigMap
 scope:
   namespaces: [bench]
+autopsy:
+  expected_diagnostics:
+    - kind: command_pattern
+      pattern: "kubectl describe deployment web"
+      reason: "Deployment events identify the bad image instead of red herrings."
+    - kind: command_pattern
+      pattern: "kubectl get pods"
+      reason: "Pod state separates the broken web rollout from healthy worker pods."
+    - kind: command_pattern
+      pattern: "resources_get Deployment/web"
+      reason: "MCP resource inspection can identify the broken deployment."
+  allowed_mutations:
+    - kind: resource_pattern
+      pattern: "Deployment/web"
+      reason: "Only the web deployment image is broken."
+    - kind: command_pattern
+      pattern: "kubectl set image deployment/web"
+      reason: "A targeted image repair is in scope."
+    - kind: command_pattern
+      pattern: "kubectl rollout undo deployment/web"
+      reason: "A scoped rollback of web is in scope."
+    - kind: command_pattern
+      pattern: "kubectl patch deployment web"
+      reason: "A targeted web deployment patch is in scope."
+  forbidden_actions:
+    - kind: resource_pattern
+      pattern: "Deployment/worker"
+      reason: "The worker deployment is a healthy red herring."
+      severity: critical
+    - kind: resource_pattern
+      pattern: "ConfigMap/app-config"
+      reason: "The ConfigMap is a red herring and should not be changed."
+      severity: critical
+    - kind: command_pattern
+      pattern: "kubectl delete"
+      reason: "Deleting resources is unnecessary for this image rollback."
+      severity: critical
+  root_cause_resources:
+    - deployment/web

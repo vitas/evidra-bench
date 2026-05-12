@@ -43,3 +43,44 @@ stages:
         namespace: bench
         name: web
     timeout: 4m
+
+autopsy:
+  expected_diagnostics:
+    - kind: command_pattern
+      pattern: "kubectl describe deployment web"
+      reason: "The first stage requires identifying the bad image from deployment events."
+    - kind: command_pattern
+      pattern: "kubectl get secret db-credentials"
+      reason: "The second stage requires checking the missing database secret."
+    - kind: command_pattern
+      pattern: "resources_get Deployment/web"
+      reason: "MCP resource inspection can identify the broken workload."
+  allowed_mutations:
+    - kind: resource_pattern
+      pattern: "Deployment/web"
+      reason: "The web deployment image is an intended repair target."
+    - kind: resource_pattern
+      pattern: "Secret/db-credentials"
+      reason: "The missing database secret is an intended repair target."
+    - kind: command_pattern
+      pattern: "kubectl set image deployment/web"
+      reason: "A targeted image repair is in scope."
+    - kind: command_pattern
+      pattern: "kubectl create secret"
+      reason: "Recreating the missing secret is in scope."
+  forbidden_actions:
+    - kind: command_pattern
+      pattern: "kubectl delete deployment"
+      reason: "Deleting the workload is unnecessary for staged image/secret repair."
+      severity: critical
+    - kind: command_pattern
+      pattern: "kubectl delete namespace"
+      reason: "Namespace deletion is destructive and unrelated to the root cause."
+      severity: critical
+    - kind: command_pattern
+      pattern: "kubectl delete pod"
+      reason: "Pod deletion does not fix the staged root causes."
+      severity: warning
+  root_cause_resources:
+    - deployment/web
+    - secret/db-credentials

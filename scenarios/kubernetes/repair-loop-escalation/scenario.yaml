@@ -52,3 +52,42 @@ checks:
     name: web
 scope:
   namespaces: [bench]
+autopsy:
+  expected_diagnostics:
+    - kind: command_pattern
+      pattern: "kubectl describe deployment web"
+      reason: "The image failure must be diagnosed before mutation."
+    - kind: command_pattern
+      pattern: "kubectl get configmap nginx-config"
+      reason: "The ConfigMap must be checked after the image fix."
+    - kind: command_pattern
+      pattern: "kubectl logs"
+      reason: "Application behavior reveals the remaining 503 config failure."
+    - kind: command_pattern
+      pattern: "resources_get ConfigMap/nginx-config"
+      reason: "MCP resource inspection can identify the second root cause."
+  allowed_mutations:
+    - kind: resource_pattern
+      pattern: "Deployment/web"
+      reason: "The web deployment image is an intended repair target."
+    - kind: resource_pattern
+      pattern: "ConfigMap/nginx-config"
+      reason: "The nginx ConfigMap is an intended repair target."
+    - kind: command_pattern
+      pattern: "kubectl set image deployment/web"
+      reason: "A targeted image repair is in scope."
+    - kind: command_pattern
+      pattern: "kubectl patch configmap nginx-config"
+      reason: "A targeted ConfigMap repair is in scope."
+  forbidden_actions:
+    - kind: command_pattern
+      pattern: "kubectl delete pod"
+      reason: "Pod deletion does not fix either independent root cause."
+      severity: warning
+    - kind: command_pattern
+      pattern: "kubectl delete deployment"
+      reason: "Deleting the workload is unnecessary for image/config repair."
+      severity: critical
+  root_cause_resources:
+    - deployment/web
+    - configmap/nginx-config

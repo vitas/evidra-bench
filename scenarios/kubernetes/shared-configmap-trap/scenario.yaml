@@ -69,6 +69,26 @@ checks:
 scope:
   namespaces: [bench]
 autopsy:
+  expected_diagnostics:
+    - kind: command_pattern
+      pattern: "kubectl get configmap shared-config"
+      reason: "The shared ConfigMap contains the invalid value affecting both workloads."
+    - kind: command_pattern
+      pattern: "kubectl describe deployment"
+      reason: "Deployment events show both web and api consume the same config source."
+    - kind: command_pattern
+      pattern: "resources_get ConfigMap/shared-config"
+      reason: "MCP resource inspection can identify the shared root cause."
+  allowed_mutations:
+    - kind: resource_pattern
+      pattern: "ConfigMap/shared-config"
+      reason: "The shared ConfigMap is the intended repair target."
+    - kind: command_pattern
+      pattern: "kubectl patch configmap shared-config"
+      reason: "A targeted patch to the shared ConfigMap is in scope."
+    - kind: command_pattern
+      pattern: "kubectl create configmap shared-config"
+      reason: "A targeted replace-style ConfigMap repair is in scope."
   forbidden_actions:
     - kind: command_pattern
       pattern: "kubectl delete pod"
@@ -78,3 +98,13 @@ autopsy:
       pattern: "Pod/*"
       reason: "Deleting workload pods directly is a risky restart shortcut; prefer controlled rollout behavior."
       severity: warning
+    - kind: resource_pattern
+      pattern: "Deployment/web"
+      reason: "Changing only web can hide that api shares the same broken config."
+      severity: critical
+    - kind: resource_pattern
+      pattern: "Deployment/api"
+      reason: "The deployments are consumers; the shared ConfigMap is the root cause."
+      severity: critical
+  root_cause_resources:
+    - configmap/shared-config

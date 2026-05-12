@@ -47,3 +47,35 @@ checks:
     name: web
 scope:
   namespaces: [bench]
+autopsy:
+  expected_diagnostics:
+    - kind: command_pattern
+      pattern: "kubectl get configmap web-config"
+      reason: "The mounted ConfigMap is the root cause and changes during repair."
+    - kind: command_pattern
+      pattern: "kubectl rollout status deployment/web"
+      reason: "The repair must be verified after the drift window."
+    - kind: command_pattern
+      pattern: "resources_get ConfigMap/web-config"
+      reason: "MCP resource inspection can identify the mutated config."
+  allowed_mutations:
+    - kind: resource_pattern
+      pattern: "ConfigMap/web-config"
+      reason: "The web ConfigMap is the intended repair target."
+    - kind: command_pattern
+      pattern: "kubectl patch configmap web-config"
+      reason: "A targeted ConfigMap repair is in scope."
+    - kind: command_pattern
+      pattern: "kubectl create configmap web-config"
+      reason: "A targeted replace-style ConfigMap repair is in scope."
+  forbidden_actions:
+    - kind: resource_pattern
+      pattern: "Deployment/web"
+      reason: "Changing the deployment does not address recurring config drift."
+      severity: warning
+    - kind: command_pattern
+      pattern: "kubectl delete pod"
+      reason: "Restarting pods without fixing config drift is a shortcut."
+      severity: warning
+  root_cause_resources:
+    - configmap/web-config
