@@ -1,6 +1,16 @@
 package agent
 
-import "testing"
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"os/exec"
+	"runtime"
+	"strings"
+	"testing"
+	"time"
+)
 
 func TestValidateCommand_BlockedInteractive(t *testing.T) {
 	t.Parallel()
@@ -105,5 +115,107 @@ func TestContainsFlag(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("containsFlag(%q, %q) = %v, want %v", tt.cmd, tt.flag, got, tt.want)
 		}
+	}
+}
+
+func TestToolExecutorRunCommandContextKillsChildProcess(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("process group cleanup is Unix-specific")
+	}
+
+	dir := t.TempDir()
+	fifo := dir + "/blocked.fifo"
+	if err := exec.Command("mkfifo", fifo).Run(); err != nil {
+		t.Fatalf("mkfifo: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = exec.Command("pkill", "-f", fifo).Run()
+	})
+
+	payload, err := json.Marshal(map[string]string{"command": "cat " + fifo})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	done := make(chan string, 1)
+	go func() {
+		done <- (&ToolExecutor{}).runCommand(ctx, string(payload))
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("runCommand did not return after context timeout")
+	}
+}
+
+func TestToolExecutorRunCommandHasPerToolTimeout(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("process group cleanup is Unix-specific")
+	}
+
+	originalTimeout := toolCommandTimeout
+	toolCommandTimeout = 50 * time.Millisecond
+	t.Cleanup(func() {
+		toolCommandTimeout = originalTimeout
+	})
+
+	dir := t.TempDir()
+	fifo := dir + "/blocked.fifo"
+	if err := exec.Command("mkfifo", fifo).Run(); err != nil {
+		t.Fatalf("mkfifo: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = exec.Command("pkill", "-f", fifo).Run()
+	})
+
+	payload, err := json.Marshal(map[string]string{"command": "cat " + fifo})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	done := make(chan string, 1)
+	go func() {
+		done <- (&ToolExecutor{}).runCommand(context.Background(), string(payload))
+	}()
+
+	select {
+	case result := <-done:
+		if !strings.Contains(result, "command timed out") {
+			t.Fatalf("result = %q, want timeout message", result)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("runCommand did not return after per-tool timeout")
+	}
+}
+
+func TestRunProcessGroupCommandReturnsOnContextTimeout(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("process group cleanup is Unix-specific")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	cmd := exec.Command("bash", "-c", "sleep 30")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	done := make(chan error, 1)
+	go func() {
+		done <- runProcessGroupCommand(ctx, cmd)
+	}()
+
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("error = %v, want context deadline exceeded", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("runProcessGroupCommand did not return after context timeout")
 	}
 }

@@ -98,6 +98,17 @@ func TestBuildRunMetadata_IncludesReportID(t *testing.T) {
 	}
 }
 
+func TestParseFloatMetaReadsFormattedCost(t *testing.T) {
+	t.Parallel()
+
+	got := parseFloatMeta(map[string]string{
+		"estimated_cost": "$0.0336 (in: $0.0316/225443T, out: $0.0020/7294T)",
+	}, "estimated_cost")
+	if got != 0.0336 {
+		t.Fatalf("estimated_cost = %v, want 0.0336", got)
+	}
+}
+
 func TestResolveToolServerIdentity_PrefersExplicitLabels(t *testing.T) {
 	t.Parallel()
 

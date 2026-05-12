@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 )
 
 // BenchTools returns the tool definitions exposed to the LLM.
@@ -74,6 +76,8 @@ var allowedCommandPrefixes = []string{
 	"cat", "echo", "grep", "head", "tail", "wc", "ls", "find", "openssl",
 	"jq", "yq", "sed", "tee", "cp", "mkdir", "rm", "mv",
 }
+
+var toolCommandTimeout = 60 * time.Second
 
 // blockedSubcommands blocks interactive or dangerous subcommands.
 var blockedSubcommands = []string{
@@ -180,13 +184,20 @@ func (e *ToolExecutor) runCommand(ctx context.Context, argsJSON string) string {
 		return fmt.Sprintf("error: %v", err)
 	}
 
-	cmd := exec.CommandContext(ctx, "bash", "-c", args.Command)
+	runCtx := ctx
+	cancel := func() {}
+	if toolCommandTimeout > 0 {
+		runCtx, cancel = context.WithTimeout(ctx, toolCommandTimeout)
+	}
+	defer cancel()
+
+	cmd := exec.CommandContext(runCtx, "bash", "-c", args.Command)
 	cmd.Env = append(os.Environ(), "KUBECONFIG="+e.KubeconfigPath)
 	cmd.Env = append(cmd.Env, e.ExtraEnv...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	err := cmd.Run()
+	err := runProcessGroupCommand(runCtx, cmd)
 
 	result := stdout.String()
 	if stderr.Len() > 0 {
@@ -195,10 +206,37 @@ func (e *ToolExecutor) runCommand(ctx context.Context, argsJSON string) string {
 	ec := 0
 	if err != nil {
 		ec = exitCode(err)
+		if errors.Is(err, context.DeadlineExceeded) {
+			result += fmt.Sprintf("\nerror: command timed out after %s", toolCommandTimeout)
+		}
 		result += fmt.Sprintf("\nExit code: %d", ec)
 	}
 
 	return strings.TrimSpace(result)
+}
+
+func runProcessGroupCommand(ctx context.Context, cmd *exec.Cmd) error {
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		if cmd.Process != nil {
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			_ = cmd.Process.Kill()
+		}
+		<-done
+		return ctx.Err()
+	}
 }
 
 func (e *ToolExecutor) writeFile(_ context.Context, argsJSON string) string {

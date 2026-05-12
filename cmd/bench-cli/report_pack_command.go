@@ -105,7 +105,7 @@ func newReportPackCommand() *cobra.Command {
 	f.IntVar(&repeats, "repeats", repeats, "repeats per phase/scenario")
 	f.StringVar(&phase, "phase", phase, "phase to run: baseline, candidate, or both")
 	f.StringVar(&cfg.BenchURL, "bench-url", cfg.BenchURL, "Bench API URL for reporting results")
-	f.StringVar(&cfg.BenchAPIKey, "bench-api-key", cfg.BenchAPIKey, "Bench API key")
+	registerBenchAPIKeyFlag(f, &cfg.BenchAPIKey)
 	f.StringVar(&benchUIURL, "bench-ui-url", os.Getenv("BENCH_UI_URL"), "Bench UI URL for printed report links (env: BENCH_UI_URL)")
 	f.StringVar(&cfg.MCPServer, "mcp-server", cfg.MCPServer, "MCP server command for candidate phase")
 	f.StringVar(&cfg.ToolServerID, "tool-server-id", cfg.ToolServerID, "stable MCP server identity for report filtering")

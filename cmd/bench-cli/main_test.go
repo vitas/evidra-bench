@@ -59,6 +59,31 @@ func TestRunHelpDoesNotExposeEvidraSpecialModes(t *testing.T) {
 	}
 }
 
+func TestBenchAPIKeyFlagHelpDoesNotExposeEnvSecret(t *testing.T) {
+	t.Setenv("BENCH_API_KEY", "secret-value-must-not-appear")
+
+	commands := [][]string{
+		{"run", "--help"},
+		{"bench", "--help"},
+		{"report-pack", "--help"},
+		{"certify", "--help"},
+		{"skill-delta", "run", "--help"},
+	}
+	for _, args := range commands {
+		var buf bytes.Buffer
+		cmd := newRootCommand()
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+		cmd.SetArgs(args)
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("%v help failed: %v", args, err)
+		}
+		if strings.Contains(buf.String(), "secret-value-must-not-appear") {
+			t.Fatalf("%v help exposed BENCH_API_KEY:\n%s", args, buf.String())
+		}
+	}
+}
+
 func TestApplyServeEnvOptions_ControlPlaneOnlyUsesCanonicalEnv(t *testing.T) {
 	t.Setenv("BENCH_CONTROL_PLANE_ONLY", "true")
 

@@ -56,7 +56,7 @@ func newBenchCommand() *cobra.Command {
 	f.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "dry-run mode")
 	f.IntVar(&cfg.MemoryWindow, "memory-window", -1, "memory window")
 	f.StringVar(&cfg.BenchURL, "bench-url", cfg.BenchURL, "Bench API URL for reporting results")
-	f.StringVar(&cfg.BenchAPIKey, "bench-api-key", cfg.BenchAPIKey, "Bench API key")
+	registerBenchAPIKeyFlag(f, &cfg.BenchAPIKey)
 	f.StringVar(&cfg.MCPServer, "mcp-server", "", "MCP server command")
 	f.StringVar(&cfg.ToolServerID, "tool-server-id", "", "stable MCP server identity for result comparison")
 	f.StringVar(&cfg.ToolServerVersion, "tool-server-version", "", "stable MCP server version for result comparison")

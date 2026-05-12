@@ -55,7 +55,7 @@ func newSkillDeltaCommand() *cobra.Command {
 	f.StringVar(&cfg.ClusterName, "cluster-name", cfg.ClusterName, "kind cluster name")
 	f.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "validate workflow without executing the agent")
 	f.StringVar(&cfg.BenchURL, "bench-url", cfg.BenchURL, "Bench API URL for online reporting")
-	f.StringVar(&cfg.BenchAPIKey, "bench-api-key", cfg.BenchAPIKey, "Bench API key")
+	registerBenchAPIKeyFlag(f, &cfg.BenchAPIKey)
 	f.StringVar(&cfg.EvidenceDir, "evidence-dir", cfg.EvidenceDir, "base evidence directory for verifier input")
 	f.StringVar(&cfg.Provider, "provider", cfg.Provider, "LLM provider for tool-use agent loop (bifrost, claude)")
 	f.IntVar(&cfg.MemoryWindow, "memory-window", -1, "agent memory window (-1=full, 0=stateless, N=last N exchanges)")

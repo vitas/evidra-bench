@@ -44,7 +44,7 @@ func newRunCommand(cfg *config.Config) *cobra.Command {
 	f.StringVar(&cfg.ClusterName, "cluster-name", cfg.ClusterName, "kind cluster name")
 	f.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "validate scenario without executing")
 	f.StringVar(&cfg.BenchURL, "bench-url", cfg.BenchURL, "Bench API URL for online reporting")
-	f.StringVar(&cfg.BenchAPIKey, "bench-api-key", cfg.BenchAPIKey, "Bench API key")
+	registerBenchAPIKeyFlag(f, &cfg.BenchAPIKey)
 	f.StringVar(&cfg.EvidenceDir, "evidence-dir", cfg.EvidenceDir, "evidence directory for verifier input")
 	f.StringVar(&cfg.Model, "model", cfg.Model, "model for agent (e.g. sonnet, opus, haiku)")
 	f.StringVar(&cfg.Provider, "provider", cfg.Provider, "LLM provider for tool-use agent loop (bifrost, claude)")

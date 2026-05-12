@@ -37,7 +37,20 @@ func parseFloatMeta(meta map[string]string, key string) float64 {
 	if !ok {
 		return 0
 	}
-	n, _ := strconv.ParseFloat(v, 64)
+	n, err := strconv.ParseFloat(v, 64)
+	if err == nil {
+		return n
+	}
+	if idx := strings.Index(v, "$"); idx >= 0 {
+		num := v[idx+1:]
+		for i, c := range num {
+			if c == ' ' || c == '(' {
+				num = num[:i]
+				break
+			}
+		}
+		n, _ = strconv.ParseFloat(num, 64)
+	}
 	return n
 }
 

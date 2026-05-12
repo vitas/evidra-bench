@@ -34,7 +34,7 @@ func newCertifyCommand() *cobra.Command {
 	f.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "validate without running")
 	f.IntVar(&cfg.MemoryWindow, "memory-window", -1, "memory window")
 	f.StringVar(&cfg.BenchURL, "bench-url", cfg.BenchURL, "Bench API URL for reporting results")
-	f.StringVar(&cfg.BenchAPIKey, "bench-api-key", cfg.BenchAPIKey, "Bench API key")
+	registerBenchAPIKeyFlag(f, &cfg.BenchAPIKey)
 	f.StringVar(&cfg.SystemPromptFile, "system-prompt-file", cfg.SystemPromptFile, "system prompt file")
 	f.StringVar(&cfg.Role, "role", cfg.Role, "role-based skill (k8s-admin, security-ops, release-manager, platform-eng)")
 	f.StringVar(&cfg.ContractVersion, "contract-version", cfg.ContractVersion, "contract version")
