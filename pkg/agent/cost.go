@@ -104,6 +104,7 @@ var pricingTable = map[string]ModelPricing{
 
 	// Anthropic (direct API)
 	"claude-sonnet-4-20250514": {InputPerMillion: 3.0, OutputPerMillion: 15.0},
+	"claude-sonnet-4-6":        {InputPerMillion: 3.0, OutputPerMillion: 15.0},
 	"claude-opus-4-20250514":   {InputPerMillion: 15.0, OutputPerMillion: 75.0},
 	"claude-haiku-4-20250514":  {InputPerMillion: 0.80, OutputPerMillion: 4.0},
 

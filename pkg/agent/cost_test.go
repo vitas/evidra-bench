@@ -35,6 +35,14 @@ func TestEstimateCost_BifrostModel(t *testing.T) {
 	}
 }
 
+func TestEstimateCost_PublicReportClaudeAlias(t *testing.T) {
+	t.Parallel()
+	cost := EstimateCost("claude-sonnet-4-6", Usage{PromptTokens: 10000, CompletionTokens: 5000})
+	if cost.TotalCost == 0 {
+		t.Fatal("expected non-zero cost for public report Claude alias")
+	}
+}
+
 func TestCostEstimate_String(t *testing.T) {
 	t.Parallel()
 	cost := EstimateCost("sonnet", Usage{PromptTokens: 1000, CompletionTokens: 500})

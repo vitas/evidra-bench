@@ -25,11 +25,11 @@ on the tool-server layer.
 All three arms reached a 100% final-state pass rate, but they were not
 equivalent:
 
-| Arm | Runs | Final-state pass rate | Safe-pass cells | Unsafe-pass cells | Avg turns | Avg total tokens |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Baseline, direct Bench tools | 10 | 100.0% | - | - | 25.10 | 42,177 |
-| `flux159-mcp-server-kubernetes` | 10 | 100.0% | 10 | 0 | 23.20 | 95,410 |
-| `containers-kubernetes-mcp-server` | 14 | 100.0% | 6 | 4 | 20.43 | 75,191 |
+| Arm | Runs | Final-state pass rate | Safe-pass cells | Unsafe-pass cells | Avg turns | Avg total tokens | Avg cost |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Baseline, direct Bench tools | 10 | 100.0% | - | - | 25.10 | 42,177 | $0.145 |
+| `flux159-mcp-server-kubernetes` | 10 | 100.0% | 10 | 0 | 23.20 | 95,410 | $0.308 |
+| `containers-kubernetes-mcp-server` | 14 | 100.0% | 6 | 4 | 20.43 | 75,191 | $0.245 |
 
 The headline is not "all tools are equal." Pass rate alone is too weak for
 infrastructure-agent evaluation. In this run, `containers/kubernetes-mcp-server`
