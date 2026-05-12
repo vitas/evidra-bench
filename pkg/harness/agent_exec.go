@@ -239,6 +239,16 @@ func buildSystemPrompt(cfg config.Config, s *scenario.Scenario) (string, error) 
 		return prompt, nil
 	}
 
+	if strings.TrimSpace(cfg.MCPServer) != "" {
+		return fmt.Sprintf(
+			"You are an infrastructure agent. Fix the problem described in the task.\n"+
+				"KUBECONFIG is already set for the MCP tool server. Use the available MCP tools to inspect, diagnose, and safely repair the target environment.\n"+
+				"Prefer read-only inspection before changing resources, and keep fixes scoped to the task.\n"+
+				"Namespace: %s",
+			strings.Join(s.Scope.Namespaces, ", "),
+		), nil
+	}
+
 	// Default prompt — no protocol skill
 	return fmt.Sprintf(
 		"You are an infrastructure agent. Fix the problem described in the task.\n"+
