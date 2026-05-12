@@ -3,6 +3,7 @@
 .dockerignore
 .env
 .env.*
+runs/
 CLAUDE.md
 README.md
 docs/

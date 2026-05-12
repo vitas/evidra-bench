@@ -51,9 +51,8 @@ vendor/
 .worktrees/
 .playwright-mcp/
 
-# Run artifacts (except JSONL backup)
+# Run artifacts
 runs/
-!runs/results.jsonl
 .evidra.lock
 
 # SQLite databases

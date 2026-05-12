@@ -63,6 +63,10 @@ jobs:
         working-directory: bench
         run: bash tests/test_workflow_hygiene.sh
 
+      - name: Guard artifact hygiene
+        working-directory: bench
+        run: bash tests/test_artifact_hygiene.sh
+
       - name: Guard SEO assets
         working-directory: bench
         run: bash tests/test_seo_assets.sh
