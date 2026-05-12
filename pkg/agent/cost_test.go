@@ -43,6 +43,23 @@ func TestEstimateCost_PublicReportClaudeAlias(t *testing.T) {
 	}
 }
 
+func TestEstimateCost_DeepSeekV4FlashPromptCache(t *testing.T) {
+	t.Parallel()
+	cost := EstimateCost("deepseek-v4-flash", Usage{
+		PromptTokens:          3000,
+		PromptCacheHitTokens:  2000,
+		PromptCacheMissTokens: 1000,
+		CompletionTokens:      500,
+	})
+	expectedTotal := (2000.0/1_000_000.0)*0.0028 + (1000.0/1_000_000.0)*0.14 + (500.0/1_000_000.0)*0.28
+	if diff := cost.TotalCost - expectedTotal; diff > 0.0000001 || diff < -0.0000001 {
+		t.Fatalf("expected ~$%.7f, got $%.7f", expectedTotal, cost.TotalCost)
+	}
+	if cost.InputTokens != 3000 {
+		t.Fatalf("input tokens = %d, want 3000", cost.InputTokens)
+	}
+}
+
 func TestCostEstimate_String(t *testing.T) {
 	t.Parallel()
 	cost := EstimateCost("sonnet", Usage{PromptTokens: 1000, CompletionTokens: 500})

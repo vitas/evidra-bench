@@ -7,8 +7,9 @@ import (
 
 // ModelPricing holds per-token pricing for a model (USD per 1M tokens).
 type ModelPricing struct {
-	InputPerMillion  float64
-	OutputPerMillion float64
+	InputPerMillion         float64
+	OutputPerMillion        float64
+	CacheHitInputPerMillion float64
 }
 
 // CostEstimate is the estimated cost for a run.
@@ -36,20 +37,31 @@ func (c CostEstimate) String() string {
 func EstimateCost(model string, usage Usage) CostEstimate {
 	pricing := LookupPricing(model)
 
-	// Total input tokens: prompt + cache creation (full price) + cache read (discounted).
-	fullPriceInput := usage.PromptTokens + usage.CacheCreationInputTokens
-	inputCost := float64(fullPriceInput) / 1_000_000 * pricing.InputPerMillion
-	cacheCost := float64(usage.CacheReadInputTokens) / 1_000_000 * pricing.InputPerMillion * 0.1
+	inputTokens := usage.PromptTokens + usage.CacheCreationInputTokens + usage.CacheReadInputTokens
+	inputCost := 0.0
+	if usage.PromptCacheHitTokens > 0 || usage.PromptCacheMissTokens > 0 {
+		inputTokens = usage.PromptCacheHitTokens + usage.PromptCacheMissTokens
+		cacheHitPrice := pricing.CacheHitInputPerMillion
+		if cacheHitPrice == 0 {
+			cacheHitPrice = pricing.InputPerMillion * 0.1
+		}
+		inputCost += float64(usage.PromptCacheMissTokens) / 1_000_000 * pricing.InputPerMillion
+		inputCost += float64(usage.PromptCacheHitTokens) / 1_000_000 * cacheHitPrice
+	} else {
+		// Total input tokens: prompt + cache creation (full price) + cache read (discounted).
+		fullPriceInput := usage.PromptTokens + usage.CacheCreationInputTokens
+		inputCost += float64(fullPriceInput) / 1_000_000 * pricing.InputPerMillion
+		inputCost += float64(usage.CacheReadInputTokens) / 1_000_000 * pricing.InputPerMillion * 0.1
+	}
 
 	outputCost := float64(usage.CompletionTokens) / 1_000_000 * pricing.OutputPerMillion
 
-	totalInput := fullPriceInput + usage.CacheReadInputTokens
 	return CostEstimate{
-		InputTokens:  totalInput,
+		InputTokens:  inputTokens,
 		OutputTokens: usage.CompletionTokens,
-		InputCost:    inputCost + cacheCost,
+		InputCost:    inputCost,
 		OutputCost:   outputCost,
-		TotalCost:    inputCost + cacheCost + outputCost,
+		TotalCost:    inputCost + outputCost,
 		Model:        model,
 		Currency:     "USD",
 	}
@@ -74,7 +86,7 @@ func LookupPricing(model string) ModelPricing {
 }
 
 // pricingTable contains known model pricing (USD per 1M tokens).
-// Updated: March 2026. Source: provider pricing pages.
+// Updated: May 2026. Source: provider pricing pages.
 var pricingTable = map[string]ModelPricing{
 	// Anthropic Claude
 	"opus":                        {InputPerMillion: 15.0, OutputPerMillion: 75.0},
@@ -116,8 +128,10 @@ var pricingTable = map[string]ModelPricing{
 	"gemini-2.0-flash":        {InputPerMillion: 0.10, OutputPerMillion: 0.40},
 
 	// DeepSeek
-	"deepseek-chat":     {InputPerMillion: 0.27, OutputPerMillion: 1.10},
-	"deepseek-reasoner": {InputPerMillion: 0.55, OutputPerMillion: 2.19},
+	"deepseek-chat":     {InputPerMillion: 0.14, OutputPerMillion: 0.28, CacheHitInputPerMillion: 0.0028},
+	"deepseek-reasoner": {InputPerMillion: 0.14, OutputPerMillion: 0.28, CacheHitInputPerMillion: 0.0028},
+	"deepseek-v4-flash": {InputPerMillion: 0.14, OutputPerMillion: 0.28, CacheHitInputPerMillion: 0.0028},
+	"deepseek-v4-pro":   {InputPerMillion: 0.435, OutputPerMillion: 0.87, CacheHitInputPerMillion: 0.003625},
 
 	// Alibaba Qwen (DashScope international pricing)
 	"qwen-plus":        {InputPerMillion: 0.80, OutputPerMillion: 2.0},

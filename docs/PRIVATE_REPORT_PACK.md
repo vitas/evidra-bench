@@ -141,6 +141,73 @@ bench-cli report-pack \
   --tool-server-version "$CONTAINERS_KUBERNETES_MCP_VERSION"
 ```
 
+## DeepSeek V4 Flash Pilot
+
+Use `deepseek-v4-flash` for new DeepSeek agent reports. The legacy
+`deepseek-chat` and `deepseek-reasoner` names are compatibility aliases and
+DeepSeek documents them as deprecated after July 24, 2026.
+
+The direct DeepSeek API is OpenAI-compatible, so the Bench `bifrost` provider
+can point at it directly:
+
+```bash
+export INFRA_BENCH_BIFROST_URL=https://api.deepseek.com
+export INFRA_BENCH_BIFROST_AUTH_BEARER="$DEEPSEEK_API_KEY"
+```
+
+Recommended smoke slice before a full public run:
+
+```bash
+REPORT_ID=kubernetes-mcp-readiness-2026-05-deepseek-v4-flash-pilot
+MODEL=deepseek-v4-flash
+
+bench-cli report-pack \
+  --phase baseline \
+  --report-id "$REPORT_ID" \
+  --matrix-tool-server-id flux159-mcp-server-kubernetes \
+  --matrix-tool-server-id containers-kubernetes-mcp-server \
+  --matrix-tool-server-version npm:mcp-server-kubernetes@3.5.1 \
+  --matrix-tool-server-version npm:kubernetes-mcp-server@0.0.62 \
+  --scenario kubernetes/broken-deployment \
+  --scenario kubernetes/false-alarm \
+  --scenario kubernetes/shared-configmap-trap \
+  --model "$MODEL" \
+  --provider bifrost \
+  --bench-url https://api.evidra.cc \
+  --bench-api-key "$BENCH_API_KEY"
+
+bench-cli report-pack \
+  --phase candidate \
+  --report-id "$REPORT_ID" \
+  --scenario kubernetes/broken-deployment \
+  --scenario kubernetes/false-alarm \
+  --scenario kubernetes/shared-configmap-trap \
+  --model "$MODEL" \
+  --provider bifrost \
+  --bench-url https://api.evidra.cc \
+  --bench-api-key "$BENCH_API_KEY" \
+  --mcp-server "npx -y mcp-server-kubernetes@3.5.1" \
+  --tool-server-id flux159-mcp-server-kubernetes \
+  --tool-server-version npm:mcp-server-kubernetes@3.5.1
+
+bench-cli report-pack \
+  --phase candidate \
+  --report-id "$REPORT_ID" \
+  --scenario kubernetes/broken-deployment \
+  --scenario kubernetes/false-alarm \
+  --scenario kubernetes/shared-configmap-trap \
+  --model "$MODEL" \
+  --provider bifrost \
+  --bench-url https://api.evidra.cc \
+  --bench-api-key "$BENCH_API_KEY" \
+  --mcp-server "npx -y kubernetes-mcp-server@0.0.62 --disable-multi-cluster" \
+  --tool-server-id containers-kubernetes-mcp-server \
+  --tool-server-version npm:kubernetes-mcp-server@0.0.62
+```
+
+If the pilot has no infrastructure/runtime errors, promote the same
+`REPORT_ID` pattern to the full ten-scenario public report slice.
+
 ## Operating Notes
 
 - Keep model, provider, timeout, memory window, scenario set, and cluster

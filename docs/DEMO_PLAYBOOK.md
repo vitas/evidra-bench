@@ -22,12 +22,12 @@ bench-cli bench \
   --repeats 3 --environment k3d --reuse-cluster --mcp-server "$MCP_SERVER" \
   --bench-url $BENCH_API_URL --bench-api-key $BENCH_API_KEY
 
-# DeepSeek — same scenarios
-export INFRA_BENCH_BIFROST_URL=https://api.deepseek.com/v1
+# DeepSeek V4 Flash — same scenarios
+export INFRA_BENCH_BIFROST_URL=https://api.deepseek.com
 export INFRA_BENCH_BIFROST_AUTH_BEARER=$DEEPSEEK_API_KEY
 bench-cli bench \
   --scenario kubernetes --scenario helm \
-  --model deepseek-chat --provider bifrost \
+  --model deepseek-v4-flash --provider bifrost \
   --repeats 3 --environment k3d --reuse-cluster --mcp-server "$MCP_SERVER" \
   --bench-url $BENCH_API_URL --bench-api-key $BENCH_API_KEY
 

@@ -178,6 +178,10 @@ func buildOpenAIPayload(req ChatRequest) map[string]any {
 		"messages":    messages,
 		"temperature": req.Temperature,
 	}
+	if strings.HasPrefix(req.Model, "deepseek-v4-") {
+		payload["thinking"] = map[string]string{"type": "enabled"}
+		payload["reasoning_effort"] = "high"
+	}
 	if req.MaxTokens > 0 {
 		// GPT-5+ models use max_completion_tokens instead of max_tokens.
 		if strings.HasPrefix(req.Model, "gpt-5") || strings.HasPrefix(req.Model, "o3") || strings.HasPrefix(req.Model, "o4") {
@@ -227,6 +231,8 @@ func parseOpenAIResponse(body []byte) (*ChatResponse, error) {
 			CompletionTokens         int `json:"completion_tokens"`
 			CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
 			CacheReadInputTokens     int `json:"cache_read_input_tokens"`
+			PromptCacheHitTokens     int `json:"prompt_cache_hit_tokens"`
+			PromptCacheMissTokens    int `json:"prompt_cache_miss_tokens"`
 		} `json:"usage"`
 	}
 	if err := json.Unmarshal(body, &raw); err != nil {
@@ -255,6 +261,8 @@ func parseOpenAIResponse(body []byte) (*ChatResponse, error) {
 			CompletionTokens:         raw.Usage.CompletionTokens,
 			CacheCreationInputTokens: raw.Usage.CacheCreationInputTokens,
 			CacheReadInputTokens:     raw.Usage.CacheReadInputTokens,
+			PromptCacheHitTokens:     raw.Usage.PromptCacheHitTokens,
+			PromptCacheMissTokens:    raw.Usage.PromptCacheMissTokens,
 		},
 	}, nil
 }

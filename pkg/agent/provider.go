@@ -58,6 +58,8 @@ type Usage struct {
 	CompletionTokens         int `json:"completion_tokens"`
 	CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
 	CacheReadInputTokens     int `json:"cache_read_input_tokens,omitempty"`
+	PromptCacheHitTokens     int `json:"prompt_cache_hit_tokens,omitempty"`
+	PromptCacheMissTokens    int `json:"prompt_cache_miss_tokens,omitempty"`
 }
 
 // Done returns true if the model is finished (no more tool calls).

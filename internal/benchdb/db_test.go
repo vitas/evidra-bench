@@ -66,6 +66,8 @@ func TestFoldedBaselineMigrationContainsFinalBenchSchema(t *testing.T) {
 		"CREATE INDEX IF NOT EXISTS idx_bench_runs_archived",
 		"CREATE INDEX IF NOT EXISTS idx_bench_runs_tool_server",
 		"INSERT INTO bench_models",
+		"deepseek-v4-flash",
+		"deepseek-v4-pro",
 		"ON CONFLICT (id) DO UPDATE SET",
 	} {
 		if !strings.Contains(sql, want) {

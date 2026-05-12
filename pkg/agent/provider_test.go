@@ -136,6 +136,48 @@ func TestParseOpenAIResponse_ToolCalls(t *testing.T) {
 	}
 }
 
+func TestParseOpenAIResponse_DeepSeekPromptCacheUsage(t *testing.T) {
+	t.Parallel()
+	body := `{
+		"choices": [{"message": {"content": "done"}, "finish_reason": "stop"}],
+		"usage": {
+			"prompt_tokens": 3000,
+			"prompt_cache_hit_tokens": 2000,
+			"prompt_cache_miss_tokens": 1000,
+			"completion_tokens": 500
+		}
+	}`
+	resp, err := parseOpenAIResponse([]byte(body))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Usage.PromptCacheHitTokens != 2000 {
+		t.Fatalf("prompt cache hit tokens = %d, want 2000", resp.Usage.PromptCacheHitTokens)
+	}
+	if resp.Usage.PromptCacheMissTokens != 1000 {
+		t.Fatalf("prompt cache miss tokens = %d, want 1000", resp.Usage.PromptCacheMissTokens)
+	}
+}
+
+func TestBuildOpenAIPayload_DeepSeekV4FlashEnablesThinking(t *testing.T) {
+	t.Parallel()
+	payload := buildOpenAIPayload(ChatRequest{
+		Model:    "deepseek-v4-flash",
+		Messages: []Message{{Role: "user", Content: "fix the cluster"}},
+		Tools:    BenchTools(),
+	})
+	thinking, ok := payload["thinking"].(map[string]string)
+	if !ok {
+		t.Fatalf("thinking payload = %#v, want object", payload["thinking"])
+	}
+	if thinking["type"] != "enabled" {
+		t.Fatalf("thinking.type = %q, want enabled", thinking["type"])
+	}
+	if payload["reasoning_effort"] != "high" {
+		t.Fatalf("reasoning_effort = %v, want high", payload["reasoning_effort"])
+	}
+}
+
 func TestParseClaudeStream_Text(t *testing.T) {
 	t.Parallel()
 	stream := `{"type":"text","text":"The deployment"}
