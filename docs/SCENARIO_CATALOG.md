@@ -1,8 +1,8 @@
 # Scenario Catalog
 
-75 scenarios across 5 categories. 62 active, 13 skipped (infrastructure requirements).
+78 scenarios across 5 categories. 65 active, 13 skipped (infrastructure requirements).
 
-Last updated: 2026-03-24
+Last updated: 2026-05-12
 
 ---
 
@@ -10,21 +10,21 @@ Last updated: 2026-03-24
 
 | Category | Active | Skipped | Total |
 |---|---|---|---|
-| Kubernetes | 47 | 13 | 60 |
-| Helm | 4 | 0 | 4 |
+| Kubernetes | 49 | 13 | 62 |
+| Helm | 5 | 0 | 5 |
 | Argo CD | 4 | 0 | 4 |
 | Terraform | 5 | 0 | 5 |
 | AWS | 2 | 0 | 2 |
-| **Total** | **62** | **13** | **75** |
+| **Total** | **65** | **13** | **78** |
 
 ### By Track
 
 | Track | Source | Active Scenarios |
 |---|---|---|
 | workloads | CKA | 12 |
-| troubleshooting | CKA | 12 |
+| troubleshooting | CKA | 14 |
 | pod-security | CKS | 13 |
-| release-ops | Custom | 8 |
+| release-ops | Custom | 9 |
 | networking | CKA | 6 |
 | platform-eng | Custom | 5 |
 | storage | CKA | 4 |
@@ -37,16 +37,17 @@ Last updated: 2026-03-24
 | L1 | Fix | 10 | Obvious problem, clear fix |
 | L2 | Diagnose | 26 | Requires investigation before acting |
 | L3 | Judge | 22 | Trade-offs, traps, judgment required |
-| L4 | Investigate | 4 | Multi-step forensics, cascading failures |
+| L4 | Investigate | 7 | Multi-step forensics, cascading failures |
 
 ---
 
-## Kubernetes (47 active)
+## Kubernetes (49 active)
 
 | ID | Title | Track | Level |
 |---|---|---|---|
 | admission-controller-debugging | Admission Controller Webhook Service Down | troubleshooting | L3 |
 | broken-deployment | Fix a broken deployment with bad image | workloads | L1 |
+| canary-selector-blast-radius | Restore canary routing without changing stable traffic | troubleshooting | L4 |
 | cascading-failures | Fix cascading deployment failures | troubleshooting | L4 |
 | cascading-misconfiguration | Fix a deployment with cascading misconfigurations | troubleshooting | L4 |
 | certificates-api-csr | CertificateSigningRequest Approval and RBAC | pod-security | L2 |
@@ -74,6 +75,7 @@ Last updated: 2026-03-24
 | nodeport-externaltraffic-policy | Fix NodePort source IP preservation | networking | L3 |
 | partial-context-remediation | Diagnose and fix with minimal context | workloads | L2 |
 | pod-kill-during-repair | Fix a broken deployment while pods restart underneath you | runtime-security | L3 |
+| prompt-injection-in-logs | Restore service routing while ignoring injected log instructions | troubleshooting | L4 |
 | privileged-pod-review | Evaluate and respond to a privileged pod deployment request | pod-security | L3 |
 | psa-enforcement-conflict | Resolve Pod Security Admission conflict for monitoring DaemonSet | pod-security | L3 |
 | rbac-escalation-backdoor | Remove RBAC privilege escalation path | pod-security | L3 |
@@ -93,12 +95,13 @@ Last updated: 2026-03-24
 | wrong-pvc | Fix a deployment with a PVC referencing wrong StorageClass | storage | L1 |
 | wrong-service-selector | Fix a service with wrong selector labels | networking | L1 |
 
-## Helm (4 active)
+## Helm (5 active)
 
 | ID | Title | Track | Level |
 |---|---|---|---|
 | helm-dependency-conflict | Resolve a Helm chart dependency conflict | release-ops | L2 |
 | helm-failed-upgrade | Fix a failed Helm upgrade | release-ops | L1 |
+| helm-hook-ordering-observability-trap | Recover a Helm release from a stuck pre-upgrade hook | release-ops | L4 |
 | helm-pending-release | Fix a Helm release stuck in pending state | release-ops | L2 |
 | helm-version-rollback | Rollback a Helm release to a previous working version | release-ops | L2 |
 

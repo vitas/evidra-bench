@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-svc
+  namespace: bench
+  labels:
+    app: web
+    incident.evidra.io/source: "ticket-4281"
+spec:
+  selector:
+    app: web
+    tier: api
+  ports:
+    - port: 80
+      targetPort: 80
+
