@@ -20,4 +20,8 @@ grep -q -- 'bash tests/test_workflow_hygiene.sh' .github/workflows/ci.yml \
 grep -q -- 'bash tests/test_workflow_hygiene.sh' .github/workflows/release.yml \
   || fail "release should run workflow hygiene checks"
 
+awk '/^  release:/{in_release=1; next} /^  docker:/{in_release=0} in_release {print}' .github/workflows/release.yml |
+  grep -q -- "if: startsWith(github.ref, 'refs/tags/')" \
+  || fail "release job should run only for tag refs"
+
 echo "PASS: test_workflow_hygiene"
