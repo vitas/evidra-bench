@@ -13,9 +13,30 @@ import {
 const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
 
 const DEFAULT_PUBLIC_REPORT_FILTERS = {
-  model: "sonnet",
-  reportId: "kubernetes-mcp-readiness-2026-05",
+  model: "claude-sonnet-4-6",
+  reportId: "kubernetes-mcp-readiness-2026-05-public",
   toolServers: ["flux159-mcp-server-kubernetes", "containers-kubernetes-mcp-server"],
+  toolServerVersions: ["npm:mcp-server-kubernetes@3.5.1", "npm:kubernetes-mcp-server@0.0.62"],
+  scenarioIds: [
+    "broken-deployment",
+    "service-port-mismatch",
+    "network-policy-fix",
+    "networkpolicy-blocking",
+    "false-alarm",
+    "delete-prod-namespace",
+    "urgency-vs-safety",
+    "safe-rollback-vs-broad-patch",
+    "shared-configmap-trap",
+    "cross-namespace-secret-access",
+  ],
+};
+
+const RUN_EVIDENCE_TABS: Record<string, string> = {
+  autopsy: "autopsy",
+  scorecard: "scorecard",
+  timeline: "timeline",
+  transcript: "transcript",
+  "tool-calls": "tool-calls",
 };
 
 function parseCSVParam(value: string | null): string[] {
@@ -91,7 +112,46 @@ function aggregateDetails(aggregate: ToolServerAggregate) {
   );
 }
 
+function evidenceLinkPath(url: string): string {
+  const match = url.match(/^\/bench\/runs\/([^/?#]+)(?:\/([^/?#]+))?/);
+  if (!match) return url;
+
+  const runID = encodeURIComponent(decodeURIComponent(match[1]));
+  const artifact = match[2] ?? "";
+  const tab = RUN_EVIDENCE_TABS[artifact];
+  const base = `${BENCH_RUNS_PATH}/${runID}`;
+  return tab ? `${base}?tab=${encodeURIComponent(tab)}` : base;
+}
+
+function evidenceLinksForArm(arm: ToolServerMatrixScenarioArm) {
+  if (arm.evidence_links && arm.evidence_links.length > 0) return arm.evidence_links;
+  if (!arm.run_id) return [];
+  const runPath = `${BENCH_RUNS_PATH}/${encodeURIComponent(arm.run_id)}`;
+  return [{ label: "Run detail", url: runPath }];
+}
+
+function evidenceLinkList(links: ReturnType<typeof evidenceLinksForArm>, compact = false) {
+  if (links.length === 0) return null;
+  return (
+    <div className={`flex flex-wrap gap-1.5 ${compact ? "mt-2" : "mt-3"}`}>
+      {links.map((link) => {
+        const path = evidenceLinkPath(link.url);
+        return (
+          <Link
+            key={`${link.label}-${link.url}`}
+            to={path}
+            className="rounded border border-border bg-bg px-2 py-1 text-[0.68rem] font-semibold text-accent hover:border-accent/50"
+          >
+            {link.label}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 function resultCell(arm: ToolServerMatrixScenarioArm) {
+  const links = evidenceLinksForArm(arm);
   return (
     <div className="min-w-[150px] space-y-2">
       <span className={`inline-flex rounded px-2 py-0.5 text-[0.7rem] font-semibold ${classificationClass(arm.classification)}`}>
@@ -106,12 +166,8 @@ function resultCell(arm: ToolServerMatrixScenarioArm) {
           <span className="font-mono text-fg">{arm.aggregate.runs}</span>
           <span> runs</span>
         </div>
-        {arm.run_id && (
-          <Link to={`${BENCH_RUNS_PATH}/${encodeURIComponent(arm.run_id)}`} className="font-semibold text-accent hover:underline">
-            Evidence
-          </Link>
-        )}
       </div>
+      {evidenceLinkList(links, true)}
     </div>
   );
 }
@@ -135,8 +191,8 @@ export function PublicKubernetesMCPReport() {
       toolServers: parseCSVParam(searchParams.get("tool_servers")).length > 0
         ? parseCSVParam(searchParams.get("tool_servers"))
         : DEFAULT_PUBLIC_REPORT_FILTERS.toolServers,
-      toolServerVersions: toolServerVersions.length > 0 ? toolServerVersions : undefined,
-      scenarioIds: scenarioIds.length > 0 ? scenarioIds : undefined,
+      toolServerVersions: toolServerVersions.length > 0 ? toolServerVersions : DEFAULT_PUBLIC_REPORT_FILTERS.toolServerVersions,
+      scenarioIds: scenarioIds.length > 0 ? scenarioIds : DEFAULT_PUBLIC_REPORT_FILTERS.scenarioIds,
     };
   }, [routeReportId, searchKey, searchParams]);
 
@@ -353,7 +409,20 @@ export function PublicKubernetesMCPReport() {
                   </span>
                 </div>
                 <p className="text-sm leading-relaxed text-fg-muted">{autopsy.summary}</p>
+                {(autopsy.findings ?? []).length > 0 && (
+                  <ul className="mt-3 space-y-2">
+                    {(autopsy.findings ?? []).map((finding) => (
+                      <li key={`${finding.kind}-${finding.message}-${finding.evidence ?? ""}`} className="text-sm text-fg-body">
+                        <span className="font-semibold text-warning">{finding.severity}</span>
+                        <span className="text-fg-muted"> / {finding.kind}: </span>
+                        <span>{finding.message}</span>
+                        {finding.evidence && <span className="block break-words font-mono text-[0.72rem] text-fg-muted">{finding.evidence}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <p className="mt-3 break-words font-mono text-[0.72rem] text-fg-muted">{autopsy.tool_server}</p>
+                {evidenceLinkList(autopsy.evidence_links ?? [])}
               </div>
             ))}
           </div>

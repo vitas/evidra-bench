@@ -1,6 +1,6 @@
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router";
+import { useParams, Link, useSearchParams } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { evidenceModeParam } from "../../lib/catalogData.mts";
 import { useEvidenceMode } from "../../hooks/useEvidenceMode";
@@ -96,6 +96,11 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "scorecard", label: "Scorecard" },
 ];
 
+function parseTab(value: string | null): Tab {
+  if (TABS.some((tab) => tab.key === value)) return value as Tab;
+  return "summary";
+}
+
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${seconds.toFixed(1)}s`;
   const m = Math.floor(seconds / 60);
@@ -144,6 +149,7 @@ function highlightTranscript(text: string): (React.ReactElement | string)[] {
 
 export function RunDetail() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { request } = useApi();
   const { mode } = useEvidenceMode();
   usePageTitle(id ? `Run ${id}` : "Run Detail");
@@ -151,7 +157,7 @@ export function RunDetail() {
   const [run, setRun] = useState<RunRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>("summary");
+  const [activeTab, setActiveTab] = useState<Tab>(() => parseTab(searchParams.get("tab")));
 
   const [transcript, setTranscript] = useState<string | null>(null);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
@@ -172,6 +178,21 @@ export function RunDetail() {
   const [autopsy, setAutopsy] = useState<AutopsyReport | null>(null);
   const [autopsyLoading, setAutopsyLoading] = useState(false);
   const [autopsyError, setAutopsyError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActiveTab(parseTab(searchParams.get("tab")));
+  }, [searchParams]);
+
+  function selectTab(tab: Tab) {
+    setActiveTab(tab);
+    const next = new URLSearchParams(searchParams);
+    if (tab === "summary") {
+      next.delete("tab");
+    } else {
+      next.set("tab", tab);
+    }
+    setSearchParams(next, { replace: true });
+  }
 
   // Fetch run record
   useEffect(() => {
@@ -360,7 +381,7 @@ export function RunDetail() {
         {TABS.map(({ key, label }) => (
           <button
             key={key}
-            onClick={() => setActiveTab(key)}
+            onClick={() => selectTab(key)}
             className={`text-[0.82rem] font-medium px-4 py-2 border-b-2 transition-colors cursor-pointer whitespace-nowrap flex-shrink-0 ${
               activeTab === key
                 ? "text-accent border-accent font-semibold"
