@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildLeaderboardPath, buildRunsPath, normalizeCatalog } from "./catalogData.mts";
+import {
+  buildLeaderboardPath,
+  buildRunsPath,
+  coerceToolServerVersion,
+  normalizeCatalog,
+  toolServerVersionOptions,
+} from "./catalogData.mts";
 
 test("normalizeCatalog deduplicates and sorts models/providers", () => {
   const catalog = normalizeCatalog({
@@ -9,12 +15,55 @@ test("normalizeCatalog deduplicates and sorts models/providers", () => {
     providers: ["bifrost", "claude", "bifrost", ""],
     tool_servers: ["kubernetes-mcp", "legacy-mcp", "kubernetes-mcp", ""],
     tool_server_versions: ["1.2.4", "1.2.3", "1.2.3", ""],
+    tool_server_versions_by_server: {
+      "legacy-mcp": ["0.9.0", "0.9.0", ""],
+      "kubernetes-mcp": ["1.2.4", "1.2.3"],
+    },
   });
 
   assert.deepEqual(catalog.models, ["haiku", "sonnet"]);
   assert.deepEqual(catalog.providers, ["bifrost", "claude"]);
   assert.deepEqual(catalog.tool_servers, ["kubernetes-mcp", "legacy-mcp"]);
   assert.deepEqual(catalog.tool_server_versions, ["1.2.3", "1.2.4"]);
+  assert.deepEqual(catalog.tool_server_versions_by_server, {
+    "kubernetes-mcp": ["1.2.3", "1.2.4"],
+    "legacy-mcp": ["0.9.0"],
+  });
+});
+
+test("toolServerVersionOptions narrows versions to the selected tool server", () => {
+  const catalog = normalizeCatalog({
+    models: [],
+    providers: [],
+    tool_servers: ["kubernetes-mcp", "legacy-mcp"],
+    tool_server_versions: ["0.9.0", "1.2.3"],
+    tool_server_versions_by_server: {
+      "kubernetes-mcp": ["1.2.3"],
+      "legacy-mcp": ["0.9.0"],
+    },
+  });
+
+  assert.deepEqual(toolServerVersionOptions(catalog, "kubernetes-mcp"), ["1.2.3"]);
+  assert.deepEqual(toolServerVersionOptions(catalog, "legacy-mcp"), ["0.9.0"]);
+  assert.deepEqual(toolServerVersionOptions(catalog, "All"), ["0.9.0", "1.2.3"]);
+});
+
+test("coerceToolServerVersion resets versions from a different tool server", () => {
+  const catalog = normalizeCatalog({
+    models: [],
+    providers: [],
+    tool_servers: ["kubernetes-mcp", "legacy-mcp"],
+    tool_server_versions: ["0.9.0", "1.2.3"],
+    tool_server_versions_by_server: {
+      "kubernetes-mcp": ["1.2.3"],
+      "legacy-mcp": ["0.9.0"],
+    },
+  });
+
+  assert.equal(coerceToolServerVersion(catalog, "kubernetes-mcp", "1.2.3", "All"), "1.2.3");
+  assert.equal(coerceToolServerVersion(catalog, "kubernetes-mcp", "0.9.0", "All"), "All");
+  assert.equal(coerceToolServerVersion(catalog, "All", "0.9.0", "All"), "0.9.0");
+  assert.equal(coerceToolServerVersion(catalog, "legacy-mcp", "1.2.3", ""), "");
 });
 
 test("buildRunsPath applies limit and optional since filter", () => {

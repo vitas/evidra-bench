@@ -99,6 +99,10 @@ func TestHandleCatalog_ReturnsModelsAndProviders(t *testing.T) {
 			Providers:          []string{"anthropic", "bifrost"},
 			ToolServers:        []string{"kubernetes-mcp", "legacy-mcp"},
 			ToolServerVersions: []string{"1.2.3", "1.2.4"},
+			ToolServerVersionsByServer: map[string][]string{
+				"kubernetes-mcp": {"1.2.3"},
+				"legacy-mcp":     {"1.2.4"},
+			},
 		},
 	}
 	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
@@ -125,6 +129,9 @@ func TestHandleCatalog_ReturnsModelsAndProviders(t *testing.T) {
 	}
 	if len(body.ToolServerVersions) != 2 {
 		t.Fatalf("len(ToolServerVersions) = %d, want 2", len(body.ToolServerVersions))
+	}
+	if got := body.ToolServerVersionsByServer["kubernetes-mcp"]; len(got) != 1 || got[0] != "1.2.3" {
+		t.Fatalf("ToolServerVersionsByServer[kubernetes-mcp] = %v, want [1.2.3]", got)
 	}
 }
 

@@ -45,6 +45,7 @@ func (s *PgStore) FilteredStats(ctx context.Context, tenantID string, f bench.Ru
 // Catalog returns distinct models and providers from bench_runs.
 func (s *PgStore) Catalog(ctx context.Context, tenantID string) (*bench.RunCatalog, error) {
 	var models, providers, toolServers, toolServerVersions []string
+	toolServerVersionsByServer := map[string][]string{}
 
 	rows, err := s.db.Query(ctx,
 		"SELECT DISTINCT model FROM bench_runs WHERE tenant_id = $1 AND archived_at IS NULL ORDER BY model", tenantID)
@@ -114,11 +115,35 @@ func (s *PgStore) Catalog(ctx context.Context, tenantID string) (*bench.RunCatal
 		return nil, fmt.Errorf("bench.Catalog: tool server version rows: %w", err)
 	}
 
+	rows5, err := s.db.Query(ctx,
+		`SELECT DISTINCT tool_server, tool_server_version
+		 FROM bench_runs
+		 WHERE tenant_id = $1
+		   AND archived_at IS NULL
+		   AND tool_server != ''
+		   AND tool_server_version != ''
+		 ORDER BY tool_server, tool_server_version`, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("bench.Catalog: tool server version pairs: %w", err)
+	}
+	defer rows5.Close()
+	for rows5.Next() {
+		var toolServer, version string
+		if err := rows5.Scan(&toolServer, &version); err != nil {
+			return nil, fmt.Errorf("bench.Catalog: scan tool server version pair: %w", err)
+		}
+		toolServerVersionsByServer[toolServer] = append(toolServerVersionsByServer[toolServer], version)
+	}
+	if err := rows5.Err(); err != nil {
+		return nil, fmt.Errorf("bench.Catalog: tool server version pair rows: %w", err)
+	}
+
 	return &bench.RunCatalog{
-		Models:             models,
-		Providers:          providers,
-		ToolServers:        toolServers,
-		ToolServerVersions: toolServerVersions,
+		Models:                     models,
+		Providers:                  providers,
+		ToolServers:                toolServers,
+		ToolServerVersions:         toolServerVersions,
+		ToolServerVersionsByServer: toolServerVersionsByServer,
 	}, nil
 }
 

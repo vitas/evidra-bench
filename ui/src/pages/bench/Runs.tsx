@@ -2,7 +2,13 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
-import { evidenceModeParam, normalizeCatalog, type CatalogResponse } from "../../lib/catalogData.mts";
+import {
+  coerceToolServerVersion,
+  evidenceModeParam,
+  normalizeCatalog,
+  toolServerVersionOptions,
+  type CatalogResponse,
+} from "../../lib/catalogData.mts";
 import {
   EXAM_PACKS,
   scenarioIDsForExamPack,
@@ -214,16 +220,18 @@ export function Runs() {
   }, [search]);
 
   function handleApply() {
+    const nextToolServerVersion = coerceToolServerVersion(catalog, toolServer, toolServerVersion, "All");
     const nextFilters: RunsFilterState = {
       scenario: scenario.trim(),
       exam,
       model,
       provider,
       toolServer,
-      toolServerVersion,
+      toolServerVersion: nextToolServerVersion,
       status,
       since,
     };
+    setToolServerVersion(nextToolServerVersion);
     setAppliedFilters(nextFilters);
     setPage(0);
     setSearchParams(runsSearchParamsFromFilters(nextFilters));
@@ -284,6 +292,30 @@ export function Runs() {
   const rangeStart = total === 0 ? 0 : page * PAGE_SIZE + 1;
   const rangeEnd = Math.min((page + 1) * PAGE_SIZE, total);
   const selectedExamPack = EXAM_PACKS.find((pack) => pack.id === appliedFilters.exam);
+  const availableToolServerVersions = toolServerVersionOptions(catalog, toolServer);
+  const catalogHasToolServerData =
+    catalog.tool_servers.length > 0 || (catalog.tool_server_versions ?? []).length > 0;
+
+  useEffect(() => {
+    if (!catalogHasToolServerData) return;
+
+    const nextDraftVersion = coerceToolServerVersion(catalog, toolServer, toolServerVersion, "All");
+    if (nextDraftVersion !== toolServerVersion) {
+      setToolServerVersion(nextDraftVersion);
+    }
+
+    const nextAppliedVersion = coerceToolServerVersion(
+      catalog,
+      appliedFilters.toolServer,
+      appliedFilters.toolServerVersion,
+      "All",
+    );
+    if (nextAppliedVersion !== appliedFilters.toolServerVersion) {
+      const nextFilters = { ...appliedFilters, toolServerVersion: nextAppliedVersion };
+      setAppliedFilters(nextFilters);
+      setSearchParams(runsSearchParamsFromFilters(nextFilters), { replace: true });
+    }
+  }, [appliedFilters, catalog, catalogHasToolServerData, setSearchParams, toolServer, toolServerVersion]);
 
   const inputClass =
     "font-sans text-[0.8rem] px-3 py-[0.45rem] border border-border rounded-md bg-bg-elevated text-fg-body focus:outline-none focus:border-accent transition-colors";
@@ -357,7 +389,11 @@ export function Runs() {
           <span className="text-[0.7rem] font-medium text-fg-muted uppercase tracking-wide">Tool Server</span>
           <select
             value={toolServer}
-            onChange={(e) => setToolServer(e.target.value)}
+            onChange={(e) => {
+              const nextToolServer = e.target.value;
+              setToolServer(nextToolServer);
+              setToolServerVersion((current) => coerceToolServerVersion(catalog, nextToolServer, current, "All"));
+            }}
             className={inputClass + " w-40"}
           >
             {["All", ...catalog.tool_servers].map((tool) => (
@@ -374,10 +410,11 @@ export function Runs() {
             value={toolServerVersion}
             onChange={(e) => setToolServerVersion(e.target.value)}
             className={inputClass + " w-40"}
+            disabled={toolServer !== "All" && availableToolServerVersions.length === 0}
           >
-            {["All", ...(catalog.tool_server_versions ?? [])].map((version) => (
+            {["All", ...availableToolServerVersions].map((version) => (
               <option key={version} value={version}>
-                {version}
+                {version === "All" ? "All versions" : version}
               </option>
             ))}
           </select>

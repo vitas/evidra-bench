@@ -3,7 +3,12 @@ import type { ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { normalizeCatalog, type CatalogResponse } from "../../lib/catalogData.mts";
+import {
+  coerceToolServerVersion,
+  normalizeCatalog,
+  toolServerVersionOptions,
+  type CatalogResponse,
+} from "../../lib/catalogData.mts";
 import {
   categoriesFromScenarios,
   scenarioIdsForCategory,
@@ -195,6 +200,15 @@ export function ToolServerReport() {
     if (scenario) return [scenario];
     return scenarioIdsForCategory(scenarios, category);
   }, [category, scenario, scenarios]);
+  const availableToolServerVersions = toolServerVersionOptions(catalog, toolServer);
+
+  useEffect(() => {
+    if (loadingCatalog) return;
+    const nextVersion = coerceToolServerVersion(catalog, toolServer, toolServerVersion, "");
+    if (nextVersion !== toolServerVersion) {
+      updateFilters({ toolServerVersion: nextVersion });
+    }
+  }, [catalog, loadingCatalog, toolServer, toolServerVersion]);
 
   useEffect(() => {
     if (!model || !toolServer) return;
@@ -222,7 +236,12 @@ export function ToolServerReport() {
   }>) {
     const nextModel = next.model ?? model;
     const nextToolServer = next.toolServer ?? toolServer;
-    const nextVersion = next.toolServerVersion ?? toolServerVersion;
+    const nextVersion = coerceToolServerVersion(
+      catalog,
+      nextToolServer,
+      next.toolServerVersion ?? toolServerVersion,
+      "",
+    );
     const nextCategory = next.category ?? category;
     const nextScenario = next.scenario ?? scenario;
 
@@ -339,10 +358,10 @@ export function ToolServerReport() {
               value={toolServerVersion}
               onChange={(e) => updateFilters({ toolServerVersion: e.target.value })}
               className="text-[0.82rem] px-2 py-1.5 rounded-md border border-border bg-bg-elevated text-fg"
-              disabled={loadingCatalog}
+              disabled={loadingCatalog || availableToolServerVersions.length === 0}
             >
               <option value="">All versions</option>
-              {(catalog.tool_server_versions ?? []).map((item) => (
+              {availableToolServerVersions.map((item) => (
                 <option key={item} value={item}>{item}</option>
               ))}
             </select>

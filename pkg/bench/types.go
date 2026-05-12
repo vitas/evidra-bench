@@ -71,10 +71,11 @@ type RunFilters struct {
 
 // RunCatalog holds distinct metadata values used for UI filters.
 type RunCatalog struct {
-	Models             []string `json:"models"`
-	Providers          []string `json:"providers"`
-	ToolServers        []string `json:"tool_servers"`
-	ToolServerVersions []string `json:"tool_server_versions"`
+	Models                     []string            `json:"models"`
+	Providers                  []string            `json:"providers"`
+	ToolServers                []string            `json:"tool_servers"`
+	ToolServerVersions         []string            `json:"tool_server_versions"`
+	ToolServerVersionsByServer map[string][]string `json:"tool_server_versions_by_server,omitempty"`
 }
 
 // StatsResult holds aggregate run statistics.
