@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from "react";
 import { SCENARIOS, TRACK_LABELS } from "../data/catalog";
 
 const API_URL = import.meta.env.VITE_BENCH_API_URL || "";
-const API_KEY = import.meta.env.VITE_BENCH_API_KEY || "";
 
 // Build lookup from scenario ID → track/level from our catalog
 const SCENARIO_META = new Map(SCENARIOS.map((s) => [s.id, { track: s.track, level: s.level }]));
@@ -47,9 +46,7 @@ interface ModelEntry {
 type Tab = "leaderboard" | "runs";
 
 async function fetchAPI<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    headers: { Authorization: `Bearer ${API_KEY}` },
-  });
+  const res = await fetch(`${API_URL}${path}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -81,19 +78,6 @@ function PassBadge({ passed }: { passed: boolean }) {
 }
 
 export function Results() {
-  if (!API_KEY) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center max-w-md">
-          <h1 className="text-xl font-bold text-fg mb-3">Results Not Configured</h1>
-          <p className="text-[0.85rem] text-fg-muted mb-4">
-            Set <code className="text-accent">VITE_BENCH_API_KEY</code> at build time to connect to the bench API.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   type ExamFilter = "all" | "cka" | "cks" | "custom";
   type TimeFilter = "24h" | "7d" | "30d" | "all";
   type EvidenceFilter = "all" | "none" | "mcp";

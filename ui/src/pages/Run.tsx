@@ -1,20 +1,12 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { SCENARIOS, CATEGORY_LABELS, TRACK_LABELS, type ScenarioMeta } from "../data/catalog";
 import { CATEGORY_COLORS, DIFFICULTY_COLORS, LEVEL_COLORS } from "../data/colors";
 import { useEvidenceMode } from "../hooks/useEvidenceMode";
 import { buildBenchCommand, EVIDENCE_MODES } from "../lib/commandBuilder.mts";
-import { useBenchApi } from "../hooks/useBenchApi";
 import { useModels } from "../hooks/useModels";
 
 type Category = "all" | ScenarioMeta["category"];
 type Track = "all" | ScenarioMeta["track"];
-
-type TriggerState =
-  | { phase: "idle" }
-  | { phase: "triggering" }
-  | { phase: "running"; jobId: string; completed: number; total: number; status: string }
-  | { phase: "done"; jobId: string; status: string; completed: number; total: number }
-  | { phase: "error"; message: string };
 
 const CATEGORY_PILLS: { value: Category; label: string }[] = [
   { value: "all", label: "All" },
@@ -84,17 +76,6 @@ export function Run() {
     setSelectedIds(new Set());
   }, []);
 
-  const { request } = useBenchApi();
-  const [trigger, setTrigger] = useState<TriggerState>({ phase: "idle" });
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Clean up polling on unmount.
-  useEffect(() => {
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, []);
-
   useEffect(() => {
     if (models.length === 0) {
       return;
@@ -103,46 +84,6 @@ export function Run() {
       setSelectedModel(models[0].id);
     }
   }, [models, selectedModel]);
-
-  const handleRun = useCallback(async () => {
-    if (selectedIds.size === 0 || !selectedModel) return;
-    setTrigger({ phase: "triggering" });
-
-    try {
-      const res = await request<{ id: string; status: string; total: string }>("/v1/bench/trigger", {
-        method: "POST",
-        body: JSON.stringify({
-          model: selectedModel,
-          evidence_mode: mode === "mcp" ? "mcp" : "none",
-          scenarios: [...selectedIds],
-        }),
-      });
-
-      const jobId = res.id;
-      const total = parseInt(res.total, 10) || selectedIds.size;
-      setTrigger({ phase: "running", jobId, completed: 0, total, status: "pending" });
-
-      // Poll for progress.
-      pollRef.current = setInterval(async () => {
-        try {
-          const job = await request<{ status: string; completed: number; total: number }>(
-            `/v1/bench/trigger/${jobId}`
-          );
-          if (job.status === "completed" || job.status === "failed") {
-            if (pollRef.current) clearInterval(pollRef.current);
-            pollRef.current = null;
-            setTrigger({ phase: "done", jobId, status: job.status, completed: job.completed, total: job.total });
-          } else {
-            setTrigger({ phase: "running", jobId, completed: job.completed, total: job.total, status: job.status });
-          }
-        } catch {
-          // Ignore transient poll errors.
-        }
-      }, 3000);
-    } catch (err: any) {
-      setTrigger({ phase: "error", message: err.message || "Failed to trigger run" });
-    }
-  }, [selectedIds, selectedModel, request]);
 
   const command = useMemo(() => {
     if (selectedIds.size === 0 || !selectedModel) return null;
@@ -398,49 +339,9 @@ export function Run() {
                 {copied ? "Copied" : "Copy CLI"}
               </button>
             )}
-            <button
-              onClick={handleRun}
-              disabled={selectedIds.size === 0 || trigger.phase === "triggering" || trigger.phase === "running"}
-              className="inline-flex items-center gap-1.5 px-4 py-1 bg-accent text-white text-[0.72rem] font-semibold rounded-md hover:bg-accent/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {trigger.phase === "triggering" ? "Starting..." :
-               trigger.phase === "running" ? `Running ${trigger.completed}/${trigger.total}` :
-               "Run on Server"}
-            </button>
           </div>
         </div>
         <div className="px-4 py-3">
-          {trigger.phase === "running" && (
-            <div className="space-y-2 mb-3">
-              <div className="flex items-center justify-between text-[0.75rem]">
-                <span className="text-fg-muted">Progress</span>
-                <span className="text-fg font-medium">{trigger.completed} / {trigger.total}</span>
-              </div>
-              <div className="w-full bg-border-subtle rounded-full h-1.5">
-                <div
-                  className="bg-accent h-1.5 rounded-full transition-all duration-500"
-                  style={{ width: `${trigger.total > 0 ? (trigger.completed / trigger.total) * 100 : 0}%` }}
-                />
-              </div>
-            </div>
-          )}
-          {trigger.phase === "done" && (
-            <div className={`flex items-center justify-between px-3 py-2 rounded-md mb-3 text-[0.78rem] font-medium ${
-              trigger.status === "completed"
-                ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                : "bg-red-500/10 text-red-400 border border-red-500/20"
-            }`}>
-              <span>{trigger.status === "completed" ? "Run completed" : "Run failed"} — {trigger.completed}/{trigger.total} scenarios</span>
-              <a href="/bench" className="text-accent hover:text-accent/80 transition-colors text-[0.72rem]">
-                View results
-              </a>
-            </div>
-          )}
-          {trigger.phase === "error" && (
-            <div className="px-3 py-2 rounded-md mb-3 text-[0.78rem] bg-red-500/10 text-red-400 border border-red-500/20">
-              {trigger.message}
-            </div>
-          )}
           {command ? (
             <details className="text-[0.72rem] text-fg-muted">
               <summary className="cursor-pointer hover:text-fg transition-colors">CLI command</summary>

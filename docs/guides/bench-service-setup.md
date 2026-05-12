@@ -194,7 +194,6 @@ For local Vite development:
 ```bash
 cd ui
 VITE_BENCH_API_URL=http://localhost:8090 \
-VITE_BENCH_API_KEY="$BENCH_API_KEY" \
 npm run dev
 ```
 
@@ -206,7 +205,9 @@ Canonical UI routes are under `/bench/*`. Legacy `/scenarios`, `/runs`, and
 - Read-only benchmark result, catalog, artifact, analytics, and comparison
   routes are public and use `BENCH_PUBLIC_TENANT`.
 - Mutating bench routes, model configuration routes, trigger routes, and runner
-  routes require Bearer auth.
+  routes require Bearer auth. Do not put `BENCH_API_KEY` into the browser UI;
+  use `bench-cli` or a server-side proxy/user-auth flow for authenticated
+  actions.
 - `POST /v1/bench/trigger` tries the runner queue before direct executor model
   validation, so runner-local aliases can work without a control-plane API key.
 - If no eligible runner exists and no direct executor is configured, trigger

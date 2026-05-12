@@ -8,12 +8,9 @@ import type { AutopsyReport } from "../../lib/autopsyView.mts";
 import { normalizeAutopsyReport } from "../../lib/autopsyView.mts";
 
 const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
-const API_KEY = import.meta.env.VITE_BENCH_API_KEY || "";
 
 function fetchApi(path: string): Promise<Response> {
-  const headers: Record<string, string> = {};
-  if (API_KEY) headers["Authorization"] = `Bearer ${API_KEY}`;
-  return fetch(`${API_BASE}${path}`, { headers });
+  return fetch(`${API_BASE}${path}`);
 }
 
 interface RunRecord {

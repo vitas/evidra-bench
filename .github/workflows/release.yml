@@ -67,6 +67,10 @@ jobs:
         working-directory: bench
         run: bash tests/test_artifact_hygiene.sh
 
+      - name: Guard UI secret hygiene
+        working-directory: bench
+        run: bash tests/test_ui_secret_hygiene.sh
+
       - name: Guard SEO assets
         working-directory: bench
         run: bash tests/test_seo_assets.sh
@@ -228,4 +232,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             VITE_BENCH_API_URL=https://api.evidra.cc
-            VITE_BENCH_API_KEY=${{ secrets.BENCH_API_KEY }}
