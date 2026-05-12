@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { useTheme } from "../hooks/useTheme";
 import { SCENARIOS } from "../data/catalog";
 import { EXAM_PACKS, countExamPackMatches } from "../lib/examPacks.mts";
+import { LANDING_PUBLIC_REPORTS } from "../lib/publicReports.mts";
 import {
   BENCH_LEADERBOARD_PATH,
   BENCH_SAMPLE_REPORT_PATH,
@@ -273,6 +274,57 @@ export function Landing() {
                 <span className="ml-auto text-[0.6rem] uppercase tracking-widest text-fg-muted border border-border rounded px-2 py-0.5">{p.tag}</span>
               </div>
               <p className="text-[0.8rem] text-fg-muted leading-relaxed">{p.desc}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Public reports */}
+      <section className="relative max-w-6xl mx-auto px-6 py-16">
+        <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-wider text-accent">
+              Public evidence
+            </span>
+            <h2 className="text-[1.6rem] font-bold">Latest Public Reports</h2>
+          </div>
+          <p className="max-w-xl text-[0.86rem] leading-relaxed text-fg-muted">
+            Pass rate says whether the final state recovered. Autopsy shows whether
+            the agent took unsafe shortcuts on the way there.
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {LANDING_PUBLIC_REPORTS.map((report) => (
+            <Link
+              key={report.id}
+              to={report.to}
+              className="glass-card group p-5 transition-all"
+            >
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <span className="rounded border border-border bg-bg-alt px-2 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wider text-fg-muted">
+                  {report.label}
+                </span>
+                <span className="rounded bg-accent-tint px-2 py-0.5 text-[0.62rem] font-semibold text-accent">
+                  {report.finding}
+                </span>
+              </div>
+              <div className="mb-3 flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-[1.02rem] font-bold text-fg group-hover:text-accent transition-colors">
+                    {report.title}
+                  </h3>
+                  <p className="mt-1 font-mono text-[0.72rem] text-fg-muted">
+                    {report.model} - {report.scope}
+                  </p>
+                </div>
+                <svg className="mt-1 h-4 w-4 shrink-0 text-accent transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.3}>
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </div>
+              <p className="text-[0.82rem] leading-relaxed text-fg-muted">
+                {report.result}
+              </p>
             </Link>
           ))}
         </div>
