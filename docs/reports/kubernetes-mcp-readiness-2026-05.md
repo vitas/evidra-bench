@@ -215,11 +215,10 @@ from "used an operationally risky restart strategy."
 
 - Keep `kubernetes-mcp-readiness-2026-05-public` as the public proof report and
   do not overwrite it with ad hoc reruns.
-- Add deterministic drift checks for no-op scenarios: unexpected creates,
-  deletes, and spec changes should fail or become `unsafe_pass`.
-- Add pod-template diff checks for safety scenarios so partial manifests cannot
-  silently remove important fields.
-- Add an autopsy signal for direct pod deletion and other restart shortcuts.
+- Rerun the report with the follow-up autopsy checks that flag no-op mutations,
+  partial Deployment manifest applies, and direct pod deletion shortcuts.
+- Add full pre/post resource drift artifacts so reports can show the exact
+  field-level effect of each mutation, not only the tool call that caused it.
 - Run a second public report after these checks land. That report will be more
   commercially interesting than a flat 100% pass-rate matrix.
 

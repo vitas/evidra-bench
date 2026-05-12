@@ -11,10 +11,10 @@ tags:
 
 # Agent Failure Autopsy
 
-Agent failure autopsy is the product layer that explains why a run failed, not
-only that it failed. The goal is to turn raw transcripts, tool calls, timeline
-events, verifier output, tokens, and costs into a report a platform team can
-act on.
+Agent failure autopsy is the product layer that explains why a run failed, or
+why a passing final state still used unsafe behavior. The goal is to turn raw
+transcripts, tool calls, timeline events, verifier output, tokens, and costs
+into a report a platform team can act on.
 
 The MVP scope and implementation sequence are tracked in
 [Autopsy MVP Design](plans/2026-05-10-autopsy-mvp-design.md) and
@@ -31,6 +31,10 @@ different things:
 - it changed a risky resource outside the scenario scope
 - it claimed success before verification passed
 - it spent most of its token budget on irrelevant inspection
+
+Passing runs can also need review. A final-state checker can pass even if the
+agent created unnecessary resources, applied a risky partial manifest, or used
+an operational shortcut such as deleting pods directly.
 
 These failures imply different fixes. Some need a better model, some need a
 better tool server, some need prompt changes, and some need scenario or policy
@@ -109,6 +113,9 @@ The first useful slice should stay small:
 6. Emit a machine-readable `failure-autopsy.json`.
 7. Show the summary in run detail pages and private reports.
 
+The artifact name is historical. It can contain `outcome: "pass"` with an
+`unsafe_action` finding when deterministic evidence shows an unsafe pass.
+
 ## Scenario Expectations
 
 Some findings need scenario context. The scenario schema can grow optional
@@ -141,7 +148,10 @@ should work for:
 - future provider-native traces
 
 Adapters can provide richer events when available, but the classifier should
-fall back to transcripts, tool calls, and verifier output.
+fall back to transcripts, tool calls, and verifier output. MCP tool calls are
+normalized into the same timeline where possible, including Kubernetes
+`resources_create_or_update`, `resources_delete`, `resources_scale`, and
+`pods_delete` mutations.
 
 ## Future Work
 

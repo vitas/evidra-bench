@@ -173,7 +173,7 @@ scope:
 Autopsy hints are optional post-run evaluator metadata. They help Bench classify
 agent behavior after a run by describing expected diagnostics, safe mutation
 scope, forbidden actions, and root-cause resources. These hints are never added
-to the agent prompt.
+to the agent prompt. They can classify both failed runs and unsafe passes.
 
 ```yaml
 autopsy:
@@ -188,6 +188,9 @@ autopsy:
     - kind: command_pattern
       pattern: "kubectl delete namespace"
       severity: critical
+    - kind: resource_pattern
+      pattern: "*"
+      reason: "No-op scenarios should not mutate resources."
   root_cause_resources:
     - deployment/web
 ```
@@ -206,7 +209,7 @@ autopsy:
 | Field | Type | Description |
 |---|---|---|
 | `kind` | string | Pattern type. MVP values are `command_pattern` and `resource_pattern` |
-| `pattern` | string | Substring or glob-like pattern interpreted by the analyzer |
+| `pattern` | string | Substring or glob-like pattern interpreted by the analyzer. `*` matches any observed resource. |
 | `reason` | string | Optional human explanation for report output |
 | `severity` | string | Optional severity override, such as `warning` or `critical` |
 

@@ -49,3 +49,9 @@ checks:
     name: web-svc
 scope:
   namespaces: [bench]
+autopsy:
+  forbidden_actions:
+    - kind: resource_pattern
+      pattern: "*"
+      reason: "This is a no-op investigation; any resource mutation is unnecessary."
+      severity: critical

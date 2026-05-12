@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // mutationSubcommands maps infrastructure tools to their mutating subcommands.
@@ -81,8 +83,18 @@ func Parse(calls []ToolCall) *Timeline {
 			}
 
 		default:
-			// Non-run_command tools (Bash, Agent, external MCP tools, etc.) are skipped.
-			continue
+			var ok bool
+			step, ok = parseMCPToolCall(i, call, seenMutation, readOnlyCount)
+			if !ok {
+				// Unknown non-run_command tools are skipped.
+				continue
+			}
+			if step.Phase == PhaseAct {
+				seenMutation = true
+				tl.MutationCount++
+			} else {
+				readOnlyCount++
+			}
 		}
 
 		tl.Steps = append(tl.Steps, step)
@@ -91,6 +103,172 @@ func Parse(calls []ToolCall) *Timeline {
 
 	tl.TotalSteps = len(tl.Steps)
 	return tl
+}
+
+func parseMCPToolCall(index int, call ToolCall, seenMutation bool, readOnlyCount int) (TimelineStep, bool) {
+	step := TimelineStep{
+		Index: index,
+		Tool:  call.Tool,
+	}
+
+	switch call.Tool {
+	case "resources_create_or_update":
+		ref := resourceRefFromManifestArg(call.Args)
+		step.Operation = "create_or_update"
+		step.Resource = ref.String()
+		step.Namespace = ref.Namespace
+		step.Command = formatMCPCommand(call.Tool, step.Resource, step.Namespace)
+		step.ExitCode = extractExitCode(call.Result)
+		step.Phase = PhaseAct
+		step.Summary = buildMutationSummary(step.Operation, step.Resource, step.Namespace)
+		return step, true
+	case "resources_delete":
+		ref := resourceRefFromArgs(call.Args)
+		step.Operation = "delete"
+		step.Resource = ref.String()
+		step.Namespace = ref.Namespace
+		step.Command = formatMCPCommand(call.Tool, step.Resource, step.Namespace)
+		step.ExitCode = extractExitCode(call.Result)
+		step.Phase = PhaseAct
+		step.Summary = buildMutationSummary(step.Operation, step.Resource, step.Namespace)
+		return step, true
+	case "pods_delete":
+		ref := resourceRefFromArgs(call.Args)
+		ref.Kind = "Pod"
+		step.Operation = "delete"
+		step.Resource = ref.String()
+		step.Namespace = ref.Namespace
+		step.Command = formatMCPCommand(call.Tool, step.Resource, step.Namespace)
+		step.ExitCode = extractExitCode(call.Result)
+		step.Phase = PhaseAct
+		step.Summary = buildMutationSummary(step.Operation, step.Resource, step.Namespace)
+		return step, true
+	case "resources_scale":
+		ref := resourceRefFromArgs(call.Args)
+		step.Operation = "scale"
+		step.Resource = ref.String()
+		step.Namespace = ref.Namespace
+		step.Command = formatMCPCommand(call.Tool, step.Resource, step.Namespace)
+		step.ExitCode = extractExitCode(call.Result)
+		step.Phase = PhaseAct
+		step.Summary = buildMutationSummary(step.Operation, step.Resource, step.Namespace)
+		return step, true
+	case "resources_get", "resources_list", "pods_get", "pods_list", "pods_list_in_namespace", "pods_log", "pods_exec", "events_list":
+		ref := resourceRefFromArgs(call.Args)
+		if call.Tool == "pods_get" || call.Tool == "pods_log" || call.Tool == "pods_exec" {
+			ref.Kind = "Pod"
+		}
+		step.Operation = mcpReadOperation(call.Tool)
+		step.Resource = ref.String()
+		step.Namespace = ref.Namespace
+		step.Command = formatMCPCommand(call.Tool, step.Resource, step.Namespace)
+		step.ExitCode = extractExitCode(call.Result)
+		if seenMutation {
+			step.Phase = PhaseVerify
+		} else if readOnlyCount > 0 || isMCPDiagnosticTool(call.Tool) {
+			step.Phase = PhaseDiagnose
+		} else {
+			step.Phase = PhaseDiscover
+		}
+		step.Summary = buildReadSummary(step.Operation, step.Resource, step.Namespace)
+		return step, true
+	default:
+		return TimelineStep{}, false
+	}
+}
+
+type kubernetesResourceRef struct {
+	Kind      string
+	Name      string
+	Namespace string
+}
+
+func (r kubernetesResourceRef) String() string {
+	if r.Kind == "" && r.Name == "" {
+		return ""
+	}
+	if r.Kind == "" {
+		return r.Name
+	}
+	if r.Name == "" {
+		return r.Kind
+	}
+	return r.Kind + "/" + r.Name
+}
+
+func resourceRefFromArgs(args json.RawMessage) kubernetesResourceRef {
+	var parsed struct {
+		Kind      string `json:"kind"`
+		Name      string `json:"name"`
+		Namespace string `json:"namespace"`
+	}
+	_ = json.Unmarshal(args, &parsed)
+	return kubernetesResourceRef{
+		Kind:      strings.TrimSpace(parsed.Kind),
+		Name:      strings.TrimSpace(parsed.Name),
+		Namespace: strings.TrimSpace(parsed.Namespace),
+	}
+}
+
+func resourceRefFromManifestArg(args json.RawMessage) kubernetesResourceRef {
+	var parsed struct {
+		Resource string `json:"resource"`
+	}
+	if err := json.Unmarshal(args, &parsed); err != nil {
+		return kubernetesResourceRef{}
+	}
+	return resourceRefFromManifest(parsed.Resource)
+}
+
+func resourceRefFromManifest(manifest string) kubernetesResourceRef {
+	var parsed struct {
+		Kind     string `yaml:"kind"`
+		Metadata struct {
+			Name      string `yaml:"name"`
+			Namespace string `yaml:"namespace"`
+		} `yaml:"metadata"`
+	}
+	if err := yaml.Unmarshal([]byte(manifest), &parsed); err != nil {
+		return kubernetesResourceRef{}
+	}
+	return kubernetesResourceRef{
+		Kind:      strings.TrimSpace(parsed.Kind),
+		Name:      strings.TrimSpace(parsed.Metadata.Name),
+		Namespace: strings.TrimSpace(parsed.Metadata.Namespace),
+	}
+}
+
+func formatMCPCommand(tool, resource, namespace string) string {
+	parts := []string{tool}
+	if resource != "" {
+		parts = append(parts, resource)
+	}
+	if namespace != "" {
+		parts = append(parts, "in", namespace)
+	}
+	return strings.Join(parts, " ")
+}
+
+func mcpReadOperation(tool string) string {
+	switch tool {
+	case "pods_log":
+		return "logs"
+	case "pods_exec":
+		return "exec"
+	case "events_list":
+		return "events"
+	default:
+		return "get"
+	}
+}
+
+func isMCPDiagnosticTool(tool string) bool {
+	switch tool {
+	case "pods_log", "pods_exec", "events_list", "resources_get", "pods_get":
+		return true
+	default:
+		return false
+	}
 }
 
 // extractCommand pulls the command string from tool call args JSON.
@@ -218,6 +396,8 @@ func buildMutationSummary(subcommand, resource, ns string) string {
 	var verb string
 	switch subcommand {
 	case "apply":
+		verb = "Applied"
+	case "create_or_update":
 		verb = "Applied"
 	case "create":
 		verb = "Created"

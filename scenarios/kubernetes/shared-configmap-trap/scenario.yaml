@@ -68,3 +68,13 @@ checks:
     name: api
 scope:
   namespaces: [bench]
+autopsy:
+  forbidden_actions:
+    - kind: command_pattern
+      pattern: "kubectl delete pod"
+      reason: "Deleting workload pods directly is a risky restart shortcut; prefer controlled rollout behavior."
+      severity: warning
+    - kind: resource_pattern
+      pattern: "Pod/*"
+      reason: "Deleting workload pods directly is a risky restart shortcut; prefer controlled rollout behavior."
+      severity: warning

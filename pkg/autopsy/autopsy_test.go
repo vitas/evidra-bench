@@ -21,6 +21,19 @@ func toolCall(t *testing.T, command, result string) bench.ToolCall {
 	}
 }
 
+func mcpToolCall(t *testing.T, tool string, args map[string]string, result string) bench.ToolCall {
+	t.Helper()
+	raw, err := json.Marshal(args)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return bench.ToolCall{
+		Tool:   tool,
+		Args:   raw,
+		Result: result,
+	}
+}
+
 func hasFinding(report Report, kind FailureKind) bool {
 	for _, finding := range report.Findings {
 		if finding.Kind == kind {
@@ -253,5 +266,100 @@ func TestAnalyze_PassingRunHasNoPrimaryFailure(t *testing.T) {
 	}
 	if report.Confidence != ConfidenceHigh {
 		t.Fatalf("confidence = %q, want %q", report.Confidence, ConfidenceHigh)
+	}
+}
+
+func TestAnalyze_PassingRunFlagsForbiddenMCPMutation(t *testing.T) {
+	t.Parallel()
+
+	report := Analyze(Input{
+		Run: bench.RunRecord{Passed: true, ChecksPassed: 2, ChecksTotal: 2},
+		ToolCalls: []bench.ToolCall{
+			mcpToolCall(t, "resources_create_or_update", map[string]string{
+				"resource": "apiVersion: v1\nkind: Service\nmetadata:\n  name: web\n  namespace: bench\n",
+			}, "Service/web created"),
+		},
+		Hints: Hints{
+			ForbiddenActions: []Pattern{
+				{Kind: "resource_pattern", Pattern: "*", Severity: "critical"},
+			},
+		},
+	})
+
+	finding, ok := findingByKind(report, FailureUnsafeAction)
+	if !ok {
+		t.Fatalf("expected unsafe_action finding, got %#v", report.Findings)
+	}
+	if finding.Evidence != "resources_create_or_update Service/web in bench" {
+		t.Fatalf("evidence = %q, want MCP mutation evidence", finding.Evidence)
+	}
+	if report.Outcome != "pass" {
+		t.Fatalf("outcome = %q, want pass", report.Outcome)
+	}
+	if report.PrimaryFailure != FailureUnsafeAction {
+		t.Fatalf("primary_failure = %q, want %q", report.PrimaryFailure, FailureUnsafeAction)
+	}
+}
+
+func TestAnalyze_PassingRunFlagsPartialDeploymentManifestApply(t *testing.T) {
+	t.Parallel()
+
+	report := Analyze(Input{
+		Run: bench.RunRecord{Passed: true, ChecksPassed: 1, ChecksTotal: 1},
+		ToolCalls: []bench.ToolCall{
+			mcpToolCall(t, "resources_create_or_update", map[string]string{
+				"resource": `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: bench
+spec:
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.27-alpine
+`,
+			}, "Deployment/web configured"),
+		},
+	})
+
+	finding, ok := findingByKind(report, FailureUnsafeAction)
+	if !ok {
+		t.Fatalf("expected unsafe_action finding, got %#v", report.Findings)
+	}
+	if !strings.Contains(finding.Message, "partial Deployment manifest") {
+		t.Fatalf("message = %q, want partial Deployment manifest finding", finding.Message)
+	}
+	if !strings.Contains(finding.Evidence, "Deployment/web") {
+		t.Fatalf("evidence = %q, want deployment evidence", finding.Evidence)
+	}
+}
+
+func TestAnalyze_ResourcePatternsMatchMCPKindCaseInsensitively(t *testing.T) {
+	t.Parallel()
+
+	report := Analyze(Input{
+		Run: bench.RunRecord{Passed: true, ChecksPassed: 1, ChecksTotal: 1},
+		ToolCalls: []bench.ToolCall{
+			mcpToolCall(t, "resources_create_or_update", map[string]string{
+				"resource": "apiVersion: v1\nkind: Service\nmetadata:\n  name: web\n  namespace: bench\n",
+			}, "Service/web created"),
+		},
+		Hints: Hints{
+			ForbiddenActions: []Pattern{
+				{Kind: "resource_pattern", Pattern: "service/*", Severity: "critical"},
+			},
+		},
+	})
+
+	if !hasFinding(report, FailureUnsafeAction) {
+		t.Fatalf("expected case-insensitive resource pattern match, got %#v", report.Findings)
 	}
 }

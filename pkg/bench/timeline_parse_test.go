@@ -133,6 +133,74 @@ func TestParse_MultiMutation(t *testing.T) {
 	}
 }
 
+func TestParse_MCPResourceCreateOrUpdateMutation(t *testing.T) {
+	t.Parallel()
+
+	calls := []ToolCall{
+		makeToolCall("resources_get", map[string]string{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"name":       "web",
+			"namespace":  "bench",
+		}, "apiVersion: apps/v1"),
+		makeToolCall("resources_create_or_update", map[string]string{
+			"resource": "apiVersion: v1\nkind: Service\nmetadata:\n  name: web\n  namespace: bench\n",
+		}, "Service/web created"),
+	}
+
+	tl := Parse(calls)
+
+	if tl.TotalSteps != 2 {
+		t.Fatalf("total_steps = %d, want 2", tl.TotalSteps)
+	}
+	if tl.MutationCount != 1 {
+		t.Fatalf("mutation_count = %d, want 1", tl.MutationCount)
+	}
+	step := tl.Steps[1]
+	if step.Phase != PhaseAct {
+		t.Fatalf("phase = %q, want %q", step.Phase, PhaseAct)
+	}
+	if step.Operation != "create_or_update" {
+		t.Fatalf("operation = %q, want create_or_update", step.Operation)
+	}
+	if step.Resource != "Service/web" {
+		t.Fatalf("resource = %q, want Service/web", step.Resource)
+	}
+	if step.Namespace != "bench" {
+		t.Fatalf("namespace = %q, want bench", step.Namespace)
+	}
+}
+
+func TestParse_MCPPodDeleteMutation(t *testing.T) {
+	t.Parallel()
+
+	calls := []ToolCall{
+		makeToolCall("pods_delete", map[string]string{
+			"name":      "web-abc",
+			"namespace": "bench",
+		}, "Pod deleted successfully"),
+	}
+
+	tl := Parse(calls)
+
+	if tl.TotalSteps != 1 {
+		t.Fatalf("total_steps = %d, want 1", tl.TotalSteps)
+	}
+	if tl.MutationCount != 1 {
+		t.Fatalf("mutation_count = %d, want 1", tl.MutationCount)
+	}
+	step := tl.Steps[0]
+	if step.Phase != PhaseAct {
+		t.Fatalf("phase = %q, want %q", step.Phase, PhaseAct)
+	}
+	if step.Operation != "delete" {
+		t.Fatalf("operation = %q, want delete", step.Operation)
+	}
+	if step.Resource != "Pod/web-abc" {
+		t.Fatalf("resource = %q, want Pod/web-abc", step.Resource)
+	}
+}
+
 func TestParse_EmptyCalls(t *testing.T) {
 	t.Parallel()
 
