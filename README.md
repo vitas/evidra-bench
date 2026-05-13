@@ -312,6 +312,7 @@ execution, API contracts, scenarios, and tests.
 ## Documentation
 
 - [Docs Home](docs/README.md)
+- [Quickstart](docs/QUICKSTART.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Testing Methodology](docs/TESTING_METHODOLOGY.md)
 - [Scoring](docs/SCORING.md)

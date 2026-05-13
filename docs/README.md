@@ -56,6 +56,8 @@ Use this page as the documentation home in Obsidian and GitHub.
 
 ## Running Bench
 
+- [Quickstart](QUICKSTART.md) - clone, build, validate, and run a first
+  scenario.
 - [Bench Service Setup](guides/bench-service-setup.md) - local service,
   database, control-plane-only mode, and runner setup.
 - [Testing Guide](testing.md) - local test commands and package coverage.
