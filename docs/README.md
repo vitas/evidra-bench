@@ -27,6 +27,12 @@ Use this page as the documentation home in Obsidian and GitHub.
 - [Autopsy MVP Design](plans/2026-05-10-autopsy-mvp-design.md) - next
   first-class failure-analysis release slice.
 
+## Articles
+
+- [Pass/Fail Is Not Enough for AI Infrastructure Agents](articles/pass-fail-is-not-enough-for-ai-infra-agents.md)
+  - draft article based on the Claude and DeepSeek Kubernetes MCP readiness
+    reports.
+
 ## Architecture
 
 - [Architecture](ARCHITECTURE.md) - execution model, control-plane boundary,
