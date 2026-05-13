@@ -132,7 +132,8 @@ func TestBuildCertifyRunConfig_PreservesBaseMCPServer(t *testing.T) {
 	base.Provider = "claude"
 	base.MCPServer = "sample-mcp --stdio"
 	base.SystemPromptFile = "/tmp/system-prompt.md"
-	base.Role = "platform-eng"
+	base.SkillFile = "/tmp/platform-eng.md"
+	base.SkillID = "platform-eng"
 	base.ContractVersion = "v9.9.9"
 
 	req := CertifyRequest{Model: "sonnet"}
@@ -145,8 +146,11 @@ func TestBuildCertifyRunConfig_PreservesBaseMCPServer(t *testing.T) {
 	if got.SystemPromptFile != base.SystemPromptFile {
 		t.Fatalf("SystemPromptFile = %q, want %q", got.SystemPromptFile, base.SystemPromptFile)
 	}
-	if got.Role != base.Role {
-		t.Fatalf("Role = %q, want %q", got.Role, base.Role)
+	if got.SkillFile != base.SkillFile {
+		t.Fatalf("SkillFile = %q, want %q", got.SkillFile, base.SkillFile)
+	}
+	if got.SkillID != base.SkillID {
+		t.Fatalf("SkillID = %q, want %q", got.SkillID, base.SkillID)
 	}
 	if got.ContractVersion != base.ContractVersion {
 		t.Fatalf("ContractVersion = %q, want %q", got.ContractVersion, base.ContractVersion)

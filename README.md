@@ -150,7 +150,7 @@ executed:
 | MCP server | `--mcp-server "..."` | Model behavior through a tool server |
 | A2A agent | `--adapter a2a --a2a-agent-url ...` | Remote agent behavior with local verification |
 | CLI process | `--adapter cli` | External agent process compatibility |
-| Skill prompt | `--skill-file ...` or `--role ...` | Prompt/skill impact under fixed scenarios |
+| Skill prompt | `--skill-file ...` | Prompt/skill impact under fixed scenarios |
 
 Any MCP tool server can be tested by passing its command to `--mcp-server`:
 

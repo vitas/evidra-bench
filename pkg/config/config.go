@@ -35,11 +35,10 @@ type Config struct {
 	MemoryWindow        int
 	SystemPromptFile    string
 	ContractVersion     string
-	Role                string // role-based skill (k8s-admin, security-ops, release-manager, platform-eng)
 	SkillFile           string // local skill prompt file; runner host must already have this path
 	SkillID             string // stable skill identity for comparison/filtering
 	SkillVersion        string // stable skill version for comparison/filtering
-	SkillSource         string // source label such as local-file, local-temp, role, or registry name
+	SkillSource         string // source label such as local-file, local-temp, or registry name
 	SkillSHA256         string // optional expected sha256 for the skill file
 	MCPServer           string // MCP server command
 	ToolServerID        string // stable MCP server identity for comparison/filtering

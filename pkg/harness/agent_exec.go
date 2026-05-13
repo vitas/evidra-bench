@@ -206,9 +206,9 @@ func buildRunMetadata(cfg config.Config, loopResult *agent.LoopResult, evidenceD
 }
 
 // buildSystemPrompt loads the system prompt from skill file, legacy prompt file,
-// role skill, or returns the default.
+// or returns the default.
 func buildSystemPrompt(cfg config.Config, s *scenario.Scenario) (string, error) {
-	// 1. Explicit skill or system prompt file takes precedence over role/defaults.
+	// 1. Explicit skill or system prompt file takes precedence over defaults.
 	promptFile := cfg.ResolvePromptFile()
 	if promptFile != "" {
 		data, err := os.ReadFile(promptFile)
@@ -223,19 +223,6 @@ func buildSystemPrompt(cfg config.Config, s *scenario.Scenario) (string, error) 
 		}
 		prompt := string(data)
 		prompt += fmt.Sprintf("\n\nTarget namespace: %s\n", strings.Join(s.Scope.Namespaces, ", "))
-		return prompt, nil
-	}
-
-	// 2. Role-based skill: load from skills/<role>.md
-	if cfg.Role != "" {
-		skillPath := filepath.Join(cfg.ScenariosDir, "..", "skills", cfg.Role+".md")
-		data, err := os.ReadFile(skillPath)
-		if err != nil {
-			return "", fmt.Errorf("harness: role skill %q not found at %s: %w", cfg.Role, skillPath, err)
-		}
-		prompt := string(data)
-		prompt += fmt.Sprintf("\n\nTarget namespace: %s\n", strings.Join(s.Scope.Namespaces, ", "))
-		log.Printf("[harness] loaded role skill: %s (%d bytes)", cfg.Role, len(data))
 		return prompt, nil
 	}
 

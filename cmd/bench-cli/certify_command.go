@@ -36,7 +36,6 @@ func newCertifyCommand() *cobra.Command {
 	f.StringVar(&cfg.BenchURL, "bench-url", cfg.BenchURL, "Bench API URL for reporting results")
 	registerBenchAPIKeyFlag(f, &cfg.BenchAPIKey)
 	f.StringVar(&cfg.SystemPromptFile, "system-prompt-file", cfg.SystemPromptFile, "system prompt file")
-	f.StringVar(&cfg.Role, "role", cfg.Role, "role-based skill (k8s-admin, security-ops, release-manager, platform-eng)")
 	f.StringVar(&cfg.SkillFile, "skill-file", cfg.SkillFile, "local skill prompt file path (runner host path; env: BENCH_SKILL_FILE)")
 	f.StringVar(&cfg.SkillID, "skill-id", cfg.SkillID, "stable skill identity for result comparison")
 	f.StringVar(&cfg.SkillVersion, "skill-version", cfg.SkillVersion, "stable skill version for result comparison")

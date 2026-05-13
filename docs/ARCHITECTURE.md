@@ -119,7 +119,7 @@ verification across several execution paths:
 | MCP server | `pkg/agent.MCPExecutor` | Expose tool calls through an MCP server command |
 | A2A remote agent | `pkg/a2a` plus harness dispatch | Send the task to a remote A2A agent while Bench keeps setup and verification local |
 | CLI process | `pkg/adapter` | Launch an external process and capture its output |
-| Skill prompt | provider loop config | Compare behavior with alternate system prompts or role skills |
+| Skill prompt | provider loop config | Compare behavior with alternate local skill prompt files |
 
 The target direction is one normalized run trace regardless of adapter:
 

@@ -21,7 +21,6 @@ type VersionInfo struct {
 	SkillVersion    string `json:"skill_version,omitempty"`
 	PromptVersion   string `json:"prompt_version,omitempty"`
 	PromptFile      string `json:"prompt_file,omitempty"`
-	Role            string `json:"role,omitempty"`
 	SkillFile       string `json:"skill_file,omitempty"`
 	SkillID         string `json:"skill_id,omitempty"`
 	SkillSource     string `json:"skill_source,omitempty"`
@@ -32,16 +31,7 @@ type VersionInfo struct {
 // infra-bench build.
 func CollectVersions(infraBenchVersion, infraBenchCommit string, cfg Config) VersionInfo {
 	skillFile := cfg.ResolveSkillFile()
-	systemPromptFile := cfg.ResolveSystemPromptFile()
-	roleSkillFile := false
-	if skillFile == "" && systemPromptFile == "" && cfg.Role != "" {
-		skillFile = filepath.Join(cfg.ScenariosDir, "..", "skills", cfg.Role+".md")
-		roleSkillFile = true
-	}
 	promptFile := cfg.ResolvePromptFile()
-	if promptFile == "" && roleSkillFile {
-		promptFile = skillFile
-	}
 
 	vi := VersionInfo{
 		InfraBenchVersion: infraBenchVersion,
@@ -49,7 +39,6 @@ func CollectVersions(infraBenchVersion, infraBenchCommit string, cfg Config) Ver
 		ContractVersion:   cfg.ContractVersion,
 		SkillVersion:      strings.TrimSpace(cfg.SkillVersion),
 		PromptFile:        promptFile,
-		Role:              cfg.Role,
 		SkillFile:         skillFile,
 		SkillID:           strings.TrimSpace(cfg.SkillID),
 		SkillSource:       strings.TrimSpace(cfg.SkillSource),
@@ -60,7 +49,7 @@ func CollectVersions(infraBenchVersion, infraBenchCommit string, cfg Config) Ver
 		vi.SkillID = inferSkillID(skillFile)
 	}
 	if vi.SkillSource == "" {
-		vi.SkillSource = inferSkillSource(skillFile, cfg.Role, roleSkillFile)
+		vi.SkillSource = inferSkillSource(skillFile)
 	}
 	if vi.SkillSHA256 == "" && skillFile != "" {
 		vi.SkillSHA256 = fileSHA256(skillFile)
@@ -103,9 +92,6 @@ func (v VersionInfo) ToMetadata() map[string]string {
 	}
 	if v.PromptFile != "" {
 		m["system_prompt_file"] = v.PromptFile
-	}
-	if v.Role != "" {
-		m["role"] = v.Role
 	}
 	if v.SkillFile != "" {
 		m["skill_file"] = v.SkillFile
@@ -183,10 +169,7 @@ func inferSkillID(skillFile string) string {
 	return strings.TrimSuffix(base, ext)
 }
 
-func inferSkillSource(skillFile, role string, roleSkillFile bool) string {
-	if role != "" && roleSkillFile {
-		return "role"
-	}
+func inferSkillSource(skillFile string) string {
 	if skillFile != "" {
 		return "local-file"
 	}

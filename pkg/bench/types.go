@@ -32,7 +32,7 @@ type RunRecord struct {
 	ToolServerVersion string    `json:"tool_server_version"` // version of MCP server binary
 	SkillID           string    `json:"skill_id"`            // skill prompt identity (empty = no skill)
 	SkillVersion      string    `json:"skill_version"`       // skill prompt version
-	SkillSource       string    `json:"skill_source"`        // local-file, local-temp, role, registry, etc.
+	SkillSource       string    `json:"skill_source"`        // local-file, local-temp, registry, etc.
 	SkillSHA256       string    `json:"skill_sha256"`        // skill prompt content digest
 	ScenarioVersion   string    `json:"scenario_version"`    // version/hash of scenario definition
 	Passed            bool      `json:"passed"`

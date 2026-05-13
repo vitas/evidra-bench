@@ -183,7 +183,8 @@ func TestReportPackRunConfigsKeepPromptButSeparateToolServerIdentity(t *testing.
 		Model:             "sonnet",
 		Provider:          "claude",
 		SystemPromptFile:  "prompts/agent.md",
-		Role:              "platform-eng",
+		SkillFile:         "skills/platform-eng.md",
+		SkillID:           "platform-eng",
 		ContractVersion:   "contract-v1",
 		MCPServer:         "npx -y @vendor/kubernetes-mcp --stdio",
 		ToolServerID:      "kubernetes-mcp",
@@ -196,9 +197,9 @@ func TestReportPackRunConfigsKeepPromptButSeparateToolServerIdentity(t *testing.
 		t.Fatalf("baseline should clear MCP identity, got server=%q id=%q version=%q",
 			baseline.MCPServer, baseline.ToolServerID, baseline.ToolServerVersion)
 	}
-	if baseline.SystemPromptFile != base.SystemPromptFile || baseline.Role != base.Role || baseline.ContractVersion != base.ContractVersion {
-		t.Fatalf("baseline should keep prompt config, got prompt=%q role=%q contract=%q",
-			baseline.SystemPromptFile, baseline.Role, baseline.ContractVersion)
+	if baseline.SystemPromptFile != base.SystemPromptFile || baseline.SkillFile != base.SkillFile || baseline.SkillID != base.SkillID || baseline.ContractVersion != base.ContractVersion {
+		t.Fatalf("baseline should keep prompt config, got prompt=%q skill_file=%q skill_id=%q contract=%q",
+			baseline.SystemPromptFile, baseline.SkillFile, baseline.SkillID, baseline.ContractVersion)
 	}
 
 	if candidate.MCPServer != base.MCPServer || candidate.ToolServerID != base.ToolServerID || candidate.ToolServerVersion != base.ToolServerVersion {

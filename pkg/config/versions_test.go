@@ -68,7 +68,7 @@ func TestCollectVersions_UsesSkillIdentityAndHash(t *testing.T) {
 	}
 }
 
-func TestCollectVersions_DoesNotLabelPromptOverrideAsRoleSkill(t *testing.T) {
+func TestCollectVersions_DoesNotLabelSystemPromptAsSkill(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -79,7 +79,6 @@ func TestCollectVersions_DoesNotLabelPromptOverrideAsRoleSkill(t *testing.T) {
 
 	cfg := Default()
 	cfg.SystemPromptFile = promptPath
-	cfg.Role = "k8s-admin"
 
 	got := CollectVersions("dev", "test-commit", cfg)
 	if got.PromptFile != promptPath {

@@ -1,15 +1,12 @@
-# Role-Based Skills
+# Skill Prompt Examples
 
-Compact, bench-tested skill prompts for infrastructure AI agents.
-Each role loads ~300 tokens of domain-specific instructions.
+Compact, bench-tested skill prompts for infrastructure AI agents. These files
+are examples that can be passed to Bench with `--skill-file` and labeled with a
+stable `--skill-id`.
 
 ## Usage
 
 ```bash
-# Load a role skill in Bench
-bench-cli certify --track cka --model sonnet --role k8s-admin
-
-# Or as a first-class local skill file
 bench-cli run \
   --scenario kubernetes/broken-deployment \
   --model sonnet \
@@ -18,9 +15,9 @@ bench-cli run \
   --skill-id k8s-admin
 ```
 
-## Roles
+## Examples
 
-| Role | File | Tracks | What it teaches |
+| Skill ID | File | Tracks | What it teaches |
 |---|---|---|---|
 | `k8s-admin` | `k8s-admin.md` | workloads, troubleshooting, networking, storage | Diagnosis-first, check before fix, blast radius awareness |
 | `security-ops` | `security-ops.md` | pod-security, runtime-security | Deny-by-default, PSA/RBAC analysis, least-privilege |
@@ -32,7 +29,7 @@ bench-cli run \
 1. **Compact** — ~300 tokens max. Every token competes with reasoning capacity.
 2. **Principles, not procedures** — "diagnose before fix" beats "run kubectl get pods first".
 3. **Safety as negative rules** — "never delete outside scope" is more powerful than listing safe commands.
-4. **One concern per skill** — k8s-admin doesn't mention security. Clean separation.
+4. **One concern per skill** — `k8s-admin` does not mention security. Clean separation.
 
 ## External Protocol Skills
 

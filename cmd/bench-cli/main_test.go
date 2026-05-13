@@ -59,6 +59,30 @@ func TestRunHelpDoesNotExposeEvidraSpecialModes(t *testing.T) {
 	}
 }
 
+func TestHelpDoesNotExposeLegacyRoleFlag(t *testing.T) {
+	t.Parallel()
+
+	commands := [][]string{
+		{"run", "--help"},
+		{"bench", "--help"},
+		{"certify", "--help"},
+		{"report-pack", "--help"},
+	}
+	for _, args := range commands {
+		var buf bytes.Buffer
+		cmd := newRootCommand()
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+		cmd.SetArgs(args)
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("%v help failed: %v", args, err)
+		}
+		if strings.Contains(buf.String(), "--role") {
+			t.Fatalf("%v help exposes legacy --role flag:\n%s", args, buf.String())
+		}
+	}
+}
+
 func TestBenchAPIKeyFlagHelpDoesNotExposeEnvSecret(t *testing.T) {
 	t.Setenv("BENCH_API_KEY", "secret-value-must-not-appear")
 

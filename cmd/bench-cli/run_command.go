@@ -50,7 +50,6 @@ func newRunCommand(cfg *config.Config) *cobra.Command {
 	f.StringVar(&cfg.Provider, "provider", cfg.Provider, "LLM provider for tool-use agent loop (bifrost, claude)")
 	f.IntVar(&cfg.MemoryWindow, "memory-window", -1, "agent memory window (-1=full, 0=stateless, N=last N exchanges)")
 	f.StringVar(&cfg.SystemPromptFile, "system-prompt-file", cfg.SystemPromptFile, "system prompt file path (overrides default; env: INFRA_BENCH_SYSTEM_PROMPT)")
-	f.StringVar(&cfg.Role, "role", cfg.Role, "role-based skill (k8s-admin, security-ops, release-manager, platform-eng)")
 	f.StringVar(&cfg.SkillFile, "skill-file", cfg.SkillFile, "local skill prompt file path (runner host path; env: BENCH_SKILL_FILE)")
 	f.StringVar(&cfg.SkillID, "skill-id", cfg.SkillID, "stable skill identity for result comparison")
 	f.StringVar(&cfg.SkillVersion, "skill-version", cfg.SkillVersion, "stable skill version for result comparison")
