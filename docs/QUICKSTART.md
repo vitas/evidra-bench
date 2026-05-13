@@ -14,7 +14,7 @@ This guide gets a new contributor from clone to first scenario validation.
 
 ## Prerequisites
 
-- Go 1.26.3+
+- Go 1.25+
 - `kubectl`
 - `kind` or `k3d` for live Kubernetes scenarios
 - `helm` for Helm scenarios

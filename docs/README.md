@@ -34,6 +34,8 @@ Obsidian map of content and the GitHub documentation index.
   test coverage.
 - [Bench Service Setup](guides/bench-service-setup.md) - local service,
   Postgres, control-plane-only mode, and runner setup.
+- [Runner Architecture](RUNNER_ARCHITECTURE.md) - how remote runners register,
+  poll, execute, report progress, and complete jobs.
 - [Lab TUI Guide](LAB_TUI_GUIDE.md) - terminal UI usage.
 - [Private Report Pack](PRIVATE_REPORT_PACK.md) - baseline versus MCP
   tool-server report workflow.
@@ -73,6 +75,8 @@ Obsidian map of content and the GitHub documentation index.
 
 - [Architecture](ARCHITECTURE.md) - execution model, control-plane boundary,
   package map, data flow, and deployment ownership.
+- [Runner Architecture](RUNNER_ARCHITECTURE.md) - poll-based remote execution
+  topology and lifecycle diagrams.
 - [Threat Model](THREAT_MODEL.md) - runner, API, artifact, and credential
   boundaries.
 - [Open Source Boundary](OPEN_SOURCE.md) - what belongs in the public repo and

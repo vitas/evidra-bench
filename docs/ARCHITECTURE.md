@@ -196,6 +196,7 @@ Key surfaces:
 The authoritative contracts are:
 
 - [Bench API Reference](BENCH_API_REFERENCE.md)
+- [Runner Architecture](RUNNER_ARCHITECTURE.md)
 - [Executor Contract](contracts/EXECUTOR_CONTRACT_V1.md)
 - [Runner Control Plane Contract](contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md)
 - [Bench Service Setup](guides/bench-service-setup.md)
@@ -327,6 +328,7 @@ containers. It is not Docker-in-Docker.
 - [Testing Methodology](TESTING_METHODOLOGY.md)
 - [Agent Failure Autopsy](AGENT_FAILURE_AUTOPSY.md)
 - [Scenario Authoring Guide](SCENARIO_AUTHORING_GUIDE.md)
+- [Runner Architecture](RUNNER_ARCHITECTURE.md)
 - [Tool Server And Evidence Compatibility](TOOL_SERVER_INTEGRATION.md)
 - [Bench API Reference](BENCH_API_REFERENCE.md)
 - [Bench Service Setup](guides/bench-service-setup.md)

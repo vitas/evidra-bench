@@ -201,7 +201,7 @@ as long as the final infrastructure state satisfies the checks.
 
 ## Quick Start
 
-Prerequisites: Go 1.26.3+, kind or k3d, kubectl, helm.
+Prerequisites: Go 1.25+, kind or k3d, kubectl, helm.
 
 ```bash
 # Build
@@ -314,6 +314,7 @@ execution, API contracts, scenarios, and tests.
 - [Docs Home](docs/README.md)
 - [Quickstart](docs/QUICKSTART.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Runner Architecture](docs/RUNNER_ARCHITECTURE.md)
 - [Testing Guide](docs/TESTING.md)
 - [Testing Methodology](docs/TESTING_METHODOLOGY.md)
 - [Scoring](docs/SCORING.md)
