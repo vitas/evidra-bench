@@ -1,3 +1,13 @@
+---
+title: Scenario Schema Reference
+type: reference
+status: active
+tags:
+  - bench
+  - scenarios
+  - schema
+---
+
 # Scenario Schema Reference
 
 Version: 2.1 (May 2026)

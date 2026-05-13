@@ -1,14 +1,19 @@
 ---
 title: Publication Checklist
 type: governance
-status: active
+status: archived
 tags:
   - bench
   - oss
   - publication
+  - archive
 ---
 
 # Publication Checklist
+
+> Archived checklist from the initial public-release cutover. Keep it as
+> historical release context; use current GitHub settings, CI, and the clean
+> export script as the source of truth.
 
 Do not make the existing private repository public without a clean-history
 decision. Current history contains old generated run artifacts and internal

@@ -1,3 +1,14 @@
+---
+title: Scenario Catalog
+type: catalog
+status: active
+updated: 2026-05-12
+tags:
+  - bench
+  - scenarios
+  - catalog
+---
+
 # Scenario Catalog
 
 78 scenarios across 5 categories. 65 active, 13 skipped (infrastructure requirements).

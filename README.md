@@ -314,11 +314,14 @@ execution, API contracts, scenarios, and tests.
 - [Docs Home](docs/README.md)
 - [Quickstart](docs/QUICKSTART.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Testing Guide](docs/TESTING.md)
 - [Testing Methodology](docs/TESTING_METHODOLOGY.md)
 - [Scoring](docs/SCORING.md)
 - [Reproducibility](docs/REPRODUCIBILITY.md)
 - [Agent Failure Autopsy](docs/AGENT_FAILURE_AUTOPSY.md)
+- [Sample Bench Report](docs/SAMPLE_BENCH_REPORT.md)
 - [Scenario Authoring Guide](docs/SCENARIO_AUTHORING_GUIDE.md)
+- [Tool Server Integration](docs/TOOL_SERVER_INTEGRATION.md)
 - [Bench API Reference](docs/BENCH_API_REFERENCE.md)
 - [Bench Service Setup](docs/guides/bench-service-setup.md)
 - [Executor Contract v1.0.0](docs/contracts/EXECUTOR_CONTRACT_V1.md)
@@ -341,7 +344,7 @@ make ui-dev         # Vite dev server for local UI
 make ui-build       # production UI build
 ```
 
-See [Testing Guide](docs/testing.md) for the full testing guide.
+See [Testing Guide](docs/TESTING.md) for the full testing guide.
 
 ## License
 

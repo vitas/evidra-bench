@@ -1,10 +1,25 @@
-# Sample Evidra Bench Report
+---
+title: Sample Bench Report
+type: report-template
+status: active
+tags:
+  - bench
+  - reports
+  - sample
+---
 
-> Sample report with representative data. This is not a customer evaluation and does not claim results for a real vendor.
+# Sample Bench Report
+
+> Sample report with representative data. This is not a customer evaluation and
+> does not claim results for a real vendor.
 
 ## 1. Executive Summary
 
-Evidra Bench evaluated a sample AI infrastructure agent against a live Kubernetes, Helm, Terraform, and GitOps regression suite. The goal was not only to measure final pass rate, but to identify whether the agent diagnosed before acting, avoided unsafe shortcuts, controlled token and turn usage, and produced verifiable recovery evidence.
+Bench evaluated a sample AI infrastructure agent against a live Kubernetes,
+Helm, Terraform, and GitOps regression suite. The goal was not only to measure
+final pass rate, but to identify whether the agent diagnosed before acting,
+avoided unsafe shortcuts, controlled token and turn usage, and produced
+verifiable recovery evidence.
 
 | Metric | Result |
 | --- | ---: |
@@ -151,7 +166,7 @@ The agent was efficient on L1 workload repair but expensive on ambiguous L2/L3 s
 
 ## 10. Raw Evidence Links / Artifacts
 
-In a production report, each row links to the immutable run evidence collected by Evidra Bench.
+In a production report, each row links to the immutable run evidence collected by Bench.
 
 | Artifact | Example |
 | --- | --- |

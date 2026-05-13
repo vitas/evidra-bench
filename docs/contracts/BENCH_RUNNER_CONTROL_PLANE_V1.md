@@ -1,3 +1,13 @@
+---
+title: Bench Runner Control Plane Contract v1
+type: contract
+status: active
+tags:
+  - bench
+  - runners
+  - api
+---
+
 # Bench Runner Control Plane Contract v1
 
 Poll-based runners let a managed or self-hosted bench service enqueue jobs in

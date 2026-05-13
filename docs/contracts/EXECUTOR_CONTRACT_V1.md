@@ -1,3 +1,13 @@
+---
+title: Bench Executor Contract v1.0.0
+type: contract
+status: active
+tags:
+  - bench
+  - executor
+  - api
+---
+
 # Bench Executor Contract v1.0.0
 
 This contract defines the direct executor API. A direct executor runs

@@ -1,3 +1,13 @@
+---
+title: Lab TUI User Guide
+type: guide
+status: active
+tags:
+  - bench
+  - tui
+  - local
+---
+
 # Lab TUI User Guide
 
 `bench-cli lab` is an interactive terminal UI for browsing, running, and reviewing benchmark scenarios.

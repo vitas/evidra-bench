@@ -1,3 +1,13 @@
+---
+title: Bench Service Setup
+type: guide
+status: active
+tags:
+  - bench
+  - service
+  - runners
+---
+
 # Bench Service Setup
 
 This guide covers running the private bench service from this repo. It is the

@@ -1,3 +1,13 @@
+---
+title: Bench API Reference
+type: reference
+status: active
+tags:
+  - bench
+  - api
+  - runners
+---
+
 # Bench API Reference
 
 `bench-cli serve` exposes the local/private bench control plane used by the

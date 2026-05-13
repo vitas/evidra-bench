@@ -1,4 +1,14 @@
-# Testing Guide - Bench
+---
+title: Testing Guide
+type: guide
+status: active
+tags:
+  - bench
+  - testing
+  - ci
+---
+
+# Testing Guide
 
 How to run tests, what they cover, and how to add new ones.
 

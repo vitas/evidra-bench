@@ -1,4 +1,20 @@
+---
+title: Demo Playbook
+type: archive
+status: archived
+tags:
+  - bench
+  - demo
+  - archive
+---
+
 # Demo Playbook
+
+> Archived demo script. It is useful historical context, not the active
+> onboarding path. Use [Quickstart](../QUICKSTART.md),
+> [Private Report Pack](../PRIVATE_REPORT_PACK.md), and
+> [Kubernetes MCP Readiness 2026-05](../reports/kubernetes-mcp-readiness-2026-05.md)
+> for current workflows.
 
 ## Overview
 

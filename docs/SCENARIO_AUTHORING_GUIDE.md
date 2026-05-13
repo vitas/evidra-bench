@@ -1,3 +1,13 @@
+---
+title: Scenario Authoring Guide
+type: guide
+status: active
+tags:
+  - bench
+  - scenarios
+  - authoring
+---
+
 # Scenario Authoring Guide
 
 How to create scenarios that test agent capability, not agent obedience.
