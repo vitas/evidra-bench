@@ -4,7 +4,6 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import {
   coerceToolServerVersion,
-  evidenceModeParam,
   normalizeCatalog,
   toolServerVersionOptions,
   type CatalogResponse,
@@ -24,7 +23,6 @@ import {
   type RunsStatus,
 } from "../../lib/runFilters.mts";
 import { benchRunPath } from "../../lib/routes.mts";
-import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 interface RunRecord {
   id: string;
@@ -107,7 +105,6 @@ function SortArrow({ field, sort }: { field: SortField; sort: { field: SortField
 export function Runs() {
   usePageTitle("Runs");
   const { request } = useApi();
-  const { mode } = useEvidenceMode();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.toString();
@@ -160,7 +157,7 @@ export function Runs() {
       }
 
       const resp = await request<RunsResponse>(
-        buildRunsAPIPath(appliedFilters, page, mode, suiteScenarioIDs, PAGE_SIZE),
+        buildRunsAPIPath(appliedFilters, page, suiteScenarioIDs, PAGE_SIZE),
       );
       setData(resp);
     } catch (err) {
@@ -168,14 +165,14 @@ export function Runs() {
     } finally {
       setLoading(false);
     }
-  }, [request, appliedFilters, page, mode, scenarioCatalog, scenarioCatalogLoaded]);
+  }, [request, appliedFilters, page, scenarioCatalog, scenarioCatalogLoaded]);
 
   useEffect(() => {
     fetchRuns();
   }, [fetchRuns]);
 
   useEffect(() => {
-    request<CatalogResponse>(`/v1/bench/catalog${evidenceModeParam("?", mode)}`)
+    request<CatalogResponse>("/v1/bench/catalog")
       .then((res) => setCatalog(normalizeCatalog(res)))
       .catch(() =>
         setCatalog({
@@ -185,7 +182,7 @@ export function Runs() {
           tool_server_versions: [],
         }),
       );
-  }, [request, mode]);
+  }, [request]);
 
   useEffect(() => {
     let cancelled = false;
@@ -228,6 +225,7 @@ export function Runs() {
       provider,
       toolServer,
       toolServerVersion: nextToolServerVersion,
+      toolServerUnset: false,
       status,
       since,
     };

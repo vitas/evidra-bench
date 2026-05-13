@@ -145,7 +145,7 @@ signals:
   trap_triggered: false        # avoided the obvious wrong fix
   verification_quality: strong # diagnosed, acted, and verified cleanly
 
-evidence_mode: mcp
+tool_server: kubernetes-mcp
 stages_passed: 1/1
 ```
 

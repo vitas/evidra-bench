@@ -2,9 +2,8 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
-import { buildRunsPath, evidenceModeParam } from "../../lib/catalogData.mts";
+import { buildRunsPath } from "../../lib/catalogData.mts";
 import { benchRunPath } from "../../lib/routes.mts";
-import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 /* ── Types ── */
 
@@ -127,7 +126,6 @@ function Pulse({ className = "" }: { className?: string }) {
 export function Dashboard() {
   usePageTitle("Dashboard");
   const { request } = useApi();
-  const { mode } = useEvidenceMode();
   const [period, setPeriod] = useState<Period>("all");
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentRuns, setRecentRuns] = useState<Run[]>([]);
@@ -140,17 +138,14 @@ export function Dashboard() {
     setLoading(true);
 
     const since = periodToSince(period);
-    const modeQ = evidenceModeParam("?", mode);
-    const modeAmp = evidenceModeParam("&", mode);
-    // When evidence mode is "all", modeQ is empty so since needs "?" prefix.
-    const sinceQ = since ? `${modeQ ? "&" : "?"}since=${encodeURIComponent(since)}` : "";
+    const sinceQ = since ? `?since=${encodeURIComponent(since)}` : "";
     const sinceAmp = since ? `&since=${encodeURIComponent(since)}` : "";
 
     Promise.all([
-      request<Stats>(`/v1/bench/stats${modeQ}${sinceQ}`),
-      request<RunsResponse>(buildRunsPath(8, since, mode)),
-      request<RunsResponse>(`/v1/bench/runs?limit=500${modeAmp}${sinceAmp}`),
-      request<SignalAggregation>(`/v1/bench/signals${modeQ}${sinceQ}`).catch(() => null),
+      request<Stats>(`/v1/bench/stats${sinceQ}`),
+      request<RunsResponse>(buildRunsPath(8, since)),
+      request<RunsResponse>(`/v1/bench/runs?limit=500${sinceAmp}`),
+      request<SignalAggregation>(`/v1/bench/signals${sinceQ}`).catch(() => null),
     ])
       .then(([s, recent, all, sig]) => {
         if (cancelled) return;
@@ -173,7 +168,7 @@ export function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [period, request, mode]);
+  }, [period, request]);
 
   /* Derived data */
   const passRate =

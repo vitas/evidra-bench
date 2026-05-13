@@ -17,9 +17,6 @@ import (
 // fakeRepo is an in-memory fake implementing Repository for unit tests.
 type fakeRepo struct {
 	leaderboardTenant string
-	leaderboardMode   string
-	compareMode       string
-	matrixMode        string
 	beginTxErr        error
 	tx                pgx.Tx
 	enabledModels     []EnabledModel
@@ -48,9 +45,8 @@ func (f *fakeRepo) FilteredStats(_ context.Context, _ string, _ bench.RunFilters
 	return nil, nil
 }
 func (f *fakeRepo) Catalog(_ context.Context, _ string) (*bench.RunCatalog, error) { return nil, nil }
-func (f *fakeRepo) Leaderboard(_ context.Context, tenantID string, evidenceMode string, _ int, _ []string) ([]bench.LeaderboardEntry, error) {
+func (f *fakeRepo) Leaderboard(_ context.Context, tenantID string, _ int, _ []string) ([]bench.LeaderboardEntry, error) {
 	f.leaderboardTenant = tenantID
-	f.leaderboardMode = evidenceMode
 	return nil, nil
 }
 func (f *fakeRepo) ListScenarios(_ context.Context) ([]bench.ScenarioSummary, error) {
@@ -60,12 +56,10 @@ func (f *fakeRepo) StoreArtifact(_ context.Context, _, _, _ string, _ []byte) er
 func (f *fakeRepo) GetArtifact(_ context.Context, _, _, _ string) ([]byte, string, error) {
 	return nil, "", nil
 }
-func (f *fakeRepo) CompareModels(_ context.Context, _, _, _, evidenceMode string) ([]ScenarioModelComparison, error) {
-	f.compareMode = evidenceMode
+func (f *fakeRepo) CompareModels(_ context.Context, _, _, _ string) ([]ScenarioModelComparison, error) {
 	return nil, nil
 }
-func (f *fakeRepo) ModelMatrix(_ context.Context, _ string, _, _ []string, evidenceMode string) (*bench.ModelMatrix, error) {
-	f.matrixMode = evidenceMode
+func (f *fakeRepo) ModelMatrix(_ context.Context, _ string, _, _ []string) (*bench.ModelMatrix, error) {
 	return nil, nil
 }
 func (f *fakeRepo) SignalSummary(_ context.Context, _ string, _ bench.RunFilters) (*bench.SignalAggregation, error) {
@@ -162,7 +156,7 @@ func TestServiceLeaderboard_UsesPublicTenant(t *testing.T) {
 
 	// When PublicTenant is empty, Leaderboard must return ErrPublicTenantUnavailable.
 	svc := NewService(&fakeRepo{}, ServiceConfig{})
-	_, err := svc.Leaderboard(context.Background(), "mcp", 3, nil)
+	_, err := svc.Leaderboard(context.Background(), 3, nil)
 	if !errors.Is(err, ErrPublicTenantUnavailable) {
 		t.Fatalf("Leaderboard err = %v, want ErrPublicTenantUnavailable", err)
 	}
@@ -171,39 +165,9 @@ func TestServiceLeaderboard_UsesPublicTenant(t *testing.T) {
 	// with the configured public tenant.
 	repo := &fakeRepo{}
 	svc2 := NewService(repo, ServiceConfig{PublicTenant: "bench-public"})
-	_, _ = svc2.Leaderboard(context.Background(), "mcp", 3, nil)
+	_, _ = svc2.Leaderboard(context.Background(), 3, nil)
 	if repo.leaderboardTenant != "bench-public" {
 		t.Fatalf("leaderboardTenant = %q, want bench-public", repo.leaderboardTenant)
-	}
-}
-
-func TestServiceCompareModels_PreservesEmptyEvidenceMode(t *testing.T) {
-	t.Parallel()
-
-	repo := &fakeRepo{}
-	svc := NewService(repo, ServiceConfig{})
-
-	_, err := svc.CompareModels(context.Background(), "tenant-a", "sonnet", "opus", "")
-	if err != nil {
-		t.Fatalf("CompareModels: %v", err)
-	}
-	if repo.compareMode != "" {
-		t.Fatalf("compareMode = %q, want empty", repo.compareMode)
-	}
-}
-
-func TestServiceModelMatrix_PreservesEmptyEvidenceMode(t *testing.T) {
-	t.Parallel()
-
-	repo := &fakeRepo{}
-	svc := NewService(repo, ServiceConfig{})
-
-	_, err := svc.ModelMatrix(context.Background(), "tenant-a", []string{"sonnet"}, nil, "")
-	if err != nil {
-		t.Fatalf("ModelMatrix: %v", err)
-	}
-	if repo.matrixMode != "" {
-		t.Fatalf("matrixMode = %q, want empty", repo.matrixMode)
 	}
 }
 
@@ -451,7 +415,6 @@ func TestServiceIngestRun_PreservesToolServerIdentity(t *testing.T) {
 			ID:                "run-1",
 			ScenarioID:        "s1",
 			Model:             "m1",
-			EvidenceMode:      "mcp",
 			ToolServer:        "kubernetes-mcp",
 			ToolServerVersion: "1.2.3",
 			ScenarioVersion:   "scenario-sha",
@@ -464,16 +427,16 @@ func TestServiceIngestRun_PreservesToolServerIdentity(t *testing.T) {
 		t.Fatalf("exec count = %d, want 1", len(tx.execArgs))
 	}
 	args := tx.execArgs[0]
-	if len(args) != 23 {
-		t.Fatalf("insert args = %d, want 23", len(args))
+	if len(args) != 22 {
+		t.Fatalf("insert args = %d, want 22", len(args))
 	}
-	if got := args[7]; got != "kubernetes-mcp" {
+	if got := args[6]; got != "kubernetes-mcp" {
 		t.Fatalf("tool_server arg = %v, want kubernetes-mcp", got)
 	}
-	if got := args[8]; got != "1.2.3" {
+	if got := args[7]; got != "1.2.3" {
 		t.Fatalf("tool_server_version arg = %v, want 1.2.3", got)
 	}
-	if got := args[9]; got != "scenario-sha" {
+	if got := args[8]; got != "scenario-sha" {
 		t.Fatalf("scenario_version arg = %v, want scenario-sha", got)
 	}
 }

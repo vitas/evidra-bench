@@ -45,7 +45,6 @@ type certifyCallback struct {
 func buildCertifyConfig(job *TriggerJob) map[string]any {
 	cfg := map[string]any{
 		"timeout_per_scenario": 300,
-		"evidence_mode":        job.EvidenceMode,
 	}
 	if job.MCPServer != "" {
 		cfg["mcp_server"] = job.MCPServer

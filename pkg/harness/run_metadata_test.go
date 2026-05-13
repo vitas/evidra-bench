@@ -43,34 +43,12 @@ func TestBuildRunMetadata_UsesPromptFileMetadata(t *testing.T) {
 	}
 }
 
-func TestBuildRunMetadata_PrefersExplicitEvidenceMode(t *testing.T) {
-	t.Parallel()
-
-	cfg := config.Default()
-	cfg.Provider = "claude"
-	cfg.Model = "sonnet"
-	cfg.EvidenceMode = "none"
-	cfg.MCPServer = "sample-mcp --stdio"
-	cfg.SystemPromptFile = writePromptMetadataFile(t, "v1.2.3", "p7")
-	cfg.ContractVersion = "v9.9.9"
-
-	meta := buildRunMetadata(cfg, &agent.LoopResult{}, "/tmp/evidence")
-
-	if meta["evidence_mode"] != "none" {
-		t.Fatalf("evidence_mode = %q, want none", meta["evidence_mode"])
-	}
-	if _, ok := meta["contract_version"]; ok {
-		t.Fatalf("contract_version unexpectedly present: %q", meta["contract_version"])
-	}
-}
-
 func TestBuildRunMetadata_IncludesToolServerIdentity(t *testing.T) {
 	t.Parallel()
 
 	cfg := config.Default()
 	cfg.Provider = "claude"
 	cfg.Model = "sonnet"
-	cfg.EvidenceMode = "mcp"
 	cfg.MCPServer = "npx -y @vendor/kubernetes-mcp --stdio"
 	cfg.ToolServerID = "kubernetes-mcp"
 	cfg.ToolServerVersion = "1.2.3"
@@ -138,7 +116,7 @@ func TestResolveToolServerIdentity_InfersNpxPackageName(t *testing.T) {
 	}
 }
 
-func TestHarness_StoreUsesExplicitEvidenceMode(t *testing.T) {
+func TestHarness_StoreUsesNativeToolBaseline(t *testing.T) {
 	t.Parallel()
 
 	fp := &fakeProvider{}
@@ -162,8 +140,6 @@ func TestHarness_StoreUsesExplicitEvidenceMode(t *testing.T) {
 	cfg := config.Default()
 	cfg.Scenario = "broken-deployment"
 	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
-	cfg.EvidenceMode = "none"
-	cfg.MCPServer = "sample-mcp --stdio"
 	cfg.SystemPromptFile = writePromptMetadataFile(t, "v1.2.3", "p7")
 
 	if _, err := h.Run(context.Background(), RunRequest{
@@ -190,8 +166,8 @@ func TestHarness_StoreUsesExplicitEvidenceMode(t *testing.T) {
 	if err := json.Unmarshal([]byte(lines[0]), &rec); err != nil {
 		t.Fatalf("unmarshal stored record: %v", err)
 	}
-	if rec.EvidenceMode != "none" {
-		t.Fatalf("stored evidence_mode = %q, want none", rec.EvidenceMode)
+	if rec.ToolServer != "" {
+		t.Fatalf("stored tool_server = %q, want empty baseline", rec.ToolServer)
 	}
 }
 
@@ -219,7 +195,6 @@ func TestHarness_StoreUsesExplicitToolServerIdentity(t *testing.T) {
 	cfg := config.Default()
 	cfg.Scenario = "broken-deployment"
 	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
-	cfg.EvidenceMode = "mcp"
 	cfg.MCPServer = "npx -y @vendor/kubernetes-mcp --stdio"
 	cfg.ToolServerID = "kubernetes-mcp"
 	cfg.ToolServerVersion = "1.2.3"

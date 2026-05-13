@@ -44,8 +44,7 @@ func handleCompareModels(svc *Service) http.HandlerFunc {
 			if scenariosStr := q.Get("scenarios"); scenariosStr != "" {
 				scenarios = strings.Split(scenariosStr, ",")
 			}
-			mode := q.Get("evidence_mode")
-			matrix, err := svc.ModelMatrix(r.Context(), tenantID, models, scenarios, mode)
+			matrix, err := svc.ModelMatrix(r.Context(), tenantID, models, scenarios)
 			if err != nil {
 				apiutil.WriteError(w, http.StatusInternalServerError, err.Error())
 				return
@@ -61,8 +60,7 @@ func handleCompareModels(svc *Service) http.HandlerFunc {
 			apiutil.WriteError(w, http.StatusBadRequest, "query param 'models' (comma-separated) or 'a' and 'b' are required")
 			return
 		}
-		mode := q.Get("evidence_mode")
-		result, err := svc.CompareModels(r.Context(), tenantID, modelA, modelB, mode)
+		result, err := svc.CompareModels(r.Context(), tenantID, modelA, modelB)
 		if err != nil {
 			apiutil.WriteError(w, http.StatusInternalServerError, err.Error())
 			return

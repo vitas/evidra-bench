@@ -48,7 +48,6 @@ Request:
   "model": "sonnet",
   "provider": "anthropic",
   "execution_mode": "provider",
-  "evidence_mode": "mcp",
   "runner_id": "01K...",
   "mcp_server": "npx -y @vendor/kubernetes-mcp --stdio",
   "tool_server": "kubernetes-mcp",
@@ -60,9 +59,6 @@ Request:
 Rules:
 
 - `model` and `scenarios` are required.
-- `evidence_mode` is optional and must be `none` or `mcp` when provided.
-  When omitted, the control plane derives `mcp` from `mcp_server` or
-  `tool_server`, otherwise `none`.
 - `execution_mode` is optional and must be `provider` or `a2a`; omitted means
   `provider`.
 - `provider` may be supplied by the caller, inherited from the runner config,
@@ -171,7 +167,6 @@ Response when a job is claimed:
   "job_id": "01K...",
   "model": "sonnet",
   "provider": "anthropic",
-  "evidence_mode": "mcp",
   "execution_mode": "provider",
   "mcp_server": "npx -y @vendor/kubernetes-mcp --stdio",
   "tool_server": "kubernetes-mcp",

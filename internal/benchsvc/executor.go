@@ -16,7 +16,6 @@ type TriggerRequest struct {
 	Model             string   `json:"model"`
 	Provider          string   `json:"provider,omitempty"`
 	RunnerID          string   `json:"runner_id,omitempty"`
-	EvidenceMode      string   `json:"evidence_mode"`
 	ExecutionMode     string   `json:"execution_mode,omitempty"`
 	MCPServer         string   `json:"mcp_server,omitempty"`
 	ToolServer        string   `json:"tool_server,omitempty"`
@@ -30,7 +29,6 @@ type TriggerJob struct {
 	Status            string             `json:"status"` // pending, running, completed, failed
 	Model             string             `json:"model"`
 	Provider          string             `json:"provider,omitempty"`
-	EvidenceMode      string             `json:"evidence_mode,omitempty"`
 	ExecutionMode     string             `json:"execution_mode,omitempty"`
 	MCPServer         string             `json:"mcp_server,omitempty"`
 	ToolServer        string             `json:"tool_server,omitempty"`

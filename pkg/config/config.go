@@ -40,7 +40,6 @@ type Config struct {
 	ToolServerID        string // stable MCP server identity for comparison/filtering
 	ToolServerVersion   string // stable MCP server version for comparison/filtering
 	ReportID            string // stable public/private report campaign identifier
-	EvidenceMode        string // explicit per-run override for evidence mode
 	Parallel            int    // number of parallel workers (0 or 1 = sequential, >1 requires --database-url)
 	DatabaseURL         string // PostgreSQL connection string for River job queue (env: BENCH_DATABASE_URL)
 }
@@ -105,46 +104,4 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("config: agent-command or provider is required (use --dry-run to skip)")
 	}
 	return nil
-}
-
-// ApplyEvidenceMode returns a copy of cfg with the requested evidence mode
-// applied authoritatively. Empty mode leaves cfg unchanged.
-func ApplyEvidenceMode(cfg Config, mode string) Config {
-	if !IsSupportedEvidenceMode(mode) {
-		return cfg
-	}
-
-	cfg.EvidenceMode = mode
-	switch mode {
-	case "none":
-		cfg.MCPServer = ""
-		cfg.ToolServerID = ""
-		cfg.ToolServerVersion = ""
-		cfg.SystemPromptFile = ""
-		cfg.Role = ""
-		cfg.ContractVersion = ""
-	}
-	return cfg
-}
-
-// EffectiveEvidenceMode returns the explicit evidence mode when set, otherwise
-// infers it from the generic MCP server configuration.
-func EffectiveEvidenceMode(cfg Config) string {
-	if IsSupportedEvidenceMode(cfg.EvidenceMode) {
-		return cfg.EvidenceMode
-	}
-	if cfg.MCPServer != "" {
-		return "mcp"
-	}
-	return "none"
-}
-
-// IsSupportedEvidenceMode reports whether a request/config mode is authoritative.
-func IsSupportedEvidenceMode(mode string) bool {
-	switch mode {
-	case "none", "mcp":
-		return true
-	default:
-		return false
-	}
 }

@@ -176,7 +176,7 @@ func TestReportPackCommand_CandidatePhaseRequiresMCPIdentity(t *testing.T) {
 	}
 }
 
-func TestReportPackRunConfigsKeepPromptButSeparateEvidenceModes(t *testing.T) {
+func TestReportPackRunConfigsKeepPromptButSeparateToolServerIdentity(t *testing.T) {
 	t.Parallel()
 
 	base := config.Config{
@@ -192,12 +192,6 @@ func TestReportPackRunConfigsKeepPromptButSeparateEvidenceModes(t *testing.T) {
 
 	baseline, candidate := reportPackRunConfigs(base)
 
-	if config.EffectiveEvidenceMode(baseline) != "none" {
-		t.Fatalf("baseline effective evidence mode = %q, want none", config.EffectiveEvidenceMode(baseline))
-	}
-	if baseline.EvidenceMode != "" {
-		t.Fatalf("baseline should not force explicit EvidenceMode, got %q", baseline.EvidenceMode)
-	}
 	if baseline.MCPServer != "" || baseline.ToolServerID != "" || baseline.ToolServerVersion != "" {
 		t.Fatalf("baseline should clear MCP identity, got server=%q id=%q version=%q",
 			baseline.MCPServer, baseline.ToolServerID, baseline.ToolServerVersion)
@@ -207,12 +201,6 @@ func TestReportPackRunConfigsKeepPromptButSeparateEvidenceModes(t *testing.T) {
 			baseline.SystemPromptFile, baseline.Role, baseline.ContractVersion)
 	}
 
-	if candidate.EvidenceMode != "" {
-		t.Fatalf("candidate should not force explicit EvidenceMode, got %q", candidate.EvidenceMode)
-	}
-	if config.EffectiveEvidenceMode(candidate) != "mcp" {
-		t.Fatalf("candidate effective evidence mode = %q, want mcp", config.EffectiveEvidenceMode(candidate))
-	}
 	if candidate.MCPServer != base.MCPServer || candidate.ToolServerID != base.ToolServerID || candidate.ToolServerVersion != base.ToolServerVersion {
 		t.Fatalf("candidate should keep MCP identity, got server=%q id=%q version=%q",
 			candidate.MCPServer, candidate.ToolServerID, candidate.ToolServerVersion)

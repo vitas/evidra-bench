@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { useAppInfo } from "../../hooks/useAppInfo";
-import { evidenceModeParam } from "../../lib/catalogData.mts";
 import {
   EXAM_PACKS,
   countExamPackMatches,
@@ -11,7 +10,6 @@ import {
   scenarioMatchesExamPack,
   type ExamPackFilter,
 } from "../../lib/examPacks.mts";
-import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 import {
   DEFAULT_RUN_SELECTION,
   RUN_PROVIDERS,
@@ -61,7 +59,6 @@ interface TriggerJob {
   model: string;
   status: string;
   provider?: string;
-  evidence_mode?: string;
   execution_mode?: string;
   total: number;
   completed: number;
@@ -96,7 +93,6 @@ export function Scenarios() {
   const { request } = useApi();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { mode } = useEvidenceMode();
   const { readonly } = useAppInfo();
   const [data, setData] = useState<ScenariosResponse | null>(null);
   const [stats, setStats] = useState<Map<string, ScenarioStat>>(new Map());
@@ -121,8 +117,8 @@ export function Scenarios() {
 
   useEffect(() => {
     Promise.all([
-      request<{ scenarios?: Scenario[]; items?: Scenario[] }>(`/v1/bench/scenarios${evidenceModeParam("?", mode)}`),
-      request<Stats>(`/v1/bench/stats${evidenceModeParam("?", mode)}`),
+      request<{ scenarios?: Scenario[]; items?: Scenario[] }>("/v1/bench/scenarios"),
+      request<Stats>("/v1/bench/stats"),
     ])
       .then(([raw, st]) => {
         const items = raw.items ?? raw.scenarios ?? [];
@@ -135,7 +131,7 @@ export function Scenarios() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [request, mode]);
+  }, [request]);
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -195,7 +191,6 @@ export function Scenarios() {
   const submitRun = useCallback(async () => {
     if (!runModal) return;
     const selection = normalizeRunSelection(runProvider, runModel);
-    const evidenceMode = mode === "mcp" ? "mcp" : "none";
     cancelPolling();
     setRunSubmitting(true);
     setRunError(null);
@@ -206,7 +201,6 @@ export function Scenarios() {
         body: JSON.stringify({
           model: selection.model,
           provider: selection.provider,
-          evidence_mode: evidenceMode,
           execution_mode: "provider",
           scenarios: [runModal],
         }),
@@ -217,7 +211,6 @@ export function Scenarios() {
         model: selection.model,
         provider: selection.provider,
         status: res.status || "pending",
-        evidence_mode: evidenceMode,
         execution_mode: "provider",
         total: 1,
         completed: 0,
@@ -258,7 +251,7 @@ export function Scenarios() {
     } finally {
       setRunSubmitting(false);
     }
-  }, [cancelPolling, mode, runModal, runModel, runProvider, request]);
+  }, [cancelPolling, runModal, runModel, runProvider, request]);
 
   const closeModal = () => {
     cancelPolling();

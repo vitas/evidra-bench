@@ -68,7 +68,6 @@ type handlerRepo struct {
 	// capture
 	lastTenant       string
 	lastFilter       bench.RunFilters
-	lastMode         string
 	lastScenarios    []string
 	lastModelID      string
 	lastProviderCfg  TenantProviderConfig
@@ -83,8 +82,7 @@ func (r *handlerRepo) ListRuns(_ context.Context, tenant string, f bench.RunFilt
 	if r.runsErr != nil {
 		return nil, 0, r.runsErr
 	}
-	filtered := filterRunsByEvidenceMode(r.runs, f.EvidenceMode)
-	filtered = filterRunsByModel(filtered, f.Model)
+	filtered := filterRunsByModel(r.runs, f.Model)
 	if f.ToolServerUnset {
 		filtered = filterRunsByToolServerUnset(filtered)
 	}
@@ -123,8 +121,10 @@ func (r *handlerRepo) FilteredStats(_ context.Context, tenant string, f bench.Ru
 	if r.stats != nil {
 		return r.stats, nil
 	}
-	filtered := filterRunsByEvidenceMode(r.runs, f.EvidenceMode)
-	filtered = filterRunsByModel(filtered, f.Model)
+	filtered := filterRunsByModel(r.runs, f.Model)
+	if f.ToolServerUnset {
+		filtered = filterRunsByToolServerUnset(filtered)
+	}
 	filtered = filterRunsByToolServer(filtered, f.ToolServer)
 	filtered = filterRunsByToolServerVersion(filtered, f.ToolServerVersion)
 	filtered = filterRunsByReportID(filtered, f.ReportID)
@@ -160,9 +160,8 @@ func (r *handlerRepo) ResolveModelProvider(_ context.Context, modelID string) (*
 	}
 	return r.modelProvider, r.modelProviderErr
 }
-func (r *handlerRepo) Leaderboard(_ context.Context, tenant, mode string, _ int, scenarios []string) ([]bench.LeaderboardEntry, error) {
+func (r *handlerRepo) Leaderboard(_ context.Context, tenant string, _ int, scenarios []string) ([]bench.LeaderboardEntry, error) {
 	r.lastTenant = tenant
-	r.lastMode = mode
 	r.lastScenarios = scenarios
 	if r.leadersErr != nil {
 		return nil, r.leadersErr
@@ -170,7 +169,7 @@ func (r *handlerRepo) Leaderboard(_ context.Context, tenant, mode string, _ int,
 	if r.leaders != nil {
 		return r.leaders, nil
 	}
-	return aggregateLeaderboardRuns(filterRunsByScenarioIDs(filterRunsByEvidenceMode(r.runs, mode), scenarios)), nil
+	return aggregateLeaderboardRuns(filterRunsByScenarioIDs(r.runs, scenarios)), nil
 }
 func (r *handlerRepo) ListScenarios(_ context.Context) ([]bench.ScenarioSummary, error) {
 	return r.scenarios, r.scenErr
@@ -193,11 +192,10 @@ func (r *handlerRepo) GetArtifact(_ context.Context, tenant, runID, artType stri
 	}
 	return r.artifact, r.artCT, r.artErr
 }
-func (r *handlerRepo) CompareModels(_ context.Context, _, _, _, _ string) ([]ScenarioModelComparison, error) {
+func (r *handlerRepo) CompareModels(_ context.Context, _, _, _ string) ([]ScenarioModelComparison, error) {
 	return nil, nil
 }
-func (r *handlerRepo) ModelMatrix(_ context.Context, _ string, _, _ []string, evidenceMode string) (*bench.ModelMatrix, error) {
-	r.lastMode = evidenceMode
+func (r *handlerRepo) ModelMatrix(_ context.Context, _ string, _, _ []string) (*bench.ModelMatrix, error) {
 	return r.matrix, r.matrixErr
 }
 func (r *handlerRepo) SignalSummary(_ context.Context, tenant string, f bench.RunFilters) (*bench.SignalAggregation, error) {
@@ -335,20 +333,6 @@ func TestRegisterRoutes_PublicReadEndpointsRequirePublicTenant(t *testing.T) {
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusServiceUnavailable, rec.Body.String())
 	}
-}
-
-func evidenceModeMatchesQuery(mode, stored string) bool {
-	return mode == "" || stored == mode
-}
-
-func filterRunsByEvidenceMode(runs []bench.RunRecord, mode string) []bench.RunRecord {
-	filtered := make([]bench.RunRecord, 0, len(runs))
-	for _, run := range runs {
-		if evidenceModeMatchesQuery(mode, run.EvidenceMode) {
-			filtered = append(filtered, run)
-		}
-	}
-	return filtered
 }
 
 func filterRunsByModel(runs []bench.RunRecord, model string) []bench.RunRecord {

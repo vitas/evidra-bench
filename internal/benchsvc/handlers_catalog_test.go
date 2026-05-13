@@ -39,54 +39,38 @@ func TestHandleStats_ReturnsAggregates(t *testing.T) {
 	}
 }
 
-func TestHandleStats_EvidenceModeFiltersTotals(t *testing.T) {
+func TestHandleStats_ToolServerUnsetFiltersTotals(t *testing.T) {
 	t.Parallel()
 
 	sharedRuns := []bench.RunRecord{
-		{ID: "baseline-1", ScenarioID: "s1", Model: "sonnet", EvidenceMode: "none", Passed: true},
-		{ID: "baseline-2", ScenarioID: "s2", Model: "sonnet", EvidenceMode: "none", Passed: false},
-		{ID: "mcp-1", ScenarioID: "s3", Model: "sonnet", EvidenceMode: "mcp", Passed: true},
-		{ID: "mcp-2", ScenarioID: "s4", Model: "sonnet", EvidenceMode: "mcp", Passed: false},
+		{ID: "baseline-1", ScenarioID: "s1", Model: "sonnet", Passed: true},
+		{ID: "baseline-2", ScenarioID: "s2", Model: "sonnet", Passed: false},
+		{ID: "mcp-1", ScenarioID: "s3", Model: "sonnet", ToolServer: "kubernetes-mcp", Passed: true},
+		{ID: "mcp-2", ScenarioID: "s4", Model: "sonnet", ToolServer: "kubernetes-mcp", Passed: false},
 	}
 
-	tests := []struct {
-		name      string
-		mode      string
-		wantTotal int
-		wantPass  int
-		wantFail  int
-	}{
-		{name: "baseline only", mode: "none", wantTotal: 2, wantPass: 1, wantFail: 1},
-		{name: "mcp", mode: "mcp", wantTotal: 2, wantPass: 1, wantFail: 1},
+	repo := &handlerRepo{runs: sharedRuns}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/stats?tool_server_unset=true", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			repo := &handlerRepo{runs: sharedRuns}
-			mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
-
-			rec := httptest.NewRecorder()
-			req := httptest.NewRequest("GET", "/v1/bench/stats?evidence_mode="+tt.mode, nil)
-			mux.ServeHTTP(rec, req)
-
-			if rec.Code != http.StatusOK {
-				t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-			}
-			var body bench.StatsResult
-			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-				t.Fatalf("decode body: %v", err)
-			}
-			if body.TotalRuns != tt.wantTotal {
-				t.Fatalf("TotalRuns = %d, want %d", body.TotalRuns, tt.wantTotal)
-			}
-			if body.PassCount != tt.wantPass {
-				t.Fatalf("PassCount = %d, want %d", body.PassCount, tt.wantPass)
-			}
-			if body.FailCount != tt.wantFail {
-				t.Fatalf("FailCount = %d, want %d", body.FailCount, tt.wantFail)
-			}
-		})
+	var body bench.StatsResult
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body.TotalRuns != 2 {
+		t.Fatalf("TotalRuns = %d, want 2", body.TotalRuns)
+	}
+	if body.PassCount != 1 {
+		t.Fatalf("PassCount = %d, want 1", body.PassCount)
+	}
+	if body.FailCount != 1 {
+		t.Fatalf("FailCount = %d, want 1", body.FailCount)
 	}
 }
 
@@ -97,11 +81,11 @@ func TestHandleCatalog_ReturnsModelsAndProviders(t *testing.T) {
 		catalog: &bench.RunCatalog{
 			Models:             []string{"sonnet", "opus"},
 			Providers:          []string{"anthropic", "bifrost"},
-			ToolServers:        []string{"kubernetes-mcp", "legacy-mcp"},
+			ToolServers:        []string{"kubernetes-mcp", "containers-kubernetes-mcp-server"},
 			ToolServerVersions: []string{"1.2.3", "1.2.4"},
 			ToolServerVersionsByServer: map[string][]string{
-				"kubernetes-mcp": {"1.2.3"},
-				"legacy-mcp":     {"1.2.4"},
+				"kubernetes-mcp":                   {"1.2.3"},
+				"containers-kubernetes-mcp-server": {"1.2.4"},
 			},
 		},
 	}

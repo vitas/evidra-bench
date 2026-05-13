@@ -28,7 +28,6 @@ type RunRecord struct {
 	Model             string    `json:"model"`
 	Provider          string    `json:"provider"`
 	Adapter           string    `json:"adapter"`
-	EvidenceMode      string    `json:"evidence_mode"`       // none or mcp
 	ToolServer        string    `json:"tool_server"`         // MCP server used (empty = baseline/direct exec)
 	ToolServerVersion string    `json:"tool_server_version"` // version of MCP server binary
 	ScenarioVersion   string    `json:"scenario_version"`    // version/hash of scenario definition
@@ -57,8 +56,7 @@ type RunFilters struct {
 	ToolServer        string
 	ToolServerVersion string
 	ReportID          string
-	ToolServerUnset   bool   // exact baseline/native-tool runs where tool_server is empty
-	EvidenceMode      string // deprecated coarse mode; empty for all
+	ToolServerUnset   bool // exact baseline/native-tool runs where tool_server is empty
 	PassedOnly        bool
 	FailedOnly        bool
 	Since             *time.Time // cutoff time — handler parses, store just uses

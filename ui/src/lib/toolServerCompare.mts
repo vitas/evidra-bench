@@ -60,13 +60,12 @@ export function toolServerRunsPagePath(filters: ToolServerRunsLinkFilters): stri
     return benchRunsPagePath({
       scenario: filters.scenarioId,
       model: filters.model,
-      evidence_mode: "none",
+      tool_server_unset: "true",
     });
   }
   return benchRunsPagePath({
     scenario: filters.scenarioId,
     model: filters.model,
-    evidence_mode: "mcp",
     tool_server: filters.toolServer,
     tool_server_version: filters.toolServerVersion,
   });

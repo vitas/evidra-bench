@@ -4,14 +4,14 @@ import test from "node:test";
 import {
   buildBenchCommand,
   buildRunCommand,
-  EVIDENCE_MODES,
+  TOOL_BACKENDS,
 } from "./commandBuilder.mts";
 
 test("baseline bench command does not force proxy or smart-prescribe flags", () => {
   const command = buildBenchCommand({
     scenarios: ["kubernetes/broken-deployment"],
     model: "gpt-4o",
-    evidenceMode: "baseline",
+    toolBackend: "baseline",
   });
 
   assert.match(command, /^bench-cli bench/m);
@@ -26,7 +26,7 @@ test("mcp bench command uses the generic MCP server placeholder", () => {
   const command = buildBenchCommand({
     scenarios: ["kubernetes/broken-deployment"],
     model: "gpt-4o",
-    evidenceMode: "mcp",
+    toolBackend: "mcp",
   });
 
   assert.match(command, /--mcp-server "\$MCP_SERVER"/);
@@ -35,22 +35,22 @@ test("mcp bench command uses the generic MCP server placeholder", () => {
   assert.equal(command.includes("--smart-prescribe"), false);
 });
 
-test("designer run command uses the selected evidence mode semantics", () => {
+test("designer run command uses the selected tool backend semantics", () => {
   const baseline = buildRunCommand({
     scenario: "./my-puzzle",
     model: "gpt-4o",
-    evidenceMode: "baseline",
+    toolBackend: "baseline",
   });
   const viaMCP = buildRunCommand({
     scenario: "./my-puzzle",
     model: "gpt-4o",
-    evidenceMode: "mcp",
+    toolBackend: "mcp",
   });
 
   assert.equal(baseline.includes("--proxy-mode"), false);
   assert.equal(viaMCP.includes("--mcp-server"), true);
 });
 
-test("evidence modes expose the UI labels for the supported command paths", () => {
-  assert.deepEqual(EVIDENCE_MODES.map((mode) => mode.id), ["baseline", "mcp"]);
+test("tool backends expose the UI labels for the supported command paths", () => {
+  assert.deepEqual(TOOL_BACKENDS.map((backend) => backend.id), ["baseline", "mcp"]);
 });

@@ -65,14 +65,14 @@ Repository interface and Service method gain a `k int` parameter:
 
 ```go
 // Repository
-Leaderboard(ctx context.Context, tenantID string, evidenceMode string, k int) ([]bench.LeaderboardEntry, error)
+Leaderboard(ctx context.Context, tenantID string, toolServerID string, k int) ([]bench.LeaderboardEntry, error)
 
 // Service
-func (s *Service) Leaderboard(ctx context.Context, evidenceMode string, k int) ([]bench.LeaderboardEntry, error) {
+func (s *Service) Leaderboard(ctx context.Context, toolServerID string, k int) ([]bench.LeaderboardEntry, error) {
 	if s.cfg.PublicTenant == "" {
 		return nil, ErrPublicTenantUnavailable
 	}
-	return s.repo.Leaderboard(ctx, s.cfg.PublicTenant, evidenceMode, k)
+	return s.repo.Leaderboard(ctx, s.cfg.PublicTenant, toolServerID, k)
 }
 ```
 
@@ -82,18 +82,17 @@ The key: existing aggregation stays as-is (run-weighted). pass^k comes from a
 separate CTE that computes per-scenario pass rates and applies POWER(rate, k).
 
 ```go
-func (s *PgStore) Leaderboard(ctx context.Context, tenantID string, evidenceMode string, k int) ([]bench.LeaderboardEntry, error) {
+func (s *PgStore) Leaderboard(ctx context.Context, tenantID string, toolServerID string, k int) ([]bench.LeaderboardEntry, error) {
 	if k < 1 {
 		k = 3
 	}
 
-	// Build the evidence mode WHERE clause using the shared alias logic.
-	// This must use evidenceModeClause(), NOT a hardcoded = $N.
+	// Build the tool-server WHERE clause using the shared alias logic.
 	argN := 2
 	modeClause := ""
 	var modeArgs []any
-	if evidenceMode != "" {
-		clause, arg := evidenceModeClause(argN, evidenceMode)
+	if toolServerID != "" {
+		clause, arg := toolServerClause(argN, toolServerID)
 		modeClause = " AND " + clause
 		modeArgs = append(modeArgs, arg)
 		argN++
@@ -282,7 +281,7 @@ git commit -s -m "feat(ui): add pass^k reliability column to leaderboard"
 **Skipped for now.** The evidra-bench leaderboard (`ui/src/pages/bench/Leaderboard.tsx`)
 computes stats client-side from `GET /v1/bench/runs?limit=1000`. Migrating it to use
 `GET /v1/bench/leaderboard` is a separate task with its own scope (removes client
-aggregation, adds evidence mode filtering, handles pagination properly).
+aggregation, adds tool-server filtering, handles pagination properly).
 
 Tracked in backlog as: "Migrate bench UI leaderboard to server-computed endpoint."
 
@@ -306,12 +305,11 @@ Define the full response schema:
     summary: Public model leaderboard
     tags: [Bench]
     parameters:
-      - name: evidence_mode
+      - name: tool_server
         in: query
         schema:
           type: string
-          enum: [all, none, evidra]
-        description: Filter by evidence mode (evidra = all non-baseline runs)
+        description: Filter by external tool-server identity
       - name: k
         in: query
         schema:
@@ -332,7 +330,7 @@ Define the full response schema:
                   type: array
                   items:
                     $ref: '#/components/schemas/LeaderboardEntry'
-                evidence_mode:
+                tool_server:
                   type: string
 ```
 

@@ -2,8 +2,6 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useState, useEffect, useMemo } from "react";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { resolveRunsLimit } from "../../lib/benchmarkData.mts";
-import { evidenceModeParam } from "../../lib/catalogData.mts";
-import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 /* ── Types ── */
 
@@ -133,7 +131,6 @@ function Pulse({ className = "" }: { className?: string }) {
 export function Benchmarks() {
   usePageTitle("Benchmarks");
   const { request } = useApi();
-  const { mode } = useEvidenceMode();
   const [period, setPeriod] = useState<Period>("all");
   const [stats, setStats] = useState<Stats | null>(null);
   const [runs, setRuns] = useState<Run[]>([]);
@@ -147,12 +144,12 @@ export function Benchmarks() {
     const since = periodToSince(period);
     const sinceParam = since ? `since=${encodeURIComponent(since)}` : "";
 
-    request<Stats>(`/v1/bench/stats${sinceParam ? `?${sinceParam}` : ""}${evidenceModeParam(sinceParam ? "&" : "?", mode)}`)
+    request<Stats>(`/v1/bench/stats${sinceParam ? `?${sinceParam}` : ""}`)
       .then(async (s) => {
         if (cancelled) return;
         setStats(s);
         const runsLimit = resolveRunsLimit(s.total_runs);
-        const runsPath = `/v1/bench/runs?limit=${runsLimit}${sinceParam ? `&${sinceParam}` : ""}${evidenceModeParam("&", mode)}`;
+        const runsPath = `/v1/bench/runs?limit=${runsLimit}${sinceParam ? `&${sinceParam}` : ""}`;
         const r = await request<RunsResponse>(runsPath);
         if (cancelled) return;
         setRuns(r.runs ?? []);
@@ -169,7 +166,7 @@ export function Benchmarks() {
     return () => {
       cancelled = true;
     };
-  }, [period, request, mode]);
+  }, [period, request]);
 
   /* Distinct models for the filter */
   const models = useMemo(

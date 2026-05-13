@@ -1,5 +1,4 @@
 import { BrowserRouter, Navigate, Routes, Route, useLocation, useParams } from "react-router";
-import { EvidenceModeProvider } from "./hooks/useEvidenceMode";
 import { Layout } from "./components/Layout";
 import { Landing } from "./pages/Landing";
 import { Designer } from "./pages/Designer";
@@ -35,41 +34,39 @@ import { PublicKubernetesMCPReport } from "./pages/bench/PublicKubernetesMCPRepo
 
 export function App() {
   return (
-    <EvidenceModeProvider>
-      <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
-        <Routes>
-          <Route path="/" element={<Landing />} />
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
+      <Routes>
+        <Route path="/" element={<Landing />} />
 
-          {/* Bench routes (rich dashboard with leaderboard, runs, compare) */}
-          <Route path="/bench" element={<BenchLayout><Leaderboard /></BenchLayout>} />
-          <Route path={BENCH_LEADERBOARD_PATH} element={<BenchLayout><Leaderboard /></BenchLayout>} />
-          <Route path="/bench/dashboard" element={<BenchLayout><Dashboard /></BenchLayout>} />
-          <Route path="/bench/runs" element={<BenchLayout><Runs /></BenchLayout>} />
-          <Route path="/bench/runs/:id" element={<BenchLayout><RunDetail /></BenchLayout>} />
-          <Route path="/bench/scenarios" element={<BenchLayout><BenchScenarios /></BenchLayout>} />
-          <Route path="/bench/scenarios/:id" element={<BenchLayout><ScenarioDetail /></BenchLayout>} />
-          <Route path="/bench/compare" element={<BenchLayout><Compare /></BenchLayout>} />
-          <Route path={BENCH_MCP_READINESS_PATH} element={<BenchLayout><ToolServerReport /></BenchLayout>} />
-          <Route path={BENCH_SAMPLE_REPORT_PATH} element={<BenchLayout><SampleReport /></BenchLayout>} />
-          <Route path={BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH} element={<BenchLayout><PublicKubernetesMCPReport /></BenchLayout>} />
-          <Route path={BENCH_TOOL_SERVER_REPORT_PATH} element={<BenchLayout><LiveToolServerReport /></BenchLayout>} />
-          <Route path="/bench/reports/:reportId" element={<BenchLayout><PublicKubernetesMCPReport /></BenchLayout>} />
-          <Route path="/bench/skill-impact" element={<BenchLayout><SkillImpact /></BenchLayout>} />
-          <Route path="/bench/regressions" element={<BenchLayout><Regressions /></BenchLayout>} />
-          <Route path="/bench/insights" element={<BenchLayout><Insights /></BenchLayout>} />
-          <Route path="/bench/benchmarks" element={<BenchLayout><Benchmarks /></BenchLayout>} />
+        {/* Bench routes (rich dashboard with leaderboard, runs, compare) */}
+        <Route path="/bench" element={<BenchLayout><Leaderboard /></BenchLayout>} />
+        <Route path={BENCH_LEADERBOARD_PATH} element={<BenchLayout><Leaderboard /></BenchLayout>} />
+        <Route path="/bench/dashboard" element={<BenchLayout><Dashboard /></BenchLayout>} />
+        <Route path="/bench/runs" element={<BenchLayout><Runs /></BenchLayout>} />
+        <Route path="/bench/runs/:id" element={<BenchLayout><RunDetail /></BenchLayout>} />
+        <Route path="/bench/scenarios" element={<BenchLayout><BenchScenarios /></BenchLayout>} />
+        <Route path="/bench/scenarios/:id" element={<BenchLayout><ScenarioDetail /></BenchLayout>} />
+        <Route path="/bench/compare" element={<BenchLayout><Compare /></BenchLayout>} />
+        <Route path={BENCH_MCP_READINESS_PATH} element={<BenchLayout><ToolServerReport /></BenchLayout>} />
+        <Route path={BENCH_SAMPLE_REPORT_PATH} element={<BenchLayout><SampleReport /></BenchLayout>} />
+        <Route path={BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH} element={<BenchLayout><PublicKubernetesMCPReport /></BenchLayout>} />
+        <Route path={BENCH_TOOL_SERVER_REPORT_PATH} element={<BenchLayout><LiveToolServerReport /></BenchLayout>} />
+        <Route path="/bench/reports/:reportId" element={<BenchLayout><PublicKubernetesMCPReport /></BenchLayout>} />
+        <Route path="/bench/skill-impact" element={<BenchLayout><SkillImpact /></BenchLayout>} />
+        <Route path="/bench/regressions" element={<BenchLayout><Regressions /></BenchLayout>} />
+        <Route path="/bench/insights" element={<BenchLayout><Insights /></BenchLayout>} />
+        <Route path="/bench/benchmarks" element={<BenchLayout><Benchmarks /></BenchLayout>} />
 
-          {/* Lab routes (scenario catalog, designer, run configurator) */}
-          <Route path="/scenarios" element={<RedirectWithSearch to={BENCH_SCENARIOS_PATH} />} />
-          <Route path="/scenarios/:id" element={<LegacyScenarioRedirect />} />
-          <Route path="/runs" element={<RedirectWithSearch to={BENCH_RUNS_PATH} />} />
-          <Route path="/runs/:id" element={<LegacyRunRedirect />} />
-          <Route path="/designer" element={<Layout><Designer /></Layout>} />
-          <Route path="/run" element={<RedirectWithSearch to={BENCH_SCENARIOS_PATH} />} />
-          <Route path="/results" element={<RedirectWithSearch to={BENCH_RUNS_PATH} />} />
-        </Routes>
-      </BrowserRouter>
-    </EvidenceModeProvider>
+        {/* Lab routes (scenario catalog, designer, run configurator) */}
+        <Route path="/scenarios" element={<RedirectWithSearch to={BENCH_SCENARIOS_PATH} />} />
+        <Route path="/scenarios/:id" element={<LegacyScenarioRedirect />} />
+        <Route path="/runs" element={<RedirectWithSearch to={BENCH_RUNS_PATH} />} />
+        <Route path="/runs/:id" element={<LegacyRunRedirect />} />
+        <Route path="/designer" element={<Layout><Designer /></Layout>} />
+        <Route path="/run" element={<RedirectWithSearch to={BENCH_SCENARIOS_PATH} />} />
+        <Route path="/results" element={<RedirectWithSearch to={BENCH_RUNS_PATH} />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

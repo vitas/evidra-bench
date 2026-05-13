@@ -11,7 +11,6 @@ import (
 
 func handleLeaderboard(svc *Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		mode := r.URL.Query().Get("evidence_mode")
 		k := 3
 		if kStr := r.URL.Query().Get("k"); kStr != "" {
 			if kVal, err := strconv.Atoi(kStr); err == nil && kVal >= 1 && kVal <= 10 {
@@ -19,7 +18,7 @@ func handleLeaderboard(svc *Service) http.HandlerFunc {
 			}
 		}
 		scenarios := parseCSVQuery(r.URL.Query().Get("scenarios"))
-		entries, err := svc.Leaderboard(r.Context(), mode, k, scenarios)
+		entries, err := svc.Leaderboard(r.Context(), k, scenarios)
 		if err != nil {
 			if errors.Is(err, ErrPublicTenantUnavailable) {
 				apiutil.WriteError(w, http.StatusServiceUnavailable, err.Error())
@@ -29,8 +28,7 @@ func handleLeaderboard(svc *Service) http.HandlerFunc {
 			return
 		}
 		apiutil.WriteJSON(w, http.StatusOK, map[string]any{
-			"models":        entries,
-			"evidence_mode": mode,
+			"models": entries,
 		})
 	}
 }

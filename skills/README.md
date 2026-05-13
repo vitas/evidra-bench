@@ -32,7 +32,7 @@ infra-bench certify --track cka --model sonnet --role k8s-admin
 ## External Protocol Skills
 
 Protocol-specific prompts can still be tested with `--system-prompt-file`.
-The bench harness does not inject protocol tools or special evidence modes.
+The bench harness does not inject protocol tools or special runtime modes.
 
 ## Benchmark Data
 

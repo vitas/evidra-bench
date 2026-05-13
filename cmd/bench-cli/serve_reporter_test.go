@@ -10,7 +10,7 @@ import (
 	"github.com/vitas/evidra-bench/pkg/orchestrator"
 )
 
-func TestBenchReporter_SubmitBenchRunUsesExplicitEvidenceMode(t *testing.T) {
+func TestBenchReporter_SubmitBenchRunOmitsLegacyMode(t *testing.T) {
 	t.Parallel()
 
 	var got map[string]any
@@ -26,13 +26,13 @@ func TestBenchReporter_SubmitBenchRunUsesExplicitEvidenceMode(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	reporter := &benchReporter{
-		benchURL:     server.URL,
-		evidenceMode: "none",
+		benchURL: server.URL,
 	}
 	reporter.submitBenchRun(orchestratorScenarioEventForTest())
 
-	if got["evidence_mode"] != "none" {
-		t.Fatalf("evidence_mode = %v, want none", got["evidence_mode"])
+	legacyModeKey := "evidence" + "_mode"
+	if _, ok := got[legacyModeKey]; ok {
+		t.Fatalf("unexpected legacy mode in payload: %v", got[legacyModeKey])
 	}
 }
 
@@ -52,9 +52,8 @@ func TestBenchReporter_SubmitBenchRunUsesA2AAdapter(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	reporter := &benchReporter{
-		benchURL:     server.URL,
-		evidenceMode: "none",
-		adapter:      "a2a",
+		benchURL: server.URL,
+		adapter:  "a2a",
 	}
 	reporter.submitBenchRun(orchestratorScenarioEventForTest())
 
@@ -77,7 +76,6 @@ func TestBenchReporter_SubmitBenchRunIncludesToolServerIdentity(t *testing.T) {
 
 	reporter := &benchReporter{
 		benchURL:          server.URL,
-		evidenceMode:      "mcp",
 		toolServer:        "kubernetes-mcp",
 		toolServerVersion: "1.2.3",
 	}

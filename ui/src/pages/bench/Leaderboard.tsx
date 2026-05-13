@@ -11,7 +11,6 @@ import {
   type ExamPackScenario,
 } from "../../lib/examPacks.mts";
 import { benchRunsPagePath } from "../../lib/routes.mts";
-import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 /* ── Types ── */
 
@@ -30,7 +29,6 @@ interface LeaderboardEntry {
 
 interface LeaderboardResponse {
   models: LeaderboardEntry[];
-  evidence_mode: string;
 }
 
 interface ScenariosResponse {
@@ -93,7 +91,6 @@ function medalEmoji(rank: number): string {
 export function Leaderboard() {
   usePageTitle("Model Leaderboard");
   const { request } = useApi();
-  const { mode } = useEvidenceMode();
   const [searchParams, setSearchParams] = useSearchParams();
   const examPack = resolveExamPackFilter(searchParams.get("exam"));
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
@@ -111,9 +108,9 @@ export function Leaderboard() {
         if (!cancelled) setScenarios(items);
         const scenarioIDs = scenarioIDsForExamPack(items, examPack);
         if (examPack !== "all" && scenarioIDs.length === 0) {
-          return { models: [], evidence_mode: mode } satisfies LeaderboardResponse;
+          return { models: [] } satisfies LeaderboardResponse;
         }
-        return request<LeaderboardResponse>(buildLeaderboardPath(3, mode, scenarioIDs));
+        return request<LeaderboardResponse>(buildLeaderboardPath(3, scenarioIDs));
       })
       .then((res) => {
         if (!cancelled) setEntries(res.models ?? []);
@@ -127,7 +124,7 @@ export function Leaderboard() {
     return () => {
       cancelled = true;
     };
-  }, [request, mode, examPack]);
+  }, [request, examPack]);
 
   const selectExamPack = useCallback(
     (next: ExamPackFilter) => {

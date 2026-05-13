@@ -114,7 +114,7 @@ func TestPgStore_EnqueueAndClaimJob(t *testing.T) {
 	}
 }
 
-func TestPgStore_EnqueueAndClaimJob_PreservesEvidenceMode(t *testing.T) {
+func TestPgStore_EnqueueAndClaimJob_PreservesScenarios(t *testing.T) {
 	t.Parallel()
 
 	db := setupTestDB(t)
@@ -123,8 +123,7 @@ func TestPgStore_EnqueueAndClaimJob_PreservesEvidenceMode(t *testing.T) {
 	seedTenant(t, db, tenantID)
 
 	_, err := store.EnqueueJob(context.Background(), tenantID, "deepseek-chat", "bifrost", JobConfig{
-		Scenarios:    []string{"broken-deployment"},
-		EvidenceMode: "mcp",
+		Scenarios: []string{"broken-deployment"},
 	})
 	if err != nil {
 		t.Fatalf("EnqueueJob: %v", err)
@@ -142,8 +141,8 @@ func TestPgStore_EnqueueAndClaimJob_PreservesEvidenceMode(t *testing.T) {
 	if err := json.Unmarshal(claimed.ConfigJSON, &cfg); err != nil {
 		t.Fatalf("unmarshal config_json: %v", err)
 	}
-	if cfg.EvidenceMode != "mcp" {
-		t.Fatalf("evidence_mode = %q, want mcp", cfg.EvidenceMode)
+	if len(cfg.Scenarios) != 1 || cfg.Scenarios[0] != "broken-deployment" {
+		t.Fatalf("scenarios = %v, want [broken-deployment]", cfg.Scenarios)
 	}
 }
 

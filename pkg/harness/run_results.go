@@ -9,7 +9,6 @@ import (
 
 	"github.com/vitas/evidra-bench/pkg/adapter"
 	"github.com/vitas/evidra-bench/pkg/artifact"
-	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/report"
 	"github.com/vitas/evidra-bench/pkg/store"
 	"github.com/vitas/evidra-bench/pkg/verifier"
@@ -25,7 +24,6 @@ func (h *Harness) writeRunArtifacts(req RunRequest, agentResult *adapter.RunResu
 		Model:            req.Config.Model,
 		Provider:         req.Config.Provider,
 		Adapter:          req.Config.Adapter,
-		EvidenceMode:     config.EffectiveEvidenceMode(req.Config),
 		Passed:           verifyResult.Passed,
 		Duration:         endTime.Sub(startTime).Seconds(),
 		ExitCode:         agentResult.ExitCode,
@@ -112,9 +110,6 @@ func (h *Harness) storeRun(req RunRequest, agentResult *adapter.RunResult, verif
 	}
 
 	runCfg := req.Config
-	if config.IsSupportedEvidenceMode(runCfg.EvidenceMode) {
-		runCfg = config.ApplyEvidenceMode(runCfg, runCfg.EvidenceMode)
-	}
 	toolServer, toolServerVersion := resolveToolServerIdentity(runCfg)
 	if runCfg.MCPServer != "" || toolServer != "" || toolServerVersion != "" {
 		if agentResult.Metadata == nil {
@@ -147,7 +142,6 @@ func (h *Harness) storeRun(req RunRequest, agentResult *adapter.RunResult, verif
 		Model:             req.Config.Model,
 		Provider:          req.Config.Provider,
 		Adapter:           req.Config.Adapter,
-		EvidenceMode:      config.EffectiveEvidenceMode(runCfg),
 		ToolServer:        toolServer,
 		ToolServerVersion: toolServerVersion,
 		Passed:            verifyResult.Passed,

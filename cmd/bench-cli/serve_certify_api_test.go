@@ -11,23 +11,6 @@ import (
 	"github.com/vitas/evidra-bench/pkg/config"
 )
 
-func TestHandleCertifyAPI_RejectsUnsupportedEvidenceMode(t *testing.T) {
-	t.Parallel()
-
-	handler := handleCertifyAPI(config.Default(), newNoopParallelRunner(), t.TempDir())
-	req := httptest.NewRequest(http.MethodPost, "/v1/certify", strings.NewReader(`{"config":{"evidence_mode":"legacy"}}`))
-	rec := httptest.NewRecorder()
-
-	handler(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want 400", rec.Code)
-	}
-	if !strings.Contains(rec.Body.String(), "unsupported evidence_mode") {
-		t.Fatalf("body = %q, want unsupported evidence_mode", rec.Body.String())
-	}
-}
-
 func TestServeCertifyParallel_RejectsNonDefaultSharedProfiles(t *testing.T) {
 	t.Parallel()
 

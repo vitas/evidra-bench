@@ -55,7 +55,7 @@ func TestHandleCompleteJob_UpdatesTriggerStoreSnapshot(t *testing.T) {
 	}
 }
 
-func TestHandlePollJob_ReturnsEvidenceMode(t *testing.T) {
+func TestHandlePollJob_ReturnsToolServerConfig(t *testing.T) {
 	t.Parallel()
 
 	repo := &handlerRepo{
@@ -75,7 +75,6 @@ func TestHandlePollJob_ReturnsEvidenceMode(t *testing.T) {
 			ConfigJSON: json.RawMessage(`{
 				"scenarios":["s1"],
 				"runner_id":"runner-1",
-				"evidence_mode":"mcp",
 				"execution_mode":"a2a",
 				"mcp_server":"npx -y @vendor/kubernetes-mcp --stdio",
 				"tool_server":"kubernetes-mcp",
@@ -102,9 +101,6 @@ func TestHandlePollJob_ReturnsEvidenceMode(t *testing.T) {
 	if resp["provider"] != "bifrost" {
 		t.Fatalf("provider = %v, want bifrost", resp["provider"])
 	}
-	if resp["evidence_mode"] != "mcp" {
-		t.Fatalf("evidence_mode = %v, want mcp", resp["evidence_mode"])
-	}
 	if resp["execution_mode"] != "a2a" {
 		t.Fatalf("execution_mode = %v, want a2a", resp["execution_mode"])
 	}
@@ -119,7 +115,7 @@ func TestHandlePollJob_ReturnsEvidenceMode(t *testing.T) {
 	}
 }
 
-func TestHandlePollJob_DefaultsEvidenceModeForLegacyJobs(t *testing.T) {
+func TestHandlePollJob_DefaultsExecutionModeForMinimalJobs(t *testing.T) {
 	t.Parallel()
 
 	repo := &handlerRepo{
@@ -146,9 +142,6 @@ func TestHandlePollJob_DefaultsEvidenceModeForLegacyJobs(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("unmarshal response: %v", err)
 	}
-	if resp["evidence_mode"] != "none" {
-		t.Fatalf("evidence_mode = %v, want none", resp["evidence_mode"])
-	}
 	if resp["execution_mode"] != "provider" {
 		t.Fatalf("execution_mode = %v, want provider", resp["execution_mode"])
 	}
@@ -163,7 +156,7 @@ func TestHandlePollJob_RejectsMalformedConfigJSON(t *testing.T) {
 	}{
 		{
 			name:       "malformed config json",
-			configJSON: `{"scenarios":["s1"],"evidence_mode":`,
+			configJSON: `{"scenarios":["s1"],"execution_mode":`,
 		},
 	}
 

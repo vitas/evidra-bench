@@ -52,7 +52,6 @@ Request:
     "timeout_per_scenario": 300,
     "adapter": "a2a",
     "a2a_agent_url": "http://agent:8080",
-    "evidence_mode": "mcp",
     "mcp_server": "npx -y @vendor/kubernetes-mcp --stdio",
     "tool_server": "kubernetes-mcp",
     "tool_server_version": "1.2.3"
@@ -77,7 +76,6 @@ Fields:
 | `config.timeout_per_scenario` | no | Timeout per scenario in seconds |
 | `config.adapter` | no | `provider`, `a2a`, `cli`, or `mcp` depending on executor support |
 | `config.a2a_agent_url` | no | A2A endpoint when `adapter=a2a` |
-| `config.evidence_mode` | no | Legacy coarse mode, `none` or `mcp`; derive from `tool_server` when absent |
 | `config.mcp_server` | no | Executable MCP server command |
 | `config.tool_server` | no | Stable MCP server identity for filtering/comparison |
 | `config.tool_server_version` | no | Stable MCP server version for reports |
@@ -158,7 +156,6 @@ Content-Type: application/json
   "model": "sonnet",
   "provider": "anthropic",
   "adapter": "a2a",
-  "evidence_mode": "mcp",
   "tool_server": "kubernetes-mcp",
   "tool_server_version": "1.2.3",
   "passed": true,

@@ -55,10 +55,6 @@ func parseFloatMeta(meta map[string]string, key string) float64 {
 }
 
 func resolveToolServerIdentity(cfg config.Config) (string, string) {
-	if config.IsSupportedEvidenceMode(cfg.EvidenceMode) {
-		cfg = config.ApplyEvidenceMode(cfg, cfg.EvidenceMode)
-	}
-
 	id := strings.TrimSpace(cfg.ToolServerID)
 	if id == "" {
 		id = inferToolServerID(cfg.MCPServer)

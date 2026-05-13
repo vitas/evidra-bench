@@ -27,7 +27,7 @@ func TestHandleTrigger_ValidRequest_Returns202(t *testing.T) {
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"test-model","evidence_mode":"mcp","scenarios":["s1","s2"]}`
+	body := `{"model":"test-model","scenarios":["s1","s2"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
@@ -52,24 +52,18 @@ func TestHandleTrigger_ValidRequest_Returns202(t *testing.T) {
 	if stored == nil {
 		t.Fatal("stored trigger job missing")
 	}
-	if stored.EvidenceMode != "mcp" {
-		t.Fatalf("stored evidence mode = %q, want mcp", stored.EvidenceMode)
-	}
 	if stored.ExecutionMode != "provider" {
 		t.Fatalf("stored execution mode = %q, want provider", stored.ExecutionMode)
 	}
 	if spy.job == nil {
 		t.Fatal("executor job missing")
 	}
-	if spy.job.EvidenceMode != "mcp" {
-		t.Fatalf("job evidence mode = %q, want mcp", spy.job.EvidenceMode)
-	}
 	if spy.job.ExecutionMode != "provider" {
 		t.Fatalf("job execution mode = %q, want provider", spy.job.ExecutionMode)
 	}
 }
 
-func TestHandleTrigger_ValidRequest_Returns202_WithEvidenceModeNone(t *testing.T) {
+func TestHandleTrigger_ValidRequest_Returns202_WithDefaultExecutionMode(t *testing.T) {
 	t.Parallel()
 
 	store := NewTriggerStore()
@@ -87,7 +81,7 @@ func TestHandleTrigger_ValidRequest_Returns202_WithEvidenceModeNone(t *testing.T
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"sonnet","evidence_mode":"none","scenarios":["s1","s2"]}`
+	body := `{"model":"sonnet","scenarios":["s1","s2"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
@@ -109,15 +103,12 @@ func TestHandleTrigger_ValidRequest_Returns202_WithEvidenceModeNone(t *testing.T
 	if stored == nil {
 		t.Fatal("stored trigger job missing")
 	}
-	if stored.EvidenceMode != "none" {
-		t.Fatalf("stored evidence mode = %q, want none", stored.EvidenceMode)
-	}
 	if stored.ExecutionMode != "provider" {
 		t.Fatalf("stored execution mode = %q, want provider", stored.ExecutionMode)
 	}
 }
 
-func TestHandleTrigger_InfersMCPModeFromToolServer(t *testing.T) {
+func TestHandleTrigger_StoresToolServerIdentity(t *testing.T) {
 	t.Parallel()
 
 	store := NewTriggerStore()
@@ -157,11 +148,11 @@ func TestHandleTrigger_InfersMCPModeFromToolServer(t *testing.T) {
 	if stored == nil {
 		t.Fatal("stored trigger job missing")
 	}
-	if stored.EvidenceMode != "mcp" {
-		t.Fatalf("stored evidence mode = %q, want mcp", stored.EvidenceMode)
+	if stored.ToolServer != "kubernetes-mcp" {
+		t.Fatalf("stored tool server = %q, want kubernetes-mcp", stored.ToolServer)
 	}
-	if spy.job == nil || spy.job.EvidenceMode != "mcp" {
-		t.Fatalf("executor job evidence mode = %v, want mcp", spy.job)
+	if spy.job == nil || spy.job.ToolServer != "kubernetes-mcp" {
+		t.Fatalf("executor job tool server = %v, want kubernetes-mcp", spy.job)
 	}
 }
 
@@ -183,7 +174,7 @@ func TestHandleTrigger_ValidRequest_Returns202_WithExecutionModeA2A(t *testing.T
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"sonnet","execution_mode":"a2a","evidence_mode":"mcp","scenarios":["s1","s2"]}`
+	body := `{"model":"sonnet","execution_mode":"a2a","scenarios":["s1","s2"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)

@@ -61,7 +61,7 @@ test("toolServerRunsPagePath links baseline and candidate run slices", () => {
       toolServer: "kubernetes-mcp",
       toolServerVersion: "1.2.3",
     }),
-    "/bench/runs?scenario=resource+pressure&model=qwen-plus&evidence_mode=none",
+    "/bench/runs?scenario=resource+pressure&model=qwen-plus&tool_server_unset=true",
   );
 
   assert.equal(
@@ -72,6 +72,6 @@ test("toolServerRunsPagePath links baseline and candidate run slices", () => {
       toolServer: "kubernetes-mcp",
       toolServerVersion: "1.2.3",
     }),
-    "/bench/runs?scenario=resource+pressure&model=qwen-plus&evidence_mode=mcp&tool_server=kubernetes-mcp&tool_server_version=1.2.3",
+    "/bench/runs?scenario=resource+pressure&model=qwen-plus&tool_server=kubernetes-mcp&tool_server_version=1.2.3",
   );
 });

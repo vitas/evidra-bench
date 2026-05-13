@@ -50,7 +50,6 @@ func TestFoldedBaselineMigrationContainsFinalBenchSchema(t *testing.T) {
 		"CREATE TABLE IF NOT EXISTS bench_jobs",
 		"last_progress_at TIMESTAMPTZ",
 		"CREATE TABLE IF NOT EXISTS bench_runs",
-		"evidence_mode TEXT NOT NULL DEFAULT 'none'",
 		"archived_at TIMESTAMPTZ",
 		"tool_server TEXT NOT NULL DEFAULT ''",
 		"tool_server_version TEXT NOT NULL DEFAULT ''",
@@ -72,36 +71,6 @@ func TestFoldedBaselineMigrationContainsFinalBenchSchema(t *testing.T) {
 	} {
 		if !strings.Contains(sql, want) {
 			t.Fatalf("folded baseline is missing %q", want)
-		}
-	}
-}
-
-func TestBackfillToolServerSQLMarksLegacyMCPRows(t *testing.T) {
-	t.Parallel()
-
-	for _, want := range []string{
-		"UPDATE bench_runs",
-		"evidence_mode = 'mcp'",
-		"tool_server = ''",
-		"legacy-mcp",
-		"metadata_json->>'tool_server'",
-		"metadata_json->>'tool_server_version'",
-	} {
-		if !strings.Contains(backfillToolServerSQL, want) {
-			t.Fatalf("backfill SQL is missing %q", want)
-		}
-	}
-}
-
-func TestEnsureToolServerIndexSQLIsIdempotent(t *testing.T) {
-	t.Parallel()
-
-	for _, want := range []string{
-		"CREATE INDEX IF NOT EXISTS idx_bench_runs_tool_server",
-		"bench_runs(tenant_id, tool_server)",
-	} {
-		if !strings.Contains(ensureToolServerIndexSQL, want) {
-			t.Fatalf("index SQL is missing %q", want)
 		}
 	}
 }

@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { evidenceModeParam } from "../../lib/catalogData.mts";
-import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 /* ── Types ── */
 
@@ -95,16 +93,15 @@ function computeGroup(runs: Run[], withSkill: boolean) {
 export function SkillImpact() {
   usePageTitle("Skill Impact");
   const { request } = useApi();
-  const { mode } = useEvidenceMode();
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    request<RunsResponse>(`/v1/bench/runs?limit=1000${evidenceModeParam("&", mode)}`)
+    request<RunsResponse>("/v1/bench/runs?limit=1000")
       .then((res) => setRuns(res.runs ?? []))
       .catch(() => setRuns([]))
       .finally(() => setLoading(false));
-  }, [request, mode]);
+  }, [request]);
 
   const hasAnySkillRuns = useMemo(
     () => runs.some((r) => hasSkill(r.metadata_json)),

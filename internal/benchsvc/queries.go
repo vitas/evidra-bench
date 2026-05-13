@@ -16,7 +16,7 @@ import (
 var ErrNotFound = errors.New("not found")
 
 // runRecordColumns is the SELECT column list for RunRecord scans.
-const runRecordColumns = `id, tenant_id, scenario_id, model, provider, adapter, evidence_mode, tool_server,
+const runRecordColumns = `id, tenant_id, scenario_id, model, provider, adapter, tool_server,
 	tool_server_version, scenario_version,
 	passed, duration_seconds, exit_code, turns, memory_window,
 	prompt_tokens, completion_tokens, estimated_cost_usd,
@@ -98,7 +98,6 @@ type BenchJob struct {
 	Completed         int             `json:"completed"`
 	Passed            int             `json:"passed"`
 	Failed            int             `json:"failed"`
-	EvidenceMode      string          `json:"evidence_mode,omitempty"`
 	ToolServer        string          `json:"tool_server,omitempty"`
 	ToolServerVersion string          `json:"tool_server_version,omitempty"`
 	ErrorMessage      string          `json:"error_message,omitempty"`
@@ -111,7 +110,6 @@ type JobConfig struct {
 	Scenarios         []string `json:"scenarios"`
 	Timeout           int      `json:"timeout,omitempty"`
 	RunnerID          string   `json:"runner_id,omitempty"` // manual pinning
-	EvidenceMode      string   `json:"evidence_mode,omitempty"`
 	ExecutionMode     string   `json:"execution_mode,omitempty"`
 	MCPServer         string   `json:"mcp_server,omitempty"`
 	ToolServer        string   `json:"tool_server,omitempty"`
@@ -123,7 +121,7 @@ func scanRunRecord(row pgx.CollectableRow) (bench.RunRecord, error) {
 	var r bench.RunRecord
 	var checksJSON, metadataJSON *string
 	err := row.Scan(
-		&r.ID, &r.TenantID, &r.ScenarioID, &r.Model, &r.Provider, &r.Adapter, &r.EvidenceMode, &r.ToolServer,
+		&r.ID, &r.TenantID, &r.ScenarioID, &r.Model, &r.Provider, &r.Adapter, &r.ToolServer,
 		&r.ToolServerVersion, &r.ScenarioVersion,
 		&r.Passed, &r.Duration, &r.ExitCode, &r.Turns, &r.MemoryWindow,
 		&r.PromptTokens, &r.CompletionTokens, &r.EstimatedCost,
@@ -176,10 +174,6 @@ func buildWhere(tenantID string, f bench.RunFilters) (string, []any) {
 		args = append(args, f.ReportID)
 		clauses = append(clauses, fmt.Sprintf("metadata_json->>'report_id' = $%d", len(args)))
 	}
-	if clause, clauseArgs := evidenceModeClause(len(args)+1, f.EvidenceMode); clause != "" {
-		clauses = append(clauses, clause)
-		args = append(args, clauseArgs...)
-	}
 	if f.PassedOnly {
 		clauses = append(clauses, "passed = TRUE")
 	}
@@ -195,16 +189,6 @@ func buildWhere(tenantID string, f bench.RunFilters) (string, []any) {
 	}
 
 	return " WHERE " + strings.Join(clauses, " AND "), args
-}
-
-// evidenceModeClause returns a SQL predicate for an exact evidence_mode filter.
-func evidenceModeClause(argPos int, evidenceMode string) (string, []any) {
-	switch evidenceMode {
-	case "":
-		return "", nil
-	default:
-		return fmt.Sprintf("evidence_mode = $%d", argPos), []any{evidenceMode}
-	}
 }
 
 // nullableJSONB returns nil for empty strings (maps to SQL NULL for JSONB columns),

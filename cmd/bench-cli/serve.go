@@ -46,7 +46,6 @@ type CertifyRequest struct {
 		TimeoutPerScenario int    `json:"timeout_per_scenario,omitempty"`
 		Adapter            string `json:"adapter,omitempty"`
 		A2AAgentURL        string `json:"a2a_agent_url,omitempty"`
-		EvidenceMode       string `json:"evidence_mode,omitempty"`
 		MCPServer          string `json:"mcp_server,omitempty"`
 		ToolServer         string `json:"tool_server,omitempty"`
 		ToolServerVersion  string `json:"tool_server_version,omitempty"`
@@ -196,11 +195,6 @@ func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string
 			return
 		}
 
-		if req.Config.EvidenceMode != "" && !config.IsSupportedEvidenceMode(req.Config.EvidenceMode) {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unsupported evidence_mode"})
-			return
-		}
-
 		if req.Model == "" || len(req.Scenarios) == 0 {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "model and scenarios required"})
 			return
@@ -270,7 +264,6 @@ func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string
 			progressURL:       progressURL,
 			benchURL:          benchURL,
 			authToken:         authToken,
-			evidenceMode:      config.EffectiveEvidenceMode(runCfg),
 			adapter:           runCfg.Adapter,
 			toolServer:        runCfg.ToolServerID,
 			toolServerVersion: runCfg.ToolServerVersion,
@@ -323,7 +316,6 @@ func buildCertifyRunConfig(baseCfg config.Config, req CertifyRequest) config.Con
 	if req.Config.ToolServerVersion != "" {
 		runCfg.ToolServerVersion = req.Config.ToolServerVersion
 	}
-	runCfg = config.ApplyEvidenceMode(runCfg, req.Config.EvidenceMode)
 	return runCfg
 }
 
@@ -341,7 +333,6 @@ type benchReporter struct {
 	progressURL       string // POST progress updates here
 	benchURL          string // POST bench runs here
 	authToken         string // Bearer token for both endpoints
-	evidenceMode      string // explicit evidence mode for run submissions
 	adapter           string // configured bench execution mode
 	toolServer        string // stable MCP server identity for run submissions
 	toolServerVersion string // stable MCP server version for run submissions
@@ -415,7 +406,6 @@ func (r *benchReporter) submitBenchRun(ev orchestrator.ScenarioEvent) {
 		"model":            ev.Model,
 		"provider":         ev.Provider,
 		"adapter":          adapterName,
-		"evidence_mode":    r.evidenceMode,
 		"passed":           ev.Passed,
 		"exit_code":        ev.ExitCode,
 		"duration_seconds": ev.Duration.Seconds(),

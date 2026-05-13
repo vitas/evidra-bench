@@ -64,8 +64,8 @@ Obsidian map of content and the GitHub documentation index.
 ## Integrate Agents And Tool Servers
 
 - [Tool Server And Evidence Compatibility](TOOL_SERVER_INTEGRATION.md) -
-  generic MCP/tool-server integration, `tool_server` identity, and legacy
-  `evidence_mode` compatibility.
+  generic MCP/tool-server integration, `tool_server` identity, and optional
+  evidence-directory checks.
 - [Bench API Reference](BENCH_API_REFERENCE.md) - HTTP API reference.
 - [Executor Contract](contracts/EXECUTOR_CONTRACT_V1.md) - direct executor API.
 - [Runner Control Plane Contract](contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md)

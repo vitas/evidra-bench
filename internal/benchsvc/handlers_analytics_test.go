@@ -90,12 +90,9 @@ func TestHandleCompareModels_ReturnsComparison(t *testing.T) {
 	if cmp.Summary.SharedScenarios != 1 {
 		t.Fatalf("SharedScenarios = %d, want 1", cmp.Summary.SharedScenarios)
 	}
-	if repo.lastMode != "" {
-		t.Fatalf("evidence_mode = %q, want empty", repo.lastMode)
-	}
 }
 
-func TestHandleCompareModels_MatrixPassesEvidenceMode(t *testing.T) {
+func TestHandleCompareModels_MatrixReturnsData(t *testing.T) {
 	t.Parallel()
 
 	repo := &matrixRepo{
@@ -109,14 +106,11 @@ func TestHandleCompareModels_MatrixPassesEvidenceMode(t *testing.T) {
 	RegisterRoutes(mux, svc, passthroughAuth("tenant-a"))
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/v1/bench/compare/models?models=sonnet&scenarios=broken-deployment&evidence_mode=mcp", nil)
+	req := httptest.NewRequest("GET", "/v1/bench/compare/models?models=sonnet&scenarios=broken-deployment", nil)
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
-	}
-	if repo.lastMode != "mcp" {
-		t.Fatalf("evidence_mode = %q, want mcp", repo.lastMode)
 	}
 }
 
@@ -129,7 +123,6 @@ func TestHandleCompareToolServer_ReturnsBaselineVsSelectedVersion(t *testing.T) 
 				ID:               "baseline-s1",
 				ScenarioID:       "s1",
 				Model:            "sonnet",
-				EvidenceMode:     "none",
 				Passed:           false,
 				Turns:            10,
 				PromptTokens:     1000,
@@ -141,7 +134,6 @@ func TestHandleCompareToolServer_ReturnsBaselineVsSelectedVersion(t *testing.T) 
 				ID:                "candidate-s1",
 				ScenarioID:        "s1",
 				Model:             "sonnet",
-				EvidenceMode:      "mcp",
 				ToolServer:        "kubernetes-mcp",
 				ToolServerVersion: "1.2.3",
 				Passed:            true,
@@ -155,7 +147,6 @@ func TestHandleCompareToolServer_ReturnsBaselineVsSelectedVersion(t *testing.T) 
 				ID:               "baseline-s2",
 				ScenarioID:       "s2",
 				Model:            "sonnet",
-				EvidenceMode:     "none",
 				Passed:           true,
 				Turns:            4,
 				PromptTokens:     400,
@@ -167,7 +158,6 @@ func TestHandleCompareToolServer_ReturnsBaselineVsSelectedVersion(t *testing.T) 
 				ID:                "candidate-s2",
 				ScenarioID:        "s2",
 				Model:             "sonnet",
-				EvidenceMode:      "mcp",
 				ToolServer:        "kubernetes-mcp",
 				ToolServerVersion: "1.2.3",
 				Passed:            false,
@@ -181,18 +171,16 @@ func TestHandleCompareToolServer_ReturnsBaselineVsSelectedVersion(t *testing.T) 
 				ID:                "candidate-wrong-version",
 				ScenarioID:        "s1",
 				Model:             "sonnet",
-				EvidenceMode:      "mcp",
 				ToolServer:        "kubernetes-mcp",
 				ToolServerVersion: "2.0.0",
 				Passed:            true,
 			},
 			{
-				ID:           "candidate-wrong-model",
-				ScenarioID:   "s1",
-				Model:        "opus",
-				EvidenceMode: "mcp",
-				ToolServer:   "kubernetes-mcp",
-				Passed:       true,
+				ID:         "candidate-wrong-model",
+				ScenarioID: "s1",
+				Model:      "opus",
+				ToolServer: "kubernetes-mcp",
+				Passed:     true,
 			},
 		},
 	}
@@ -252,26 +240,24 @@ func TestHandleCompareToolServer_ReturnsBaselineVsSelectedVersion(t *testing.T) 
 	}
 }
 
-func TestHandleCompareToolServer_UsesToolServerIdentityNotEvidenceMode(t *testing.T) {
+func TestHandleCompareToolServer_UsesToolServerIdentity(t *testing.T) {
 	t.Parallel()
 
 	repo := &handlerRepo{
 		runs: []bench.RunRecord{
 			{
-				ID:           "baseline",
-				ScenarioID:   "s1",
-				Model:        "sonnet",
-				EvidenceMode: "mcp",
-				ToolServer:   "",
-				Passed:       false,
+				ID:         "baseline",
+				ScenarioID: "s1",
+				Model:      "sonnet",
+				ToolServer: "",
+				Passed:     false,
 			},
 			{
-				ID:           "candidate",
-				ScenarioID:   "s1",
-				Model:        "sonnet",
-				EvidenceMode: "none",
-				ToolServer:   "kubernetes-mcp",
-				Passed:       true,
+				ID:         "candidate",
+				ScenarioID: "s1",
+				Model:      "sonnet",
+				ToolServer: "kubernetes-mcp",
+				Passed:     true,
 			},
 		},
 	}
@@ -386,12 +372,10 @@ type compareModelsRepo struct {
 	scenarios []ScenarioModelComparison
 }
 
-func (r *compareModelsRepo) CompareModels(_ context.Context, _, _, _, evidenceMode string) ([]ScenarioModelComparison, error) {
-	r.lastMode = evidenceMode
+func (r *compareModelsRepo) CompareModels(_ context.Context, _, _, _ string) ([]ScenarioModelComparison, error) {
 	return r.scenarios, nil
 }
-func (r *compareModelsRepo) ModelMatrix(_ context.Context, _ string, _, _ []string, evidenceMode string) (*bench.ModelMatrix, error) {
-	r.lastMode = evidenceMode
+func (r *compareModelsRepo) ModelMatrix(_ context.Context, _ string, _, _ []string) (*bench.ModelMatrix, error) {
 	return nil, nil
 }
 func (r *compareModelsRepo) SignalSummary(_ context.Context, _ string, _ bench.RunFilters) (*bench.SignalAggregation, error) {
@@ -632,15 +616,13 @@ func TestHandleCompareModels_RejectsNoParams(t *testing.T) {
 // matrixRepo is a fake that returns canned ModelMatrix data.
 type matrixRepo struct {
 	handlerRepo
-	matrix   *bench.ModelMatrix
-	lastMode string
+	matrix *bench.ModelMatrix
 }
 
-func (r *matrixRepo) ModelMatrix(_ context.Context, _ string, _, _ []string, evidenceMode string) (*bench.ModelMatrix, error) {
-	r.lastMode = evidenceMode
+func (r *matrixRepo) ModelMatrix(_ context.Context, _ string, _, _ []string) (*bench.ModelMatrix, error) {
 	return r.matrix, nil
 }
-func (r *matrixRepo) CompareModels(_ context.Context, _, _, _, _ string) ([]ScenarioModelComparison, error) {
+func (r *matrixRepo) CompareModels(_ context.Context, _, _, _ string) ([]ScenarioModelComparison, error) {
 	return nil, nil
 }
 func (r *matrixRepo) SignalSummary(_ context.Context, _ string, _ bench.RunFilters) (*bench.SignalAggregation, error) {

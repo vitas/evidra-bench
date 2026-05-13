@@ -234,7 +234,7 @@ func TestPgStore_UpdateGlobalModel(t *testing.T) {
 	}
 }
 
-func TestPgStore_ModelMatrix_EvidenceModeSemantics(t *testing.T) {
+func TestPgStore_ModelMatrix_AggregatesAllRuns(t *testing.T) {
 	pool := setupTestDB(t)
 	store := NewPgStore(pool)
 	tenantID := testID("tnt")
@@ -247,7 +247,6 @@ func TestPgStore_ModelMatrix_EvidenceModeSemantics(t *testing.T) {
 			TenantID:      tenantID,
 			ScenarioID:    "broken-deployment",
 			Model:         "sonnet",
-			EvidenceMode:  "none",
 			Passed:        true,
 			Duration:      10,
 			EstimatedCost: 1.0,
@@ -258,7 +257,6 @@ func TestPgStore_ModelMatrix_EvidenceModeSemantics(t *testing.T) {
 			TenantID:      tenantID,
 			ScenarioID:    "broken-deployment",
 			Model:         "sonnet",
-			EvidenceMode:  "mcp",
 			Passed:        false,
 			Duration:      20,
 			EstimatedCost: 2.0,
@@ -269,7 +267,6 @@ func TestPgStore_ModelMatrix_EvidenceModeSemantics(t *testing.T) {
 			TenantID:      tenantID,
 			ScenarioID:    "broken-deployment",
 			Model:         "opus",
-			EvidenceMode:  "mcp",
 			Passed:        true,
 			Duration:      30,
 			EstimatedCost: 3.0,
@@ -283,28 +280,17 @@ func TestPgStore_ModelMatrix_EvidenceModeSemantics(t *testing.T) {
 		}
 	}
 
-	baseline, err := store.ModelMatrix(context.Background(), tenantID, nil, nil, "none")
+	matrix, err := store.ModelMatrix(context.Background(), tenantID, nil, nil)
 	if err != nil {
-		t.Fatalf("ModelMatrix baseline: %v", err)
+		t.Fatalf("ModelMatrix: %v", err)
 	}
-	if len(baseline.Models) != 1 || baseline.Models[0] != "sonnet" {
-		t.Fatalf("baseline models = %v, want [sonnet]", baseline.Models)
+	if len(matrix.Models) != 2 {
+		t.Fatalf("models = %v, want 2 models", matrix.Models)
 	}
-	if cell := baseline.Cells["broken-deployment"]["sonnet"]; cell.Runs != 1 || cell.Passed != 1 || cell.PassRate != 100 {
-		t.Fatalf("baseline cell = %+v, want one passed run", cell)
+	if cell := matrix.Cells["broken-deployment"]["sonnet"]; cell.Runs != 2 || cell.Passed != 1 || cell.PassRate != 50 {
+		t.Fatalf("sonnet cell = %+v, want two runs with one pass", cell)
 	}
-
-	mcp, err := store.ModelMatrix(context.Background(), tenantID, nil, nil, "mcp")
-	if err != nil {
-		t.Fatalf("ModelMatrix mcp: %v", err)
-	}
-	if len(mcp.Models) != 2 {
-		t.Fatalf("mcp models = %v, want 2 models", mcp.Models)
-	}
-	if cell := mcp.Cells["broken-deployment"]["sonnet"]; cell.Runs != 1 || cell.Passed != 0 {
-		t.Fatalf("mcp sonnet cell = %+v, want one failed mcp run", cell)
-	}
-	if cell := mcp.Cells["broken-deployment"]["opus"]; cell.Runs != 1 || cell.Passed != 1 {
-		t.Fatalf("mcp opus cell = %+v, want one passed mcp run", cell)
+	if cell := matrix.Cells["broken-deployment"]["opus"]; cell.Runs != 1 || cell.Passed != 1 {
+		t.Fatalf("opus cell = %+v, want one passed run", cell)
 	}
 }

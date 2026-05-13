@@ -125,7 +125,7 @@ func TestBuildCertifyRunConfig_A2ARequestURLOverridesBase(t *testing.T) {
 	}
 }
 
-func TestBuildCertifyRunConfig_EvidenceModeNoneClearsConflicts(t *testing.T) {
+func TestBuildCertifyRunConfig_PreservesBaseMCPServer(t *testing.T) {
 	t.Parallel()
 
 	base := config.Default()
@@ -136,45 +136,9 @@ func TestBuildCertifyRunConfig_EvidenceModeNoneClearsConflicts(t *testing.T) {
 	base.ContractVersion = "v9.9.9"
 
 	req := CertifyRequest{Model: "sonnet"}
-	req.Config.EvidenceMode = "none"
 
 	got := buildCertifyRunConfig(base, req)
 
-	if got.EvidenceMode != "none" {
-		t.Fatalf("EvidenceMode = %q, want none", got.EvidenceMode)
-	}
-	if got.MCPServer != "" {
-		t.Fatalf("MCPServer = %q, want empty", got.MCPServer)
-	}
-	if got.SystemPromptFile != "" {
-		t.Fatalf("SystemPromptFile = %q, want empty", got.SystemPromptFile)
-	}
-	if got.Role != "" {
-		t.Fatalf("Role = %q, want empty", got.Role)
-	}
-	if got.ContractVersion != "" {
-		t.Fatalf("ContractVersion = %q, want empty", got.ContractVersion)
-	}
-}
-
-func TestBuildCertifyRunConfig_EvidenceModeMCPPreservesGenericMCPServer(t *testing.T) {
-	t.Parallel()
-
-	base := config.Default()
-	base.Provider = "claude"
-	base.MCPServer = "sample-mcp --stdio"
-	base.SystemPromptFile = "/tmp/system-prompt.md"
-	base.Role = "platform-eng"
-	base.ContractVersion = "v9.9.9"
-
-	req := CertifyRequest{Model: "sonnet"}
-	req.Config.EvidenceMode = "mcp"
-
-	got := buildCertifyRunConfig(base, req)
-
-	if got.EvidenceMode != "mcp" {
-		t.Fatalf("EvidenceMode = %q, want mcp", got.EvidenceMode)
-	}
 	if got.MCPServer != base.MCPServer {
 		t.Fatalf("MCPServer = %q, want %q", got.MCPServer, base.MCPServer)
 	}
@@ -196,7 +160,6 @@ func TestBuildCertifyRunConfig_UsesRequestMCPToolServerIdentity(t *testing.T) {
 	base.Provider = "claude"
 
 	req := CertifyRequest{Model: "sonnet"}
-	req.Config.EvidenceMode = "mcp"
 	req.Config.MCPServer = "npx -y @vendor/kubernetes-mcp --stdio"
 	req.Config.ToolServer = "kubernetes-mcp"
 	req.Config.ToolServerVersion = "1.2.3"
@@ -214,7 +177,7 @@ func TestBuildCertifyRunConfig_UsesRequestMCPToolServerIdentity(t *testing.T) {
 	}
 }
 
-func TestBuildCertifyRunConfig_EmptyEvidenceModePreservesDefaultInference(t *testing.T) {
+func TestBuildCertifyRunConfig_PreservesBaseToolConfigWhenRequestOmitsIt(t *testing.T) {
 	t.Parallel()
 
 	base := config.Default()
@@ -224,9 +187,6 @@ func TestBuildCertifyRunConfig_EmptyEvidenceModePreservesDefaultInference(t *tes
 
 	got := buildCertifyRunConfig(base, CertifyRequest{Model: "sonnet"})
 
-	if got.EvidenceMode != "" {
-		t.Fatalf("EvidenceMode = %q, want empty", got.EvidenceMode)
-	}
 	if got.MCPServer != base.MCPServer {
 		t.Fatalf("MCPServer = %q, want %q", got.MCPServer, base.MCPServer)
 	}

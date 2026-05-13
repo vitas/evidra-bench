@@ -2,8 +2,6 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
-import { evidenceModeParam } from "../../lib/catalogData.mts";
-import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 import type { AutopsyReport } from "../../lib/autopsyView.mts";
 import { normalizeAutopsyReport } from "../../lib/autopsyView.mts";
 
@@ -151,7 +149,6 @@ export function RunDetail() {
   const { id } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const { request } = useApi();
-  const { mode } = useEvidenceMode();
   usePageTitle(id ? `Run ${id}` : "Run Detail");
 
   const [run, setRun] = useState<RunRecord | null>(null);
@@ -198,17 +195,17 @@ export function RunDetail() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    request<RunRecord>(`/v1/bench/runs/${id}${evidenceModeParam("?", mode)}`)
+    request<RunRecord>(`/v1/bench/runs/${id}`)
       .then(setRun)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [id, request, mode]);
+  }, [id, request]);
 
   // Fetch transcript on tab switch
   useEffect(() => {
     if (activeTab !== "transcript" || transcript !== null || transcriptLoading || !id) return;
     setTranscriptLoading(true);
-    fetchApi(`/v1/bench/runs/${id}/transcript${evidenceModeParam("?", mode)}`)
+    fetchApi(`/v1/bench/runs/${id}/transcript`)
       .then((res) => {
         if (!res.ok) throw new Error(res.statusText);
         return res.text();
@@ -216,13 +213,13 @@ export function RunDetail() {
       .then(setTranscript)
       .catch((err) => setTranscriptError(err.message))
       .finally(() => setTranscriptLoading(false));
-  }, [activeTab, transcript, transcriptLoading, id, mode]);
+  }, [activeTab, transcript, transcriptLoading, id]);
 
   // Fetch tool calls on tab switch
   useEffect(() => {
     if (activeTab !== "tool-calls" || toolCalls !== null || toolCallsLoading || !id) return;
     setToolCallsLoading(true);
-    fetchApi(`/v1/bench/runs/${id}/tool-calls${evidenceModeParam("?", mode)}`)
+    fetchApi(`/v1/bench/runs/${id}/tool-calls`)
       .then((res) => {
         if (!res.ok) {
           if (res.status === 404) return null;
@@ -244,13 +241,13 @@ export function RunDetail() {
       })
       .catch((err) => setToolCallsError(err.message))
       .finally(() => setToolCallsLoading(false));
-  }, [activeTab, toolCalls, toolCallsLoading, id, mode]);
+  }, [activeTab, toolCalls, toolCallsLoading, id]);
 
   // Fetch scorecard on tab switch
   useEffect(() => {
     if (activeTab !== "scorecard" || scorecard !== null || scorecardError !== null || scorecardLoading || !id) return;
     setScorecardLoading(true);
-    fetchApi(`/v1/bench/runs/${id}/scorecard${evidenceModeParam("?", mode)}`)
+    fetchApi(`/v1/bench/runs/${id}/scorecard`)
       .then((res) => {
         if (res.status === 404) {
           setScorecardError("not-found");
@@ -264,13 +261,13 @@ export function RunDetail() {
       })
       .catch((err) => setScorecardError(err.message))
       .finally(() => setScorecardLoading(false));
-  }, [activeTab, scorecard, scorecardError, scorecardLoading, id, mode]);
+  }, [activeTab, scorecard, scorecardError, scorecardLoading, id]);
 
   // Fetch timeline on tab switch
   useEffect(() => {
     if (activeTab !== "timeline" || timeline !== null || timelineError !== null || timelineLoading || !id) return;
     setTimelineLoading(true);
-    fetchApi(`/v1/bench/runs/${id}/timeline${evidenceModeParam("?", mode)}`)
+    fetchApi(`/v1/bench/runs/${id}/timeline`)
       .then((res) => {
         if (res.status === 404) {
           setTimelineError("not-found");
@@ -284,13 +281,13 @@ export function RunDetail() {
       })
       .catch((err) => setTimelineError(err.message))
       .finally(() => setTimelineLoading(false));
-  }, [activeTab, timeline, timelineError, timelineLoading, id, mode]);
+  }, [activeTab, timeline, timelineError, timelineLoading, id]);
 
   // Fetch failure autopsy on tab switch
   useEffect(() => {
     if (activeTab !== "autopsy" || autopsy !== null || autopsyError !== null || autopsyLoading || !id) return;
     setAutopsyLoading(true);
-    fetchApi(`/v1/bench/runs/${id}/autopsy${evidenceModeParam("?", mode)}`)
+    fetchApi(`/v1/bench/runs/${id}/autopsy`)
       .then((res) => {
         if (res.status === 404) {
           setAutopsyError("not-found");
@@ -304,7 +301,7 @@ export function RunDetail() {
       })
       .catch((err) => setAutopsyError(err.message))
       .finally(() => setAutopsyLoading(false));
-  }, [activeTab, autopsy, autopsyError, autopsyLoading, id, mode]);
+  }, [activeTab, autopsy, autopsyError, autopsyLoading, id]);
 
   if (loading) {
     return (

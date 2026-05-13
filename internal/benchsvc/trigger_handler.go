@@ -50,7 +50,6 @@ func handleTrigger(svc *Service, store *TriggerStore, executor RunExecutor) http
 			Status:            "pending",
 			Model:             req.Model,
 			Provider:          provider,
-			EvidenceMode:      req.EvidenceMode,
 			ExecutionMode:     req.ExecutionMode,
 			MCPServer:         req.MCPServer,
 			ToolServer:        req.ToolServer,
@@ -98,12 +97,6 @@ func decodeTriggerRequest(w http.ResponseWriter, r *http.Request) (TriggerReques
 		apiutil.WriteError(w, http.StatusBadRequest, "scenarios is required")
 		return TriggerRequest{}, false
 	}
-	evidenceMode, validEvidenceMode := normalizeTriggerEvidenceMode(req)
-	if !validEvidenceMode {
-		apiutil.WriteError(w, http.StatusBadRequest, "evidence_mode must be none or mcp")
-		return TriggerRequest{}, false
-	}
-	req.EvidenceMode = evidenceMode
 	var ok bool
 	req.ExecutionMode, ok = normalizeTriggerExecutionMode(req.ExecutionMode)
 	if !ok {
@@ -111,21 +104,6 @@ func decodeTriggerRequest(w http.ResponseWriter, r *http.Request) (TriggerReques
 		return TriggerRequest{}, false
 	}
 	return req, true
-}
-
-func isSupportedTriggerEvidenceMode(mode string) bool {
-	return mode == "none" || mode == "mcp"
-}
-
-func normalizeTriggerEvidenceMode(req TriggerRequest) (string, bool) {
-	switch {
-	case req.EvidenceMode != "":
-		return req.EvidenceMode, isSupportedTriggerEvidenceMode(req.EvidenceMode)
-	case req.MCPServer != "" || req.ToolServer != "":
-		return "mcp", true
-	default:
-		return "none", true
-	}
 }
 
 func normalizeTriggerExecutionMode(mode string) (string, bool) {
@@ -250,7 +228,6 @@ func enqueueRunnerTrigger(ctx context.Context, svc *Service, store *TriggerStore
 	cfg := JobConfig{
 		Scenarios:         req.Scenarios,
 		RunnerID:          req.RunnerID,
-		EvidenceMode:      req.EvidenceMode,
 		ExecutionMode:     req.ExecutionMode,
 		MCPServer:         req.MCPServer,
 		ToolServer:        req.ToolServer,
@@ -269,7 +246,6 @@ func enqueueRunnerTrigger(ctx context.Context, svc *Service, store *TriggerStore
 		Status:            "pending",
 		Model:             req.Model,
 		Provider:          provider,
-		EvidenceMode:      req.EvidenceMode,
 		ExecutionMode:     req.ExecutionMode,
 		MCPServer:         req.MCPServer,
 		ToolServer:        req.ToolServer,

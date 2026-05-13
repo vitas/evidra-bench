@@ -1,8 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { SCENARIOS, CATEGORY_LABELS, TRACK_LABELS, type ScenarioMeta } from "../data/catalog";
 import { CATEGORY_COLORS, DIFFICULTY_COLORS, LEVEL_COLORS } from "../data/colors";
-import { useEvidenceMode } from "../hooks/useEvidenceMode";
-import { buildBenchCommand, EVIDENCE_MODES } from "../lib/commandBuilder.mts";
+import { buildBenchCommand, TOOL_BACKENDS, type ToolBackendId } from "../lib/commandBuilder.mts";
 import { useModels } from "../hooks/useModels";
 
 type Category = "all" | ScenarioMeta["category"];
@@ -36,7 +35,7 @@ export function Run() {
   const [track, setTrack] = useState<Track>("all");
   const { models, loading: modelsLoading } = useModels();
   const [selectedModel, setSelectedModel] = useState("");
-  const { mode, setMode } = useEvidenceMode();
+  const [toolBackend, setToolBackend] = useState<ToolBackendId>("baseline");
   const [copied, setCopied] = useState(false);
 
   const filtered = useMemo(() => {
@@ -90,9 +89,9 @@ export function Run() {
     return buildBenchCommand({
       scenarios: [...selectedIds],
       model: selectedModel,
-      evidenceMode: mode === "mcp" ? "mcp" : "baseline",
+      toolBackend,
     });
-  }, [selectedIds, selectedModel, mode]);
+  }, [selectedIds, selectedModel, toolBackend]);
 
   const handleCopy = useCallback(() => {
     if (!command) return;
@@ -292,29 +291,27 @@ export function Run() {
             )}
           </div>
 
-          {/* Evidence mode */}
+          {/* Tool backend */}
           <div className="glass-card p-4">
             <label className="text-[0.72rem] font-semibold uppercase tracking-wider text-fg-muted mb-2.5 block">
-              Evidence Mode
+              Tool Backend
             </label>
             <div className="flex gap-2">
-              {EVIDENCE_MODES.map((evidenceMode) => {
-                const isSelected =
-                  (mode === "none" && evidenceMode.id === "baseline") ||
-                  (mode === "mcp" && evidenceMode.id === "mcp");
+              {TOOL_BACKENDS.map((backend) => {
+                const isSelected = toolBackend === backend.id;
                 return (
                   <button
-                    key={evidenceMode.id}
-                    onClick={() => setMode(evidenceMode.id === "baseline" ? "none" : "mcp")}
+                    key={backend.id}
+                    onClick={() => setToolBackend(backend.id)}
                     className={`flex-1 px-3 py-2 rounded-md border text-[0.78rem] font-medium transition-all ${
                       isSelected
                         ? "border-accent bg-accent/10 text-fg"
                         : "border-border text-fg-muted hover:border-accent/50"
                     }`}
                   >
-                    {evidenceMode.label}
+                    {backend.label}
                     <span className="block text-[0.65rem] font-normal text-fg-muted">
-                      {evidenceMode.description}
+                      {backend.description}
                     </span>
                   </button>
                 );

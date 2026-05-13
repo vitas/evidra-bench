@@ -7,9 +7,7 @@ import (
 
 // CompareModels returns per-scenario stats for two models side-by-side.
 // Single query with conditional aggregation.
-func (s *PgStore) CompareModels(ctx context.Context, tenantID, modelA, modelB, evidenceMode string) ([]ScenarioModelComparison, error) {
-	evidenceClause, evidenceArgs := evidenceModeClause(4, evidenceMode)
-
+func (s *PgStore) CompareModels(ctx context.Context, tenantID, modelA, modelB string) ([]ScenarioModelComparison, error) {
 	query := `
 		SELECT scenario_id,
 			COALESCE(100.0 * SUM(CASE WHEN model = $2 AND passed THEN 1 ELSE 0 END) /
@@ -21,11 +19,7 @@ func (s *PgStore) CompareModels(ctx context.Context, tenantID, modelA, modelB, e
 			COALESCE(AVG(CASE WHEN model = $2 THEN estimated_cost_usd END), 0) AS a_cost,
 			COALESCE(AVG(CASE WHEN model = $3 THEN estimated_cost_usd END), 0) AS b_cost
 		FROM bench_runs
-		WHERE tenant_id = $1 AND archived_at IS NULL`
-	if evidenceClause != "" {
-		query += " AND " + evidenceClause
-	}
-	query += `
+		WHERE tenant_id = $1 AND archived_at IS NULL
 			AND model IN ($2, $3)
 		GROUP BY scenario_id
 		HAVING SUM(CASE WHEN model = $2 THEN 1 ELSE 0 END) > 0
@@ -33,7 +27,6 @@ func (s *PgStore) CompareModels(ctx context.Context, tenantID, modelA, modelB, e
 		ORDER BY scenario_id`
 
 	args := []any{tenantID, modelA, modelB}
-	args = append(args, evidenceArgs...)
 
 	rows, err := s.db.Query(ctx, query, args...)
 	if err != nil {

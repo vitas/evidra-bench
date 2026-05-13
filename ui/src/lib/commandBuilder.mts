@@ -1,7 +1,7 @@
-export type EvidenceModeId = "baseline" | "mcp";
+export type ToolBackendId = "baseline" | "mcp";
 
-export const EVIDENCE_MODES: Array<{
-  id: EvidenceModeId;
+export const TOOL_BACKENDS: Array<{
+  id: ToolBackendId;
   label: string;
   description: string;
 }> = [
@@ -17,8 +17,8 @@ export const EVIDENCE_MODES: Array<{
   },
 ];
 
-function evidenceFlags(evidenceMode: EvidenceModeId): string[] {
-  if (evidenceMode === "mcp") {
+function toolBackendFlags(toolBackend: ToolBackendId): string[] {
+  if (toolBackend === "mcp") {
     return [
       '--mcp-server "$MCP_SERVER"',
       '--tool-server-id "$TOOL_SERVER_ID"',
@@ -31,14 +31,14 @@ function evidenceFlags(evidenceMode: EvidenceModeId): string[] {
 export function buildBenchCommand(input: {
   scenarios: string[];
   model: string;
-  evidenceMode: EvidenceModeId;
+  toolBackend: ToolBackendId;
 }): string {
   const lines = [
     "bench-cli bench \\",
     ...input.scenarios.map((scenario) => `  --scenario ${scenario} \\`),
     `  --model ${input.model} \\`,
     "  --provider bifrost \\",
-    ...evidenceFlags(input.evidenceMode).map((flag) => `  ${flag} \\`),
+    ...toolBackendFlags(input.toolBackend).map((flag) => `  ${flag} \\`),
     "  --reuse-cluster \\",
     "  --timeout 5m \\",
     "  --bench-url $BENCH_API_URL \\",
@@ -50,14 +50,14 @@ export function buildBenchCommand(input: {
 export function buildRunCommand(input: {
   scenario: string;
   model: string;
-  evidenceMode: EvidenceModeId;
+  toolBackend: ToolBackendId;
 }): string {
   const lines = [
     "bench-cli run",
     `--scenario ${input.scenario}`,
     `--model ${input.model}`,
     "--provider bifrost",
-    ...evidenceFlags(input.evidenceMode),
+    ...toolBackendFlags(input.toolBackend),
     "--reuse-cluster",
     "--timeout 5m",
     "--bench-url $BENCH_API_URL",

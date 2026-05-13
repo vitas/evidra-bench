@@ -258,7 +258,7 @@ func TestInsertAndQuery_PersistsMetadataJSONAndEstimatedCost(t *testing.T) {
 	}
 }
 
-func TestInsertAndQuery_PreservesEvidenceAndToolServerIdentity(t *testing.T) {
+func TestInsertAndQuery_PreservesToolServerIdentity(t *testing.T) {
 	t.Parallel()
 
 	s := testStore(t)
@@ -267,7 +267,6 @@ func TestInsertAndQuery_PreservesEvidenceAndToolServerIdentity(t *testing.T) {
 	rec := RunRecord{
 		ID:                "run-tool-server",
 		ScenarioID:        "s1",
-		EvidenceMode:      "mcp",
 		ToolServer:        "kubernetes-mcp",
 		ToolServerVersion: "1.2.3",
 		CreatedAt:         now,
@@ -282,9 +281,6 @@ func TestInsertAndQuery_PreservesEvidenceAndToolServerIdentity(t *testing.T) {
 	}
 	if len(runs) != 1 {
 		t.Fatalf("expected 1 run, got %d", len(runs))
-	}
-	if runs[0].EvidenceMode != "mcp" {
-		t.Fatalf("evidence_mode = %q, want mcp", runs[0].EvidenceMode)
 	}
 	if runs[0].ToolServer != "kubernetes-mcp" {
 		t.Fatalf("tool_server = %q, want kubernetes-mcp", runs[0].ToolServer)
@@ -306,7 +302,6 @@ func TestRebuild_PreservesToolServerIdentity(t *testing.T) {
 	mustInsert(t, s, RunRecord{
 		ID:                "run-tool-server",
 		ScenarioID:        "s1",
-		EvidenceMode:      "mcp",
 		ToolServer:        "kubernetes-mcp",
 		ToolServerVersion: "1.2.3",
 		CreatedAt:         time.Now().UTC(),
@@ -365,7 +360,6 @@ func TestImportFromArtifacts_PreservesToolServerIdentity(t *testing.T) {
 		"passed": true,
 		"checks": {"checks":[{"verdict":"pass"}]},
 		"metadata": {
-			"evidence_mode": "mcp",
 			"tool_server": "kubernetes-mcp",
 			"tool_server_version": "1.2.3"
 		}

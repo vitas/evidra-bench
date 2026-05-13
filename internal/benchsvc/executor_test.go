@@ -14,13 +14,12 @@ func TestTriggerStore_CreateAndGet(t *testing.T) {
 	store := NewTriggerStore()
 
 	job := &TriggerJob{
-		ID:           "job-001",
-		Status:       "pending",
-		Model:        "sonnet-4",
-		Provider:     "anthropic",
-		EvidenceMode: "mcp",
-		Total:        2,
-		CreatedAt:    time.Now(),
+		ID:        "job-001",
+		Status:    "pending",
+		Model:     "sonnet-4",
+		Provider:  "anthropic",
+		Total:     2,
+		CreatedAt: time.Now(),
 		Progress: []ScenarioProgress{
 			{Scenario: "cka-01", Status: "pending"},
 			{Scenario: "cka-02", Status: "pending"},
@@ -35,9 +34,6 @@ func TestTriggerStore_CreateAndGet(t *testing.T) {
 	}
 	if got.Model != "sonnet-4" {
 		t.Errorf("model = %q, want %q", got.Model, "sonnet-4")
-	}
-	if got.EvidenceMode != "mcp" {
-		t.Errorf("evidence_mode = %q, want mcp", got.EvidenceMode)
 	}
 	if got.Total != 2 {
 		t.Errorf("total = %d, want 2", got.Total)
@@ -130,7 +126,7 @@ func TestTriggerStore_UpdateNotifiesSubscriber(t *testing.T) {
 	}
 }
 
-func TestRemoteExecutor_StartSendsEvidenceMode(t *testing.T) {
+func TestRemoteExecutor_StartSendsToolServerConfig(t *testing.T) {
 	t.Parallel()
 
 	var payload map[string]any
@@ -154,7 +150,6 @@ func TestRemoteExecutor_StartSendsEvidenceMode(t *testing.T) {
 		Status:            "pending",
 		Model:             "sonnet",
 		Provider:          "bifrost",
-		EvidenceMode:      "mcp",
 		MCPServer:         "npx -y @vendor/kubernetes-mcp --stdio",
 		ToolServer:        "kubernetes-mcp",
 		ToolServerVersion: "1.2.3",
@@ -173,8 +168,9 @@ func TestRemoteExecutor_StartSendsEvidenceMode(t *testing.T) {
 	if !ok {
 		t.Fatalf("config missing or wrong type: %#v", payload["config"])
 	}
-	if got := cfg["evidence_mode"]; got != "mcp" {
-		t.Fatalf("evidence_mode = %v, want mcp", got)
+	legacyModeKey := "evidence" + "_mode"
+	if _, ok := cfg[legacyModeKey]; ok {
+		t.Fatalf("unexpected legacy mode in config: %#v", cfg)
 	}
 	if got := cfg["mcp_server"]; got != "npx -y @vendor/kubernetes-mcp --stdio" {
 		t.Fatalf("mcp_server = %v, want command", got)
@@ -215,7 +211,6 @@ func TestRemoteExecutor_StartSendsA2AAdapterForA2AExecutionMode(t *testing.T) {
 		Status:        "pending",
 		Model:         "sonnet",
 		Provider:      "bifrost",
-		EvidenceMode:  "mcp",
 		ExecutionMode: "a2a",
 		Total:         1,
 		Progress: []ScenarioProgress{
@@ -255,7 +250,6 @@ func TestRemoteExecutor_StartOmitsAdapterForProviderExecutionMode(t *testing.T) 
 		Status:        "pending",
 		Model:         "sonnet",
 		Provider:      "bifrost",
-		EvidenceMode:  "mcp",
 		ExecutionMode: "provider",
 		Total:         1,
 		Progress: []ScenarioProgress{

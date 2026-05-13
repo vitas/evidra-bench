@@ -77,9 +77,6 @@ func (h *Harness) runWithA2A(ctx context.Context, req RunRequest, s *scenario.Sc
 
 func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenario.Scenario, kubeconfigPath, promptContent string, timeout time.Duration, evidenceDir string, injectChan <-chan agent.Message, memoryResetChan <-chan int) (*adapter.RunResult, error) {
 	cfg := req.Config
-	if config.IsSupportedEvidenceMode(cfg.EvidenceMode) {
-		cfg = config.ApplyEvidenceMode(cfg, cfg.EvidenceMode)
-	}
 
 	provider, err := agent.ResolveProvider(cfg.Provider)
 	if err != nil {
@@ -175,14 +172,9 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 // buildRunMetadata creates the metadata map for a provider-path run,
 // including all version information for reproducibility.
 func buildRunMetadata(cfg config.Config, loopResult *agent.LoopResult, evidenceDir string) map[string]string {
-	if config.IsSupportedEvidenceMode(cfg.EvidenceMode) {
-		cfg = config.ApplyEvidenceMode(cfg, cfg.EvidenceMode)
-	}
-
 	meta := map[string]string{
 		"provider":          cfg.Provider,
 		"model":             cfg.Model,
-		"evidence_mode":     config.EffectiveEvidenceMode(cfg),
 		"turns":             fmt.Sprintf("%d", loopResult.Turns),
 		"memory_window":     fmt.Sprintf("%d", loopResult.MemoryWindow),
 		"prompt_tokens":     fmt.Sprintf("%d", loopResult.TotalUsage.PromptTokens),

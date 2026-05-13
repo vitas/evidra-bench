@@ -44,17 +44,16 @@ Returns `200 OK` with `{"status":"ok"}` when the HTTP process is running.
 
 ## Filters
 
-Bench list and analytics endpoints accept exact evidence-mode filters:
+Bench list and analytics endpoints use `tool_server` as the comparison axis:
 
 | Query value | Meaning |
 |---|---|
-| empty | all runs |
-| `none` | baseline runs only |
-| `mcp` | runs that used an MCP server |
+| empty `tool_server` with no `tool_server_unset` | all runs |
+| `tool_server_unset=true` | baseline/direct provider-loop runs |
+| `tool_server=<id>` | runs that used the selected external tool server |
+| `tool_server_version=<version>` | exact version slice for the selected server |
 
-`POST /v1/bench/trigger` accepts only `none` or `mcp`.
-
-MCP runs can also carry `mcp_server`, `tool_server`, and
+Tool-server runs can also carry `mcp_server`, `tool_server`, and
 `tool_server_version`. `mcp_server` is the executable command for the runner;
 `tool_server` and `tool_server_version` are stable labels used for filtering,
 comparison, and private reports.
@@ -69,7 +68,6 @@ Query parameters:
 
 | Name | Description |
 |---|---|
-| `evidence_mode` | filter using the evidence-mode contract above |
 | `k` | pass^k trial count, 1-10, default `3` |
 | `scenarios` | comma-separated scenario IDs for suite or category slices |
 
@@ -90,8 +88,7 @@ Response:
       "pass_k_trials": 3,
       "sufficient_scenarios": 28
     }
-  ],
-  "evidence_mode": ""
+  ]
 }
 ```
 
@@ -137,7 +134,6 @@ artifact fields:
   "model": "sonnet",
   "provider": "anthropic",
   "adapter": "a2a",
-  "evidence_mode": "mcp",
   "tool_server": "kubernetes-mcp",
   "tool_server_version": "1.2.3",
   "passed": true,
@@ -167,10 +163,10 @@ Query parameters:
 | `model` | exact model filter |
 | `tool_server` | exact MCP tool-server identity filter |
 | `tool_server_version` | exact MCP tool-server version filter |
+| `tool_server_unset` | `true` for baseline/direct provider-loop runs where `tool_server` is empty |
 | `report_id` | exact report/campaign ID stored in run metadata |
 | `scenario` | exact scenario ID filter |
 | `scenarios` | comma-separated scenario IDs; ignored when `scenario` is set |
-| `evidence_mode` | filter using the evidence-mode contract above |
 | `since` | RFC3339 timestamp or `YYYY-MM-DD` |
 | `passed` | `true` or `false` |
 | `limit` | page size |
@@ -243,7 +239,7 @@ observed in stored runs.
 {
   "models": ["sonnet"],
   "providers": ["anthropic"],
-  "tool_servers": ["kubernetes-mcp", "legacy-mcp"],
+  "tool_servers": ["flux159-mcp-server-kubernetes", "containers-kubernetes-mcp-server"],
   "tool_server_versions": ["1.2.3"]
 }
 ```
@@ -444,16 +440,16 @@ See [Executor Contract v1.0.0](contracts/EXECUTOR_CONTRACT_V1.md) and
 
 ### POST /v1/bench/trigger
 
-Starts a benchmark run. Requires `model` and `scenarios`. `evidence_mode` is
-accepted for backward compatibility; when omitted, the service derives `mcp`
-from `mcp_server` or `tool_server`, otherwise `none`.
+Starts a benchmark run. Requires `model` and `scenarios`. Provide
+`mcp_server`, `tool_server`, and `tool_server_version` when the run should use
+an external MCP/tool server. Leave `tool_server` empty for the baseline/direct
+provider loop.
 
 ```json
 {
   "model": "sonnet",
   "provider": "anthropic",
   "execution_mode": "provider",
-  "evidence_mode": "mcp",
   "runner_id": "01K...",
   "mcp_server": "npx -y @vendor/kubernetes-mcp --stdio",
   "tool_server": "kubernetes-mcp",
@@ -487,8 +483,9 @@ Returns the in-memory trigger snapshot. Supports SSE when
   "status": "running",
   "model": "sonnet",
   "provider": "anthropic",
-  "evidence_mode": "mcp",
   "execution_mode": "provider",
+  "tool_server": "kubernetes-mcp",
+  "tool_server_version": "1.2.3",
   "completed": 1,
   "passed": 1,
   "failed": 0,
@@ -561,7 +558,6 @@ Response when a job is available:
   "job_id": "01K...",
   "model": "sonnet",
   "provider": "anthropic",
-  "evidence_mode": "mcp",
   "execution_mode": "provider",
   "mcp_server": "npx -y @vendor/kubernetes-mcp --stdio",
   "tool_server": "kubernetes-mcp",

@@ -62,17 +62,11 @@ For tool-server runs the trigger endpoint and runner config may carry:
 - `tool_server_version`: stable server version used for filtering/comparison
   and reports
 
-`evidence_mode` still exists as a legacy coarse run-record field in older API
-surfaces, but new tool-server comparisons should not depend on it. Treat it as
-a compatibility filter only:
-
-| Mode | Meaning |
-|---|---|
-| `none` | Baseline run. The harness executes built-in tools and stores normal benchmark artifacts. |
-| `mcp` | The agent used an external MCP server. The harness still verifies the final infrastructure state normally. |
-
-Legacy MCP rows with no stored server identity are backfilled as `legacy-mcp`
-so they remain visible in filters without inventing an exact server name.
+Bench does not store a coarse run mode. The source of truth is `tool_server`:
+empty means a native/direct provider-loop baseline, and non-empty means the
+named external tool server. Compare by keeping model, provider, scenario set,
+and runtime settings fixed while varying `tool_server` and
+`tool_server_version`.
 
 There are no Bench-specific MCP submodes and no reference MCP server. To test
 a tool server, pass its command through `--mcp-server` and label the tested
@@ -93,7 +87,7 @@ bench-cli run \
 ```
 
 This is compatibility behavior. Normal infrastructure checks always run
-regardless of evidence mode or evidence directory.
+regardless of tool-server identity or evidence directory.
 
 ## Comparison Pattern
 

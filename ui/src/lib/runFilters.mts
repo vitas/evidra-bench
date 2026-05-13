@@ -1,4 +1,3 @@
-import { applyEvidenceMode } from "./catalogData.mts";
 import { resolveExamPackFilter, type ExamPackFilter } from "./examPacks.mts";
 
 export type RunsStatus = "All" | "Passed" | "Failed";
@@ -10,6 +9,7 @@ export interface RunsFilterState {
   provider: string;
   toolServer: string;
   toolServerVersion: string;
+  toolServerUnset: boolean;
   status: RunsStatus;
   since: string;
 }
@@ -21,6 +21,7 @@ export const DEFAULT_RUNS_FILTERS: RunsFilterState = {
   provider: "All",
   toolServer: "All",
   toolServerVersion: "All",
+  toolServerUnset: false,
   status: "All",
   since: "",
 };
@@ -39,6 +40,7 @@ export function runsFiltersFromSearchParams(params: URLSearchParams): RunsFilter
     provider: params.get("provider") || "All",
     toolServer: params.get("tool_server") || "All",
     toolServerVersion: params.get("tool_server_version") || "All",
+    toolServerUnset: params.get("tool_server_unset") === "true",
     status: statusFromPassedParam(params.get("passed")),
     since: params.get("since") ?? "",
   };
@@ -54,6 +56,7 @@ export function runsSearchParamsFromFilters(filters: RunsFilterState): URLSearch
   if (filters.provider !== "All") params.set("provider", filters.provider);
   if (filters.toolServer !== "All") params.set("tool_server", filters.toolServer);
   if (filters.toolServerVersion !== "All") params.set("tool_server_version", filters.toolServerVersion);
+  if (filters.toolServerUnset) params.set("tool_server_unset", "true");
   if (filters.status === "Passed") params.set("passed", "true");
   if (filters.status === "Failed") params.set("passed", "false");
   if (filters.since) params.set("since", filters.since);
@@ -64,7 +67,6 @@ export function runsSearchParamsFromFilters(filters: RunsFilterState): URLSearch
 export function buildRunsAPIPath(
   filters: RunsFilterState,
   page: number,
-  mode: string | undefined,
   suiteScenarioIDs: string[],
   pageSize: number,
 ): string {
@@ -79,14 +81,17 @@ export function buildRunsAPIPath(
 
   if (filters.model !== "All") params.set("model", filters.model);
   if (filters.provider !== "All") params.set("provider", filters.provider);
-  if (filters.toolServer !== "All") params.set("tool_server", filters.toolServer);
+  if (filters.toolServerUnset) {
+    params.set("tool_server_unset", "true");
+  } else if (filters.toolServer !== "All") {
+    params.set("tool_server", filters.toolServer);
+  }
   if (filters.toolServerVersion !== "All") params.set("tool_server_version", filters.toolServerVersion);
   if (filters.status === "Passed") params.set("passed", "true");
   if (filters.status === "Failed") params.set("passed", "false");
   if (filters.since) params.set("since", filters.since);
   params.set("limit", String(pageSize));
   params.set("offset", String(page * pageSize));
-  applyEvidenceMode(params, mode);
 
   return `/v1/bench/runs?${params.toString()}`;
 }

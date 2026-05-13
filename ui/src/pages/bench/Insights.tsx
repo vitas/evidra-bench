@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { evidenceModeParam } from "../../lib/catalogData.mts";
-import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 interface FailureInsights {
   scenario_id: string;
@@ -32,7 +30,6 @@ function fmtTokens(n: number): string { return n >= 1000 ? `${(n/1000).toFixed(1
 export function Insights() {
   usePageTitle("Failure Analysis");
   const { request } = useApi();
-  const { mode } = useEvidenceMode();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [selected, setSelected] = useState("");
   const [insights, setInsights] = useState<FailureInsights | null>(null);
@@ -40,8 +37,8 @@ export function Insights() {
 
   useEffect(() => {
     Promise.all([
-      request<ScenariosResponse>(`/v1/bench/scenarios${evidenceModeParam("?", mode)}`),
-      request<{ by_scenario: { scenario_id: string; runs: number; passed: number }[] }>(`/v1/bench/stats${evidenceModeParam("?", mode)}`),
+      request<ScenariosResponse>("/v1/bench/scenarios"),
+      request<{ by_scenario: { scenario_id: string; runs: number; passed: number }[] }>("/v1/bench/stats"),
     ])
       .then(([scenariosRes, stats]) => {
         const items = scenariosRes.scenarios ?? [];
@@ -57,16 +54,16 @@ export function Insights() {
         }
       })
       .catch(() => {});
-  }, [request, mode]);
+  }, [request]);
 
   useEffect(() => {
     if (!selected) return;
     setLoading(true);
-    request<FailureInsights>(`/v1/bench/insights?scenario=${encodeURIComponent(selected)}${evidenceModeParam("&", mode)}`)
+    request<FailureInsights>(`/v1/bench/insights?scenario=${encodeURIComponent(selected)}`)
       .then(setInsights)
       .catch(() => setInsights(null))
       .finally(() => setLoading(false));
-  }, [selected, request, mode]);
+  }, [selected, request]);
 
   const failSignals = useMemo(
     () => (insights?.command_patterns ?? []).filter((c) => c.indicator === "fail_signal"),

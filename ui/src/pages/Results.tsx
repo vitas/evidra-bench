@@ -11,7 +11,6 @@ interface RunResult {
   scenario_id: string;
   model: string;
   provider: string;
-  evidence_mode: string;
   passed: boolean;
   duration_seconds: number;
   turns: number;
@@ -80,11 +79,9 @@ function PassBadge({ passed }: { passed: boolean }) {
 export function Results() {
   type ExamFilter = "all" | "cka" | "cks" | "custom";
   type TimeFilter = "24h" | "7d" | "30d" | "all";
-  type EvidenceFilter = "all" | "none" | "mcp";
   const [tab, setTab] = useState<Tab>("leaderboard");
   const [examFilter, setExamFilter] = useState<ExamFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
-  const [evidenceFilter, setEvidenceFilter] = useState<EvidenceFilter>("all");
   const [runs, setRuns] = useState<RunResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,8 +99,7 @@ export function Results() {
 
   useEffect(() => {
     setLoading(true);
-    const modeParam = evidenceFilter !== "all" ? `&evidence_mode=${evidenceFilter}` : "";
-    fetchAPI<{ runs: RunResult[] }>(`/v1/bench/runs?limit=2000${modeParam}`)
+    fetchAPI<{ runs: RunResult[] }>("/v1/bench/runs?limit=2000")
       .then((data) => {
         // Exclude dry-run/test records (0s duration or test IDs)
         const real = (data.runs || []).filter((r) =>
@@ -114,7 +110,7 @@ export function Results() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [evidenceFilter]);
+  }, []);
 
   const filteredRuns = useMemo(() => {
     const now = Date.now();
@@ -280,27 +276,6 @@ export function Results() {
               }`}
             >
               {t === "leaderboard" ? "Leaderboard" : "Recent Runs"}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1 glass-card p-1">
-          {(
-            [
-              { key: "all" as EvidenceFilter, label: "All" },
-              { key: "none" as EvidenceFilter, label: "Baseline" },
-              { key: "mcp" as EvidenceFilter, label: "MCP" },
-            ]
-          ).map((ef) => (
-            <button
-              key={ef.key}
-              onClick={() => setEvidenceFilter(ef.key)}
-              className={`px-3 py-1.5 text-[0.75rem] font-medium rounded-md transition-colors ${
-                evidenceFilter === ef.key
-                  ? "bg-accent/15 text-accent"
-                  : "text-fg-muted hover:text-fg"
-              }`}
-            >
-              {ef.label}
             </button>
           ))}
         </div>

@@ -9,24 +9,17 @@ import (
 	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
-// Leaderboard returns aggregate stats per model, optionally filtered by evidence mode and scenario IDs.
+// Leaderboard returns aggregate stats per model, optionally filtered by scenario IDs.
 // k controls the pass^k reliability metric: only scenarios with >= k trials contribute.
-func (s *PgStore) Leaderboard(ctx context.Context, tenantID string, evidenceMode string, k int, scenarioIDs []string) ([]bench.LeaderboardEntry, error) {
+func (s *PgStore) Leaderboard(ctx context.Context, tenantID string, k int, scenarioIDs []string) ([]bench.LeaderboardEntry, error) {
 	if k < 1 {
 		k = 3
 	}
 
-	// Build the evidence mode WHERE clause using the shared alias logic.
 	argN := 2
-	modeClause := ""
 	scenarioClause := ""
 	args := []any{tenantID}
 
-	if clause, clauseArgs := evidenceModeClause(argN, evidenceMode); clause != "" {
-		modeClause = " AND " + clause
-		args = append(args, clauseArgs...)
-		argN += len(clauseArgs)
-	}
 	if len(scenarioIDs) > 0 {
 		scenarioClause = fmt.Sprintf(" AND scenario_id = ANY($%d::text[])", argN)
 		args = append(args, scenarioIDs)
@@ -48,7 +41,7 @@ func (s *PgStore) Leaderboard(ctx context.Context, tenantID string, evidenceMode
 				AVG(estimated_cost_usd) AS avg_cost,
 				SUM(estimated_cost_usd) AS total_cost
 			FROM bench_runs
-			WHERE tenant_id = $1 AND archived_at IS NULL AND exit_code >= 0%s%s
+			WHERE tenant_id = $1 AND archived_at IS NULL AND exit_code >= 0%s
 			GROUP BY model
 		),
 		-- Side CTE: per-scenario pass rates for pass^k.
@@ -57,7 +50,7 @@ func (s *PgStore) Leaderboard(ctx context.Context, tenantID string, evidenceMode
 				COUNT(*) AS trials,
 				AVG(CASE WHEN passed THEN 1.0 ELSE 0.0 END) AS pass_rate
 			FROM bench_runs
-			WHERE tenant_id = $1 AND archived_at IS NULL AND exit_code >= 0%s%s
+			WHERE tenant_id = $1 AND archived_at IS NULL AND exit_code >= 0%s
 			GROUP BY model, scenario_id
 		),
 		pass_k_agg AS (
@@ -74,7 +67,7 @@ func (s *PgStore) Leaderboard(ctx context.Context, tenantID string, evidenceMode
 		FROM run_agg r
 		LEFT JOIN pass_k_agg p ON p.model = r.model
 		ORDER BY r.pass_rate DESC, r.model
-	`, modeClause, scenarioClause, modeClause, scenarioClause, kArgN, kArgN, kArgN)
+	`, scenarioClause, scenarioClause, kArgN, kArgN, kArgN)
 
 	rows, err := s.db.Query(ctx, query, args...)
 	if err != nil {

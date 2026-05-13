@@ -156,7 +156,7 @@ Scenario YAML
 
 Stored run data includes:
 
-- model, provider, adapter, evidence mode, and tool server metadata
+- model, provider, adapter, and tool server metadata
 - pass/fail outcome and exit code
 - duration, turns, token counts, and estimated cost
 - check results

@@ -100,7 +100,6 @@ func TestServiceIngestRunBatch_PreservesToolServerIdentity(t *testing.T) {
 				ID:                "run-1",
 				ScenarioID:        "s1",
 				Model:             "m1",
-				EvidenceMode:      "mcp",
 				ToolServer:        "kubernetes-mcp",
 				ToolServerVersion: "1.2.3",
 				ScenarioVersion:   "scenario-sha",
@@ -114,16 +113,16 @@ func TestServiceIngestRunBatch_PreservesToolServerIdentity(t *testing.T) {
 		t.Fatalf("count = %d, want 1", count)
 	}
 	args := tx.execArgs[0]
-	if len(args) != 23 {
-		t.Fatalf("insert args = %d, want 23", len(args))
+	if len(args) != 22 {
+		t.Fatalf("insert args = %d, want 22", len(args))
 	}
-	if got := args[7]; got != "kubernetes-mcp" {
+	if got := args[6]; got != "kubernetes-mcp" {
 		t.Fatalf("tool_server arg = %v, want kubernetes-mcp", got)
 	}
-	if got := args[8]; got != "1.2.3" {
+	if got := args[7]; got != "1.2.3" {
 		t.Fatalf("tool_server_version arg = %v, want 1.2.3", got)
 	}
-	if got := args[9]; got != "scenario-sha" {
+	if got := args[8]; got != "scenario-sha" {
 		t.Fatalf("scenario_version arg = %v, want scenario-sha", got)
 	}
 }

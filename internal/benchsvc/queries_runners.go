@@ -123,15 +123,10 @@ func (s *PgStore) EnqueueJob(ctx context.Context, tenantID, model, provider stri
 	if err != nil {
 		return nil, fmt.Errorf("benchsvc.EnqueueJob: marshal: %w", err)
 	}
-	evidenceMode := cfg.EvidenceMode
-	if evidenceMode == "" {
-		evidenceMode = "none"
-	}
-
 	_, err = s.db.Exec(ctx, `
-		INSERT INTO bench_jobs (id, tenant_id, model, provider, status, total, config_json, evidence_mode, tool_server, tool_server_ver)
-		VALUES ($1, $2, $3, $4, 'queued', $5, $6, $7, $8, $9)
-	`, id, tenantID, model, provider, len(cfg.Scenarios), cfgJSON, evidenceMode, cfg.ToolServer, cfg.ToolServerVersion)
+		INSERT INTO bench_jobs (id, tenant_id, model, provider, status, total, config_json, tool_server, tool_server_ver)
+		VALUES ($1, $2, $3, $4, 'queued', $5, $6, $7, $8)
+	`, id, tenantID, model, provider, len(cfg.Scenarios), cfgJSON, cfg.ToolServer, cfg.ToolServerVersion)
 	if err != nil {
 		return nil, fmt.Errorf("benchsvc.EnqueueJob: %w", err)
 	}
@@ -143,7 +138,6 @@ func (s *PgStore) EnqueueJob(ctx context.Context, tenantID, model, provider stri
 		Provider:          provider,
 		Status:            "queued",
 		Total:             len(cfg.Scenarios),
-		EvidenceMode:      evidenceMode,
 		ToolServer:        cfg.ToolServer,
 		ToolServerVersion: cfg.ToolServerVersion,
 		ConfigJSON:        cfgJSON,
@@ -172,12 +166,12 @@ func (s *PgStore) ClaimJob(ctx context.Context, tenantID, runnerID string, model
 			LIMIT 1
 		)
 		RETURNING id, tenant_id, infra_id, model, provider, status, total,
-		          completed, passed, failed, evidence_mode, tool_server, tool_server_ver,
+		          completed, passed, failed, tool_server, tool_server_ver,
 		          error_message, config_json, created_at
 	`, tenantID, models, runnerID).Scan(
 		&job.ID, &job.TenantID, &job.InfraID, &job.Model, &job.Provider,
 		&job.Status, &job.Total, &job.Completed, &job.Passed, &job.Failed,
-		&job.EvidenceMode, &job.ToolServer, &job.ToolServerVersion,
+		&job.ToolServer, &job.ToolServerVersion,
 		&job.ErrorMessage, &cfgJSON, &job.CreatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {

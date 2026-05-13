@@ -54,24 +54,12 @@ func (s *Store) ImportFromArtifacts(runsDir string) (int, error) {
 
 		checksPassed, checksTotal := countChecksFromJSON(checksJSON)
 
-		// Determine evidence mode from metadata.
-		// - Explicit evidence_mode in metadata takes priority
-		// - skill_version present → mcp (older artifacts used protocol skills)
-		// - Otherwise → none (baseline run, no evidence recording)
-		evidenceMode := "none"
-		if rj.Metadata["evidence_mode"] != "" {
-			evidenceMode = rj.Metadata["evidence_mode"]
-		} else if rj.Metadata["skill_version"] != "" {
-			evidenceMode = "mcp"
-		}
-
 		rec := RunRecord{
 			ID:                buildRunID(rj, artifactDir),
 			ScenarioID:        rj.ScenarioID,
 			Model:             rj.Metadata["model"],
 			Provider:          rj.Metadata["provider"],
 			Adapter:           rj.Adapter,
-			EvidenceMode:      evidenceMode,
 			ToolServer:        rj.Metadata["tool_server"],
 			ToolServerVersion: rj.Metadata["tool_server_version"],
 			Passed:            rj.Passed,

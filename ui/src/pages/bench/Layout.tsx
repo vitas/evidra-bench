@@ -2,7 +2,6 @@ import { type ReactNode } from "react";
 import { NavLink } from "react-router";
 import { useTheme } from "../../hooks/useTheme";
 import { useAppInfo } from "../../hooks/useAppInfo";
-import { useEvidenceMode, type EvidenceMode } from "../../hooks/useEvidenceMode";
 
 const navItems = [
   { to: "/bench", label: "Leaderboard" },
@@ -20,13 +19,6 @@ const navItems = [
 export function Layout({ children }: { children: ReactNode }) {
   const { theme, toggle } = useTheme();
   const { readonly, version } = useAppInfo();
-  const { mode, setMode } = useEvidenceMode();
-
-  const modeOptions: { value: EvidenceMode; label: string }[] = [
-    { value: "all", label: "All" },
-    { value: "none", label: "Baseline" },
-    { value: "mcp", label: "MCP" },
-  ];
 
   return (
     <>
@@ -56,23 +48,6 @@ export function Layout({ children }: { children: ReactNode }) {
               Demo
             </span>
           )}
-
-          <div className="flex items-center rounded-md border border-border overflow-hidden text-[0.72rem] font-semibold">
-            {modeOptions.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setMode(opt.value)}
-                className={`px-2.5 py-1 cursor-pointer transition-all ${
-                  mode === opt.value
-                    ? "bg-accent text-bg"
-                    : "text-fg-muted hover:text-fg"
-                }`}
-                style={{ background: mode === opt.value ? "var(--color-accent)" : "none", border: "none" }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
 
           <div className="flex-1" />
 

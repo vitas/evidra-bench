@@ -24,14 +24,13 @@ func TestLeaderboard_PassKMath(t *testing.T) {
 	// Scenario A: 3/3 pass -> pass_rate=1.0, p^3=1.0
 	for i := 0; i < 3; i++ {
 		err := store.InsertRun(ctx, tenantID, bench.RunRecord{
-			ID:           testID("run"),
-			ScenarioID:   "scenario-a",
-			Model:        model,
-			Provider:     "test",
-			EvidenceMode: "none",
-			Passed:       true,
-			Duration:     10.0,
-			CreatedAt:    time.Now(),
+			ID:         testID("run"),
+			ScenarioID: "scenario-a",
+			Model:      model,
+			Provider:   "test",
+			Passed:     true,
+			Duration:   10.0,
+			CreatedAt:  time.Now(),
 		})
 		if err != nil {
 			t.Fatalf("insert run A-%d: %v", i, err)
@@ -42,14 +41,13 @@ func TestLeaderboard_PassKMath(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		passed := i == 0
 		err := store.InsertRun(ctx, tenantID, bench.RunRecord{
-			ID:           testID("run"),
-			ScenarioID:   "scenario-b",
-			Model:        model,
-			Provider:     "test",
-			EvidenceMode: "none",
-			Passed:       passed,
-			Duration:     10.0,
-			CreatedAt:    time.Now(),
+			ID:         testID("run"),
+			ScenarioID: "scenario-b",
+			Model:      model,
+			Provider:   "test",
+			Passed:     passed,
+			Duration:   10.0,
+			CreatedAt:  time.Now(),
 		})
 		if err != nil {
 			t.Fatalf("insert run B-%d: %v", i, err)
@@ -107,14 +105,13 @@ func TestLeaderboard_PassKInsufficientTrials(t *testing.T) {
 	for _, scenario := range []string{"scenario-x", "scenario-y"} {
 		for i := 0; i < 2; i++ {
 			err := store.InsertRun(ctx, tenantID, bench.RunRecord{
-				ID:           testID("run"),
-				ScenarioID:   scenario,
-				Model:        model,
-				Provider:     "test",
-				EvidenceMode: "none",
-				Passed:       true,
-				Duration:     5.0,
-				CreatedAt:    time.Now(),
+				ID:         testID("run"),
+				ScenarioID: scenario,
+				Model:      model,
+				Provider:   "test",
+				Passed:     true,
+				Duration:   5.0,
+				CreatedAt:  time.Now(),
 			})
 			if err != nil {
 				t.Fatalf("insert run: %v", err)

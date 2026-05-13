@@ -257,14 +257,9 @@ func avgField(runs []bench.RunRecord, f func(bench.RunRecord) float64) float64 {
 }
 
 // ModelMatrix builds a comparison grid of models across scenarios.
-func (s *PgStore) ModelMatrix(ctx context.Context, tenantID string, models, scenarios []string, evidenceMode string) (*bench.ModelMatrix, error) {
+func (s *PgStore) ModelMatrix(ctx context.Context, tenantID string, models, scenarios []string) (*bench.ModelMatrix, error) {
 	clauses := []string{"tenant_id = $1", "archived_at IS NULL"}
 	args := []any{tenantID}
-
-	if clause, clauseArgs := evidenceModeClause(len(args)+1, evidenceMode); clause != "" {
-		clauses = append(clauses, clause)
-		args = append(args, clauseArgs...)
-	}
 
 	if len(models) > 0 {
 		placeholders := make([]string, len(models))

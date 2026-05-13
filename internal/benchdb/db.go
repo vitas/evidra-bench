@@ -35,37 +35,8 @@ func Connect(databaseURL string) (*pgxpool.Pool, error) {
 		pool.Close()
 		return nil, fmt.Errorf("benchdb.Connect: migrate: %w", err)
 	}
-	if err := backfillToolServerIdentity(ctx, pool); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("benchdb.Connect: backfill tool server identity: %w", err)
-	}
 
 	return pool, nil
-}
-
-const backfillToolServerSQL = `
-UPDATE bench_runs
-SET
-    tool_server = CASE
-        WHEN NULLIF(metadata_json->>'tool_server', '') IS NOT NULL THEN metadata_json->>'tool_server'
-        ELSE 'legacy-mcp'
-    END,
-    tool_server_version = COALESCE(NULLIF(tool_server_version, ''), NULLIF(metadata_json->>'tool_server_version', ''), '')
-WHERE evidence_mode = 'mcp'
-  AND tool_server = ''
-`
-
-const ensureToolServerIndexSQL = `
-CREATE INDEX IF NOT EXISTS idx_bench_runs_tool_server
-ON bench_runs(tenant_id, tool_server)
-`
-
-func backfillToolServerIdentity(ctx context.Context, pool *pgxpool.Pool) error {
-	if _, err := pool.Exec(ctx, ensureToolServerIndexSQL); err != nil {
-		return err
-	}
-	_, err := pool.Exec(ctx, backfillToolServerSQL)
-	return err
 }
 
 func runMigrations(databaseURL string) error {

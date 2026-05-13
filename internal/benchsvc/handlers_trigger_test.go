@@ -25,7 +25,7 @@ func TestHandleTrigger_NoExecutor_Returns501(t *testing.T) {
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"test-model","evidence_mode":"mcp","scenarios":["s1"]}`
+	body := `{"model":"test-model","scenarios":["s1"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
@@ -35,7 +35,7 @@ func TestHandleTrigger_NoExecutor_Returns501(t *testing.T) {
 	}
 }
 
-func TestHandleTrigger_DefaultsMissingEvidenceMode(t *testing.T) {
+func TestHandleTrigger_DefaultsExecutionMode(t *testing.T) {
 	t.Parallel()
 
 	store := NewTriggerStore()
@@ -74,34 +74,8 @@ func TestHandleTrigger_DefaultsMissingEvidenceMode(t *testing.T) {
 	if stored == nil {
 		t.Fatal("stored trigger job missing")
 	}
-	if stored.EvidenceMode != "none" {
-		t.Fatalf("stored evidence mode = %q, want none", stored.EvidenceMode)
-	}
-}
-
-func TestHandleTrigger_RejectsInvalidEvidenceMode(t *testing.T) {
-	t.Parallel()
-
-	store := NewTriggerStore()
-	repo := &handlerRepo{
-		modelProvider: &ModelProviderInfo{Provider: "bifrost"},
-	}
-	svc := NewService(repo, ServiceConfig{
-		PublicTenant: "pub",
-		TriggerStore: store,
-		Executor:     &spyExecutor{},
-	})
-	mux := http.NewServeMux()
-	RegisterRoutes(mux, svc, passthroughAuth("t1"))
-
-	rec := httptest.NewRecorder()
-	body := `{"model":"test-model","evidence_mode":"legacy","scenarios":["s1"]}`
-	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	mux.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	if stored.ExecutionMode != "provider" {
+		t.Fatalf("stored execution mode = %q, want provider", stored.ExecutionMode)
 	}
 }
 
@@ -121,7 +95,7 @@ func TestHandleTrigger_RejectsInvalidExecutionMode(t *testing.T) {
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"test-model","execution_mode":"wat","evidence_mode":"mcp","scenarios":["s1"]}`
+	body := `{"model":"test-model","execution_mode":"wat","scenarios":["s1"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)

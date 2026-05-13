@@ -147,7 +147,6 @@ curl -X POST http://localhost:8090/v1/bench/trigger \
   -d '{
     "model": "sonnet",
     "provider": "anthropic",
-    "evidence_mode": "mcp",
     "execution_mode": "provider",
     "scenarios": ["broken-deployment"]
   }'

@@ -128,17 +128,12 @@ func TestRenderToolServerReportMarkdown_IncludesDeliverableSections(t *testing.T
 }
 
 func reportRun(id, scenarioID, toolServer, toolServerVersion string, passed bool, createdAt time.Time) bench.RunRecord {
-	evidenceMode := "none"
-	if toolServer != "" {
-		evidenceMode = "mcp"
-	}
 	return bench.RunRecord{
 		ID:                id,
 		TenantID:          "tenant-a",
 		ScenarioID:        scenarioID,
 		Model:             "sonnet",
 		Provider:          "bifrost",
-		EvidenceMode:      evidenceMode,
 		ToolServer:        toolServer,
 		ToolServerVersion: toolServerVersion,
 		Passed:            passed,

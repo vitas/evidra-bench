@@ -314,13 +314,11 @@ func reportPackScenarioMatches(s *scenario.Scenario, filter string) bool {
 
 func reportPackRunConfigs(base config.Config) (config.Config, config.Config) {
 	baseline := base
-	baseline.EvidenceMode = ""
 	baseline.MCPServer = ""
 	baseline.ToolServerID = ""
 	baseline.ToolServerVersion = ""
 
 	candidate := base
-	candidate.EvidenceMode = ""
 	return baseline, candidate
 }
 

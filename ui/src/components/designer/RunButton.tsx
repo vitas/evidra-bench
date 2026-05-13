@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import { generateScenario, type PuzzleMetadata } from "./yaml-generator";
 import { MODELS } from "../../data/models";
-import { buildRunCommand, EVIDENCE_MODES, type EvidenceModeId } from "../../lib/commandBuilder.mts";
+import { buildRunCommand, TOOL_BACKENDS, type ToolBackendId } from "../../lib/commandBuilder.mts";
 
 interface RunButtonProps {
   metadata: PuzzleMetadata;
@@ -13,7 +13,7 @@ interface RunButtonProps {
 export function RunButton({ metadata, nodes, edges }: RunButtonProps) {
   const [open, setOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
-  const [mode, setMode] = useState<EvidenceModeId>("baseline");
+  const [toolBackend, setToolBackend] = useState<ToolBackendId>("baseline");
   const [result, setResult] = useState<{ command: string } | null>(null);
 
   const handleRun = useCallback(() => {
@@ -23,11 +23,11 @@ export function RunButton({ metadata, nodes, edges }: RunButtonProps) {
     const command = buildRunCommand({
       scenario: `./${metadata.name || "my-puzzle"}`,
       model: selectedModel,
-      evidenceMode: mode,
+      toolBackend,
     });
 
     setResult({ command });
-  }, [nodes, edges, metadata, selectedModel, mode]);
+  }, [nodes, edges, metadata, selectedModel, toolBackend]);
 
   return (
     <>
@@ -88,28 +88,27 @@ export function RunButton({ metadata, nodes, edges }: RunButtonProps) {
                 </div>
               </div>
 
-              {/* Mode */}
+              {/* Tool backend */}
               <div>
                 <label className="text-[0.72rem] font-semibold uppercase tracking-wider text-fg-muted mb-1.5 block">
-                  Evidence Mode
+                  Tool Backend
                 </label>
                 <div className="flex gap-2">
-                  {EVIDENCE_MODES.map((evidenceMode) => {
-                    const isSelected =
-                      mode === evidenceMode.id;
+                  {TOOL_BACKENDS.map((backend) => {
+                    const isSelected = toolBackend === backend.id;
                     return (
                       <button
-                        key={evidenceMode.id}
-                        onClick={() => setMode(evidenceMode.id)}
+                        key={backend.id}
+                        onClick={() => setToolBackend(backend.id)}
                         className={`flex-1 px-3 py-1.5 rounded-md border text-[0.78rem] font-medium transition-all ${
                           isSelected
                             ? "border-accent bg-accent/10 text-fg"
                             : "border-border text-fg-muted hover:border-accent/50"
                         }`}
                       >
-                        {evidenceMode.label}
+                        {backend.label}
                         <span className="block text-[0.65rem] font-normal text-fg-muted">
-                          {evidenceMode.description}
+                          {backend.description}
                         </span>
                       </button>
                     );

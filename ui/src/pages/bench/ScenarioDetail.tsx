@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { evidenceModeParam } from "../../lib/catalogData.mts";
-import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 /* ── Types ── */
 
@@ -94,7 +92,6 @@ export function ScenarioDetail() {
   const { id } = useParams<{ id: string }>();
   usePageTitle(id ? `Scenario: ${id}` : "Scenario");
   const { request } = useApi();
-  const { mode } = useEvidenceMode();
 
   const [runs, setRuns] = useState<Run[]>([]);
   const [scenario, setScenario] = useState<Scenario | null>(null);
@@ -107,8 +104,8 @@ export function ScenarioDetail() {
     if (!id) return;
     setLoading(true);
     Promise.all([
-      request<RunsResponse>(`/v1/bench/runs?scenario=${encodeURIComponent(id)}&limit=100${evidenceModeParam("&", mode)}`),
-      request<ScenariosResponse>(`/v1/bench/scenarios${evidenceModeParam("?", mode)}`),
+      request<RunsResponse>(`/v1/bench/runs?scenario=${encodeURIComponent(id)}&limit=100`),
+      request<ScenariosResponse>("/v1/bench/scenarios"),
     ])
       .then(([runsRes, scenariosRes]) => {
         setRuns(runsRes.runs ?? []);
@@ -117,18 +114,18 @@ export function ScenarioDetail() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [id, request, mode]);
+  }, [id, request]);
 
   // Load transcript on expand
   useEffect(() => {
     if (!expandedRun || transcripts[expandedRun] !== undefined) return;
     setTranscriptLoading(expandedRun);
-    fetch(`/v1/bench/runs/${expandedRun}/transcript${evidenceModeParam("?", mode)}`)
+    fetch(`/v1/bench/runs/${expandedRun}/transcript`)
       .then((res) => (res.ok ? res.text() : Promise.resolve("")))
       .then((text) => setTranscripts((prev) => ({ ...prev, [expandedRun]: text })))
       .catch(() => setTranscripts((prev) => ({ ...prev, [expandedRun]: "" })))
       .finally(() => setTranscriptLoading(null));
-  }, [expandedRun, transcripts, mode]);
+  }, [expandedRun, transcripts]);
 
   const modelGroups = useMemo(() => {
     const map = new Map<string, Run[]>();

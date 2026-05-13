@@ -21,6 +21,7 @@ test("runs filters are initialized from URL search params", () => {
     provider: "anthropic",
     toolServer: "All",
     toolServerVersion: "1.2.3",
+    toolServerUnset: false,
     status: "Passed",
     since: "2026-05-01",
   });
@@ -30,6 +31,12 @@ test("runs filters include tool server from URL search params", () => {
   const filters = runsFiltersFromSearchParams(new URLSearchParams("tool_server=kubernetes-mcp"));
 
   assert.equal(filters.toolServer, "kubernetes-mcp");
+});
+
+test("runs filters include baseline/native tool-server unset from URL search params", () => {
+  const filters = runsFiltersFromSearchParams(new URLSearchParams("tool_server_unset=true"));
+
+  assert.equal(filters.toolServerUnset, true);
 });
 
 test("runs filters ignore unknown exam ids", () => {
@@ -47,6 +54,7 @@ test("runs filters serialize only active URL filters", () => {
     provider: "All",
     toolServer: "kubernetes-mcp",
     toolServerVersion: "1.2.3",
+    toolServerUnset: false,
     status: "All",
     since: "",
   });
@@ -66,18 +74,42 @@ test("runs API path maps selected exam suite to scenario ids", () => {
       provider: "All",
       toolServer: "kubernetes-mcp",
       toolServerVersion: "1.2.3",
+      toolServerUnset: false,
       status: "All",
       since: "",
     },
     1,
-    "mcp",
     ["s1", "s2"],
     25,
   );
 
   assert.equal(
     path,
-    "/v1/bench/runs?scenarios=s1%2Cs2&model=claude-sonnet&tool_server=kubernetes-mcp&tool_server_version=1.2.3&limit=25&offset=25&evidence_mode=mcp",
+    "/v1/bench/runs?scenarios=s1%2Cs2&model=claude-sonnet&tool_server=kubernetes-mcp&tool_server_version=1.2.3&limit=25&offset=25",
+  );
+});
+
+test("runs API path supports exact baseline/native tool-server unset filter", () => {
+  const path = buildRunsAPIPath(
+    {
+      scenario: "",
+      exam: "all",
+      model: "claude-sonnet",
+      provider: "All",
+      toolServer: "All",
+      toolServerVersion: "All",
+      toolServerUnset: true,
+      status: "All",
+      since: "",
+    },
+    0,
+    [],
+    25,
+  );
+
+  assert.equal(
+    path,
+    "/v1/bench/runs?model=claude-sonnet&tool_server_unset=true&limit=25&offset=0",
   );
 });
 
@@ -90,11 +122,11 @@ test("runs API path keeps explicit scenario above exam suite ids", () => {
       provider: "All",
       toolServer: "All",
       toolServerVersion: "All",
+      toolServerUnset: false,
       status: "All",
       since: "",
     },
     0,
-    "all",
     ["s1", "s2"],
     25,
   );

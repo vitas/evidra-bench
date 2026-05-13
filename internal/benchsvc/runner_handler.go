@@ -118,9 +118,6 @@ func handlePollJob(svc *Service) http.HandlerFunc {
 			apiutil.WriteError(w, http.StatusBadRequest, "invalid job config_json: "+err.Error())
 			return
 		}
-		if cfg.EvidenceMode == "" {
-			cfg.EvidenceMode = "none" // default for legacy jobs without evidence_mode
-		}
 		if cfg.ExecutionMode == "" {
 			cfg.ExecutionMode = "provider" // default for legacy jobs without execution_mode
 		}
@@ -137,7 +134,6 @@ func handlePollJob(svc *Service) http.HandlerFunc {
 			"provider":            job.Provider,
 			"scenarios":           cfg.Scenarios,
 			"timeout":             cfg.Timeout,
-			"evidence_mode":       cfg.EvidenceMode,
 			"execution_mode":      cfg.ExecutionMode,
 			"mcp_server":          cfg.MCPServer,
 			"tool_server":         cfg.ToolServer,

@@ -60,17 +60,6 @@ func (s *PgStore) ImportJSONL(ctx context.Context, tenantID string, path string)
 			continue
 		}
 
-		// Extract evidence_mode from metadata_json.
-		evidenceMode := "none"
-		if jr.MetadataJSON != "" {
-			var meta map[string]string
-			if err := json.Unmarshal([]byte(jr.MetadataJSON), &meta); err == nil {
-				if m, ok := meta["evidence_mode"]; ok && m != "" {
-					evidenceMode = m
-				}
-			}
-		}
-
 		// Parse created_at.
 		createdAt := time.Now()
 		if jr.CreatedAt != "" {
@@ -88,7 +77,6 @@ func (s *PgStore) ImportJSONL(ctx context.Context, tenantID string, path string)
 			Model:            jr.Model,
 			Provider:         jr.Provider,
 			Adapter:          jr.Adapter,
-			EvidenceMode:     evidenceMode,
 			Passed:           jr.Passed,
 			Duration:         jr.Duration,
 			ExitCode:         jr.ExitCode,

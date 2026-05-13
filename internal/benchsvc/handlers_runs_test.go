@@ -63,7 +63,7 @@ func TestHandleListRuns_ParsesFilters(t *testing.T) {
 	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-b")
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/v1/bench/runs?model=sonnet&scenario=broken-deployment&scenarios=s1,s2&evidence_mode=mcp&tool_server=kubernetes-mcp&tool_server_version=1.2.3&report_id=public-report&limit=10&offset=5", nil)
+	req := httptest.NewRequest("GET", "/v1/bench/runs?model=sonnet&scenario=broken-deployment&scenarios=s1,s2&tool_server=kubernetes-mcp&tool_server_version=1.2.3&report_id=public-report&tool_server_unset=true&limit=10&offset=5", nil)
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
@@ -79,11 +79,11 @@ func TestHandleListRuns_ParsesFilters(t *testing.T) {
 	if !reflect.DeepEqual(f.ScenarioIDs, []string{"s1", "s2"}) {
 		t.Errorf("ScenarioIDs = %#v, want s1,s2", f.ScenarioIDs)
 	}
-	if f.EvidenceMode != "mcp" {
-		t.Errorf("EvidenceMode = %q, want mcp", f.EvidenceMode)
-	}
 	if f.ToolServer != "kubernetes-mcp" {
 		t.Errorf("ToolServer = %q, want kubernetes-mcp", f.ToolServer)
+	}
+	if !f.ToolServerUnset {
+		t.Errorf("ToolServerUnset = false, want true")
 	}
 	if f.ToolServerVersion != "1.2.3" {
 		t.Errorf("ToolServerVersion = %q, want 1.2.3", f.ToolServerVersion)
@@ -99,57 +99,39 @@ func TestHandleListRuns_ParsesFilters(t *testing.T) {
 	}
 }
 
-func TestHandleListRuns_EvidenceModeFiltersItems(t *testing.T) {
+func TestHandleListRuns_ToolServerUnsetFiltersItems(t *testing.T) {
 	t.Parallel()
 
 	sharedRuns := []bench.RunRecord{
-		{ID: "baseline-1", ScenarioID: "s1", Model: "sonnet", EvidenceMode: "none"},
-		{ID: "baseline-2", ScenarioID: "s2", Model: "sonnet", EvidenceMode: "none"},
-		{ID: "mcp-1", ScenarioID: "s3", Model: "sonnet", EvidenceMode: "mcp"},
-		{ID: "mcp-2", ScenarioID: "s4", Model: "sonnet", EvidenceMode: "mcp"},
+		{ID: "baseline-1", ScenarioID: "s1", Model: "sonnet"},
+		{ID: "baseline-2", ScenarioID: "s2", Model: "sonnet"},
+		{ID: "mcp-1", ScenarioID: "s3", Model: "sonnet", ToolServer: "kubernetes-mcp"},
+		{ID: "mcp-2", ScenarioID: "s4", Model: "sonnet", ToolServer: "kubernetes-mcp"},
 	}
+	repo := &handlerRepo{runs: sharedRuns}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
 
-	tests := []struct {
-		name    string
-		mode    string
-		wantIDs []string
-	}{
-		{name: "baseline only", mode: "none", wantIDs: []string{"baseline-1", "baseline-2"}},
-		{name: "mcp", mode: "mcp", wantIDs: []string{"mcp-1", "mcp-2"}},
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/runs?tool_server_unset=true", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			repo := &handlerRepo{runs: sharedRuns}
-			mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
-
-			rec := httptest.NewRecorder()
-			req := httptest.NewRequest("GET", "/v1/bench/runs?evidence_mode="+tt.mode, nil)
-			mux.ServeHTTP(rec, req)
-
-			if rec.Code != http.StatusOK {
-				t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-			}
-			var body struct {
-				Items []bench.RunRecord `json:"runs"`
-				Total int               `json:"total"`
-			}
-			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-				t.Fatalf("decode body: %v", err)
-			}
-			if body.Total != len(tt.wantIDs) {
-				t.Fatalf("total = %d, want %d", body.Total, len(tt.wantIDs))
-			}
-			if len(body.Items) != len(tt.wantIDs) {
-				t.Fatalf("len(items) = %d, want %d", len(body.Items), len(tt.wantIDs))
-			}
-			for i, wantID := range tt.wantIDs {
-				if body.Items[i].ID != wantID {
-					t.Fatalf("items[%d].ID = %q, want %q", i, body.Items[i].ID, wantID)
-				}
-			}
-		})
+	var body struct {
+		Items []bench.RunRecord `json:"runs"`
+		Total int               `json:"total"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body.Total != 2 {
+		t.Fatalf("total = %d, want 2", body.Total)
+	}
+	for i, wantID := range []string{"baseline-1", "baseline-2"} {
+		if body.Items[i].ID != wantID {
+			t.Fatalf("items[%d].ID = %q, want %q", i, body.Items[i].ID, wantID)
+		}
 	}
 }
 

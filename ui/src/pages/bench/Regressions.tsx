@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { evidenceModeParam } from "../../lib/catalogData.mts";
-import { useEvidenceMode } from "../../hooks/useEvidenceMode";
 
 interface Regression {
   scenario_id: string;
@@ -19,16 +17,15 @@ interface Regression {
 export function Regressions() {
   usePageTitle("Regressions");
   const { request } = useApi();
-  const { mode } = useEvidenceMode();
   const [regressions, setRegressions] = useState<Regression[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    request<Regression[]>(`/v1/bench/regressions${evidenceModeParam("?", mode)}`)
+    request<Regression[]>("/v1/bench/regressions")
       .then(setRegressions)
       .catch(() => setRegressions([]))
       .finally(() => setLoading(false));
-  }, [request, mode]);
+  }, [request]);
 
   const critical = regressions.filter((r) => r.severity === "critical");
   const warnings = regressions.filter((r) => r.severity === "warning");

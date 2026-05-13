@@ -31,7 +31,7 @@ func TestHandleTrigger_WithRunner_QueuesJob(t *testing.T) {
 			Model:      "sonnet",
 			Provider:   "bifrost",
 			Status:     "queued",
-			ConfigJSON: json.RawMessage(`{"scenarios":["s1"],"evidence_mode":"mcp","execution_mode":"a2a"}`),
+			ConfigJSON: json.RawMessage(`{"scenarios":["s1"],"execution_mode":"a2a"}`),
 		},
 	}
 	svc := NewService(repo, ServiceConfig{
@@ -46,7 +46,6 @@ func TestHandleTrigger_WithRunner_QueuesJob(t *testing.T) {
 	body := `{
 		"model":"sonnet",
 		"execution_mode":"a2a",
-		"evidence_mode":"mcp",
 		"mcp_server":"npx -y @vendor/kubernetes-mcp --stdio",
 		"tool_server":"kubernetes-mcp",
 		"tool_server_version":"1.2.3",
@@ -70,9 +69,6 @@ func TestHandleTrigger_WithRunner_QueuesJob(t *testing.T) {
 	if resp["mode"] != "runner" {
 		t.Fatalf("mode = %v, want runner", resp["mode"])
 	}
-	if repo.lastEnqueueCfg.EvidenceMode != "mcp" {
-		t.Fatalf("enqueue evidence mode = %q, want mcp", repo.lastEnqueueCfg.EvidenceMode)
-	}
 	if repo.lastEnqueueCfg.ExecutionMode != "a2a" {
 		t.Fatalf("enqueue execution mode = %q, want a2a", repo.lastEnqueueCfg.ExecutionMode)
 	}
@@ -88,9 +84,6 @@ func TestHandleTrigger_WithRunner_QueuesJob(t *testing.T) {
 	stored := store.Get("job-q-1")
 	if stored == nil {
 		t.Fatal("stored runner trigger job missing")
-	}
-	if stored.EvidenceMode != "mcp" {
-		t.Fatalf("stored evidence mode = %q, want mcp", stored.EvidenceMode)
 	}
 	if stored.ExecutionMode != "a2a" {
 		t.Fatalf("stored execution mode = %q, want a2a", stored.ExecutionMode)
@@ -132,16 +125,13 @@ func TestHandleTrigger_WithRunner_AllowsProviderSuppliedModelAlias(t *testing.T)
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"sonnet","provider":"claude","evidence_mode":"mcp","scenarios":["s1"]}`
+	body := `{"model":"sonnet","provider":"claude","scenarios":["s1"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusAccepted, rec.Body.String())
-	}
-	if repo.lastEnqueueCfg.EvidenceMode != "mcp" {
-		t.Fatalf("enqueue evidence mode = %q, want mcp", repo.lastEnqueueCfg.EvidenceMode)
 	}
 	stored := store.Get("job-alias-1")
 	if stored == nil {
@@ -179,7 +169,7 @@ func TestHandleTrigger_WithRunner_DoesNotRequireControlPlaneModelAPIKey(t *testi
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"claude-sonnet-4-20250514","evidence_mode":"mcp","scenarios":["s1"]}`
+	body := `{"model":"claude-sonnet-4-20250514","scenarios":["s1"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
@@ -218,7 +208,7 @@ func TestHandleTrigger_WithPinnedRunnerUnavailable_Returns400AndSkipsExecutor(t 
 	RegisterRoutes(mux, svc, passthroughAuth("t1"))
 
 	rec := httptest.NewRecorder()
-	body := `{"model":"sonnet","runner_id":"runner-missing","evidence_mode":"mcp","scenarios":["s1"]}`
+	body := `{"model":"sonnet","runner_id":"runner-missing","scenarios":["s1"]}`
 	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	mux.ServeHTTP(rec, req)
