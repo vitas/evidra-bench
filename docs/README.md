@@ -24,6 +24,8 @@ Use this page as the documentation home in Obsidian and GitHub.
   boundary, and go-to-market notes.
 - [Open Source Boundary](OPEN_SOURCE.md) - what belongs in the public repo and
   what stays private.
+- [Publication Checklist](PUBLICATION_CHECKLIST.md) - clean-history and
+  GitHub settings gate before going public.
 - [Roadmap](ROADMAP.md) - public-safe project direction.
 - [Agent Failure Autopsy](AGENT_FAILURE_AUTOPSY.md) - target product design
   for explaining where and why an agent failed.
