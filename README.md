@@ -314,6 +314,8 @@ execution, API contracts, scenarios, and tests.
 - [Docs Home](docs/README.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Testing Methodology](docs/TESTING_METHODOLOGY.md)
+- [Scoring](docs/SCORING.md)
+- [Reproducibility](docs/REPRODUCIBILITY.md)
 - [Agent Failure Autopsy](docs/AGENT_FAILURE_AUTOPSY.md)
 - [Scenario Authoring Guide](docs/SCENARIO_AUTHORING_GUIDE.md)
 - [Bench API Reference](docs/BENCH_API_REFERENCE.md)
@@ -322,6 +324,8 @@ execution, API contracts, scenarios, and tests.
 - [Runner Control Plane Contract v1](docs/contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md)
 - [Bench Business Model](docs/product/bench-business-model.md)
 - [Open Source Boundary](docs/OPEN_SOURCE.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Threat Model](docs/THREAT_MODEL.md)
 
 ## Development
 

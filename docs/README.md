@@ -24,6 +24,7 @@ Use this page as the documentation home in Obsidian and GitHub.
   boundary, and go-to-market notes.
 - [Open Source Boundary](OPEN_SOURCE.md) - what belongs in the public repo and
   what stays private.
+- [Roadmap](ROADMAP.md) - public-safe project direction.
 - [Agent Failure Autopsy](AGENT_FAILURE_AUTOPSY.md) - target product design
   for explaining where and why an agent failed.
 
@@ -38,6 +39,12 @@ Use this page as the documentation home in Obsidian and GitHub.
 - [Architecture](ARCHITECTURE.md) - execution model, control-plane boundary,
   packages, data flow, and deployment ownership.
 - [Testing Methodology](TESTING_METHODOLOGY.md) - what Bench measures and why.
+- [Scoring](SCORING.md) - pass, unsafe pass, fail, timeout, and behavior
+  findings.
+- [Reproducibility](REPRODUCIBILITY.md) - what public reports should record and
+  how to rerun scenarios.
+- [Threat Model](THREAT_MODEL.md) - runner, API, artifact, and credential
+  boundaries.
 - [Evidence and Tool-Server Integration](TOOL_SERVER_INTEGRATION.md) - optional MCP
   and file-based compatibility notes.
 - [Private Report Pack](PRIVATE_REPORT_PACK.md) - CLI workflow for private
