@@ -226,6 +226,11 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 		workerCfg.MCPServer = args.MCPServer
 		workerCfg.ToolServerID = args.ToolServer
 		workerCfg.ToolServerVersion = args.ToolServerVersion
+		workerCfg.SkillFile = args.SkillFile
+		workerCfg.SkillID = args.SkillID
+		workerCfg.SkillVersion = args.SkillVersion
+		workerCfg.SkillSource = args.SkillSource
+		workerCfg.SkillSHA256 = args.SkillSHA256
 
 		// Report scenario started.
 		c := int(atomic.LoadInt64(&completed))
@@ -314,7 +319,7 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 	for _, model := range models {
 		for rep := 1; rep <= repeats; rep++ {
 			jobID := fmt.Sprintf("bench-%s-r%d-%s", model, rep, time.Now().UTC().Format("20060102-150405"))
-			if err := client.InsertBatch(ctx, scenarios, model, cfg.Provider, cfg.MCPServer, cfg.ToolServerID, cfg.ToolServerVersion, jobID, "", parallel); err != nil {
+			if err := client.InsertBatch(ctx, scenarios, model, cfg.Provider, cfg.MCPServer, cfg.ToolServerID, cfg.ToolServerVersion, cfg.SkillFile, cfg.SkillID, cfg.SkillVersion, cfg.SkillSource, cfg.SkillSHA256, jobID, "", parallel); err != nil {
 				return nil, fmt.Errorf("orchestrator: enqueue: %w", err)
 			}
 		}

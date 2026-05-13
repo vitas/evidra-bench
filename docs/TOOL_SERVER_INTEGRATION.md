@@ -72,6 +72,34 @@ There are no Bench-specific MCP submodes and no reference MCP server. To test
 a tool server, pass its command through `--mcp-server` and label the tested
 server explicitly with `--tool-server-id` and `--tool-server-version`.
 
+## Skill Prompts
+
+Skill prompts are a separate comparison axis. Use a local file that already
+exists on the runner host:
+
+```bash
+bench-cli run \
+  --scenario kubernetes/broken-deployment \
+  --provider bifrost \
+  --model sonnet \
+  --skill-file /tmp/bench-skills/k8s-admin.md \
+  --skill-id k8s-admin \
+  --skill-version 2026-05-13
+```
+
+Bench stores `skill_id`, `skill_version`, `skill_source`, and `skill_sha256`
+on run records. If `--skill-id` is omitted, Bench infers it from the file name.
+If `--skill-sha256` is supplied, the runner verifies the local file content
+before using it.
+
+Bench does not download arbitrary skill URLs from the hosted API. To use an
+external skill, download or copy it in runner-side setup code, then pass the
+local path through `--skill-file`.
+
+Tool-server and skill comparisons can be combined. Keep model, provider,
+scenario set, timeout, memory window, and cluster settings fixed while varying
+only `tool_server`/`tool_server_version`, `skill_id`/`skill_version`, or both.
+
 ## Optional File-Based Checks
 
 Some scenarios can read local evidence artifacts when a run explicitly provides

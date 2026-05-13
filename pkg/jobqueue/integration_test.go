@@ -37,7 +37,7 @@ func TestParallelDryRun(t *testing.T) {
 	}
 
 	scenarios := []string{"test/a", "test/b", "test/c", "test/d", "test/e"}
-	if err := client.InsertBatch(ctx, scenarios, "test-model", "test", "", "", "", "test-job", "", 3); err != nil {
+	if err := client.InsertBatch(ctx, scenarios, "test-model", "test", "", "", "", "", "", "", "", "", "test-job", "", 3); err != nil {
 		t.Fatalf("InsertBatch: %v", err)
 	}
 

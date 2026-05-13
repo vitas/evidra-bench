@@ -6,11 +6,16 @@ Each role loads ~300 tokens of domain-specific instructions.
 ## Usage
 
 ```bash
-# Load a role skill in infra-bench
-infra-bench certify --track cka --model sonnet --role k8s-admin
+# Load a role skill in Bench
+bench-cli certify --track cka --model sonnet --role k8s-admin
 
-# Or with any agent via system prompt
---system-prompt-file skills/k8s-admin.md
+# Or as a first-class local skill file
+bench-cli run \
+  --scenario kubernetes/broken-deployment \
+  --model sonnet \
+  --provider bifrost \
+  --skill-file skills/k8s-admin.md \
+  --skill-id k8s-admin
 ```
 
 ## Roles
@@ -31,7 +36,8 @@ infra-bench certify --track cka --model sonnet --role k8s-admin
 
 ## External Protocol Skills
 
-Protocol-specific prompts can still be tested with `--system-prompt-file`.
+Protocol-specific prompts should be tested with `--skill-file` and a stable
+`--skill-id` so reports can compare them as first-class skill runs.
 The bench harness does not inject protocol tools or special runtime modes.
 
 ## Benchmark Data

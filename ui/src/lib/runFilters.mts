@@ -10,6 +10,9 @@ export interface RunsFilterState {
   toolServer: string;
   toolServerVersion: string;
   toolServerUnset: boolean;
+  skillID: string;
+  skillVersion: string;
+  skillUnset: boolean;
   status: RunsStatus;
   since: string;
 }
@@ -22,6 +25,9 @@ export const DEFAULT_RUNS_FILTERS: RunsFilterState = {
   toolServer: "All",
   toolServerVersion: "All",
   toolServerUnset: false,
+  skillID: "All",
+  skillVersion: "All",
+  skillUnset: false,
   status: "All",
   since: "",
 };
@@ -41,6 +47,9 @@ export function runsFiltersFromSearchParams(params: URLSearchParams): RunsFilter
     toolServer: params.get("tool_server") || "All",
     toolServerVersion: params.get("tool_server_version") || "All",
     toolServerUnset: params.get("tool_server_unset") === "true",
+    skillID: params.get("skill_id") || "All",
+    skillVersion: params.get("skill_version") || "All",
+    skillUnset: params.get("skill_unset") === "true",
     status: statusFromPassedParam(params.get("passed")),
     since: params.get("since") ?? "",
   };
@@ -57,6 +66,9 @@ export function runsSearchParamsFromFilters(filters: RunsFilterState): URLSearch
   if (filters.toolServer !== "All") params.set("tool_server", filters.toolServer);
   if (filters.toolServerVersion !== "All") params.set("tool_server_version", filters.toolServerVersion);
   if (filters.toolServerUnset) params.set("tool_server_unset", "true");
+  if (filters.skillID !== "All") params.set("skill_id", filters.skillID);
+  if (filters.skillVersion !== "All") params.set("skill_version", filters.skillVersion);
+  if (filters.skillUnset) params.set("skill_unset", "true");
   if (filters.status === "Passed") params.set("passed", "true");
   if (filters.status === "Failed") params.set("passed", "false");
   if (filters.since) params.set("since", filters.since);
@@ -87,6 +99,12 @@ export function buildRunsAPIPath(
     params.set("tool_server", filters.toolServer);
   }
   if (filters.toolServerVersion !== "All") params.set("tool_server_version", filters.toolServerVersion);
+  if (filters.skillUnset) {
+    params.set("skill_unset", "true");
+  } else if (filters.skillID !== "All") {
+    params.set("skill_id", filters.skillID);
+  }
+  if (filters.skillVersion !== "All") params.set("skill_version", filters.skillVersion);
   if (filters.status === "Passed") params.set("passed", "true");
   if (filters.status === "Failed") params.set("passed", "false");
   if (filters.since) params.set("since", filters.since);

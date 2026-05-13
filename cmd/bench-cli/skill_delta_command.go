@@ -150,6 +150,7 @@ func executeSkillDeltaRun(cmd *cobra.Command, cfg config.Config, scenarios []str
 					withoutCfg.Scenario = s.Path
 					withoutCfg.Model = model
 					withoutCfg.SystemPromptFile = noSkillPrompt
+					withoutCfg.SkillFile = ""
 					withoutCfg.RunsDir = paths.WithoutSkillRunsDir
 					withoutCfg.EvidenceDir = filepath.Join(paths.WithoutSkillRunsDir, "evidence")
 
@@ -161,7 +162,8 @@ func executeSkillDeltaRun(cmd *cobra.Command, cfg config.Config, scenarios []str
 					withCfg := cfg
 					withCfg.Scenario = s.Path
 					withCfg.Model = model
-					withCfg.SystemPromptFile = withSkillPrompt
+					withCfg.SystemPromptFile = ""
+					withCfg.SkillFile = withSkillPrompt
 					withCfg.RunsDir = paths.WithSkillRunsDir
 					withCfg.EvidenceDir = filepath.Join(paths.WithSkillRunsDir, "evidence")
 

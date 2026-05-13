@@ -2,7 +2,9 @@ package harness
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -63,6 +65,67 @@ func TestBuildRunMetadata_IncludesToolServerIdentity(t *testing.T) {
 	}
 	if meta["tool_server_cmd"] != "npx -y @vendor/kubernetes-mcp --stdio" {
 		t.Fatalf("tool_server_cmd = %q, want command", meta["tool_server_cmd"])
+	}
+}
+
+func TestBuildRunMetadata_IncludesSkillIdentity(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	skillPath := filepath.Join(dir, "customer-k8s.md")
+	body := []byte("inspect scope before fixing\n")
+	if err := os.WriteFile(skillPath, body, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.Default()
+	cfg.Provider = "claude"
+	cfg.Model = "sonnet"
+	cfg.SkillFile = skillPath
+	cfg.SkillID = "customer-k8s"
+	cfg.SkillVersion = "2026-05-13"
+	cfg.SkillSource = "local-temp"
+
+	meta := buildRunMetadata(cfg, &agent.LoopResult{}, "/tmp/evidence")
+	wantHash := fmt.Sprintf("%x", sha256.Sum256(body))
+
+	if meta["skill_id"] != "customer-k8s" {
+		t.Fatalf("skill_id = %q, want customer-k8s", meta["skill_id"])
+	}
+	if meta["skill_version"] != "2026-05-13" {
+		t.Fatalf("skill_version = %q, want 2026-05-13", meta["skill_version"])
+	}
+	if meta["skill_source"] != "local-temp" {
+		t.Fatalf("skill_source = %q, want local-temp", meta["skill_source"])
+	}
+	if meta["skill_sha256"] != wantHash {
+		t.Fatalf("skill_sha256 = %q, want %q", meta["skill_sha256"], wantHash)
+	}
+	if meta["skill_file"] != skillPath {
+		t.Fatalf("skill_file = %q, want %q", meta["skill_file"], skillPath)
+	}
+}
+
+func TestBuildSystemPrompt_UsesSkillFile(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	skillPath := filepath.Join(dir, "skill.md")
+	if err := os.WriteFile(skillPath, []byte("diagnose before mutate"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	prompt, err := buildSystemPrompt(config.Config{SkillFile: skillPath}, &scenario.Scenario{
+		Scope: scenario.Scope{Namespaces: []string{"bench"}},
+	})
+	if err != nil {
+		t.Fatalf("buildSystemPrompt: %v", err)
+	}
+	if !strings.Contains(prompt, "diagnose before mutate") {
+		t.Fatalf("prompt = %q, want skill file content", prompt)
+	}
+	if !strings.Contains(prompt, "Target namespace: bench") {
+		t.Fatalf("prompt = %q, want target namespace", prompt)
 	}
 }
 

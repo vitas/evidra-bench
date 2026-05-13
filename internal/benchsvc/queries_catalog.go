@@ -44,8 +44,9 @@ func (s *PgStore) FilteredStats(ctx context.Context, tenantID string, f bench.Ru
 
 // Catalog returns distinct models and providers from bench_runs.
 func (s *PgStore) Catalog(ctx context.Context, tenantID string) (*bench.RunCatalog, error) {
-	var models, providers, toolServers, toolServerVersions []string
+	var models, providers, toolServers, toolServerVersions, skillIDs, skillVersions []string
 	toolServerVersionsByServer := map[string][]string{}
+	skillVersionsByID := map[string][]string{}
 
 	rows, err := s.db.Query(ctx,
 		"SELECT DISTINCT model FROM bench_runs WHERE tenant_id = $1 AND archived_at IS NULL ORDER BY model", tenantID)
@@ -138,12 +139,72 @@ func (s *PgStore) Catalog(ctx context.Context, tenantID string) (*bench.RunCatal
 		return nil, fmt.Errorf("bench.Catalog: tool server version pair rows: %w", err)
 	}
 
+	rows6, err := s.db.Query(ctx,
+		"SELECT DISTINCT skill_id FROM bench_runs WHERE tenant_id = $1 AND archived_at IS NULL AND skill_id != '' ORDER BY skill_id", tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("bench.Catalog: skill ids: %w", err)
+	}
+	defer rows6.Close()
+	for rows6.Next() {
+		var skillID string
+		if err := rows6.Scan(&skillID); err != nil {
+			return nil, fmt.Errorf("bench.Catalog: scan skill id: %w", err)
+		}
+		skillIDs = append(skillIDs, skillID)
+	}
+	if err := rows6.Err(); err != nil {
+		return nil, fmt.Errorf("bench.Catalog: skill id rows: %w", err)
+	}
+
+	rows7, err := s.db.Query(ctx,
+		"SELECT DISTINCT skill_version FROM bench_runs WHERE tenant_id = $1 AND archived_at IS NULL AND skill_version != '' ORDER BY skill_version", tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("bench.Catalog: skill versions: %w", err)
+	}
+	defer rows7.Close()
+	for rows7.Next() {
+		var version string
+		if err := rows7.Scan(&version); err != nil {
+			return nil, fmt.Errorf("bench.Catalog: scan skill version: %w", err)
+		}
+		skillVersions = append(skillVersions, version)
+	}
+	if err := rows7.Err(); err != nil {
+		return nil, fmt.Errorf("bench.Catalog: skill version rows: %w", err)
+	}
+
+	rows8, err := s.db.Query(ctx,
+		`SELECT DISTINCT skill_id, skill_version
+		 FROM bench_runs
+		 WHERE tenant_id = $1
+		   AND archived_at IS NULL
+		   AND skill_id != ''
+		   AND skill_version != ''
+		 ORDER BY skill_id, skill_version`, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("bench.Catalog: skill version pairs: %w", err)
+	}
+	defer rows8.Close()
+	for rows8.Next() {
+		var skillID, version string
+		if err := rows8.Scan(&skillID, &version); err != nil {
+			return nil, fmt.Errorf("bench.Catalog: scan skill version pair: %w", err)
+		}
+		skillVersionsByID[skillID] = append(skillVersionsByID[skillID], version)
+	}
+	if err := rows8.Err(); err != nil {
+		return nil, fmt.Errorf("bench.Catalog: skill version pair rows: %w", err)
+	}
+
 	return &bench.RunCatalog{
 		Models:                     models,
 		Providers:                  providers,
 		ToolServers:                toolServers,
 		ToolServerVersions:         toolServerVersions,
 		ToolServerVersionsByServer: toolServerVersionsByServer,
+		SkillIDs:                   skillIDs,
+		SkillVersions:              skillVersions,
+		SkillVersionsByID:          skillVersionsByID,
 	}, nil
 }
 

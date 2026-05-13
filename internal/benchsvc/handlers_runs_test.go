@@ -63,7 +63,7 @@ func TestHandleListRuns_ParsesFilters(t *testing.T) {
 	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-b")
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/v1/bench/runs?model=sonnet&scenario=broken-deployment&scenarios=s1,s2&tool_server=kubernetes-mcp&tool_server_version=1.2.3&report_id=public-report&tool_server_unset=true&limit=10&offset=5", nil)
+	req := httptest.NewRequest("GET", "/v1/bench/runs?model=sonnet&scenario=broken-deployment&scenarios=s1,s2&tool_server=kubernetes-mcp&tool_server_version=1.2.3&skill_id=k8s-admin&skill_version=2026-05-13&report_id=public-report&tool_server_unset=true&limit=10&offset=5", nil)
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
@@ -87,6 +87,12 @@ func TestHandleListRuns_ParsesFilters(t *testing.T) {
 	}
 	if f.ToolServerVersion != "1.2.3" {
 		t.Errorf("ToolServerVersion = %q, want 1.2.3", f.ToolServerVersion)
+	}
+	if f.SkillID != "k8s-admin" {
+		t.Errorf("SkillID = %q, want k8s-admin", f.SkillID)
+	}
+	if f.SkillVersion != "2026-05-13" {
+		t.Errorf("SkillVersion = %q, want 2026-05-13", f.SkillVersion)
 	}
 	if f.ReportID != "public-report" {
 		t.Errorf("ReportID = %q, want public-report", f.ReportID)

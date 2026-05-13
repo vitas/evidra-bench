@@ -13,24 +13,30 @@ import (
 
 // jsonlRecord matches the local results.jsonl import format.
 type jsonlRecord struct {
-	ID               string  `json:"id"`
-	ScenarioID       string  `json:"scenario_id"`
-	Model            string  `json:"model"`
-	Provider         string  `json:"provider"`
-	Adapter          string  `json:"adapter"`
-	Passed           bool    `json:"passed"`
-	Duration         float64 `json:"duration_seconds"`
-	ExitCode         int     `json:"exit_code"`
-	Turns            int     `json:"turns"`
-	MemoryWindow     int     `json:"memory_window"`
-	PromptTokens     int     `json:"prompt_tokens"`
-	CompletionTokens int     `json:"completion_tokens"`
-	EstimatedCost    float64 `json:"estimated_cost_usd"`
-	ChecksPassed     int     `json:"checks_passed"`
-	ChecksTotal      int     `json:"checks_total"`
-	ChecksJSON       string  `json:"checks_json"`
-	MetadataJSON     string  `json:"metadata_json"`
-	CreatedAt        string  `json:"created_at"`
+	ID                string  `json:"id"`
+	ScenarioID        string  `json:"scenario_id"`
+	Model             string  `json:"model"`
+	Provider          string  `json:"provider"`
+	Adapter           string  `json:"adapter"`
+	ToolServer        string  `json:"tool_server"`
+	ToolServerVersion string  `json:"tool_server_version"`
+	SkillID           string  `json:"skill_id"`
+	SkillVersion      string  `json:"skill_version"`
+	SkillSource       string  `json:"skill_source"`
+	SkillSHA256       string  `json:"skill_sha256"`
+	Passed            bool    `json:"passed"`
+	Duration          float64 `json:"duration_seconds"`
+	ExitCode          int     `json:"exit_code"`
+	Turns             int     `json:"turns"`
+	MemoryWindow      int     `json:"memory_window"`
+	PromptTokens      int     `json:"prompt_tokens"`
+	CompletionTokens  int     `json:"completion_tokens"`
+	EstimatedCost     float64 `json:"estimated_cost_usd"`
+	ChecksPassed      int     `json:"checks_passed"`
+	ChecksTotal       int     `json:"checks_total"`
+	ChecksJSON        string  `json:"checks_json"`
+	MetadataJSON      string  `json:"metadata_json"`
+	CreatedAt         string  `json:"created_at"`
 }
 
 // ImportJSONL reads a results.jsonl file and inserts all records into PostgreSQL.
@@ -71,25 +77,31 @@ func (s *PgStore) ImportJSONL(ctx context.Context, tenantID string, path string)
 		}
 
 		records = append(records, bench.RunRecord{
-			ID:               jr.ID,
-			TenantID:         tenantID,
-			ScenarioID:       jr.ScenarioID,
-			Model:            jr.Model,
-			Provider:         jr.Provider,
-			Adapter:          jr.Adapter,
-			Passed:           jr.Passed,
-			Duration:         jr.Duration,
-			ExitCode:         jr.ExitCode,
-			Turns:            jr.Turns,
-			MemoryWindow:     jr.MemoryWindow,
-			PromptTokens:     jr.PromptTokens,
-			CompletionTokens: jr.CompletionTokens,
-			EstimatedCost:    jr.EstimatedCost,
-			ChecksPassed:     jr.ChecksPassed,
-			ChecksTotal:      jr.ChecksTotal,
-			ChecksJSON:       jr.ChecksJSON,
-			MetadataJSON:     jr.MetadataJSON,
-			CreatedAt:        createdAt,
+			ID:                jr.ID,
+			TenantID:          tenantID,
+			ScenarioID:        jr.ScenarioID,
+			Model:             jr.Model,
+			Provider:          jr.Provider,
+			Adapter:           jr.Adapter,
+			ToolServer:        jr.ToolServer,
+			ToolServerVersion: jr.ToolServerVersion,
+			SkillID:           jr.SkillID,
+			SkillVersion:      jr.SkillVersion,
+			SkillSource:       jr.SkillSource,
+			SkillSHA256:       jr.SkillSHA256,
+			Passed:            jr.Passed,
+			Duration:          jr.Duration,
+			ExitCode:          jr.ExitCode,
+			Turns:             jr.Turns,
+			MemoryWindow:      jr.MemoryWindow,
+			PromptTokens:      jr.PromptTokens,
+			CompletionTokens:  jr.CompletionTokens,
+			EstimatedCost:     jr.EstimatedCost,
+			ChecksPassed:      jr.ChecksPassed,
+			ChecksTotal:       jr.ChecksTotal,
+			ChecksJSON:        jr.ChecksJSON,
+			MetadataJSON:      jr.MetadataJSON,
+			CreatedAt:         createdAt,
 		})
 	}
 

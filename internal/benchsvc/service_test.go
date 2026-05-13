@@ -305,6 +305,24 @@ func TestBuildWhere_TenantAlwaysFirst(t *testing.T) {
 			wantSQL:  "tool_server_version = $2",
 		},
 		{
+			name:   "tenant plus skill id",
+			tenant: "t5",
+			filters: bench.RunFilters{
+				SkillID: "k8s-admin",
+			},
+			wantArgs: 2,
+			wantSQL:  "skill_id = $2",
+		},
+		{
+			name:   "tenant plus skill version",
+			tenant: "t5",
+			filters: bench.RunFilters{
+				SkillVersion: "2026-05-13",
+			},
+			wantArgs: 2,
+			wantSQL:  "skill_version = $2",
+		},
+		{
 			name:   "tenant plus report id",
 			tenant: "t6",
 			filters: bench.RunFilters{
@@ -427,8 +445,8 @@ func TestServiceIngestRun_PreservesToolServerIdentity(t *testing.T) {
 		t.Fatalf("exec count = %d, want 1", len(tx.execArgs))
 	}
 	args := tx.execArgs[0]
-	if len(args) != 22 {
-		t.Fatalf("insert args = %d, want 22", len(args))
+	if len(args) != 26 {
+		t.Fatalf("insert args = %d, want 26", len(args))
 	}
 	if got := args[6]; got != "kubernetes-mcp" {
 		t.Fatalf("tool_server arg = %v, want kubernetes-mcp", got)

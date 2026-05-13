@@ -29,6 +29,7 @@ func (s *PgStore) ListRuns(ctx context.Context, tenantID string, f bench.RunFilt
 		"created_at": true, "duration_seconds": true, "estimated_cost_usd": true,
 		"scenario_id": true, "model": true, "provider": true,
 		"tool_server": true, "tool_server_version": true, "checks_passed": true, "turns": true, "passed": true,
+		"skill_id": true, "skill_version": true,
 	}
 	if f.SortBy != "" && validSortColumns[f.SortBy] {
 		orderCol = f.SortBy
@@ -85,11 +86,11 @@ func (s *PgStore) GetRun(ctx context.Context, tenantID string, id string) (*benc
 func (s *PgStore) InsertRun(ctx context.Context, tenantID string, r bench.RunRecord) error {
 	query := `INSERT INTO bench_runs (
 		id, tenant_id, scenario_id, model, provider, adapter, tool_server,
-		tool_server_version, scenario_version,
+		tool_server_version, skill_id, skill_version, skill_source, skill_sha256, scenario_version,
 		passed, duration_seconds, exit_code, turns, memory_window,
 		prompt_tokens, completion_tokens, estimated_cost_usd,
 		checks_passed, checks_total, checks_json, metadata_json, created_at
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)`
 
 	checksJSON := nullableJSONB(r.ChecksJSON)
 	metadataJSON := nullableJSONB(r.MetadataJSON)
@@ -100,7 +101,7 @@ func (s *PgStore) InsertRun(ctx context.Context, tenantID string, r bench.RunRec
 
 	_, err := s.db.Exec(ctx, query,
 		r.ID, tenantID, r.ScenarioID, r.Model, r.Provider, r.Adapter, r.ToolServer,
-		r.ToolServerVersion, r.ScenarioVersion,
+		r.ToolServerVersion, r.SkillID, r.SkillVersion, r.SkillSource, r.SkillSHA256, r.ScenarioVersion,
 		r.Passed, r.Duration, r.ExitCode, r.Turns, r.MemoryWindow,
 		r.PromptTokens, r.CompletionTokens, r.EstimatedCost,
 		r.ChecksPassed, r.ChecksTotal, checksJSON, metadataJSON, createdAt,
@@ -119,11 +120,11 @@ func (s *PgStore) InsertRunBatch(ctx context.Context, tenantID string, runs []be
 
 	query := `INSERT INTO bench_runs (
 		id, tenant_id, scenario_id, model, provider, adapter, tool_server,
-		tool_server_version, scenario_version,
+		tool_server_version, skill_id, skill_version, skill_source, skill_sha256, scenario_version,
 		passed, duration_seconds, exit_code, turns, memory_window,
 		prompt_tokens, completion_tokens, estimated_cost_usd,
 		checks_passed, checks_total, checks_json, metadata_json, created_at
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
 	ON CONFLICT (id) DO NOTHING`
 
 	inserted := 0
@@ -137,7 +138,7 @@ func (s *PgStore) InsertRunBatch(ctx context.Context, tenantID string, runs []be
 		}
 		batch.Queue(query,
 			r.ID, tenantID, r.ScenarioID, r.Model, r.Provider, r.Adapter, r.ToolServer,
-			r.ToolServerVersion, r.ScenarioVersion,
+			r.ToolServerVersion, r.SkillID, r.SkillVersion, r.SkillSource, r.SkillSHA256, r.ScenarioVersion,
 			r.Passed, r.Duration, r.ExitCode, r.Turns, r.MemoryWindow,
 			r.PromptTokens, r.CompletionTokens, r.EstimatedCost,
 			r.ChecksPassed, r.ChecksTotal, checksJSON, metadataJSON, createdAt,

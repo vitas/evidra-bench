@@ -30,6 +30,10 @@ type RunRecord struct {
 	Adapter           string    `json:"adapter"`
 	ToolServer        string    `json:"tool_server"`         // MCP server used (empty = baseline/direct exec)
 	ToolServerVersion string    `json:"tool_server_version"` // version of MCP server binary
+	SkillID           string    `json:"skill_id"`            // skill prompt identity (empty = no skill)
+	SkillVersion      string    `json:"skill_version"`       // skill prompt version
+	SkillSource       string    `json:"skill_source"`        // local-file, local-temp, role, registry, etc.
+	SkillSHA256       string    `json:"skill_sha256"`        // skill prompt content digest
 	ScenarioVersion   string    `json:"scenario_version"`    // version/hash of scenario definition
 	Passed            bool      `json:"passed"`
 	Duration          float64   `json:"duration_seconds"`
@@ -55,6 +59,9 @@ type RunFilters struct {
 	Provider          string
 	ToolServer        string
 	ToolServerVersion string
+	SkillID           string
+	SkillVersion      string
+	SkillUnset        bool // exact baseline/native-prompt runs where skill_id is empty
 	ReportID          string
 	ToolServerUnset   bool // exact baseline/native-tool runs where tool_server is empty
 	PassedOnly        bool
@@ -74,6 +81,9 @@ type RunCatalog struct {
 	ToolServers                []string            `json:"tool_servers"`
 	ToolServerVersions         []string            `json:"tool_server_versions"`
 	ToolServerVersionsByServer map[string][]string `json:"tool_server_versions_by_server,omitempty"`
+	SkillIDs                   []string            `json:"skill_ids,omitempty"`
+	SkillVersions              []string            `json:"skill_versions,omitempty"`
+	SkillVersionsByID          map[string][]string `json:"skill_versions_by_id,omitempty"`
 }
 
 // StatsResult holds aggregate run statistics.

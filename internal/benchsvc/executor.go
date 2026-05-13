@@ -20,6 +20,11 @@ type TriggerRequest struct {
 	MCPServer         string   `json:"mcp_server,omitempty"`
 	ToolServer        string   `json:"tool_server,omitempty"`
 	ToolServerVersion string   `json:"tool_server_version,omitempty"`
+	SkillFile         string   `json:"skill_file,omitempty"`
+	SkillID           string   `json:"skill_id,omitempty"`
+	SkillVersion      string   `json:"skill_version,omitempty"`
+	SkillSource       string   `json:"skill_source,omitempty"`
+	SkillSHA256       string   `json:"skill_sha256,omitempty"`
 	Scenarios         []string `json:"scenarios"`
 }
 
@@ -33,6 +38,11 @@ type TriggerJob struct {
 	MCPServer         string             `json:"mcp_server,omitempty"`
 	ToolServer        string             `json:"tool_server,omitempty"`
 	ToolServerVersion string             `json:"tool_server_version,omitempty"`
+	SkillFile         string             `json:"skill_file,omitempty"`
+	SkillID           string             `json:"skill_id,omitempty"`
+	SkillVersion      string             `json:"skill_version,omitempty"`
+	SkillSource       string             `json:"skill_source,omitempty"`
+	SkillSHA256       string             `json:"skill_sha256,omitempty"`
 	Total             int                `json:"total"`
 	Completed         int                `json:"completed"`
 	Passed            int                `json:"passed"`

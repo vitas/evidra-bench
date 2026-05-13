@@ -52,6 +52,11 @@ Request:
   "mcp_server": "npx -y @vendor/kubernetes-mcp --stdio",
   "tool_server": "kubernetes-mcp",
   "tool_server_version": "1.2.3",
+  "skill_file": "/tmp/bench-skills/k8s-admin.md",
+  "skill_id": "k8s-admin",
+  "skill_version": "2026-05-13",
+  "skill_source": "local-temp",
+  "skill_sha256": "abc123",
   "scenarios": ["broken-deployment", "repair-loop-escalation"]
 }
 ```
@@ -68,6 +73,10 @@ Rules:
   execution.
 - `tool_server` and `tool_server_version` are stable comparison labels stored
   on jobs and run records.
+- `skill_file` is a local path on the runner host. The control plane does not
+  download arbitrary remote skill URLs.
+- `skill_id`, `skill_version`, `skill_source`, and `skill_sha256` are stable
+  skill comparison and reproducibility labels.
 - Pinned runner requests fail unless the runner is healthy and advertises the
   requested model.
 - If no healthy runner is available and no direct executor is configured, the
@@ -171,6 +180,11 @@ Response when a job is claimed:
   "mcp_server": "npx -y @vendor/kubernetes-mcp --stdio",
   "tool_server": "kubernetes-mcp",
   "tool_server_version": "1.2.3",
+  "skill_file": "/tmp/bench-skills/k8s-admin.md",
+  "skill_id": "k8s-admin",
+  "skill_version": "2026-05-13",
+  "skill_source": "local-temp",
+  "skill_sha256": "abc123",
   "scenarios": ["broken-deployment", "repair-loop-escalation"],
   "timeout": 300
 }

@@ -116,10 +116,11 @@ func (s *Service) IngestRun(ctx context.Context, tenantID string, req IngestRunR
 	insertQ := `INSERT INTO bench_runs (
 		id, tenant_id, scenario_id, model, provider, adapter,
 		tool_server, tool_server_version, scenario_version,
+		skill_id, skill_version, skill_source, skill_sha256,
 		passed, duration_seconds, exit_code, turns, memory_window,
 		prompt_tokens, completion_tokens, estimated_cost_usd,
 		checks_passed, checks_total, checks_json, metadata_json, created_at
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)`
 
 	checksJSON := nullableJSONB(req.ChecksJSON)
 	metadataJSON := nullableJSONB(req.MetadataJSON)
@@ -131,6 +132,7 @@ func (s *Service) IngestRun(ctx context.Context, tenantID string, req IngestRunR
 	_, err = tx.Exec(ctx, insertQ,
 		req.ID, tenantID, req.ScenarioID, req.Model, req.Provider, req.Adapter,
 		req.ToolServer, req.ToolServerVersion, req.ScenarioVersion,
+		req.SkillID, req.SkillVersion, req.SkillSource, req.SkillSHA256,
 		req.Passed, req.Duration, req.ExitCode, req.Turns, req.MemoryWindow,
 		req.PromptTokens, req.CompletionTokens, req.EstimatedCost,
 		req.ChecksPassed, req.ChecksTotal, checksJSON, metadataJSON, createdAt,
@@ -186,10 +188,11 @@ func (s *Service) IngestRunBatch(ctx context.Context, tenantID string, runs []In
 	insertQ := `INSERT INTO bench_runs (
 		id, tenant_id, scenario_id, model, provider, adapter,
 		tool_server, tool_server_version, scenario_version,
+		skill_id, skill_version, skill_source, skill_sha256,
 		passed, duration_seconds, exit_code, turns, memory_window,
 		prompt_tokens, completion_tokens, estimated_cost_usd,
 		checks_passed, checks_total, checks_json, metadata_json, created_at
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
 	ON CONFLICT (id) DO NOTHING`
 
 	artifactQ := `INSERT INTO bench_artifacts (run_id, artifact_type, content_type, data)
@@ -208,6 +211,7 @@ func (s *Service) IngestRunBatch(ctx context.Context, tenantID string, runs []In
 		ct, err := tx.Exec(ctx, insertQ,
 			run.ID, tenantID, run.ScenarioID, run.Model, run.Provider, run.Adapter,
 			run.ToolServer, run.ToolServerVersion, run.ScenarioVersion,
+			run.SkillID, run.SkillVersion, run.SkillSource, run.SkillSHA256,
 			run.Passed, run.Duration, run.ExitCode, run.Turns, run.MemoryWindow,
 			run.PromptTokens, run.CompletionTokens, run.EstimatedCost,
 			run.ChecksPassed, run.ChecksTotal, checksJSON, metadataJSON, createdAt,

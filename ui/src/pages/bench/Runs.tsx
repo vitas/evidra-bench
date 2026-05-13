@@ -3,8 +3,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import {
+  coerceSkillVersion,
   coerceToolServerVersion,
   normalizeCatalog,
+  skillVersionOptions,
   toolServerVersionOptions,
   type CatalogResponse,
 } from "../../lib/catalogData.mts";
@@ -32,6 +34,10 @@ interface RunRecord {
   adapter: string;
   tool_server: string;
   tool_server_version: string;
+  skill_id: string;
+  skill_version: string;
+  skill_source: string;
+  skill_sha256: string;
   passed: boolean;
   duration_seconds: number;
   exit_code: number;
@@ -116,6 +122,8 @@ export function Runs() {
     providers: [],
     tool_servers: [],
     tool_server_versions: [],
+    skill_ids: [],
+    skill_versions: [],
   });
   const [scenarioCatalog, setScenarioCatalog] = useState<ExamPackScenario[]>([]);
   const [scenarioCatalogLoaded, setScenarioCatalogLoaded] = useState(false);
@@ -129,6 +137,8 @@ export function Runs() {
   const [provider, setProvider] = useState(initialFilters.provider);
   const [toolServer, setToolServer] = useState(initialFilters.toolServer);
   const [toolServerVersion, setToolServerVersion] = useState(initialFilters.toolServerVersion);
+  const [skillID, setSkillID] = useState(initialFilters.skillID);
+  const [skillVersion, setSkillVersion] = useState(initialFilters.skillVersion);
   const [status, setStatus] = useState<RunsStatus>(initialFilters.status);
   const [since, setSince] = useState(initialFilters.since);
 
@@ -180,6 +190,8 @@ export function Runs() {
           providers: [],
           tool_servers: [],
           tool_server_versions: [],
+          skill_ids: [],
+          skill_versions: [],
         }),
       );
   }, [request]);
@@ -210,6 +222,8 @@ export function Runs() {
     setProvider(nextFilters.provider);
     setToolServer(nextFilters.toolServer);
     setToolServerVersion(nextFilters.toolServerVersion);
+    setSkillID(nextFilters.skillID);
+    setSkillVersion(nextFilters.skillVersion);
     setStatus(nextFilters.status);
     setSince(nextFilters.since);
     setAppliedFilters(nextFilters);
@@ -218,6 +232,7 @@ export function Runs() {
 
   function handleApply() {
     const nextToolServerVersion = coerceToolServerVersion(catalog, toolServer, toolServerVersion, "All");
+    const nextSkillVersion = coerceSkillVersion(catalog, skillID, skillVersion, "All");
     const nextFilters: RunsFilterState = {
       scenario: scenario.trim(),
       exam,
@@ -226,10 +241,14 @@ export function Runs() {
       toolServer,
       toolServerVersion: nextToolServerVersion,
       toolServerUnset: false,
+      skillID,
+      skillVersion: nextSkillVersion,
+      skillUnset: false,
       status,
       since,
     };
     setToolServerVersion(nextToolServerVersion);
+    setSkillVersion(nextSkillVersion);
     setAppliedFilters(nextFilters);
     setPage(0);
     setSearchParams(runsSearchParamsFromFilters(nextFilters));
@@ -242,6 +261,8 @@ export function Runs() {
     setProvider(DEFAULT_RUNS_FILTERS.provider);
     setToolServer(DEFAULT_RUNS_FILTERS.toolServer);
     setToolServerVersion(DEFAULT_RUNS_FILTERS.toolServerVersion);
+    setSkillID(DEFAULT_RUNS_FILTERS.skillID);
+    setSkillVersion(DEFAULT_RUNS_FILTERS.skillVersion);
     setStatus(DEFAULT_RUNS_FILTERS.status);
     setSince(DEFAULT_RUNS_FILTERS.since);
     setAppliedFilters(DEFAULT_RUNS_FILTERS);
@@ -291,8 +312,10 @@ export function Runs() {
   const rangeEnd = Math.min((page + 1) * PAGE_SIZE, total);
   const selectedExamPack = EXAM_PACKS.find((pack) => pack.id === appliedFilters.exam);
   const availableToolServerVersions = toolServerVersionOptions(catalog, toolServer);
+  const availableSkillVersions = skillVersionOptions(catalog, skillID);
   const catalogHasToolServerData =
     catalog.tool_servers.length > 0 || (catalog.tool_server_versions ?? []).length > 0;
+  const catalogHasSkillData = (catalog.skill_ids ?? []).length > 0 || (catalog.skill_versions ?? []).length > 0;
 
   useEffect(() => {
     if (!catalogHasToolServerData) return;
@@ -314,6 +337,27 @@ export function Runs() {
       setSearchParams(runsSearchParamsFromFilters(nextFilters), { replace: true });
     }
   }, [appliedFilters, catalog, catalogHasToolServerData, setSearchParams, toolServer, toolServerVersion]);
+
+  useEffect(() => {
+    if (!catalogHasSkillData) return;
+
+    const nextDraftVersion = coerceSkillVersion(catalog, skillID, skillVersion, "All");
+    if (nextDraftVersion !== skillVersion) {
+      setSkillVersion(nextDraftVersion);
+    }
+
+    const nextAppliedVersion = coerceSkillVersion(
+      catalog,
+      appliedFilters.skillID,
+      appliedFilters.skillVersion,
+      "All",
+    );
+    if (nextAppliedVersion !== appliedFilters.skillVersion) {
+      const nextFilters = { ...appliedFilters, skillVersion: nextAppliedVersion };
+      setAppliedFilters(nextFilters);
+      setSearchParams(runsSearchParamsFromFilters(nextFilters), { replace: true });
+    }
+  }, [appliedFilters, catalog, catalogHasSkillData, setSearchParams, skillID, skillVersion]);
 
   const inputClass =
     "font-sans text-[0.8rem] px-3 py-[0.45rem] border border-border rounded-md bg-bg-elevated text-fg-body focus:outline-none focus:border-accent transition-colors";
@@ -419,6 +463,41 @@ export function Runs() {
         </label>
 
         <label className="flex flex-col gap-1">
+          <span className="text-[0.7rem] font-medium text-fg-muted uppercase tracking-wide">Skill</span>
+          <select
+            value={skillID}
+            onChange={(e) => {
+              const nextSkillID = e.target.value;
+              setSkillID(nextSkillID);
+              setSkillVersion((current) => coerceSkillVersion(catalog, nextSkillID, current, "All"));
+            }}
+            className={inputClass + " w-36"}
+          >
+            {["All", ...(catalog.skill_ids ?? [])].map((skill) => (
+              <option key={skill} value={skill}>
+                {skill}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-[0.7rem] font-medium text-fg-muted uppercase tracking-wide">Skill Version</span>
+          <select
+            value={skillVersion}
+            onChange={(e) => setSkillVersion(e.target.value)}
+            className={inputClass + " w-40"}
+            disabled={skillID !== "All" && availableSkillVersions.length === 0}
+          >
+            {["All", ...availableSkillVersions].map((version) => (
+              <option key={version} value={version}>
+                {version === "All" ? "All versions" : version}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1">
           <span className="text-[0.7rem] font-medium text-fg-muted uppercase tracking-wide">Status</span>
           <select
             value={status}
@@ -492,6 +571,9 @@ export function Runs() {
                   <th className={thClass}>
                     Tool
                   </th>
+                  <th className={thClass}>
+                    Skill
+                  </th>
                   <th className={thClass} onClick={() => handleSort("duration_seconds")}>
                     Duration <SortArrow field="duration_seconds" sort={sort} />
                   </th>
@@ -538,6 +620,12 @@ export function Runs() {
                       <span className="block">{run.tool_server || "baseline"}</span>
                       {run.tool_server_version && (
                         <span className="block text-[0.7rem] text-fg-muted/80">{run.tool_server_version}</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-muted">
+                      <span className="block">{run.skill_id || "none"}</span>
+                      {run.skill_version && (
+                        <span className="block text-[0.7rem] text-fg-muted/80">{run.skill_version}</span>
                       )}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-muted">

@@ -137,6 +137,19 @@ modes:
 The runner receives `mcp_server` as the executable command to start and
 `tool_server` / `tool_server_version` as report identity metadata.
 
+## Skill Runs
+
+Skill prompts are modeled as another identity axis:
+
+- empty `skill_id`: no first-class skill prompt
+- non-empty `skill_id`: run used the named skill prompt
+- `skill_version`: exact skill release tested for reports and comparisons
+- `skill_sha256`: content digest for reproducibility
+
+The runner receives `skill_file` as a local path. Bench does not fetch arbitrary
+remote skill URLs in the control plane; runner-side setup can download or copy
+a skill into a temporary directory and pass that local path to Bench.
+
 ## Contracts
 
 - [Runner Control Plane Contract](contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md)

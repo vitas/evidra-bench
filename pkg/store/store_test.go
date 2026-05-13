@@ -290,6 +290,46 @@ func TestInsertAndQuery_PreservesToolServerIdentity(t *testing.T) {
 	}
 }
 
+func TestInsertAndQuery_PreservesSkillIdentity(t *testing.T) {
+	t.Parallel()
+
+	s := testStore(t)
+	now := time.Now().UTC()
+
+	rec := RunRecord{
+		ID:           "run-skill",
+		ScenarioID:   "s1",
+		SkillID:      "k8s-admin",
+		SkillVersion: "2026-05-13",
+		SkillSource:  "local-temp",
+		SkillSHA256:  "abc123",
+		CreatedAt:    now,
+	}
+	if err := s.Insert(rec); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+
+	runs, err := s.Query(QueryFilters{ScenarioID: "s1"})
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("expected 1 run, got %d", len(runs))
+	}
+	if runs[0].SkillID != "k8s-admin" {
+		t.Fatalf("skill_id = %q, want k8s-admin", runs[0].SkillID)
+	}
+	if runs[0].SkillVersion != "2026-05-13" {
+		t.Fatalf("skill_version = %q, want 2026-05-13", runs[0].SkillVersion)
+	}
+	if runs[0].SkillSource != "local-temp" {
+		t.Fatalf("skill_source = %q, want local-temp", runs[0].SkillSource)
+	}
+	if runs[0].SkillSHA256 != "abc123" {
+		t.Fatalf("skill_sha256 = %q, want abc123", runs[0].SkillSHA256)
+	}
+}
+
 func TestRebuild_PreservesToolServerIdentity(t *testing.T) {
 	t.Parallel()
 

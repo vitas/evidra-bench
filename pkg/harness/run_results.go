@@ -9,6 +9,7 @@ import (
 
 	"github.com/vitas/evidra-bench/pkg/adapter"
 	"github.com/vitas/evidra-bench/pkg/artifact"
+	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/report"
 	"github.com/vitas/evidra-bench/pkg/store"
 	"github.com/vitas/evidra-bench/pkg/verifier"
@@ -125,10 +126,15 @@ func (h *Harness) storeRun(req RunRequest, agentResult *adapter.RunResult, verif
 			agentResult.Metadata["tool_server_version"] = toolServerVersion
 		}
 	}
-	if reportID := strings.TrimSpace(runCfg.ReportID); reportID != "" {
-		if agentResult.Metadata == nil {
-			agentResult.Metadata = map[string]string{}
+	if agentResult.Metadata == nil {
+		agentResult.Metadata = map[string]string{}
+	}
+	for k, v := range config.CollectVersions(version, commit, runCfg).ToMetadata() {
+		if v != "" && agentResult.Metadata[k] == "" {
+			agentResult.Metadata[k] = v
 		}
+	}
+	if reportID := strings.TrimSpace(runCfg.ReportID); reportID != "" {
 		agentResult.Metadata["report_id"] = reportID
 	}
 	checksPassed, checksTotal := countChecks(verifyResult)
@@ -144,6 +150,10 @@ func (h *Harness) storeRun(req RunRequest, agentResult *adapter.RunResult, verif
 		Adapter:           req.Config.Adapter,
 		ToolServer:        toolServer,
 		ToolServerVersion: toolServerVersion,
+		SkillID:           agentResult.Metadata["skill_id"],
+		SkillVersion:      agentResult.Metadata["skill_version"],
+		SkillSource:       agentResult.Metadata["skill_source"],
+		SkillSHA256:       agentResult.Metadata["skill_sha256"],
 		Passed:            verifyResult.Passed,
 		Duration:          endTime.Sub(startTime).Seconds(),
 		ExitCode:          agentResult.ExitCode,

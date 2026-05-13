@@ -2,6 +2,7 @@ package harness
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -204,14 +205,21 @@ func buildRunMetadata(cfg config.Config, loopResult *agent.LoopResult, evidenceD
 	return meta
 }
 
-// buildSystemPrompt loads the system prompt from file, role skill, or returns the default.
+// buildSystemPrompt loads the system prompt from skill file, legacy prompt file,
+// role skill, or returns the default.
 func buildSystemPrompt(cfg config.Config, s *scenario.Scenario) (string, error) {
-	// 1. Explicit system prompt file takes precedence over everything.
-	promptFile := cfg.ResolveSystemPromptFile()
+	// 1. Explicit skill or system prompt file takes precedence over role/defaults.
+	promptFile := cfg.ResolvePromptFile()
 	if promptFile != "" {
 		data, err := os.ReadFile(promptFile)
 		if err != nil {
 			return "", fmt.Errorf("harness: read system prompt file: %w", err)
+		}
+		if expected := strings.TrimSpace(cfg.SkillSHA256); cfg.ResolveSkillFile() != "" && expected != "" {
+			got := fmt.Sprintf("%x", sha256.Sum256(data))
+			if got != expected {
+				return "", fmt.Errorf("harness: skill file sha256 mismatch: got %s want %s", got, expected)
+			}
 		}
 		prompt := string(data)
 		prompt += fmt.Sprintf("\n\nTarget namespace: %s\n", strings.Join(s.Scope.Namespaces, ", "))

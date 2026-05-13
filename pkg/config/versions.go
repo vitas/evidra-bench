@@ -1,7 +1,10 @@
 package config
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -19,26 +22,59 @@ type VersionInfo struct {
 	PromptVersion   string `json:"prompt_version,omitempty"`
 	PromptFile      string `json:"prompt_file,omitempty"`
 	Role            string `json:"role,omitempty"`
+	SkillFile       string `json:"skill_file,omitempty"`
+	SkillID         string `json:"skill_id,omitempty"`
+	SkillSource     string `json:"skill_source,omitempty"`
+	SkillSHA256     string `json:"skill_sha256,omitempty"`
 }
 
 // CollectVersions gathers version information from the prompt file and the
 // infra-bench build.
 func CollectVersions(infraBenchVersion, infraBenchCommit string, cfg Config) VersionInfo {
+	skillFile := cfg.ResolveSkillFile()
+	systemPromptFile := cfg.ResolveSystemPromptFile()
+	roleSkillFile := false
+	if skillFile == "" && systemPromptFile == "" && cfg.Role != "" {
+		skillFile = filepath.Join(cfg.ScenariosDir, "..", "skills", cfg.Role+".md")
+		roleSkillFile = true
+	}
+	promptFile := cfg.ResolvePromptFile()
+	if promptFile == "" && roleSkillFile {
+		promptFile = skillFile
+	}
+
 	vi := VersionInfo{
 		InfraBenchVersion: infraBenchVersion,
 		InfraBenchCommit:  infraBenchCommit,
 		ContractVersion:   cfg.ContractVersion,
-		PromptFile:        cfg.ResolveSystemPromptFile(),
+		SkillVersion:      strings.TrimSpace(cfg.SkillVersion),
+		PromptFile:        promptFile,
 		Role:              cfg.Role,
+		SkillFile:         skillFile,
+		SkillID:           strings.TrimSpace(cfg.SkillID),
+		SkillSource:       strings.TrimSpace(cfg.SkillSource),
+		SkillSHA256:       strings.TrimSpace(cfg.SkillSHA256),
 	}
 
-	if vi.ContractVersion != "" {
+	if vi.SkillID == "" {
+		vi.SkillID = inferSkillID(skillFile)
+	}
+	if vi.SkillSource == "" {
+		vi.SkillSource = inferSkillSource(skillFile, cfg.Role, roleSkillFile)
+	}
+	if vi.SkillSHA256 == "" && skillFile != "" {
+		vi.SkillSHA256 = fileSHA256(skillFile)
+	}
+
+	if vi.ContractVersion != "" && vi.SkillVersion == "" {
 		vi.SkillVersion = parseSkillVersionFromContractVersion(vi.ContractVersion)
 	}
 
 	if vi.PromptFile != "" {
 		if vi.ContractVersion == "" {
 			vi.ContractVersion = extractContractVersion(vi.PromptFile)
+		}
+		if vi.SkillVersion == "" {
 			vi.SkillVersion = parseSkillVersionFromContractVersion(vi.ContractVersion)
 		}
 		vi.PromptVersion = extractPromptVersion(vi.PromptFile)
@@ -70,6 +106,18 @@ func (v VersionInfo) ToMetadata() map[string]string {
 	}
 	if v.Role != "" {
 		m["role"] = v.Role
+	}
+	if v.SkillFile != "" {
+		m["skill_file"] = v.SkillFile
+	}
+	if v.SkillID != "" {
+		m["skill_id"] = v.SkillID
+	}
+	if v.SkillSource != "" {
+		m["skill_source"] = v.SkillSource
+	}
+	if v.SkillSHA256 != "" {
+		m["skill_sha256"] = v.SkillSHA256
 	}
 	return m
 }
@@ -124,6 +172,33 @@ func extractPromptVersion(path string) string {
 		}
 	}
 	return ""
+}
+
+func inferSkillID(skillFile string) string {
+	if skillFile == "" {
+		return ""
+	}
+	base := filepath.Base(skillFile)
+	ext := filepath.Ext(base)
+	return strings.TrimSuffix(base, ext)
+}
+
+func inferSkillSource(skillFile, role string, roleSkillFile bool) string {
+	if role != "" && roleSkillFile {
+		return "role"
+	}
+	if skillFile != "" {
+		return "local-file"
+	}
+	return ""
+}
+
+func fileSHA256(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%x", sha256.Sum256(data))
 }
 
 func readFileHead(path string, n int) ([]byte, error) {

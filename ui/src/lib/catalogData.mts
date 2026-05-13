@@ -4,6 +4,9 @@ export interface CatalogResponse {
   tool_servers: string[];
   tool_server_versions?: string[];
   tool_server_versions_by_server?: Record<string, string[]>;
+  skill_ids?: string[];
+  skill_versions?: string[];
+  skill_versions_by_id?: Record<string, string[]>;
 }
 
 function normalizeList(values: string[]): string[] {
@@ -27,6 +30,9 @@ export function normalizeCatalog(catalog: CatalogResponse): CatalogResponse {
     tool_servers: normalizeList(catalog.tool_servers ?? []),
     tool_server_versions: normalizeList(catalog.tool_server_versions ?? []),
     tool_server_versions_by_server: normalizeVersionMap(catalog.tool_server_versions_by_server),
+    skill_ids: normalizeList(catalog.skill_ids ?? []),
+    skill_versions: normalizeList(catalog.skill_versions ?? []),
+    skill_versions_by_id: normalizeVersionMap(catalog.skill_versions_by_id),
   };
 }
 
@@ -51,6 +57,29 @@ export function coerceToolServerVersion(
   if (!version || version === emptyValue) return emptyValue;
   if (!toolServer || toolServer === "All") return version;
   return toolServerVersionOptions(catalog, toolServer).includes(version) ? version : emptyValue;
+}
+
+export function skillVersionOptions(catalog: CatalogResponse, skillID: string): string[] {
+  if (!skillID || skillID === "All") {
+    return catalog.skill_versions ?? [];
+  }
+  const versionsByID = catalog.skill_versions_by_id ?? {};
+  if (Object.keys(versionsByID).length === 0) {
+    return catalog.skill_versions ?? [];
+  }
+  const versions = versionsByID[skillID];
+  return versions && versions.length > 0 ? versions : [];
+}
+
+export function coerceSkillVersion(
+  catalog: CatalogResponse,
+  skillID: string,
+  version: string,
+  emptyValue: string,
+): string {
+  if (!version || version === emptyValue) return emptyValue;
+  if (!skillID || skillID === "All") return version;
+  return skillVersionOptions(catalog, skillID).includes(version) ? version : emptyValue;
 }
 
 export function buildLeaderboardPath(k: number, scenarios?: string[]): string {

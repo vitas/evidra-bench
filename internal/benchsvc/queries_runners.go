@@ -124,9 +124,9 @@ func (s *PgStore) EnqueueJob(ctx context.Context, tenantID, model, provider stri
 		return nil, fmt.Errorf("benchsvc.EnqueueJob: marshal: %w", err)
 	}
 	_, err = s.db.Exec(ctx, `
-		INSERT INTO bench_jobs (id, tenant_id, model, provider, status, total, config_json, tool_server, tool_server_ver)
-		VALUES ($1, $2, $3, $4, 'queued', $5, $6, $7, $8)
-	`, id, tenantID, model, provider, len(cfg.Scenarios), cfgJSON, cfg.ToolServer, cfg.ToolServerVersion)
+		INSERT INTO bench_jobs (id, tenant_id, model, provider, status, total, config_json, tool_server, tool_server_ver, skill_id, skill_version)
+		VALUES ($1, $2, $3, $4, 'queued', $5, $6, $7, $8, $9, $10)
+	`, id, tenantID, model, provider, len(cfg.Scenarios), cfgJSON, cfg.ToolServer, cfg.ToolServerVersion, cfg.SkillID, cfg.SkillVersion)
 	if err != nil {
 		return nil, fmt.Errorf("benchsvc.EnqueueJob: %w", err)
 	}
@@ -140,6 +140,8 @@ func (s *PgStore) EnqueueJob(ctx context.Context, tenantID, model, provider stri
 		Total:             len(cfg.Scenarios),
 		ToolServer:        cfg.ToolServer,
 		ToolServerVersion: cfg.ToolServerVersion,
+		SkillID:           cfg.SkillID,
+		SkillVersion:      cfg.SkillVersion,
 		ConfigJSON:        cfgJSON,
 	}, nil
 }
@@ -166,12 +168,12 @@ func (s *PgStore) ClaimJob(ctx context.Context, tenantID, runnerID string, model
 			LIMIT 1
 		)
 		RETURNING id, tenant_id, infra_id, model, provider, status, total,
-		          completed, passed, failed, tool_server, tool_server_ver,
+		          completed, passed, failed, tool_server, tool_server_ver, skill_id, skill_version,
 		          error_message, config_json, created_at
 	`, tenantID, models, runnerID).Scan(
 		&job.ID, &job.TenantID, &job.InfraID, &job.Model, &job.Provider,
 		&job.Status, &job.Total, &job.Completed, &job.Passed, &job.Failed,
-		&job.ToolServer, &job.ToolServerVersion,
+		&job.ToolServer, &job.ToolServerVersion, &job.SkillID, &job.SkillVersion,
 		&job.ErrorMessage, &cfgJSON, &job.CreatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {

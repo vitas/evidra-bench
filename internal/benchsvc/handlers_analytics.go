@@ -19,6 +19,9 @@ func handleStats(svc *Service) http.HandlerFunc {
 			ToolServer:        q.Get("tool_server"),
 			ToolServerVersion: q.Get("tool_server_version"),
 			ReportID:          q.Get("report_id"),
+			SkillID:           q.Get("skill_id"),
+			SkillVersion:      q.Get("skill_version"),
+			SkillUnset:        q.Get("skill_unset") == "true",
 			ToolServerUnset:   q.Get("tool_server_unset") == "true",
 			Since:             parseSince(q.Get("since")),
 		}
@@ -42,6 +45,9 @@ func handleSignals(svc *Service) http.HandlerFunc {
 			ToolServer:        q.Get("tool_server"),
 			ToolServerVersion: q.Get("tool_server_version"),
 			ReportID:          q.Get("report_id"),
+			SkillID:           q.Get("skill_id"),
+			SkillVersion:      q.Get("skill_version"),
+			SkillUnset:        q.Get("skill_unset") == "true",
 			ToolServerUnset:   q.Get("tool_server_unset") == "true",
 			Since:             parseSince(q.Get("since")),
 		}

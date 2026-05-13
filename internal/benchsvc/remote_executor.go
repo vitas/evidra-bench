@@ -55,6 +55,21 @@ func buildCertifyConfig(job *TriggerJob) map[string]any {
 	if job.ToolServerVersion != "" {
 		cfg["tool_server_version"] = job.ToolServerVersion
 	}
+	if job.SkillFile != "" {
+		cfg["skill_file"] = job.SkillFile
+	}
+	if job.SkillID != "" {
+		cfg["skill_id"] = job.SkillID
+	}
+	if job.SkillVersion != "" {
+		cfg["skill_version"] = job.SkillVersion
+	}
+	if job.SkillSource != "" {
+		cfg["skill_source"] = job.SkillSource
+	}
+	if job.SkillSHA256 != "" {
+		cfg["skill_sha256"] = job.SkillSHA256
+	}
 	if job.ExecutionMode == "a2a" {
 		cfg["adapter"] = "a2a"
 	}

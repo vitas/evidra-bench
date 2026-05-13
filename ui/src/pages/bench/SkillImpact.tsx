@@ -15,6 +15,8 @@ interface Run {
   estimated_cost_usd: number;
   checks_passed: number;
   checks_total: number;
+  skill_id?: string;
+  skill_version?: string;
   metadata_json: string;
 }
 
@@ -39,8 +41,10 @@ interface ScenarioPair {
 
 /* ── Helpers ── */
 
-function hasSkill(metadataJson: string | null | undefined): boolean {
-  return (metadataJson ?? "").includes("skill_version");
+function hasSkill(run: Run): boolean {
+  if ((run.skill_id ?? "").trim() !== "") return true;
+  const metadataJson = run.metadata_json ?? "";
+  return metadataJson.includes('"skill_id"') || metadataJson.includes('"skill_version"');
 }
 
 function formatPct(n: number): string {
@@ -71,7 +75,7 @@ function deltaArrow(delta: number): string {
 }
 
 function computeGroup(runs: Run[], withSkill: boolean) {
-  const filtered = runs.filter((r) => hasSkill(r.metadata_json) === withSkill);
+  const filtered = runs.filter((r) => hasSkill(r) === withSkill);
   const passed = filtered.filter((r) => r.passed).length;
   return {
     runs: filtered.length,
@@ -104,7 +108,7 @@ export function SkillImpact() {
   }, [request]);
 
   const hasAnySkillRuns = useMemo(
-    () => runs.some((r) => hasSkill(r.metadata_json)),
+    () => runs.some((r) => hasSkill(r)),
     [runs],
   );
 
@@ -141,7 +145,7 @@ export function SkillImpact() {
 
     for (const r of runs) {
       const entry = scenarioMap.get(r.scenario_id) ?? { with: [], without: [] };
-      if (hasSkill(r.metadata_json)) {
+      if (hasSkill(r)) {
         entry.with.push(r.passed);
       } else {
         entry.without.push(r.passed);
@@ -202,8 +206,7 @@ export function SkillImpact() {
         <div className="glass-card p-8 text-center">
           <p className="text-fg-muted text-[0.9rem] mb-2">No skill-enabled runs yet</p>
           <p className="text-fg-muted text-[0.78rem]">
-            Run benchmarks with <code className="font-mono bg-bg-alt/80 px-1.5 py-0.5 rounded text-accent">--system-prompt-file</code> pointing
-            to a skill prompt to see the impact comparison.
+            Run benchmarks with <code className="font-mono bg-bg-alt/80 px-1.5 py-0.5 rounded text-accent">--skill-file</code> and set <code className="font-mono bg-bg-alt/80 px-1.5 py-0.5 rounded text-accent">--skill-id</code> to see the impact comparison.
           </p>
         </div>
       </div>
@@ -226,7 +229,7 @@ export function SkillImpact() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <MiniCard
           label="Skill Runs"
-          value={String(runs.filter((r) => hasSkill(r.metadata_json)).length)}
+          value={String(runs.filter((r) => hasSkill(r)).length)}
           detail={`of ${runs.length} total`}
         />
         <MiniCard
@@ -239,7 +242,7 @@ export function SkillImpact() {
           label="Without Skill"
           value={formatPct(
             (() => {
-              const without = runs.filter((r) => !hasSkill(r.metadata_json));
+              const without = runs.filter((r) => !hasSkill(r));
               return without.length > 0
                 ? (without.filter((r) => r.passed).length / without.length) * 100
                 : 0;
@@ -251,7 +254,7 @@ export function SkillImpact() {
           label="With Skill"
           value={formatPct(
             (() => {
-              const withS = runs.filter((r) => hasSkill(r.metadata_json));
+              const withS = runs.filter((r) => hasSkill(r));
               return withS.length > 0
                 ? (withS.filter((r) => r.passed).length / withS.length) * 100
                 : 0;
@@ -451,8 +454,8 @@ export function SkillImpact() {
         </p>
         <p className="text-fg-muted text-[0.8rem]">
           Run benchmarks with a skill prompt to build a complete comparison.
-          Use <code className="font-mono bg-bg-alt/80 px-1.5 py-0.5 rounded text-accent">--system-prompt-file</code> with
-          the contract prompt to enable skill-mode runs.
+          Use <code className="font-mono bg-bg-alt/80 px-1.5 py-0.5 rounded text-accent">--skill-file</code> with
+          a stable <code className="font-mono bg-bg-alt/80 px-1.5 py-0.5 rounded text-accent">--skill-id</code> to label those runs.
         </p>
       </div>
     </div>

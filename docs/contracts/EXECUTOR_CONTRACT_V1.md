@@ -54,7 +54,12 @@ Request:
     "a2a_agent_url": "http://agent:8080",
     "mcp_server": "npx -y @vendor/kubernetes-mcp --stdio",
     "tool_server": "kubernetes-mcp",
-    "tool_server_version": "1.2.3"
+    "tool_server_version": "1.2.3",
+    "skill_file": "/tmp/bench-skills/k8s-admin.md",
+    "skill_id": "k8s-admin",
+    "skill_version": "2026-05-13",
+    "skill_source": "local-temp",
+    "skill_sha256": "abc123"
   },
   "callback": {
     "progress_url": "http://bench:8090/v1/bench/trigger/trigger-01KMH.../progress",
@@ -79,6 +84,11 @@ Fields:
 | `config.mcp_server` | no | Executable MCP server command |
 | `config.tool_server` | no | Stable MCP server identity for filtering/comparison |
 | `config.tool_server_version` | no | Stable MCP server version for reports |
+| `config.skill_file` | no | Local skill prompt path available on the executor host |
+| `config.skill_id` | no | Stable skill identity for filtering/comparison |
+| `config.skill_version` | no | Stable skill version for reports |
+| `config.skill_source` | no | Source label such as `local-temp`, `local-file`, or registry name |
+| `config.skill_sha256` | no | Expected SHA-256 digest for `config.skill_file` |
 | `callback.progress_url` | yes | Trigger progress webhook |
 | `callback.bench_url` | yes | API base URL for run/artifact delivery |
 | `callback.bench_api_key` | yes | Bearer token for API auth |
@@ -158,6 +168,8 @@ Content-Type: application/json
   "adapter": "a2a",
   "tool_server": "kubernetes-mcp",
   "tool_server_version": "1.2.3",
+  "skill_id": "k8s-admin",
+  "skill_version": "2026-05-13",
   "passed": true,
   "duration_seconds": 35.2,
   "exit_code": 0,

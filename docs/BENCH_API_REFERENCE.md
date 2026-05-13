@@ -44,7 +44,8 @@ Returns `200 OK` with `{"status":"ok"}` when the HTTP process is running.
 
 ## Filters
 
-Bench list and analytics endpoints use `tool_server` as the comparison axis:
+Bench list and analytics endpoints use `tool_server` and `skill_id` as
+comparison axes:
 
 | Query value | Meaning |
 |---|---|
@@ -52,11 +53,18 @@ Bench list and analytics endpoints use `tool_server` as the comparison axis:
 | `tool_server_unset=true` | baseline/direct provider-loop runs |
 | `tool_server=<id>` | runs that used the selected external tool server |
 | `tool_server_version=<version>` | exact version slice for the selected server |
+| `skill_unset=true` | runs without a first-class skill prompt |
+| `skill_id=<id>` | runs that used the selected skill prompt |
+| `skill_version=<version>` | exact version slice for the selected skill |
 
 Tool-server runs can also carry `mcp_server`, `tool_server`, and
 `tool_server_version`. `mcp_server` is the executable command for the runner;
 `tool_server` and `tool_server_version` are stable labels used for filtering,
 comparison, and private reports.
+
+Skill runs can carry `skill_file`, `skill_id`, `skill_version`,
+`skill_source`, and `skill_sha256`. `skill_file` is a local runner path, not a
+URL to fetch from the hosted control plane.
 
 ## Public Read Endpoints
 
@@ -136,6 +144,10 @@ artifact fields:
   "adapter": "a2a",
   "tool_server": "kubernetes-mcp",
   "tool_server_version": "1.2.3",
+  "skill_id": "k8s-admin",
+  "skill_version": "2026-05-13",
+  "skill_source": "local-temp",
+  "skill_sha256": "abc123",
   "passed": true,
   "duration_seconds": 35.2,
   "exit_code": 0,
@@ -164,6 +176,9 @@ Query parameters:
 | `tool_server` | exact MCP tool-server identity filter |
 | `tool_server_version` | exact MCP tool-server version filter |
 | `tool_server_unset` | `true` for baseline/direct provider-loop runs where `tool_server` is empty |
+| `skill_id` | exact skill identity filter |
+| `skill_version` | exact skill version filter |
+| `skill_unset` | `true` for runs where `skill_id` is empty |
 | `report_id` | exact report/campaign ID stored in run metadata |
 | `scenario` | exact scenario ID filter |
 | `scenarios` | comma-separated scenario IDs; ignored when `scenario` is set |
@@ -171,7 +186,7 @@ Query parameters:
 | `passed` | `true` or `false` |
 | `limit` | page size |
 | `offset` | page offset |
-| `sort_by` | `created_at`, `duration_seconds`, `estimated_cost_usd`, `scenario_id`, `model`, `provider`, `tool_server`, `tool_server_version`, `checks_passed`, `turns`, or `passed` |
+| `sort_by` | `created_at`, `duration_seconds`, `estimated_cost_usd`, `scenario_id`, `model`, `provider`, `tool_server`, `tool_server_version`, `skill_id`, `skill_version`, `checks_passed`, `turns`, or `passed` |
 | `sort_order` | `asc` or `desc` |
 
 ### GET /v1/bench/runs/{id}
@@ -240,7 +255,9 @@ observed in stored runs.
   "models": ["sonnet"],
   "providers": ["anthropic"],
   "tool_servers": ["flux159-mcp-server-kubernetes", "containers-kubernetes-mcp-server"],
-  "tool_server_versions": ["1.2.3"]
+  "tool_server_versions": ["1.2.3"],
+  "skill_ids": ["k8s-admin"],
+  "skill_versions": ["2026-05-13"]
 }
 ```
 
@@ -443,7 +460,8 @@ See [Executor Contract v1.0.0](contracts/EXECUTOR_CONTRACT_V1.md) and
 Starts a benchmark run. Requires `model` and `scenarios`. Provide
 `mcp_server`, `tool_server`, and `tool_server_version` when the run should use
 an external MCP/tool server. Leave `tool_server` empty for the baseline/direct
-provider loop.
+provider loop. Provide `skill_file`, `skill_id`, and `skill_version` when the
+runner should load a local skill prompt.
 
 ```json
 {
@@ -454,6 +472,11 @@ provider loop.
   "mcp_server": "npx -y @vendor/kubernetes-mcp --stdio",
   "tool_server": "kubernetes-mcp",
   "tool_server_version": "1.2.3",
+  "skill_file": "/tmp/bench-skills/k8s-admin.md",
+  "skill_id": "k8s-admin",
+  "skill_version": "2026-05-13",
+  "skill_source": "local-temp",
+  "skill_sha256": "abc123",
   "scenarios": ["broken-deployment"]
 }
 ```
@@ -562,6 +585,9 @@ Response when a job is available:
   "mcp_server": "npx -y @vendor/kubernetes-mcp --stdio",
   "tool_server": "kubernetes-mcp",
   "tool_server_version": "1.2.3",
+  "skill_file": "/tmp/bench-skills/k8s-admin.md",
+  "skill_id": "k8s-admin",
+  "skill_version": "2026-05-13",
   "scenarios": ["broken-deployment"],
   "timeout": 300
 }

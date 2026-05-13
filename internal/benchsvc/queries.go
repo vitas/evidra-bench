@@ -17,7 +17,7 @@ var ErrNotFound = errors.New("not found")
 
 // runRecordColumns is the SELECT column list for RunRecord scans.
 const runRecordColumns = `id, tenant_id, scenario_id, model, provider, adapter, tool_server,
-	tool_server_version, scenario_version,
+	tool_server_version, skill_id, skill_version, skill_source, skill_sha256, scenario_version,
 	passed, duration_seconds, exit_code, turns, memory_window,
 	prompt_tokens, completion_tokens, estimated_cost_usd,
 	checks_passed, checks_total, checks_json, metadata_json, created_at`
@@ -100,6 +100,8 @@ type BenchJob struct {
 	Failed            int             `json:"failed"`
 	ToolServer        string          `json:"tool_server,omitempty"`
 	ToolServerVersion string          `json:"tool_server_version,omitempty"`
+	SkillID           string          `json:"skill_id,omitempty"`
+	SkillVersion      string          `json:"skill_version,omitempty"`
 	ErrorMessage      string          `json:"error_message,omitempty"`
 	ConfigJSON        json.RawMessage `json:"config_json,omitempty"`
 	CreatedAt         time.Time       `json:"created_at"`
@@ -114,6 +116,11 @@ type JobConfig struct {
 	MCPServer         string   `json:"mcp_server,omitempty"`
 	ToolServer        string   `json:"tool_server,omitempty"`
 	ToolServerVersion string   `json:"tool_server_version,omitempty"`
+	SkillFile         string   `json:"skill_file,omitempty"`
+	SkillID           string   `json:"skill_id,omitempty"`
+	SkillVersion      string   `json:"skill_version,omitempty"`
+	SkillSource       string   `json:"skill_source,omitempty"`
+	SkillSHA256       string   `json:"skill_sha256,omitempty"`
 }
 
 // scanRunRecord scans a row into a bench.RunRecord.
@@ -122,7 +129,7 @@ func scanRunRecord(row pgx.CollectableRow) (bench.RunRecord, error) {
 	var checksJSON, metadataJSON *string
 	err := row.Scan(
 		&r.ID, &r.TenantID, &r.ScenarioID, &r.Model, &r.Provider, &r.Adapter, &r.ToolServer,
-		&r.ToolServerVersion, &r.ScenarioVersion,
+		&r.ToolServerVersion, &r.SkillID, &r.SkillVersion, &r.SkillSource, &r.SkillSHA256, &r.ScenarioVersion,
 		&r.Passed, &r.Duration, &r.ExitCode, &r.Turns, &r.MemoryWindow,
 		&r.PromptTokens, &r.CompletionTokens, &r.EstimatedCost,
 		&r.ChecksPassed, &r.ChecksTotal, &checksJSON, &metadataJSON, &r.CreatedAt,
@@ -169,6 +176,16 @@ func buildWhere(tenantID string, f bench.RunFilters) (string, []any) {
 	if f.ToolServerVersion != "" {
 		args = append(args, f.ToolServerVersion)
 		clauses = append(clauses, fmt.Sprintf("tool_server_version = $%d", len(args)))
+	}
+	if f.SkillUnset {
+		clauses = append(clauses, "skill_id = ''")
+	} else if f.SkillID != "" {
+		args = append(args, f.SkillID)
+		clauses = append(clauses, fmt.Sprintf("skill_id = $%d", len(args)))
+	}
+	if f.SkillVersion != "" {
+		args = append(args, f.SkillVersion)
+		clauses = append(clauses, fmt.Sprintf("skill_version = $%d", len(args)))
 	}
 	if f.ReportID != "" {
 		args = append(args, f.ReportID)

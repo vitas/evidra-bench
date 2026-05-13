@@ -75,6 +75,21 @@ bin/bench-cli run \
   --tool-server-version "$TOOL_SERVER_VERSION"
 ```
 
+## Run With A Skill Prompt
+
+Skill prompts are local files on the runner host. Bench records their identity,
+version, source, and SHA-256 digest for comparison:
+
+```bash
+bin/bench-cli run \
+  --scenario kubernetes/broken-deployment \
+  --provider bifrost \
+  --model sonnet \
+  --skill-file skills/k8s-admin.md \
+  --skill-id k8s-admin \
+  --skill-version 2026-05-13
+```
+
 ## Inspect Results
 
 Local artifacts are written under `runs/`, which is intentionally ignored by

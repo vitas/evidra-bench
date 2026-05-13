@@ -1,0 +1,11 @@
+ALTER TABLE bench_jobs
+    ADD COLUMN IF NOT EXISTS skill_id TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS skill_version TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE bench_runs
+    ADD COLUMN IF NOT EXISTS skill_id TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS skill_version TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS skill_source TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS skill_sha256 TEXT NOT NULL DEFAULT '';
+
+CREATE INDEX IF NOT EXISTS idx_bench_runs_skill ON bench_runs(tenant_id, skill_id);

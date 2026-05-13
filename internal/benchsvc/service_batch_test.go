@@ -113,8 +113,8 @@ func TestServiceIngestRunBatch_PreservesToolServerIdentity(t *testing.T) {
 		t.Fatalf("count = %d, want 1", count)
 	}
 	args := tx.execArgs[0]
-	if len(args) != 22 {
-		t.Fatalf("insert args = %d, want 22", len(args))
+	if len(args) != 26 {
+		t.Fatalf("insert args = %d, want 26", len(args))
 	}
 	if got := args[6]; got != "kubernetes-mcp" {
 		t.Fatalf("tool_server arg = %v, want kubernetes-mcp", got)

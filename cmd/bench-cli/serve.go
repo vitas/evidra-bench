@@ -49,6 +49,11 @@ type CertifyRequest struct {
 		MCPServer          string `json:"mcp_server,omitempty"`
 		ToolServer         string `json:"tool_server,omitempty"`
 		ToolServerVersion  string `json:"tool_server_version,omitempty"`
+		SkillFile          string `json:"skill_file,omitempty"`
+		SkillID            string `json:"skill_id,omitempty"`
+		SkillVersion       string `json:"skill_version,omitempty"`
+		SkillSource        string `json:"skill_source,omitempty"`
+		SkillSHA256        string `json:"skill_sha256,omitempty"`
 	} `json:"config"`
 	Callback struct {
 		ProgressURL string `json:"progress_url"`
@@ -260,6 +265,7 @@ func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string
 			benchURL = baseCfg.BenchURL
 		}
 
+		runMeta := config.CollectVersions(version, commit, runCfg).ToMetadata()
 		reporter := &benchReporter{
 			progressURL:       progressURL,
 			benchURL:          benchURL,
@@ -267,6 +273,10 @@ func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string
 			adapter:           runCfg.Adapter,
 			toolServer:        runCfg.ToolServerID,
 			toolServerVersion: runCfg.ToolServerVersion,
+			skillID:           runMeta["skill_id"],
+			skillVersion:      runMeta["skill_version"],
+			skillSource:       runMeta["skill_source"],
+			skillSHA256:       runMeta["skill_sha256"],
 		}
 
 		go func() {
@@ -316,6 +326,21 @@ func buildCertifyRunConfig(baseCfg config.Config, req CertifyRequest) config.Con
 	if req.Config.ToolServerVersion != "" {
 		runCfg.ToolServerVersion = req.Config.ToolServerVersion
 	}
+	if req.Config.SkillFile != "" {
+		runCfg.SkillFile = req.Config.SkillFile
+	}
+	if req.Config.SkillID != "" {
+		runCfg.SkillID = req.Config.SkillID
+	}
+	if req.Config.SkillVersion != "" {
+		runCfg.SkillVersion = req.Config.SkillVersion
+	}
+	if req.Config.SkillSource != "" {
+		runCfg.SkillSource = req.Config.SkillSource
+	}
+	if req.Config.SkillSHA256 != "" {
+		runCfg.SkillSHA256 = req.Config.SkillSHA256
+	}
 	return runCfg
 }
 
@@ -336,6 +361,10 @@ type benchReporter struct {
 	adapter           string // configured bench execution mode
 	toolServer        string // stable MCP server identity for run submissions
 	toolServerVersion string // stable MCP server version for run submissions
+	skillID           string // stable skill identity for run submissions
+	skillVersion      string // stable skill version for run submissions
+	skillSource       string // skill source label for run submissions
+	skillSHA256       string // skill prompt digest for run submissions
 }
 
 // OnScenario sends a progress webhook and (on completion) submits the bench run.
@@ -417,6 +446,18 @@ func (r *benchReporter) submitBenchRun(ev orchestrator.ScenarioEvent) {
 	}
 	if r.toolServerVersion != "" {
 		run["tool_server_version"] = r.toolServerVersion
+	}
+	if r.skillID != "" {
+		run["skill_id"] = r.skillID
+	}
+	if r.skillVersion != "" {
+		run["skill_version"] = r.skillVersion
+	}
+	if r.skillSource != "" {
+		run["skill_source"] = r.skillSource
+	}
+	if r.skillSHA256 != "" {
+		run["skill_sha256"] = r.skillSHA256
 	}
 	body, err := json.Marshal(run)
 	if err != nil {

@@ -115,6 +115,67 @@ func TestHandlePollJob_ReturnsToolServerConfig(t *testing.T) {
 	}
 }
 
+func TestHandlePollJob_ReturnsSkillConfig(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		runners: []Runner{
+			{
+				ID:     "runner-1",
+				Status: "healthy",
+				Config: RunnerConfig{Models: []string{"sonnet"}},
+			},
+		},
+		claimedJob: &BenchJob{
+			ID:       "job-q-skill",
+			TenantID: "pub",
+			Model:    "sonnet",
+			Provider: "bifrost",
+			Status:   "queued",
+			ConfigJSON: json.RawMessage(`{
+				"scenarios":["s1"],
+				"runner_id":"runner-1",
+				"skill_file":"/tmp/skill.md",
+				"skill_id":"k8s-admin",
+				"skill_version":"2026-05-13",
+				"skill_source":"local-temp",
+				"skill_sha256":"abc123"
+			}`),
+		},
+	}
+	svc := NewService(repo, ServiceConfig{PublicTenant: "pub"})
+	mux := http.NewServeMux()
+	RegisterRoutes(mux, svc, passthroughAuth("t1"))
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/runners/jobs?runner_id=runner-1", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp["skill_file"] != "/tmp/skill.md" {
+		t.Fatalf("skill_file = %v, want /tmp/skill.md", resp["skill_file"])
+	}
+	if resp["skill_id"] != "k8s-admin" {
+		t.Fatalf("skill_id = %v, want k8s-admin", resp["skill_id"])
+	}
+	if resp["skill_version"] != "2026-05-13" {
+		t.Fatalf("skill_version = %v, want 2026-05-13", resp["skill_version"])
+	}
+	if resp["skill_source"] != "local-temp" {
+		t.Fatalf("skill_source = %v, want local-temp", resp["skill_source"])
+	}
+	if resp["skill_sha256"] != "abc123" {
+		t.Fatalf("skill_sha256 = %v, want abc123", resp["skill_sha256"])
+	}
+}
+
 func TestHandlePollJob_DefaultsExecutionModeForMinimalJobs(t *testing.T) {
 	t.Parallel()
 

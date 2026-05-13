@@ -127,6 +127,12 @@ func handlePollJob(svc *Service) http.HandlerFunc {
 		if cfg.ToolServerVersion == "" {
 			cfg.ToolServerVersion = job.ToolServerVersion
 		}
+		if cfg.SkillID == "" {
+			cfg.SkillID = job.SkillID
+		}
+		if cfg.SkillVersion == "" {
+			cfg.SkillVersion = job.SkillVersion
+		}
 
 		apiutil.WriteJSON(w, http.StatusOK, map[string]any{
 			"job_id":              job.ID,
@@ -138,6 +144,11 @@ func handlePollJob(svc *Service) http.HandlerFunc {
 			"mcp_server":          cfg.MCPServer,
 			"tool_server":         cfg.ToolServer,
 			"tool_server_version": cfg.ToolServerVersion,
+			"skill_file":          cfg.SkillFile,
+			"skill_id":            cfg.SkillID,
+			"skill_version":       cfg.SkillVersion,
+			"skill_source":        cfg.SkillSource,
+			"skill_sha256":        cfg.SkillSHA256,
 		})
 	}
 }

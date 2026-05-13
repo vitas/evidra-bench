@@ -88,7 +88,7 @@ func (c *Client) Insert(ctx context.Context, args BenchJobArgs) error {
 }
 
 // InsertBatch enqueues multiple scenario jobs, assigning worker IDs round-robin.
-func (c *Client) InsertBatch(ctx context.Context, scenarios []string, model, provider, mcpServer, toolServer, toolServerVersion, jobID, tenantID string, parallel int) error {
+func (c *Client) InsertBatch(ctx context.Context, scenarios []string, model, provider, mcpServer, toolServer, toolServerVersion, skillFile, skillID, skillVersion, skillSource, skillSHA256, jobID, tenantID string, parallel int) error {
 	params := make([]river.InsertManyParams, 0, len(scenarios))
 	for i, sid := range scenarios {
 		params = append(params, river.InsertManyParams{
@@ -101,6 +101,11 @@ func (c *Client) InsertBatch(ctx context.Context, scenarios []string, model, pro
 				MCPServer:         mcpServer,
 				ToolServer:        toolServer,
 				ToolServerVersion: toolServerVersion,
+				SkillFile:         skillFile,
+				SkillID:           skillID,
+				SkillVersion:      skillVersion,
+				SkillSource:       skillSource,
+				SkillSHA256:       skillSHA256,
 				NamespaceSlot:     i % parallel,
 				Parallel:          parallel,
 			},

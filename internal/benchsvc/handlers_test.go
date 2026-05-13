@@ -88,6 +88,11 @@ func (r *handlerRepo) ListRuns(_ context.Context, tenant string, f bench.RunFilt
 	}
 	filtered = filterRunsByToolServer(filtered, f.ToolServer)
 	filtered = filterRunsByToolServerVersion(filtered, f.ToolServerVersion)
+	if f.SkillUnset {
+		filtered = filterRunsBySkillUnset(filtered)
+	}
+	filtered = filterRunsBySkillID(filtered, f.SkillID)
+	filtered = filterRunsBySkillVersion(filtered, f.SkillVersion)
 	filtered = filterRunsByReportID(filtered, f.ReportID)
 	if f.ScenarioID != "" {
 		filtered = filterRunsByScenarioIDs(filtered, []string{f.ScenarioID})
@@ -127,6 +132,11 @@ func (r *handlerRepo) FilteredStats(_ context.Context, tenant string, f bench.Ru
 	}
 	filtered = filterRunsByToolServer(filtered, f.ToolServer)
 	filtered = filterRunsByToolServerVersion(filtered, f.ToolServerVersion)
+	if f.SkillUnset {
+		filtered = filterRunsBySkillUnset(filtered)
+	}
+	filtered = filterRunsBySkillID(filtered, f.SkillID)
+	filtered = filterRunsBySkillVersion(filtered, f.SkillVersion)
 	filtered = filterRunsByReportID(filtered, f.ReportID)
 	return aggregateStatsRuns(filtered), nil
 }
@@ -378,6 +388,42 @@ func filterRunsByToolServerVersion(runs []bench.RunRecord, version string) []ben
 	filtered := make([]bench.RunRecord, 0, len(runs))
 	for _, run := range runs {
 		if run.ToolServerVersion == version {
+			filtered = append(filtered, run)
+		}
+	}
+	return filtered
+}
+
+func filterRunsBySkillID(runs []bench.RunRecord, skillID string) []bench.RunRecord {
+	if skillID == "" {
+		return runs
+	}
+	filtered := make([]bench.RunRecord, 0, len(runs))
+	for _, run := range runs {
+		if run.SkillID == skillID {
+			filtered = append(filtered, run)
+		}
+	}
+	return filtered
+}
+
+func filterRunsBySkillUnset(runs []bench.RunRecord) []bench.RunRecord {
+	filtered := make([]bench.RunRecord, 0, len(runs))
+	for _, run := range runs {
+		if run.SkillID == "" {
+			filtered = append(filtered, run)
+		}
+	}
+	return filtered
+}
+
+func filterRunsBySkillVersion(runs []bench.RunRecord, version string) []bench.RunRecord {
+	if version == "" {
+		return runs
+	}
+	filtered := make([]bench.RunRecord, 0, len(runs))
+	for _, run := range runs {
+		if run.SkillVersion == version {
 			filtered = append(filtered, run)
 		}
 	}

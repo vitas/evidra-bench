@@ -17,10 +17,13 @@ func TestMigrationsEmbedded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read embedded migrations: %v", err)
 	}
-	if len(entries) != 1 {
-		t.Fatalf("embedded migrations = %d files, want one folded baseline", len(entries))
+	if len(entries) != 2 {
+		t.Fatalf("embedded migrations = %d files, want folded baseline plus current migration", len(entries))
 	}
 	if got, want := entries[0].Name(), "001_init.up.sql"; got != want {
+		t.Fatalf("embedded migration = %s, want %s", got, want)
+	}
+	if got, want := entries[1].Name(), "002_skill_identity.up.sql"; got != want {
 		t.Fatalf("embedded migration = %s, want %s", got, want)
 	}
 }
@@ -53,6 +56,10 @@ func TestFoldedBaselineMigrationContainsFinalBenchSchema(t *testing.T) {
 		"archived_at TIMESTAMPTZ",
 		"tool_server TEXT NOT NULL DEFAULT ''",
 		"tool_server_version TEXT NOT NULL DEFAULT ''",
+		"skill_id TEXT NOT NULL DEFAULT ''",
+		"skill_version TEXT NOT NULL DEFAULT ''",
+		"skill_source TEXT NOT NULL DEFAULT ''",
+		"skill_sha256 TEXT NOT NULL DEFAULT ''",
 		"scenario_version TEXT NOT NULL DEFAULT ''",
 		"job_id TEXT REFERENCES bench_jobs(id)",
 		"CREATE TABLE IF NOT EXISTS bench_artifacts",
@@ -64,6 +71,7 @@ func TestFoldedBaselineMigrationContainsFinalBenchSchema(t *testing.T) {
 		"version TEXT NOT NULL DEFAULT ''",
 		"CREATE INDEX IF NOT EXISTS idx_bench_runs_archived",
 		"CREATE INDEX IF NOT EXISTS idx_bench_runs_tool_server",
+		"CREATE INDEX IF NOT EXISTS idx_bench_runs_skill",
 		"INSERT INTO bench_models",
 		"deepseek-v4-flash",
 		"deepseek-v4-pro",
@@ -113,8 +121,8 @@ func TestConnectAppliesFoldedBaseline(t *testing.T) {
 	if err := pool.QueryRow(ctx, "select version, dirty from schema_migrations").Scan(&version, &dirty); err != nil {
 		t.Fatalf("read schema_migrations: %v", err)
 	}
-	if version != 1 || dirty {
-		t.Fatalf("schema_migrations = version %d dirty %v, want version 1 dirty false", version, dirty)
+	if version != 2 || dirty {
+		t.Fatalf("schema_migrations = version %d dirty %v, want version 2 dirty false", version, dirty)
 	}
 
 	var seededModels int
