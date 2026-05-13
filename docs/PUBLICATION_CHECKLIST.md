@@ -19,6 +19,7 @@ history.
 
 - Confirm current `main` has no uncommitted changes.
 - Run `make lint`.
+- Run `make vuln`.
 - Run `make test`.
 - Run `bash tests/test_secret_hygiene.sh`.
 - Run `bash tests/test_artifact_hygiene.sh`.

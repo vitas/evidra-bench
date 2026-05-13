@@ -62,6 +62,10 @@ jobs:
           working-directory: bench
           args: --timeout=5m
 
+      - name: Run vulnerability scan
+        working-directory: bench
+        run: make vuln
+
       - name: Guard no core evidra dependency
         working-directory: bench
         run: bash tests/test_no_core_evidra_dependency.sh

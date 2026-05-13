@@ -3,7 +3,7 @@
 [![CI](https://github.com/vitas/evidra-bench/actions/workflows/ci.yml/badge.svg)](https://github.com/vitas/evidra-bench/actions/workflows/ci.yml)
 [![Release](https://github.com/vitas/evidra-bench/actions/workflows/release.yml/badge.svg)](https://github.com/vitas/evidra-bench/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/go-1.25%2B-00ADD8.svg)](go.mod)
+[![Go](https://img.shields.io/badge/go-1.26.3%2B-00ADD8.svg)](go.mod)
 [![Bench](https://img.shields.io/badge/bench-live%20reports-4b5563.svg)](https://bench.evidra.cc)
 
 Live infrastructure exams and regression testing for AI agents. Run the same
@@ -201,7 +201,7 @@ as long as the final infrastructure state satisfies the checks.
 
 ## Quick Start
 
-Prerequisites: Go 1.25+, kind or k3d, kubectl, helm.
+Prerequisites: Go 1.26.3+, kind or k3d, kubectl, helm.
 
 ```bash
 # Build
@@ -335,6 +335,7 @@ make test           # Go unit tests
 make test-race      # with race detector
 make fmt            # gofmt
 make lint           # golangci-lint
+make vuln           # govulncheck
 make smoke          # dry-run all scenarios
 make ui-dev         # Vite dev server for local UI
 make ui-build       # production UI build

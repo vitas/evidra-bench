@@ -4,7 +4,7 @@ COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(BUILD_DATE)"
 
-.PHONY: build db-import test test-race fmt lint tidy clean smoke public-smoke public-smoke-test catalog ui-install ui-dev ui-build ui-docker docker-bench
+.PHONY: build db-import test test-race fmt lint vuln tidy clean smoke public-smoke public-smoke-test catalog ui-install ui-dev ui-build ui-docker docker-bench
 
 build:
 	go build $(LDFLAGS) -o bin/$(BINARY) ./cmd/bench-cli
@@ -23,6 +23,9 @@ fmt:
 
 lint:
 	golangci-lint run
+
+vuln:
+	go run golang.org/x/vuln/cmd/govulncheck@v1.3.0 ./...
 
 tidy:
 	go mod tidy

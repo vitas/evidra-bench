@@ -20,6 +20,11 @@ grep -q -- 'bash tests/test_workflow_hygiene.sh' .github/workflows/ci.yml \
 grep -q -- 'bash tests/test_workflow_hygiene.sh' .github/workflows/release.yml \
   || fail "release should run workflow hygiene checks"
 
+grep -q -- 'make vuln' .github/workflows/ci.yml \
+  || fail "CI should run govulncheck"
+grep -q -- 'make vuln' .github/workflows/release.yml \
+  || fail "release should run govulncheck"
+
 grep -q -- 'bash tests/test_artifact_hygiene.sh' .github/workflows/ci.yml \
   || fail "CI should run artifact hygiene checks"
 grep -q -- 'bash tests/test_artifact_hygiene.sh' .github/workflows/release.yml \
