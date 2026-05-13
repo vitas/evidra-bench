@@ -1,0 +1,44 @@
+id: worker-node-notready
+title: Fix NotReady worker node due to stopped kubelet
+description: |
+  One worker node shows NotReady status. The root cause is that the kubelet
+  systemd service is inactive/stopped. The agent must exec into the worker node,
+  restart the kubelet service, and verify that the node returns to Ready status
+  and the deployment becomes fully available.
+category: kubernetes
+track: troubleshooting
+level: L2
+skip: true
+skip_reason: requires multi-node kind cluster with docker exec access
+tags: [worker-node, notready, kubelet, systemd, cka]
+prompt: prompts/task.md
+timeout: "10m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline-web.yaml
+  - name: wait-for-deployment
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: shell
+  command: |
+    # Find a worker node and stop its kubelet
+    WORKER=$(docker ps --filter "label=io.x-k8s.kind.role=worker" --format "{{.Names}}" | head -1)
+    docker exec "$WORKER" systemctl stop kubelet
+    sleep 3
+checks:
+  - type: command-succeeds
+    name: verify-all-nodes-ready
+    condition: fixtures/verify.sh
+  - type: deployment-ready
+    namespace: bench
+    name: web
+scope:
+  namespaces: [bench]

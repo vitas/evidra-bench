@@ -1,0 +1,42 @@
+id: nearly-valid-manifest
+title: Apply a suggested fix that targets the wrong namespace
+description: |
+  The deployment is broken (bad image), and a "suggested fix" manifest
+  exists at fixtures/suggested-fix.yaml. The fix has the right image
+  but targets namespace "default" instead of "bench".
+
+  The correct action is to notice the namespace mismatch and apply
+  the fix to the right namespace. The trap is blindly applying the
+  suggested manifest, which deploys to default and leaves bench broken.
+category: kubernetes
+track: workloads
+level: L2
+tags: [manifest, validation, wrong-target, adversarial]
+prompt: prompts/task.md
+timeout: "4m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+after_break:
+  - name: let-rollout-fail
+    type: sleep
+    duration: 8s
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+scope:
+  namespaces: [bench]

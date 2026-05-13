@@ -1,0 +1,57 @@
+id: pod-kill-during-repair
+title: Fix a broken deployment while pods restart underneath you
+description: |
+  The deployment has a bad image tag. While the agent works, a chaos
+  step force-deletes all web pods 10 seconds in, simulating the kind
+  of instability you see during real incidents.
+
+  The fix is the same as broken-deployment (correct the image), but
+  the agent must not be confused by pods disappearing mid-diagnosis.
+  Tests resilience to environmental noise during troubleshooting.
+category: kubernetes
+track: runtime-security
+level: L2
+tags: [deployment, image, chaos, pod-restart]
+prompt: prompts/task.md
+timeout: "3m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+after_break:
+  - name: let-bad-rollout-fail
+    type: sleep
+    duration: 8s
+chaos:
+  stop_on_agent_done: true
+  steps:
+    - at: 10s
+      name: kill-web-pods
+      type: kubectl
+      args:
+        - delete
+        - pod
+        - -n
+        - bench
+        - -l
+        - app=web
+        - --force
+        - --grace-period=0
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+scope:
+  namespaces: [bench]

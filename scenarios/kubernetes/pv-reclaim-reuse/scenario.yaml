@@ -1,0 +1,122 @@
+id: pv-reclaim-reuse
+title: Clear stale claimRef from PV with Retain policy
+description: |
+  A PersistentVolume with reclaimPolicy Retain has a stale claimRef from a
+  deleted PVC, leaving the PV in Released state. A new PVC "data-new" cannot
+  bind to the PV because it's not Available. The agent must clear the stale
+  claimRef to make the PV available for the new PVC, allowing the web-new
+  deployment to start successfully.
+category: kubernetes
+track: storage
+level: L2
+skip: true
+skip_reason: hostPath PV bind timing unreliable in kind single-node
+tags: [pv, pvc, reclaim-policy, retain, claimRef, cka]
+prompt: prompts/task.md
+timeout: "8m"
+bootstrap:
+  - name: cleanup-stale-pv
+    type: kubectl
+    args: [delete, pv, bench-pv, --ignore-not-found=true]
+  - name: cleanup-stale-pvc
+    type: kubectl
+    args: [delete, pvc, --all, -n, bench, --ignore-not-found=true]
+  - name: create-pv
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-pv
+    type: kubectl
+    args:
+      - wait
+      - pvc/data
+      - -n
+      - bench
+      - --for=condition=Bound
+      - --timeout=120s
+  - name: deploy-web
+    type: kubectl-apply
+    path: fixtures/baseline-deployment.yaml
+  - name: wait-for-web
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: shell
+  command: |
+    # Delete the original PVC (leaves PV with stale claimRef)
+    kubectl delete pvc data -n bench --ignore-not-found=true
+    sleep 2
+    # Create new PVC
+    kubectl apply -f /dev/stdin <<'EOFPVC'
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: data-new
+      namespace: bench
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+      volumeName: bench-pv
+    EOFPVC
+    # Create new deployment
+    kubectl apply -f /dev/stdin <<'EOFDEP'
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: web-new
+      namespace: bench
+      labels:
+        app: web-new
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: web-new
+      template:
+        metadata:
+          labels:
+            app: web-new
+        spec:
+          containers:
+            - name: nginx
+              image: nginx:1.27-alpine
+              ports:
+                - containerPort: 80
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+              readinessProbe:
+                httpGet:
+                  path: /
+                  port: 80
+                initialDelaySeconds: 2
+                periodSeconds: 5
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: data-new
+    EOFDEP
+checks:
+  - type: command-succeeds
+    name: verify-pv-binding
+    condition: fixtures/verify.sh
+  - type: deployment-ready
+    namespace: bench
+    name: web-new
+scope:
+  namespaces: [bench]

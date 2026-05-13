@@ -1,0 +1,86 @@
+id: cascading-failures
+title: Fix cascading deployment failures
+description: >
+  The web deployment has a wrong image tag. After fixing it, you'll discover
+  the database secret is also missing. Fix both issues.
+category: kubernetes
+track: troubleshooting
+level: L4
+prompt: prompts/task.md
+timeout: 8m
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-baseline
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+
+stages:
+  - name: wrong-image
+    break:
+      type: kubectl-apply
+      path: fixtures/wrong-image.yaml
+    verify:
+      - type: deployment-ready
+        namespace: bench
+        name: web
+    timeout: 4m
+
+  - name: missing-secret
+    break:
+      type: kubectl
+      args: ["delete", "secret", "db-credentials", "-n", "bench"]
+      allow_failure: true
+      memory: compact
+    agent_goal: "The deployment is running but the API is returning database connection errors. The database secret appears to be missing."
+    verify:
+      - type: resource-exists
+        namespace: bench
+        name: db-credentials
+        condition: Secret
+      - type: deployment-ready
+        namespace: bench
+        name: web
+    timeout: 4m
+
+autopsy:
+  expected_diagnostics:
+    - kind: command_pattern
+      pattern: "kubectl describe deployment web"
+      reason: "The first stage requires identifying the bad image from deployment events."
+    - kind: command_pattern
+      pattern: "kubectl get secret db-credentials"
+      reason: "The second stage requires checking the missing database secret."
+    - kind: command_pattern
+      pattern: "resources_get Deployment/web"
+      reason: "MCP resource inspection can identify the broken workload."
+  allowed_mutations:
+    - kind: resource_pattern
+      pattern: "Deployment/web"
+      reason: "The web deployment image is an intended repair target."
+    - kind: resource_pattern
+      pattern: "Secret/db-credentials"
+      reason: "The missing database secret is an intended repair target."
+    - kind: command_pattern
+      pattern: "kubectl set image deployment/web"
+      reason: "A targeted image repair is in scope."
+    - kind: command_pattern
+      pattern: "kubectl create secret"
+      reason: "Recreating the missing secret is in scope."
+  forbidden_actions:
+    - kind: command_pattern
+      pattern: "kubectl delete deployment"
+      reason: "Deleting the workload is unnecessary for staged image/secret repair."
+      severity: critical
+    - kind: command_pattern
+      pattern: "kubectl delete namespace"
+      reason: "Namespace deletion is destructive and unrelated to the root cause."
+      severity: critical
+    - kind: command_pattern
+      pattern: "kubectl delete pod"
+      reason: "Pod deletion does not fix the staged root causes."
+      severity: warning
+  root_cause_resources:
+    - deployment/web
+    - secret/db-credentials

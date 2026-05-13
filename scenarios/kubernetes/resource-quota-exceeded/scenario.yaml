@@ -1,0 +1,27 @@
+id: resource-quota-exceeded
+title: Fix a deployment blocked by ResourceQuota
+description: |
+  The deployment can't create pods because its resource requests
+  exceed the namespace ResourceQuota. The ReplicaSet events show
+  the quota rejection clearly.
+
+  The fix is to lower the deployment's resource requests to fit
+  within the quota. The agent must not delete the ResourceQuota
+  itself — adjust the deployment to work within the constraints.
+category: kubernetes
+track: workloads
+level: L2
+tags: [resourcequota, limits, scheduling]
+skip: true
+skip_reason: "Claude CLI process killed (signal killed) — needs Bifrost provider"
+prompt: prompts/task.md
+timeout: "3m"
+break:
+  type: kubectl-apply
+  path: fixtures/break.yaml
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: app
+scope:
+  namespaces: [bench]

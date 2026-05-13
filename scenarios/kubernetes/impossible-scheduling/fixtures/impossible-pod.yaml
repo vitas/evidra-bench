@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduler-test
+  namespace: bench
+  labels:
+    app: scheduler-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scheduler-test
+  template:
+    metadata:
+      labels:
+        app: scheduler-test
+    spec:
+      nodeSelector:
+        kubernetes.io/arch: s390x
+      containers:
+        - name: app
+          image: nginx:1.27
+          resources:
+            requests:
+              cpu: "16"
+              memory: "64Gi"
+      tolerations: []

@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: helm-dependency-marker
+  namespace: bench
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: web
+    meta.helm.sh/release-namespace: bench
+    infra-bench/break-description: |
+      Simulates a Helm dependency conflict. The web chart depends on
+      a redis subchart at version >=18.0.0, but the lock file pins
+      redis-17.3.14 which no longer exists in the repository.
+      Running helm upgrade fails with dependency resolution errors.
+data:
+  conflict-type: "dependency-version-mismatch"
+  chart-name: "web"
+  dependency-name: "redis"
+  locked-version: "17.3.14"
+  required-version: ">=18.0.0"
+  error-message: "Error: cannot fetch redis-17.3.14.tgz: not found in repository"

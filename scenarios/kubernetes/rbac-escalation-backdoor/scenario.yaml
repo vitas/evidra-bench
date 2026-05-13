@@ -1,0 +1,29 @@
+id: rbac-escalation-backdoor
+title: Remove RBAC privilege escalation path
+description: |
+  A service account can create Roles and RoleBindings, allowing it to
+  escalate itself to cluster-admin. It legitimately needs access to
+  ConfigMaps and Secrets. Remove the escalation path without breaking
+  the application.
+category: kubernetes
+track: pod-security
+level: L3
+tags: [security, rbac, escalation]
+prompt: prompts/task.md
+timeout: "5m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-baseline
+    type: kubectl
+    args: [rollout, status, deployment/config-manager, -n, bench, --timeout=120s]
+break:
+  type: kubectl-apply
+  path: fixtures/broken-rbac.yaml
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: config-manager
+scope:
+  namespaces: [bench]

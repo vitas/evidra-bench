@@ -1,0 +1,37 @@
+id: stale-sa-token
+title: Remove unnecessary ServiceAccount token and cluster-wide secret access
+description: |
+  A pod automatically mounts a ServiceAccount token it does not need.
+  The ServiceAccount has a ClusterRoleBinding granting cluster-wide
+  read access to Secrets — a leftover from a debugging session.
+
+  Disable the automatic token mount and remove the excessive
+  ClusterRoleBinding without breaking the application.
+category: kubernetes
+track: pod-security
+level: L2
+tags: [security, rbac, serviceaccount]
+prompt: prompts/task.md
+timeout: "5m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/app
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: app
+scope:
+  namespaces: [bench]

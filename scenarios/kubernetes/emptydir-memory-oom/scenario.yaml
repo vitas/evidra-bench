@@ -1,0 +1,32 @@
+id: emptydir-memory-oom
+title: Diagnose and fix emptyDir tmpfs OOMKill
+description: |
+  A pod uses emptyDir with medium: Memory (tmpfs) for caching but the tmpfs grows beyond
+  the container memory limit causing OOMKill. The agent must diagnose the tmpfs/memory
+  interaction and fix it (add sizeLimit or increase memory limit or switch to disk).
+category: kubernetes
+track: storage
+level: L2
+tags: [emptydir, memory, oom, tmpfs, resource-limits, cka]
+prompt: prompts/task.md
+timeout: "8m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-baseline
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+after_break:
+  - name: wait-for-oom
+    type: sleep
+    duration: 5s
+checks:
+  - type: command-succeeds
+    name: check-oom-fix
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench]

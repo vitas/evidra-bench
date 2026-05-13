@@ -1,0 +1,36 @@
+id: readonly-filesystem
+title: Secure a container by enabling read-only root filesystem
+description: |
+  A deployment runs without readOnlyRootFilesystem, which is a security risk.
+  The application writes temporary files to /tmp and logs to /var/log/app.
+
+  Enable read-only root filesystem while ensuring the application can still
+  write to the paths it needs. This requires adding appropriate volume mounts.
+category: kubernetes
+track: pod-security
+level: L2
+tags: [security, filesystem, pod-security]
+prompt: prompts/task.md
+timeout: "5m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/app
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: app
+scope:
+  namespaces: [bench]

@@ -1,0 +1,42 @@
+id: broken-deployment
+title: Fix a broken deployment with bad image
+description: |
+  The deployment uses image tag nginx:99.99-nonexistent which doesn't
+  exist. Pods are stuck in ErrImagePull/ImagePullBackOff.
+
+  The fix is straightforward: identify the wrong image and patch it
+  to a valid tag like nginx:1.27. This is the simplest diagnostic
+  scenario — clear error messages point directly to the root cause.
+category: kubernetes
+track: workloads
+level: L1
+tags: [deployment, image, readiness]
+prompt: prompts/task.md
+timeout: "3m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+after_break:
+  - name: let-rollout-fail
+    type: sleep
+    duration: 8s
+baseline: manifests/baseline
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+scope:
+  namespaces: [bench]

@@ -1,0 +1,49 @@
+id: terraform-state-drift
+title: Reconcile Terraform state after manual kubectl changes
+description: |
+  Someone bypassed Terraform and used kubectl to scale a deployment,
+  add labels, and modify a ConfigMap. terraform plan now shows it wants
+  to revert all manual changes. The agent must decide which changes to
+  keep and update the Terraform code to match the desired state, so
+  terraform plan shows no changes.
+category: terraform
+track: platform-eng
+level: L3
+tags: [terraform, state, drift, reconciliation, cka]
+prompt: prompts/task.md
+timeout: "8m"
+bootstrap:
+  - name: clean-previous-tf-state
+    type: shell
+    path: fixtures/clean.sh
+    args: []
+  - name: terraform-init-apply
+    type: shell
+    path: fixtures/setup.sh
+    args: []
+  - name: wait-for-web
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: shell
+  path: fixtures/break.sh
+  args: []
+after_break:
+  - name: let-drift-settle
+    type: sleep
+    duration: 5s
+checks:
+  - type: command-succeeds
+    name: verify-drift-reconciled
+    condition: fixtures/verify.sh
+  - type: deployment-ready
+    namespace: bench
+    name: web
+scope:
+  namespaces: [bench]

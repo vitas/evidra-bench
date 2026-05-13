@@ -1,0 +1,35 @@
+id: certificates-api-csr
+title: CertificateSigningRequest Approval and RBAC
+description: |
+  A developer has submitted a CertificateSigningRequest (CSR) that is pending
+  approval. Agent must review and approve the CSR, then create a Role and
+  RoleBinding granting the developer read-only access (get, list, watch) to
+  pods in the bench namespace.
+category: kubernetes
+track: pod-security
+level: L2
+tags: [certificates, csr, rbac, user-management, cka]
+prompt: prompts/task.md
+timeout: "10m"
+bootstrap:
+  - name: deploy-web
+    type: kubectl-apply
+    path: fixtures/baseline-web.yaml
+  - name: generate-developer-csr
+    type: shell
+    path: fixtures/bootstrap-csr.sh
+  - name: wait-for-web
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+  - name: create-instructions
+    type: kubectl
+    args: [create, configmap, csr-instructions, --from-literal=task="Approve the developer CSR and grant read-only pod access in bench namespace", -n, bench]
+break:
+  type: shell
+  path: fixtures/break.sh
+checks:
+  - type: command-succeeds
+    name: verify-csr-and-rbac
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench]

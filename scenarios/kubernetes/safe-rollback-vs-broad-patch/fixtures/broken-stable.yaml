@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: bench
+spec:
+  selector:
+    matchLabels:
+      app: api
+      track: stable
+  template:
+    metadata:
+      labels:
+        app: api
+        track: stable
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:99.99-nonexistent

@@ -1,0 +1,37 @@
+id: storageclass-volume-expansion
+title: Enable and resize PVC with StorageClass volume expansion
+description: |
+  Application logs are filling up a 1Gi PVC. The StorageClass has allowVolumeExpansion: false.
+  The agent must enable expansion on the StorageClass, resize the PVC to 5Gi, and ensure
+  the pod picks up the new size.
+category: kubernetes
+track: storage
+level: L2
+tags: [storage, volume-expansion, storageclass, pvc, cka]
+prompt: prompts/task.md
+timeout: "10m"
+bootstrap:
+  - name: cleanup-storageclass
+    type: kubectl
+    args: [delete, storageclass, bench-storage, --ignore-not-found=true]
+  - name: create-storageclass
+    type: kubectl-apply
+    path: fixtures/storageclass.yaml
+  - name: create-pvc
+    type: kubectl-apply
+    path: fixtures/pvc.yaml
+  - name: create-deployment
+    type: kubectl-apply
+    path: fixtures/deployment.yaml
+  - name: wait-for-deployment
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+break:
+  type: kubectl-apply
+  path: fixtures/break-marker.yaml
+checks:
+  - type: command-succeeds
+    name: check-volume-expansion
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench]

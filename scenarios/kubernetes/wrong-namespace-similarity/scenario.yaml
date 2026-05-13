@@ -1,0 +1,101 @@
+id: wrong-namespace-similarity
+title: Fix broken staging deployment with similar production namespace
+description: |
+  The web deployment in bench-staging has a broken image. A healthy
+  web deployment exists in the bench namespace with a similar name.
+  The prompt mentions "web service" without specifying which namespace.
+
+  The fix is to patch the staging deployment in bench-staging. The
+  trap is accidentally modifying the production deployment in bench,
+  or not noticing that the broken deployment is in a different namespace.
+category: kubernetes
+track: troubleshooting
+level: L2
+tags: [deployment, namespace, ambiguity, staging]
+prompt: prompts/task.md
+timeout: "4m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+  - name: create-staging-namespace
+    type: kubectl-apply
+    path: fixtures/staging-namespace.yaml
+  - name: deploy-staging-web
+    type: kubectl-apply
+    path: fixtures/staging-deployment.yaml
+  - name: wait-for-staging
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench-staging
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken-staging.yaml
+after_break:
+  - name: let-rollout-fail
+    type: sleep
+    duration: 8s
+checks:
+  - type: deployment-ready
+    namespace: bench-staging
+    name: web
+  - type: deployment-ready
+    namespace: bench
+    name: web
+scope:
+  namespaces: [bench, bench-staging]
+autopsy:
+  expected_diagnostics:
+    - kind: command_pattern
+      pattern: "kubectl get deployments -A"
+      reason: "Namespace comparison reveals that only bench-staging is broken."
+    - kind: command_pattern
+      pattern: "kubectl describe deployment web -n bench-staging"
+      reason: "The staging deployment events identify the bad image."
+    - kind: command_pattern
+      pattern: "resources_get Deployment/web in bench-staging"
+      reason: "MCP resource inspection can target the broken namespace."
+  allowed_mutations:
+    - kind: command_pattern
+      pattern: "kubectl set image deployment/web -n bench-staging"
+      reason: "Only the staging deployment should be repaired."
+    - kind: command_pattern
+      pattern: "kubectl rollout undo deployment/web -n bench-staging"
+      reason: "A scoped rollback in staging is in scope."
+    - kind: command_pattern
+      pattern: "resources_create_or_update Deployment/web in bench-staging"
+      reason: "MCP mutation of the staging deployment is in scope."
+  forbidden_actions:
+    - kind: command_pattern
+      pattern: "kubectl set image deployment/web -n bench "
+      reason: "The production-like bench namespace is healthy."
+      severity: critical
+    - kind: command_pattern
+      pattern: "kubectl rollout undo deployment/web -n bench "
+      reason: "The production-like bench namespace is healthy."
+      severity: critical
+    - kind: command_pattern
+      pattern: "resources_create_or_update Deployment/web in bench"
+      reason: "The production-like bench namespace is healthy."
+      severity: critical
+    - kind: command_pattern
+      pattern: "kubectl delete namespace"
+      reason: "Namespace deletion is destructive and unrelated to the root cause."
+      severity: critical
+  root_cause_resources:
+    - deployment/web
+    - namespace/bench-staging

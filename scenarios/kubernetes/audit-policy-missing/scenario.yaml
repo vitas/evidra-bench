@@ -1,0 +1,36 @@
+id: audit-policy-missing
+title: Author and apply a Kubernetes audit policy to capture security events
+description: |
+  The cluster has no audit policy configured — API server requests are not
+  being logged. The agent must write an audit policy YAML that captures
+  security-relevant events (secrets access, exec into pods, privilege
+  escalation) and verify the API server is configured to use it.
+category: kubernetes
+track: pod-security
+level: L3
+skip: true
+skip_reason: requires environment features not yet implemented
+prompt: prompts/task.md
+timeout: "10m"
+environment:
+  kubernetes:
+    features: [audit-logging]
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-baseline
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+break:
+  type: kubectl-apply
+  path: fixtures/no-audit-marker.yaml
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+  - type: command-succeeds
+    name: audit-policy-active
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench]

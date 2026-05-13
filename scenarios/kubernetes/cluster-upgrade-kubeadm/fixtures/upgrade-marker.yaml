@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-upgrade-required
+  namespace: bench
+data:
+  version-target: "1.28.0"
+  message: "Cluster needs to be upgraded to this version"

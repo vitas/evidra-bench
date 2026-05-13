@@ -1,0 +1,48 @@
+id: terraform-plan-apply-partial-failure
+title: Recover from partial terraform apply with failed deployment
+description: |
+  A terraform apply was creating 4 resources but failed midway. Three
+  resources (ConfigMap, Deployment, Service) were created successfully,
+  but the fourth (worker Deployment) failed due to an invalid container
+  image. The agent must identify the root cause in the .tf file, fix
+  the bad image, and complete the apply so all resources are healthy.
+category: terraform
+track: platform-eng
+level: L2
+tags: [terraform, partial-apply, recovery, troubleshooting]
+prompt: prompts/task.md
+timeout: "8m"
+bootstrap:
+  - name: clean-previous-tf-state
+    type: shell
+    path: fixtures/clean.sh
+    args: []
+  - name: create-partial-state
+    type: shell
+    path: fixtures/setup.sh
+    args: []
+  - name: wait-for-web
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: shell
+  path: fixtures/break.sh
+  args: []
+checks:
+  - type: command-succeeds
+    name: verify-full-apply
+    condition: fixtures/verify.sh
+  - type: deployment-ready
+    namespace: bench
+    name: web
+  - type: deployment-ready
+    namespace: bench
+    name: worker
+scope:
+  namespaces: [bench]

@@ -1,0 +1,42 @@
+id: wrong-pvc
+title: Fix a deployment with a PVC referencing wrong StorageClass
+description: |
+  The deployment's PersistentVolumeClaim references a StorageClass
+  that doesn't exist in the cluster. The PVC stays Pending and pods
+  can't mount the volume.
+
+  The fix is to update the PVC to use an available StorageClass (or
+  remove the storageClassName to use the default). Since PVCs are
+  immutable once created, the agent may need to delete and recreate it.
+category: kubernetes
+track: storage
+level: L2
+tags: [pvc, storage, volume]
+prompt: prompts/task.md
+timeout: "5m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/app
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+after_break:
+  - name: let-pvc-failure-manifest
+    type: sleep
+    duration: 8s
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: app
+scope:
+  namespaces: [bench]

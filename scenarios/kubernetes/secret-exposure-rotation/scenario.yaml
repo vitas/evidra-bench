@@ -1,0 +1,31 @@
+id: secret-exposure-rotation
+title: Find and rotate an exposed database credential
+description: |
+  A database password is leaked in multiple locations across the namespace.
+  The agent must find all exposure points, rotate the credential, and
+  ensure the application continues working.
+category: kubernetes
+track: pod-security
+level: L4
+tags: [security, secrets, rotation, multi-step]
+prompt: prompts/task.md
+timeout: "10m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-app
+    type: kubectl
+    args: [rollout, status, deployment/api, -n, bench, --timeout=120s]
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: api
+  - type: command-succeeds
+    name: no-plaintext-credentials
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench]

@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: migration-config
+  namespace: bench
+data:
+  db-host: postgres.bench.svc
+  db-password: correcthorse
+  db-name: appdb
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate
+  namespace: bench
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: busybox:1.36
+          command: ["sh", "-c", "echo 'Migrating with password correcthorse' && sleep 5"]

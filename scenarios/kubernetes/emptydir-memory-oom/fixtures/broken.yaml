@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cache-app
+  namespace: bench
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cache-app
+  template:
+    metadata:
+      labels:
+        app: cache-app
+    spec:
+      containers:
+        - name: cache-worker
+          image: nginx:1.27-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Try to write 100Mi to tmpfs to trigger OOMKill
+              dd if=/dev/zero of=/cache/data bs=1M count=100 2>/dev/null || true
+              sleep 30
+          volumeMounts:
+            - name: cache
+              mountPath: /cache
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+      volumes:
+        - name: cache
+          emptyDir:
+            medium: Memory

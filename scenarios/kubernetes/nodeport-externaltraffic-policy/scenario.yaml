@@ -1,0 +1,30 @@
+id: nodeport-externaltraffic-policy
+title: Fix NodePort source IP preservation with externalTrafficPolicy
+description: |
+  A NodePort service has externalTrafficPolicy: Cluster causing source IP masquerading.
+  The task requires switching to Local while ensuring pods are distributed correctly.
+category: kubernetes
+track: networking
+level: L2
+tags: [nodeport, external-traffic-policy, load-balancing, source-ip, cka]
+prompt: prompts/task.md
+timeout: "10m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-deployment
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+  - name: create-nodeport-service
+    type: kubectl-apply
+    path: fixtures/nodeport-service.yaml
+break:
+  type: kubectl-apply
+  path: fixtures/break-marker.yaml
+checks:
+  - type: command-succeeds
+    name: check-external-traffic-policy
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench]

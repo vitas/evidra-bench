@@ -1,0 +1,258 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          path: bench
+          fetch-depth: 0
+
+      - name: Check DCO sign-off
+        working-directory: bench
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+        run: bash tests/test_dco_signoff.sh
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: bench/go.mod
+          cache: true
+          cache-dependency-path: bench/go.sum
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: bench/ui/package-lock.json
+
+      - name: Check formatting
+        working-directory: bench
+        run: |
+          files=$(gofmt -l .)
+          if [ -n "$files" ]; then
+            echo "Unformatted files:" >&2
+            echo "$files" >&2
+            exit 1
+          fi
+
+      - name: Run lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.10.1
+          working-directory: bench
+          args: --timeout=5m
+
+      - name: Run vulnerability scan
+        working-directory: bench
+        run: make vuln
+
+      - name: Guard no core evidra dependency
+        working-directory: bench
+        run: bash tests/test_no_core_evidra_dependency.sh
+
+      - name: Guard workflow hygiene
+        working-directory: bench
+        run: bash tests/test_workflow_hygiene.sh
+
+      - name: Guard artifact hygiene
+        working-directory: bench
+        run: bash tests/test_artifact_hygiene.sh
+
+      - name: Guard repository secret hygiene
+        working-directory: bench
+        run: bash tests/test_secret_hygiene.sh
+
+      - name: Guard UI secret hygiene
+        working-directory: bench
+        run: bash tests/test_ui_secret_hygiene.sh
+
+      - name: Guard SEO assets
+        working-directory: bench
+        run: bash tests/test_seo_assets.sh
+
+      - name: Install UI deps
+        working-directory: bench/ui
+        run: npm ci
+
+      - name: Run UI command tests
+        working-directory: bench/ui
+        run: node --test src/lib/runOptions.test.mts src/lib/commandBuilder.test.mts
+
+      - name: Build UI
+        working-directory: bench/ui
+        run: npm run build
+
+      - name: Run tests
+        working-directory: bench
+        run: go test ./... -count=1
+
+      - name: Race detector
+        working-directory: bench
+        run: go test -race ./... -count=1
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          path: bench
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: bench/go.mod
+          cache: true
+          cache-dependency-path: bench/go.sum
+
+      - name: Build CLI binary
+        working-directory: bench
+        run: |
+          VERSION=${{ github.ref_name }}
+          COMMIT=${{ github.sha }}
+          go build -ldflags "-X main.version=${VERSION} -X main.commit=${COMMIT}" -o bench-cli ./cmd/bench-cli/
+
+      - name: Generate CLI checksum
+        working-directory: bench
+        run: sha256sum bench-cli > bench-cli.sha256
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            bench/bench-cli
+            bench/bench-cli.sha256
+          generate_release_notes: true
+
+  docker:
+    needs: [test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/bench-cli
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image (smoke test)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.bench
+          load: true
+          tags: bench-cli:smoke
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+
+      - name: Smoke test
+        run: |
+          docker run --rm bench-cli:smoke --version \
+            || { echo "FAIL: smoke test failed"; exit 1; }
+          echo "PASS: bench-cli smoke test ok"
+
+      - name: Push image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.bench
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+
+  docker-ui:
+    needs: [test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: hetzner-cloud-evidra-cc
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/bench-ui
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push bench-ui
+        uses: docker/build-push-action@v7
+        with:
+          context: ui
+          file: ui/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VITE_BENCH_API_URL=https://api.evidra.cc
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}

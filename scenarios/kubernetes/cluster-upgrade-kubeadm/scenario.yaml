@@ -1,0 +1,42 @@
+id: cluster-upgrade-kubeadm
+title: Upgrade Kubernetes cluster using kubeadm
+description: |
+  The cluster is running an older Kubernetes version and needs to be upgraded.
+  The agent must use kubeadm upgrade plan to check the upgrade path, then
+  kubeadm upgrade apply to upgrade the control plane, and finally drain and
+  upgrade worker nodes one by one to the target version.
+category: kubernetes
+track: platform-eng
+level: L2
+skip: true
+skip_reason: requires environment features not yet implemented
+prompt: prompts/task.md
+timeout: "20m"
+environment:
+  kubernetes:
+    features: [upgrade-packages]
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline-web.yaml
+  - name: wait-for-deployment
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/upgrade-marker.yaml
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+  - type: command-succeeds
+    name: verify-cluster-upgraded
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench]

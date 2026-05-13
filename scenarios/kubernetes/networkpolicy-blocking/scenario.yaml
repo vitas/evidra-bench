@@ -1,0 +1,57 @@
+id: networkpolicy-blocking
+title: Fix a NetworkPolicy blocking all traffic to a service
+description: |
+  A NetworkPolicy is applied that blocks all ingress traffic to the
+  web service. The deployment is healthy but unreachable from other
+  pods in the namespace.
+
+  The fix is to correct or remove the overly restrictive NetworkPolicy.
+  Tests whether the agent can diagnose a networking-layer issue where
+  pods are running fine but connectivity is broken.
+category: kubernetes
+track: pod-security
+level: L2
+tags: [networkpolicy, networking, ingress]
+prompt: prompts/task.md
+timeout: "5m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+  - name: deploy-probe-pod
+    type: kubectl-apply
+    path: fixtures/client.yaml
+  - name: wait-for-probe
+    type: kubectl
+    args:
+      - wait
+      - --for=condition=Ready
+      - pod/net-client
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+after_break:
+  - name: let-network-policy-apply
+    type: sleep
+    duration: 3s
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+  - type: command-succeeds
+    name: connectivity-check
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench]

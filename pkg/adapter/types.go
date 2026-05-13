@@ -1,0 +1,46 @@
+// Package adapter defines the agent adapter contract and built-in adapters.
+package adapter
+
+import (
+	"context"
+	"time"
+)
+
+// RunInput is the input given to an agent adapter.
+type RunInput struct {
+	ScenarioID     string
+	PromptPath     string
+	WorkspaceDir   string
+	KubeconfigPath string
+	Timeout        time.Duration
+	Tools          map[string]any
+	AgentCommand   string
+	AgentArgs      []string
+	Model          string
+	Env            map[string]string
+}
+
+// RunResult is the normalized output from an agent adapter.
+type RunResult struct {
+	ExitCode   int
+	Transcript string
+	Stdout     string
+	Stderr     string
+	ToolCalls  []ToolCallRecord
+	Metadata   map[string]string
+}
+
+// ToolCallRecord is an historical record of a tool invocation by the agent,
+// written to run artifacts. Not to be confused with agent.ToolCall, which is
+// the in-flight request the LLM sends over the provider protocol.
+type ToolCallRecord struct {
+	Tool      string         `json:"tool"`
+	Args      map[string]any `json:"args,omitempty"`
+	Result    string         `json:"result,omitempty"`
+	Timestamp time.Time      `json:"timestamp"`
+}
+
+// Adapter runs an agent against a scenario.
+type Adapter interface {
+	Run(ctx context.Context, input RunInput) (*RunResult, error)
+}

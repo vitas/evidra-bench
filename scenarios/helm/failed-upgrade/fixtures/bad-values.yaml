@@ -1,0 +1,10 @@
+# Bad values that cause a Helm upgrade to fail.
+# These simulate a misconfigured upgrade — the image tag does not exist
+# and the resource limits are set impossibly low.
+image:
+  tag: "99.99-nonexistent"
+resources:
+  requests:
+    memory: "1Ti"
+  limits:
+    memory: "1Ti"

@@ -1,0 +1,58 @@
+id: argocd-sync-wave-ordering
+title: Fix broken Argo CD sync wave annotations
+description: |
+  The sync-waves app has live resources with incorrect sync wave
+  annotations, causing the application to be out of sync. Resources
+  are deployed in the wrong order during sync.
+
+  The fix is to correct the sync wave annotation values on the live
+  resources or sync the app to restore proper ordering. Tests
+  understanding of Argo CD sync waves and resource ordering.
+category: argocd
+track: release-ops
+level: L2
+tags: [argocd, sync-waves, ordering]
+prompt: prompts/task.md
+timeout: "10m"
+environment:
+  profile: argocd
+bootstrap:
+  - name: apply-sync-waves-app
+    type: kubectl-apply
+    path: ../../../manifests/argocd/apps/sync-waves.yaml
+  - name: let-sync-waves-status-appear
+    type: sleep
+    duration: 15s
+  - name: wait-for-sync-waves-sync
+    type: kubectl
+    args:
+      - wait
+      - --for=jsonpath={.status.sync.status}=Synced
+      - application/sync-waves
+      - -n
+      - argocd
+      - --timeout=180s
+  - name: wait-for-sync-waves-health
+    type: kubectl
+    args:
+      - wait
+      - --for=jsonpath={.status.health.status}=Healthy
+      - application/sync-waves
+      - -n
+      - argocd
+      - --timeout=180s
+break:
+  type: kubectl-apply
+  path: fixtures/wrong-waves.yaml
+after_break:
+  - name: let-argocd-detect-wave-drift
+    type: sleep
+    duration: 15s
+checks:
+  - type: argocd-app-healthy
+    name: sync-waves
+  - type: service-endpoints
+    namespace: bench
+    name: frontend
+scope:
+  namespaces: [bench, argocd]

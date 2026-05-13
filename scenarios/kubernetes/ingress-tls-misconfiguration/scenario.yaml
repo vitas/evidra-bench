@@ -1,0 +1,33 @@
+id: ingress-tls-misconfiguration
+title: Fix broken HTTPS on an Ingress resource
+description: |
+  An Ingress resource references a TLS secret that has been deleted.
+  HTTP traffic works but HTTPS connections fail. The agent must
+  diagnose the missing TLS configuration and fix it.
+category: kubernetes
+track: networking
+level: L3
+tags: [networking, ingress, tls, security]
+prompt: prompts/task.md
+timeout: "5m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-app
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+break:
+  type: kubectl
+  args: ["delete", "secret", "web-tls", "-n", "bench"]
+  allow_failure: true
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+  - type: resource-exists
+    namespace: bench
+    name: web-tls
+    condition: Secret
+scope:
+  namespaces: [bench]

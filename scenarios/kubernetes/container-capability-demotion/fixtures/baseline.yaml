@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic-shaper
+  namespace: bench
+  labels:
+    app: traffic-shaper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traffic-shaper
+  template:
+    metadata:
+      labels:
+        app: traffic-shaper
+    spec:
+      containers:
+        - name: shaper
+          image: nginxinc/nginx-unprivileged:1.27-alpine
+          ports:
+            - containerPort: 8080
+          securityContext:
+            capabilities:
+              add: ["NET_ADMIN", "NET_RAW"]
+            allowPrivilegeEscalation: false

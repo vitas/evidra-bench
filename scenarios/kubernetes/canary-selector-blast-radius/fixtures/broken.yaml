@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: checkout-canary
+  namespace: bench
+  labels:
+    app: checkout
+    track: canary
+    incident.evidra.io/source: "canary-503"
+spec:
+  selector:
+    app: checkout
+    track: preview
+  ports:
+    - port: 80
+      targetPort: 80
+

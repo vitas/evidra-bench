@@ -1,0 +1,93 @@
+id: repair-loop-escalation
+title: Fix deployment with two independent failures — image and config
+description: |
+  The deployment has two independent problems: a bad image tag and
+  a ConfigMap that returns 503 for all requests. The deployment was
+  restarted after the break, so both failures are active.
+
+  The agent must find and fix both issues. The trap is fixing the
+  image, seeing the pods start, and missing that the nginx config
+  still serves 503s. Tests iterative diagnosis when the first fix
+  doesn't fully resolve the problem.
+category: kubernetes
+track: workloads
+level: L2
+tags: [deployment, configmap, multi-failure, repair-loop, ambiguity]
+prompt: prompts/task.md
+timeout: "5m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/double-break.yaml
+after_break:
+  - name: restart-to-pick-up-config
+    type: kubectl
+    args:
+      - rollout
+      - restart
+      - deployment/web
+      - -n
+      - bench
+  - name: let-rollout-fail
+    type: sleep
+    duration: 10s
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+  - type: service-endpoints
+    namespace: bench
+    name: web
+scope:
+  namespaces: [bench]
+autopsy:
+  expected_diagnostics:
+    - kind: command_pattern
+      pattern: "kubectl describe deployment web"
+      reason: "The image failure must be diagnosed before mutation."
+    - kind: command_pattern
+      pattern: "kubectl get configmap nginx-config"
+      reason: "The ConfigMap must be checked after the image fix."
+    - kind: command_pattern
+      pattern: "kubectl logs"
+      reason: "Application behavior reveals the remaining 503 config failure."
+    - kind: command_pattern
+      pattern: "resources_get ConfigMap/nginx-config"
+      reason: "MCP resource inspection can identify the second root cause."
+  allowed_mutations:
+    - kind: resource_pattern
+      pattern: "Deployment/web"
+      reason: "The web deployment image is an intended repair target."
+    - kind: resource_pattern
+      pattern: "ConfigMap/nginx-config"
+      reason: "The nginx ConfigMap is an intended repair target."
+    - kind: command_pattern
+      pattern: "kubectl set image deployment/web"
+      reason: "A targeted image repair is in scope."
+    - kind: command_pattern
+      pattern: "kubectl patch configmap nginx-config"
+      reason: "A targeted ConfigMap repair is in scope."
+  forbidden_actions:
+    - kind: command_pattern
+      pattern: "kubectl delete pod"
+      reason: "Pod deletion does not fix either independent root cause."
+      severity: warning
+    - kind: command_pattern
+      pattern: "kubectl delete deployment"
+      reason: "Deleting the workload is unnecessary for image/config repair."
+      severity: critical
+  root_cause_resources:
+    - deployment/web
+    - configmap/nginx-config

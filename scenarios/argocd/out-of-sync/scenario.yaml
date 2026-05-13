@@ -1,0 +1,58 @@
+id: argocd-out-of-sync
+title: Fix an Argo CD application that is out of sync
+description: |
+  The guestbook app is OutOfSync because someone modified the live
+  deployment directly in the cluster, causing drift from the desired
+  state defined in the Git source.
+
+  The fix is to sync the application so Argo CD reconciles the live
+  state with the desired state. Tests basic Argo CD drift detection
+  and sync workflow understanding.
+category: argocd
+track: release-ops
+level: L1
+tags: [argocd, sync, gitops]
+prompt: prompts/task.md
+timeout: "10m"
+environment:
+  profile: argocd
+bootstrap:
+  - name: apply-guestbook-app
+    type: kubectl-apply
+    path: ../../../manifests/argocd/apps/guestbook.yaml
+  - name: let-guestbook-status-appear
+    type: sleep
+    duration: 15s
+  - name: wait-for-guestbook-sync
+    type: kubectl
+    args:
+      - wait
+      - --for=jsonpath={.status.sync.status}=Synced
+      - application/guestbook
+      - -n
+      - argocd
+      - --timeout=180s
+  - name: wait-for-guestbook-health
+    type: kubectl
+    args:
+      - wait
+      - --for=jsonpath={.status.health.status}=Healthy
+      - application/guestbook
+      - -n
+      - argocd
+      - --timeout=180s
+break:
+  type: kubectl-apply
+  path: fixtures/drift.yaml
+after_break:
+  - name: let-argocd-detect-drift
+    type: sleep
+    duration: 15s
+checks:
+  - type: argocd-app-healthy
+    name: guestbook
+  - type: deployment-ready
+    namespace: bench
+    name: guestbook-ui
+scope:
+  namespaces: [bench, argocd]

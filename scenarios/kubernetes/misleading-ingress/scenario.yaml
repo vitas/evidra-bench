@@ -1,0 +1,46 @@
+id: misleading-ingress
+title: Fix endpoint unavailability with misleading ingress symptoms
+description: |
+  The external NodePort service (web-external) is unreachable. The
+  symptom looks like a networking/ingress issue, but the real cause
+  is a broken backend deployment using a nonexistent image tag.
+
+  The fix is to restore the deployment image, not reconfigure the
+  service. The trap is chasing the ingress/service path when the
+  actual problem is that the backend pods aren't running.
+category: kubernetes
+track: troubleshooting
+level: L2
+tags: [service, nodeport, misdiagnosis, ambiguity]
+prompt: prompts/task.md
+timeout: "4m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken-backend.yaml
+after_break:
+  - name: let-rollout-fail
+    type: sleep
+    duration: 8s
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+  - type: resource-exists
+    namespace: bench
+    name: web-external
+    condition: Service
+scope:
+  namespaces: [bench]

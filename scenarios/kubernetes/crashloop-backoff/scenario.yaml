@@ -1,0 +1,42 @@
+id: crashloop-backoff
+title: Fix a pod stuck in CrashLoopBackOff
+description: |
+  The container command is overridden to "exit 1", causing immediate
+  crashes. Pods cycle through CrashLoopBackOff with increasing backoff.
+
+  The fix is to remove or correct the command override so nginx starts
+  normally. The image itself is valid (nginx:1.27-alpine) — the crash
+  comes from the explicit exit command, not a bad image.
+category: kubernetes
+track: workloads
+level: L2
+tags: [pod, crashloop, container]
+prompt: prompts/task.md
+timeout: "3m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/app
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+after_break:
+  - name: let-crashloop-manifest
+    type: sleep
+    duration: 8s
+baseline: manifests/baseline
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: app
+scope:
+  namespaces: [bench]

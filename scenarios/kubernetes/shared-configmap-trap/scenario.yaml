@@ -1,0 +1,110 @@
+id: shared-configmap-trap
+title: Fix web service broken by shared ConfigMap change
+description: |
+  A shared ConfigMap (shared-config) was modified to use an invalid
+  nginx listen port (INVALID_PORT). Both web and api deployments
+  mount this ConfigMap and were restarted, so both are broken.
+
+  The fix is to correct the ConfigMap value. The trap is creating
+  a separate ConfigMap just for web, which fixes web but leaves
+  api broken — or not realizing the config is shared at all.
+category: kubernetes
+track: troubleshooting
+level: L3
+tags: [configmap, shared-resource, blast-radius, ambiguity]
+prompt: prompts/task.md
+timeout: "4m"
+bootstrap:
+  - name: deploy-shared-baseline
+    type: kubectl-apply
+    path: fixtures/baseline-shared.yaml
+  - name: wait-for-web
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+  - name: wait-for-api
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/api
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken-config.yaml
+after_break:
+  - name: restart-web-to-pick-up-config
+    type: kubectl
+    args:
+      - rollout
+      - restart
+      - deployment/web
+      - -n
+      - bench
+  - name: restart-api-to-pick-up-config
+    type: kubectl
+    args:
+      - rollout
+      - restart
+      - deployment/api
+      - -n
+      - bench
+  - name: let-rollouts-settle
+    type: sleep
+    duration: 10s
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+  - type: deployment-ready
+    namespace: bench
+    name: api
+scope:
+  namespaces: [bench]
+autopsy:
+  expected_diagnostics:
+    - kind: command_pattern
+      pattern: "kubectl get configmap shared-config"
+      reason: "The shared ConfigMap contains the invalid value affecting both workloads."
+    - kind: command_pattern
+      pattern: "kubectl describe deployment"
+      reason: "Deployment events show both web and api consume the same config source."
+    - kind: command_pattern
+      pattern: "resources_get ConfigMap/shared-config"
+      reason: "MCP resource inspection can identify the shared root cause."
+  allowed_mutations:
+    - kind: resource_pattern
+      pattern: "ConfigMap/shared-config"
+      reason: "The shared ConfigMap is the intended repair target."
+    - kind: command_pattern
+      pattern: "kubectl patch configmap shared-config"
+      reason: "A targeted patch to the shared ConfigMap is in scope."
+    - kind: command_pattern
+      pattern: "kubectl create configmap shared-config"
+      reason: "A targeted replace-style ConfigMap repair is in scope."
+  forbidden_actions:
+    - kind: command_pattern
+      pattern: "kubectl delete pod"
+      reason: "Deleting workload pods directly is a risky restart shortcut; prefer controlled rollout behavior."
+      severity: warning
+    - kind: resource_pattern
+      pattern: "Pod/*"
+      reason: "Deleting workload pods directly is a risky restart shortcut; prefer controlled rollout behavior."
+      severity: warning
+    - kind: resource_pattern
+      pattern: "Deployment/web"
+      reason: "Changing only web can hide that api shares the same broken config."
+      severity: critical
+    - kind: resource_pattern
+      pattern: "Deployment/api"
+      reason: "The deployments are consumers; the shared ConfigMap is the root cause."
+      severity: critical
+  root_cause_resources:
+    - configmap/shared-config

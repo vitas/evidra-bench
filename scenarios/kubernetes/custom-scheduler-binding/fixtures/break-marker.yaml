@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scheduler-status
+  namespace: bench
+data:
+  status: "wrong_scheduler"
+  message: "Batch workload must use custom scheduler 'batch-scheduler' that prefers gpu=true nodes"

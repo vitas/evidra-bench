@@ -1,0 +1,19 @@
+# Live drift that makes the app OutOfSync but still repairable via Argo CD.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guestbook-ui
+  namespace: bench
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: guestbook-ui
+  template:
+    metadata:
+      labels:
+        app: guestbook-ui
+    spec:
+      containers:
+        - name: guestbook-ui
+          image: gcr.io/heptio-images/ks-guestbook-demo:0.2

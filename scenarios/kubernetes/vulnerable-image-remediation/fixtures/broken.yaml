@@ -1,0 +1,23 @@
+# The "break" is the baseline itself — nginx:1.19 IS the vulnerability.
+# This is a no-op apply to satisfy the break step contract.
+# The agent's job is to identify and fix the vulnerable image.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: bench
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.19
+          ports:
+            - containerPort: 80

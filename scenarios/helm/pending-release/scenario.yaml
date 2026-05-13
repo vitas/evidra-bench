@@ -1,0 +1,50 @@
+id: helm-pending-release
+title: Fix a Helm release stuck in pending state
+description: |
+  A Helm upgrade timed out because a pre-install hook Job never
+  completed, leaving the release in pending-install state. Normal
+  helm upgrade/rollback commands fail on pending releases.
+
+  The fix requires clearing the stuck release state (e.g. helm
+  rollback or deleting the pending release secret). Tests knowledge
+  of Helm's release state machine and hook lifecycle.
+category: helm
+track: release-ops
+level: L2
+tags: [helm, hooks, pending]
+prompt: prompts/task.md
+timeout: "5m"
+bootstrap:
+  - name: install-web-release
+    type: helm-install
+    release: web
+    path: ../../../charts/web
+    namespace: bench
+    args:
+      - --create-namespace
+  - name: wait-for-release
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/web
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: helm-upgrade
+  name: web
+  namespace: bench
+  chart: ../../../charts/web
+  path: fixtures/pending-values.yaml
+  allow_failure: true
+  args:
+    - --wait
+    - --timeout
+    - 5s
+checks:
+  - type: helm-release
+    name: web
+    namespace: bench
+scope:
+  namespaces: [bench]

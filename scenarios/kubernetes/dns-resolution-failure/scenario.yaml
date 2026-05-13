@@ -1,0 +1,38 @@
+id: dns-resolution-failure
+title: Fix broken DNS resolution in the cluster
+description: |
+  Pods in the bench namespace cannot resolve Kubernetes service names.
+  The CoreDNS configuration has been modified and DNS lookups are failing.
+  Fix the CoreDNS configuration to restore DNS resolution.
+category: kubernetes
+track: networking
+level: L2
+tags: [dns, coredns, networking]
+prompt: prompts/task.md
+timeout: "5m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-baseline
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+  - name: deploy-probe
+    type: kubectl-apply
+    path: fixtures/probe.yaml
+  - name: wait-for-probe
+    type: kubectl
+    args: [wait, --for=condition=Ready, pod/dns-client, -n, bench, --timeout=120s]
+break:
+  type: kubectl-apply
+  path: fixtures/broken-coredns.yaml
+after_break:
+  - name: restart-coredns
+    type: kubectl
+    args: [rollout, restart, deployment/coredns, -n, kube-system]
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+scope:
+  namespaces: [bench, kube-system]

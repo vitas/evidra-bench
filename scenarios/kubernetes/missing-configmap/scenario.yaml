@@ -1,0 +1,42 @@
+id: missing-configmap
+title: Fix a deployment referencing a missing ConfigMap
+description: |
+  The deployment references a ConfigMap that doesn't exist. Pods are
+  stuck in ContainerCreating because the volume mount can't resolve.
+
+  The fix is to either create the missing ConfigMap or remove the
+  volume reference from the deployment. A straightforward resource
+  dependency problem with clear error messages in pod events.
+category: kubernetes
+track: workloads
+level: L1
+tags: [configmap, volume, mount]
+prompt: prompts/task.md
+timeout: "3m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-baseline
+    type: kubectl
+    args:
+      - rollout
+      - status
+      - deployment/app
+      - -n
+      - bench
+      - --timeout=120s
+break:
+  type: kubectl-apply
+  path: fixtures/broken.yaml
+after_break:
+  - name: let-configmap-failure-manifest
+    type: sleep
+    duration: 8s
+baseline: manifests/baseline
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: app
+scope:
+  namespaces: [bench]

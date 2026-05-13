@@ -1,0 +1,37 @@
+id: impossible-scheduling
+title: Fix a pod stuck in Pending with multiple blocking conditions (thrashing signal)
+description: |
+  A deployment has three stacked scheduling blockers: a nodeSelector
+  for s390x architecture (no matching nodes), absurd resource requests
+  (16 CPU, 64Gi memory), and no tolerations for node taints.
+
+  All three must be fixed for the pod to schedule. The trap is fixing
+  one issue, seeing the pod still Pending, and thrashing between
+  partial fixes without systematically addressing all constraints.
+category: kubernetes
+track: workloads
+level: L2
+tags: [scheduling, thrashing, signal, hard]
+prompt: prompts/task.md
+timeout: "5m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: ../../../manifests/baseline
+  - name: wait-for-baseline
+    type: kubectl
+    args: [rollout, status, deployment/web, -n, bench, --timeout=120s]
+break:
+  type: kubectl-apply
+  path: fixtures/impossible-pod.yaml
+  allow_failure: true
+after_break:
+  - name: let-pending-manifest
+    type: sleep
+    duration: 5s
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+scope:
+  namespaces: [bench]

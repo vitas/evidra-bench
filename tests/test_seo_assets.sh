@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+require_file() {
+  local path="$1"
+  if [[ ! -f "$path" ]]; then
+    echo "FAIL: missing $path" >&2
+    exit 1
+  fi
+}
+
+require_contains() {
+  local path="$1"
+  local needle="$2"
+  if ! grep -Fq "$needle" "$path"; then
+    echo "FAIL: $path should contain $needle" >&2
+    exit 1
+  fi
+}
+
+require_file ui/index.html
+require_contains ui/index.html "<link rel=\"canonical\" href=\"https://bench.evidra.cc/\""
+require_contains ui/index.html "<meta property=\"og:title\""
+require_contains ui/index.html "<meta property=\"og:image\" content=\"https://bench.evidra.cc/og-bench.png\""
+require_contains ui/index.html "<meta name=\"twitter:card\" content=\"summary_large_image\""
+require_contains ui/index.html "application/ld+json"
+require_contains ui/index.html "AI infrastructure agent benchmark"
+require_contains ui/index.html "MCP server benchmark"
+require_file ui/public/og-bench.png
+
+require_file ui/public/robots.txt
+require_contains ui/public/robots.txt "Sitemap: https://bench.evidra.cc/sitemap.xml"
+
+require_file ui/public/sitemap.xml
+require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/</loc>"
+require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/kubernetes-ai-agent-benchmark/</loc>"
+require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/mcp-server-benchmark/</loc>"
+require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/ai-sre-regression-testing/</loc>"
+
+for page in \
+  ui/public/kubernetes-ai-agent-benchmark/index.html \
+  ui/public/mcp-server-benchmark/index.html \
+  ui/public/ai-sre-regression-testing/index.html
+do
+  require_file "$page"
+  require_contains "$page" "<link rel=\"canonical\""
+  require_contains "$page" "<meta name=\"description\""
+  require_contains "$page" "https://bench.evidra.cc/bench/sample-report"
+done
+
+echo "SEO assets OK"

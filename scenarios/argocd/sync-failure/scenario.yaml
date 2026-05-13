@@ -1,0 +1,55 @@
+id: argocd-sync-failure
+title: Fix an Argo CD application that fails to sync
+description: |
+  The guestbook app fails to sync because its source path was changed
+  to a directory that doesn't exist in the Git repository. Argo CD
+  reports a sync error with a clear path-not-found message.
+
+  The fix is to correct the application's source path back to a valid
+  location. Tests whether the agent can read Argo CD sync error
+  details and update the application spec accordingly.
+category: argocd
+track: release-ops
+level: L2
+tags: [argocd, sync, manifest]
+prompt: prompts/task.md
+timeout: "10m"
+environment:
+  profile: argocd
+bootstrap:
+  - name: apply-guestbook-app
+    type: kubectl-apply
+    path: ../../../manifests/argocd/apps/guestbook.yaml
+  - name: let-guestbook-status-appear
+    type: sleep
+    duration: 15s
+  - name: wait-for-guestbook-sync
+    type: kubectl
+    args:
+      - wait
+      - --for=jsonpath={.status.sync.status}=Synced
+      - application/guestbook
+      - -n
+      - argocd
+      - --timeout=180s
+  - name: wait-for-guestbook-health
+    type: kubectl
+    args:
+      - wait
+      - --for=jsonpath={.status.health.status}=Healthy
+      - application/guestbook
+      - -n
+      - argocd
+      - --timeout=180s
+break:
+  type: kubectl-apply
+  path: fixtures/break.yaml
+after_break:
+  - name: let-argocd-report-sync-failure
+    type: sleep
+    duration: 20s
+checks:
+  - type: argocd-app-healthy
+    name: guestbook
+scope:
+  namespaces: [bench, argocd]

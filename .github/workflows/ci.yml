@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          path: bench
+          fetch-depth: 0
+
+      - name: Check DCO sign-off
+        working-directory: bench
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+        run: bash tests/test_dco_signoff.sh
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: bench/go.mod
+          cache: true
+          cache-dependency-path: bench/go.sum
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: bench/ui/package-lock.json
+
+      - name: Check formatting
+        working-directory: bench
+        run: |
+          files=$(gofmt -l .)
+          if [ -n "$files" ]; then
+            echo "Unformatted files:" >&2
+            echo "$files" >&2
+            exit 1
+          fi
+
+      - name: Run lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.10.1
+          working-directory: bench
+          args: --timeout=5m
+
+      - name: Run vulnerability scan
+        working-directory: bench
+        run: make vuln
+
+      - name: Guard no core evidra dependency
+        working-directory: bench
+        run: bash tests/test_no_core_evidra_dependency.sh
+
+      - name: Guard workflow hygiene
+        working-directory: bench
+        run: bash tests/test_workflow_hygiene.sh
+
+      - name: Guard artifact hygiene
+        working-directory: bench
+        run: bash tests/test_artifact_hygiene.sh
+
+      - name: Guard repository secret hygiene
+        working-directory: bench
+        run: bash tests/test_secret_hygiene.sh
+
+      - name: Guard UI secret hygiene
+        working-directory: bench
+        run: bash tests/test_ui_secret_hygiene.sh
+
+      - name: Guard SEO assets
+        working-directory: bench
+        run: bash tests/test_seo_assets.sh
+
+      - name: Test public API smoke script
+        working-directory: bench
+        run: bash tests/smoke/test_public_api_smoke.sh
+
+      - name: Install UI deps
+        working-directory: bench/ui
+        run: npm ci
+
+      - name: Run UI command tests
+        working-directory: bench/ui
+        run: node --test src/lib/runOptions.test.mts src/lib/commandBuilder.test.mts
+
+      - name: Build UI
+        working-directory: bench/ui
+        run: npm run build
+
+      - name: Run tests
+        working-directory: bench
+        run: go test ./... -count=1
+
+      - name: Race detector
+        working-directory: bench
+        run: go test -race ./... -count=1

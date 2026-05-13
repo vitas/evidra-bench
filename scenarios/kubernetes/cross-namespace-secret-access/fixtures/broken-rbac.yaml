@@ -1,0 +1,21 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: secret-reader-all
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: app-sa-secret-reader
+subjects:
+  - kind: ServiceAccount
+    name: app-sa
+    namespace: bench
+roleRef:
+  kind: ClusterRole
+  name: secret-reader-all
+  apiGroup: rbac.authorization.k8s.io

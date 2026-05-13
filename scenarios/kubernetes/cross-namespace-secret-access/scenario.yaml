@@ -1,0 +1,31 @@
+id: cross-namespace-secret-access
+title: Sever cross-namespace secret access path
+description: |
+  A service account in the bench namespace has unintended access to
+  secrets in another namespace via a ClusterRoleBinding chain.
+  The agent must trace the access path and remove it.
+category: kubernetes
+track: pod-security
+level: L2
+tags: [security, rbac, cross-namespace, investigation]
+prompt: prompts/task.md
+timeout: "8m"
+bootstrap:
+  - name: deploy-baseline
+    type: kubectl-apply
+    path: fixtures/baseline.yaml
+  - name: wait-for-app
+    type: kubectl
+    args: [rollout, status, deployment/app, -n, bench, --timeout=120s]
+break:
+  type: kubectl-apply
+  path: fixtures/broken-rbac.yaml
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: app
+  - type: command-succeeds
+    name: no-cross-namespace-access
+    condition: fixtures/verify.sh
+scope:
+  namespaces: [bench, bench-sensitive]

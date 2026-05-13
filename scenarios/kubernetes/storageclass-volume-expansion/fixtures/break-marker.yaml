@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: storage-status
+  namespace: bench
+data:
+  status: "disk_almost_full"
+  message: "PVC app-data is almost full (1Gi). Need to expand to 5Gi."

@@ -1,0 +1,40 @@
+id: terraform-import-existing
+title: Import manually-created application stack into Terraform
+description: |
+  A 3-resource application stack (Deployment, Service, ConfigMap) was
+  created manually with kubectl and needs to be brought under Terraform
+  management. The agent must write HCL resource blocks that exactly match
+  the existing resources, run terraform import for each, then iterate
+  until terraform plan shows no changes. Any mismatch means the import
+  succeeded but plan will try to destroy/recreate.
+category: terraform
+track: platform-eng
+level: L3
+tags: [terraform, import, migration, adoption]
+prompt: prompts/task.md
+timeout: "10m"
+bootstrap:
+  - name: clean-previous-tf-state
+    type: shell
+    path: fixtures/clean.sh
+    args: []
+  - name: create-resources-and-init-tf
+    type: shell
+    path: fixtures/setup.sh
+    args: []
+break:
+  type: shell
+  path: fixtures/break.sh
+  args: []
+checks:
+  - type: command-succeeds
+    name: verify-import-complete
+    condition: fixtures/verify.sh
+  - type: deployment-ready
+    namespace: bench
+    name: api
+  - type: service-endpoints
+    namespace: bench
+    name: api
+scope:
+  namespaces: [bench]
