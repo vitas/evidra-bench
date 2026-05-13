@@ -69,6 +69,7 @@ ui/dist/
 
 # Screenshots
 *.png
+!ui/public/og-bench.png
 
 # Environment
 .env
