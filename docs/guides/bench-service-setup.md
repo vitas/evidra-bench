@@ -5,7 +5,7 @@ first refactor phase: no managed cloud dependency is required.
 
 Production deployment is out of scope for this repository. Keep deployment
 topology, compose/manifests, secrets wiring, and environment-specific settings
-in the sibling `../evidra-infra` repo.
+in a separate private infrastructure repository.
 
 ## What Runs Here
 

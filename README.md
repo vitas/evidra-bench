@@ -304,8 +304,10 @@ the direct executor so the API process does not provision a local cluster:
 BENCH_CONTROL_PLANE_ONLY=true bench-cli serve --control-plane-only
 ```
 
-Production deployment belongs in `../evidra-infra`. This repo stays focused on
-code, local execution, API contracts, scenarios, and tests.
+Production deployment is intentionally out of scope for this repository. Keep
+environment-specific manifests, secrets, and hosted topology in a separate
+private infrastructure repository. This repo stays focused on code, local
+execution, API contracts, scenarios, and tests.
 
 ## Documentation
 

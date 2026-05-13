@@ -27,7 +27,7 @@ analysis.
 | `/v1/runners/*` | this repo | Poll-based remote runner registration, job claim, and completion |
 | `/v1/certify` | this repo | Direct executor API for local service mode |
 | Scenario catalog and schema | this repo | Infrastructure tasks, checks, levels, and tracks |
-| Production deployment | `../evidra-infra` | Compose, manifests, secrets, hosted topology, and operations |
+| Production deployment | private infrastructure repo | Compose, manifests, secrets, hosted topology, and operations |
 | Optional external tools | outside this repo | MCP servers, remote A2A agents, CLIs, provider gateways |
 
 Bench has no required sibling project dependency. It tests MCP servers, A2A
@@ -309,8 +309,8 @@ lifetime decisions.
 
 ## Docker Images
 
-This repo defines local build inputs. Production composition and secret wiring
-belong in `../evidra-infra`.
+This repo defines local build inputs. Production composition, hosted topology,
+and secret wiring belong in a private infrastructure repository.
 
 | Image | Dockerfile | Purpose |
 |---|---|---|
