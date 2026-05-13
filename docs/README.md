@@ -58,8 +58,6 @@ Obsidian map of content and the GitHub documentation index.
   scenarios that test capability instead of obedience.
 - [Scenario Schema](SCENARIO_SCHEMA.md) - YAML schema reference.
 - [Scenario Catalog](SCENARIO_CATALOG.md) - implemented scenario inventory.
-- [Infra AI Agent Benchmark Portfolio](ideas/infra-ai-agent-benchmark-portfolio.md)
-  - research-backed suite ideas.
 
 ## Integrate Agents And Tool Servers
 
@@ -79,27 +77,12 @@ Obsidian map of content and the GitHub documentation index.
   boundaries.
 - [Open Source Boundary](OPEN_SOURCE.md) - what belongs in the public repo and
   what stays private.
-- [Bench Business Model](product/bench-business-model.md) - paid wedge,
-  self-hosted boundary, and go-to-market notes.
 
 ## Articles
 
 - [Pass/Fail Is Not Enough for AI Infrastructure Agents](articles/pass-fail-is-not-enough-for-ai-infra-agents.md)
   - draft article based on the Claude and DeepSeek Kubernetes MCP readiness
     reports.
-
-## Ideas And Backlog
-
-- [CKA Scenario Ideas](ideas/cka-scenario-ideas.md)
-- [CKS Scenario Ideas](ideas/cks-scenario-ideas.md)
-- [Helm And Argo CD Scenario Ideas](ideas/helm-scenario-ideas.md)
-- [Terraform Scenario Ideas](ideas/terraform-scenario-ideas.md)
-- [AWS Scenario Ideas](ideas/aws-scenario-ideas.md)
-- [Terraform And AWS Scenario Ideas](ideas/terraform-aws-scenario-ideas.md)
-- [Parallel Bench Runner](backlog/parallel-bench-runner.md)
-- [Bench Data Model v2](backlog/bench-data-model-v2.md)
-- [Progressive Skill Loading](backlog/2026-03-23-progressive-skill-loading.md)
-- [Next-Generation Scenario Ideas](backlog/2026-03-17-next-gen-scenario-ideas.md)
 
 ## Archive
 

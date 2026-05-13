@@ -326,7 +326,6 @@ execution, API contracts, scenarios, and tests.
 - [Bench Service Setup](docs/guides/bench-service-setup.md)
 - [Executor Contract v1.0.0](docs/contracts/EXECUTOR_CONTRACT_V1.md)
 - [Runner Control Plane Contract v1](docs/contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md)
-- [Bench Business Model](docs/product/bench-business-model.md)
 - [Open Source Boundary](docs/OPEN_SOURCE.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Threat Model](docs/THREAT_MODEL.md)
