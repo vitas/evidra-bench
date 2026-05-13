@@ -16,9 +16,8 @@ why a passing final state still used unsafe behavior. The goal is to turn raw
 transcripts, tool calls, timeline events, verifier output, tokens, and costs
 into a report a platform team can act on.
 
-The MVP scope and implementation sequence are tracked in
-[Autopsy MVP Design](plans/2026-05-10-autopsy-mvp-design.md) and
-[Autopsy MVP Implementation Plan](plans/2026-05-10-autopsy-mvp.md).
+The current product scope is described here. Internal implementation plans are
+local-only and intentionally excluded from the public repository.
 
 ## Problem
 

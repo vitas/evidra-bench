@@ -77,6 +77,8 @@ ui/dist/
 # Plan docs (internal)
 docs/plans/
 .obsidian/
+CLAUDE.md
+claude.md
 
 #test gens
 charts

@@ -1,0 +1,55 @@
+name: Scenario Proposal
+description: Propose a public benchmark scenario or suite addition.
+title: "[Scenario]: "
+labels:
+  - scenario
+body:
+  - type: dropdown
+    id: domain
+    attributes:
+      label: Domain
+      options:
+        - Kubernetes
+        - Helm
+        - GitOps
+        - Terraform
+        - AWS or LocalStack
+        - MCP server readiness
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: difficulty
+    attributes:
+      label: Target difficulty
+      options:
+        - L1 Fix
+        - L2 Diagnose
+        - L3 Judge
+        - L4 Investigate
+    validations:
+      required: true
+  - type: textarea
+    id: incident
+    attributes:
+      label: Incident shape
+      description: What broken state should the agent investigate?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected final state
+      description: Describe the verifier outcome without prescribing exact commands.
+    validations:
+      required: true
+  - type: textarea
+    id: traps
+    attributes:
+      label: Traps or unsafe shortcuts
+      description: What should a strong agent avoid?
+  - type: textarea
+    id: data
+    attributes:
+      label: Data hygiene
+      description: Confirm the proposed fixture is public or sanitized.

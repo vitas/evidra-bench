@@ -22,10 +22,10 @@ Use this page as the documentation home in Obsidian and GitHub.
   leaderboard and readiness reports.
 - [Business Model](product/bench-business-model.md) - paid wedge, self-hosted
   boundary, and go-to-market notes.
+- [Open Source Boundary](OPEN_SOURCE.md) - what belongs in the public repo and
+  what stays private.
 - [Agent Failure Autopsy](AGENT_FAILURE_AUTOPSY.md) - target product design
   for explaining where and why an agent failed.
-- [Autopsy MVP Design](plans/2026-05-10-autopsy-mvp-design.md) - next
-  first-class failure-analysis release slice.
 
 ## Articles
 
@@ -85,7 +85,9 @@ Use this page as the documentation home in Obsidian and GitHub.
 - [Bench Data Model v2](backlog/bench-data-model-v2.md)
 - [Progressive Skill Loading](backlog/2026-03-23-progressive-skill-loading.md)
 - [Archived Core Bench Plans](archive/core-bench-plans/)
-- [Implementation Plans](plans/)
+
+Internal implementation plans are local-only and intentionally excluded from
+the public repository.
 
 ## Current Center Of Gravity
 

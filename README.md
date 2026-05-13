@@ -1,5 +1,11 @@
 # Bench
 
+[![CI](https://github.com/vitas/evidra-bench/actions/workflows/ci.yml/badge.svg)](https://github.com/vitas/evidra-bench/actions/workflows/ci.yml)
+[![Release](https://github.com/vitas/evidra-bench/actions/workflows/release.yml/badge.svg)](https://github.com/vitas/evidra-bench/actions/workflows/release.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/go-1.25%2B-00ADD8.svg)](go.mod)
+[![Bench](https://img.shields.io/badge/bench-live%20reports-4b5563.svg)](https://bench.evidra.cc)
+
 Live infrastructure exams and regression testing for AI agents. Run the same
 real Kubernetes, Helm, Argo CD, Terraform, and AWS/LocalStack scenarios across
 models, MCP servers, skills, and remote agents. Track pass rate, cost, turns,
@@ -313,6 +319,7 @@ code, local execution, API contracts, scenarios, and tests.
 - [Executor Contract v1.0.0](docs/contracts/EXECUTOR_CONTRACT_V1.md)
 - [Runner Control Plane Contract v1](docs/contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md)
 - [Bench Business Model](docs/product/bench-business-model.md)
+- [Open Source Boundary](docs/OPEN_SOURCE.md)
 
 ## Development
 
@@ -330,4 +337,4 @@ See [Testing Guide](docs/testing.md) for the full testing guide.
 
 ## License
 
-Apache License 2.0
+[Apache License 2.0](LICENSE)
