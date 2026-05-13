@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 // fakeRunner records commands and returns canned output.

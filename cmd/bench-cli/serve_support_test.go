@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/orchestrator"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/orchestrator"
 )
 
 type noopParallelRunner struct {

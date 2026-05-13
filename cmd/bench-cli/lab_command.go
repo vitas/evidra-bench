@@ -7,9 +7,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/harness"
-	"samebits.com/evidra-infra-bench/pkg/tui"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/harness"
+	"github.com/vitas/evidra-bench/pkg/tui"
 )
 
 func newLabCommand(cfg *config.Config) *cobra.Command {

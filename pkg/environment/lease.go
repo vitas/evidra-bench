@@ -3,7 +3,7 @@ package environment
 import (
 	"context"
 
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 // Lease represents an acquired environment ready for scenario execution.

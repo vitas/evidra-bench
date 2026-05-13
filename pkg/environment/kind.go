@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 // createCommandWithExplicitConfig builds a kind create command that uses a

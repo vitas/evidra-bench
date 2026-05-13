@@ -11,13 +11,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/environment"
-	"samebits.com/evidra-infra-bench/pkg/harness"
-	"samebits.com/evidra-infra-bench/pkg/jobqueue"
-	"samebits.com/evidra-infra-bench/pkg/scenario"
-	"samebits.com/evidra-infra-bench/pkg/store"
-	"samebits.com/evidra-infra-bench/pkg/workspace"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/environment"
+	"github.com/vitas/evidra-bench/pkg/harness"
+	"github.com/vitas/evidra-bench/pkg/jobqueue"
+	"github.com/vitas/evidra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/store"
+	"github.com/vitas/evidra-bench/pkg/workspace"
 )
 
 // RunFunc executes a single scenario. Called by the orchestrator for each job.

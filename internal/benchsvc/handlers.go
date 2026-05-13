@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"samebits.com/evidra-infra-bench/internal/apiutil"
-	"samebits.com/evidra-infra-bench/internal/auth"
+	"github.com/vitas/evidra-bench/internal/apiutil"
+	"github.com/vitas/evidra-bench/internal/auth"
 )
 
 // RegisterRoutes adds bench intelligence routes to the given mux.

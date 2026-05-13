@@ -3,7 +3,7 @@ package signalaudit_test
 import (
 	"testing"
 
-	"samebits.com/evidra-infra-bench/pkg/signalaudit"
+	"github.com/vitas/evidra-bench/pkg/signalaudit"
 )
 
 func TestAnalyze_FlagsMissingExpectedSignal(t *testing.T) {

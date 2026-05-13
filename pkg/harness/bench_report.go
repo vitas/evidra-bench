@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/store"
+	"github.com/vitas/evidra-bench/pkg/store"
 )
 
 // benchIngestRequest extends RunRecord with optional artifacts for the bench API.

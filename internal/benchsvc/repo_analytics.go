@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	bench "samebits.com/evidra-infra-bench/pkg/bench"
+	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
 // SignalSummary aggregates signal counts from scorecard artifacts across matching runs.

@@ -7,10 +7,10 @@ import (
 	"os"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/adapter"
-	"samebits.com/evidra-infra-bench/pkg/agent"
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/adapter"
+	"github.com/vitas/evidra-bench/pkg/agent"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 func (h *Harness) injectSingleStageBreak(ctx context.Context, req RunRequest, kubeconfigPath string) error {

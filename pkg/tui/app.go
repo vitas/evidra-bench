@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"samebits.com/evidra-infra-bench/pkg/harness"
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/harness"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 // view modes

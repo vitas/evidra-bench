@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	bench "samebits.com/evidra-infra-bench/pkg/bench"
+	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
 // ---------- Ingest ----------

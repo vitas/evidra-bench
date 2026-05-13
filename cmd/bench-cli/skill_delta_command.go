@@ -10,9 +10,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/scenario"
-	"samebits.com/evidra-infra-bench/pkg/skilldelta"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/skilldelta"
 )
 
 func newSkillDeltaCommand() *cobra.Command {

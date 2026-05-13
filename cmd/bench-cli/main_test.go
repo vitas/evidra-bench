@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/spf13/pflag"
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/tui"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/tui"
 )
 
 func TestMainHelp(t *testing.T) {

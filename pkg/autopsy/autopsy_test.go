@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	bench "samebits.com/evidra-infra-bench/pkg/bench"
+	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
 func toolCall(t *testing.T, command, result string) bench.ToolCall {

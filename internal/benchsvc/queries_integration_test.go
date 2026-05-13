@@ -13,8 +13,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/oklog/ulid/v2"
 
-	"samebits.com/evidra-infra-bench/internal/benchdb"
-	bench "samebits.com/evidra-infra-bench/pkg/bench"
+	"github.com/vitas/evidra-bench/internal/benchdb"
+	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
 func setupTestDB(t *testing.T) *pgxpool.Pool {

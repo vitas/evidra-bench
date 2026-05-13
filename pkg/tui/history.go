@@ -7,8 +7,8 @@ import (
 	"sort"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/artifact"
-	"samebits.com/evidra-infra-bench/pkg/verifier"
+	"github.com/vitas/evidra-bench/pkg/artifact"
+	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
 // RunRecord is a historical run read from run.json, augmented with

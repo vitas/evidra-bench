@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	bench "github.com/vitas/evidra-bench/pkg/bench"
 	_ "modernc.org/sqlite"
-	bench "samebits.com/evidra-infra-bench/pkg/bench"
 )
 
 // RunRecord is the shared benchmark run type used by local storage and API reporting.

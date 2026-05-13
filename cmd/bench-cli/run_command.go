@@ -9,14 +9,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"samebits.com/evidra-infra-bench/pkg/adapter"
-	"samebits.com/evidra-infra-bench/pkg/artifact"
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/environment"
-	"samebits.com/evidra-infra-bench/pkg/harness"
-	"samebits.com/evidra-infra-bench/pkg/report"
-	"samebits.com/evidra-infra-bench/pkg/scenario"
-	"samebits.com/evidra-infra-bench/pkg/store"
+	"github.com/vitas/evidra-bench/pkg/adapter"
+	"github.com/vitas/evidra-bench/pkg/artifact"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/environment"
+	"github.com/vitas/evidra-bench/pkg/harness"
+	"github.com/vitas/evidra-bench/pkg/report"
+	"github.com/vitas/evidra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/store"
 )
 
 func newRunCommand(cfg *config.Config) *cobra.Command {

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	bench "samebits.com/evidra-infra-bench/pkg/bench"
+	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
 // ---------- List Runs ----------

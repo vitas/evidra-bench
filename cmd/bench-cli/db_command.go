@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/store"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/store"
 )
 
 func newDBCommand(cfg *config.Config) *cobra.Command {

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"samebits.com/evidra-infra-bench/pkg/orchestrator"
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/orchestrator"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 func TestFilterRunnableScenarios(t *testing.T) {

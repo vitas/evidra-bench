@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"samebits.com/evidra-infra-bench/pkg/skilldelta"
+	"github.com/vitas/evidra-bench/pkg/skilldelta"
 )
 
 func TestSkillDeltaRunCommand_DryRunWritesPairJSON(t *testing.T) {

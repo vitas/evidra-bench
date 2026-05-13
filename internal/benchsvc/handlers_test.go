@@ -12,8 +12,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"samebits.com/evidra-infra-bench/internal/auth"
-	bench "samebits.com/evidra-infra-bench/pkg/bench"
+	"github.com/vitas/evidra-bench/internal/auth"
+	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
 // handlerRepo is an in-memory fake implementing Repository for handler tests.

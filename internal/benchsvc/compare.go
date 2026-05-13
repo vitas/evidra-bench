@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	bench "samebits.com/evidra-infra-bench/pkg/bench"
+	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
 // RunComparison holds the result of comparing two benchmark runs.

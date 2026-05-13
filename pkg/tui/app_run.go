@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/environment"
-	"samebits.com/evidra-infra-bench/pkg/harness"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/environment"
+	"github.com/vitas/evidra-bench/pkg/harness"
 )
 
 func (a *App) runScenario() tea.Cmd {

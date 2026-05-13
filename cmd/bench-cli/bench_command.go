@@ -15,13 +15,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/environment"
-	"samebits.com/evidra-infra-bench/pkg/harness"
-	"samebits.com/evidra-infra-bench/pkg/orchestrator"
-	"samebits.com/evidra-infra-bench/pkg/scenario"
-	"samebits.com/evidra-infra-bench/pkg/signalaudit"
-	"samebits.com/evidra-infra-bench/pkg/store"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/environment"
+	"github.com/vitas/evidra-bench/pkg/harness"
+	"github.com/vitas/evidra-bench/pkg/orchestrator"
+	"github.com/vitas/evidra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/signalaudit"
+	"github.com/vitas/evidra-bench/pkg/store"
 )
 
 func newBenchCommand() *cobra.Command {

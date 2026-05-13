@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/environment"
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/environment"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 func (h *Harness) applyBreak(ctx context.Context, kubeconfigPath string, s *scenario.Scenario, extraEnv ...string) error {

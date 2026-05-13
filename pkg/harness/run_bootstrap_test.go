@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/environment"
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/environment"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 // TestHarness_Run_LeaseEnvIsAvailableToCloudSetup verifies that ExtraEnv vars

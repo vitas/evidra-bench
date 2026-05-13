@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 // ProfileRunner executes profile lifecycle hooks (install, healthcheck, cleanup)

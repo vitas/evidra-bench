@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/environment"
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/environment"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 // ChaosRunner executes runtime disruption steps while an agent is running.

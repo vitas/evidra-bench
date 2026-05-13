@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"samebits.com/evidra-infra-bench/pkg/signalaudit"
+	"github.com/vitas/evidra-bench/pkg/signalaudit"
 )
 
 func TestWriteJSON_WritesStableReport(t *testing.T) {

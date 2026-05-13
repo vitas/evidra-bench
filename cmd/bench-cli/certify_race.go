@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"samebits.com/evidra-infra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/config"
 )
 
 // executeCertifyRace runs certification for multiple models in parallel and prints a race result.

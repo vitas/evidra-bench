@@ -3,8 +3,8 @@ package benchsvc
 import (
 	"net/http"
 
-	"samebits.com/evidra-infra-bench/internal/apiutil"
-	"samebits.com/evidra-infra-bench/internal/auth"
+	"github.com/vitas/evidra-bench/internal/apiutil"
+	"github.com/vitas/evidra-bench/internal/auth"
 )
 
 func handleToolServerReport(svc *Service) http.HandlerFunc {

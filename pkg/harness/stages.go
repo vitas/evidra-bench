@@ -6,9 +6,9 @@ import (
 	"log"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/agent"
-	"samebits.com/evidra-infra-bench/pkg/scenario"
-	"samebits.com/evidra-infra-bench/pkg/verifier"
+	"github.com/vitas/evidra-bench/pkg/agent"
+	"github.com/vitas/evidra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
 // StageResult records the outcome of one stage.

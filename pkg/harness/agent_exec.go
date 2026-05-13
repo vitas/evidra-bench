@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/a2a"
-	"samebits.com/evidra-infra-bench/pkg/adapter"
-	"samebits.com/evidra-infra-bench/pkg/agent"
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/a2a"
+	"github.com/vitas/evidra-bench/pkg/adapter"
+	"github.com/vitas/evidra-bench/pkg/agent"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 func (h *Harness) executeSingleAgent(ctx context.Context, req RunRequest, s *scenario.Scenario, kubeconfigPath, promptContent string, timeout time.Duration, evidenceDir string) (*adapter.RunResult, error) {

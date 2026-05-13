@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/verifier"
+	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
 // BuildPairResult loads two run artifact directories and returns a normalized

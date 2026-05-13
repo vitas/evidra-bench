@@ -6,7 +6,7 @@ import (
 	"log"
 	"strings"
 
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 // LocalProvisioner creates cluster leases using local ClusterLifecycle providers

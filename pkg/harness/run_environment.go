@@ -8,8 +8,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/environment"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/environment"
 )
 
 func targetNamespace(req RunRequest) string {

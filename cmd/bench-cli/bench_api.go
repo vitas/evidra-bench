@@ -3,8 +3,8 @@ package main
 import (
 	"net/http"
 
-	"samebits.com/evidra-infra-bench/internal/auth"
-	"samebits.com/evidra-infra-bench/internal/benchsvc"
+	"github.com/vitas/evidra-bench/internal/auth"
+	"github.com/vitas/evidra-bench/internal/benchsvc"
 )
 
 func registerBenchAPIRoutes(mux *http.ServeMux, svc *benchsvc.Service, apiKey string, tenantOpt ...string) {

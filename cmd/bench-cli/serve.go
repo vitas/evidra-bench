@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"samebits.com/evidra-infra-bench/internal/benchdb"
-	"samebits.com/evidra-infra-bench/internal/benchsvc"
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/orchestrator"
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/internal/benchdb"
+	"github.com/vitas/evidra-bench/internal/benchsvc"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/orchestrator"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 type parallelRunner interface {

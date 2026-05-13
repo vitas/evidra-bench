@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/orchestrator"
+	"github.com/vitas/evidra-bench/pkg/orchestrator"
 )
 
 func TestBenchReporter_SubmitBenchRunUsesExplicitEvidenceMode(t *testing.T) {

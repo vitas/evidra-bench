@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/adapter"
-	"samebits.com/evidra-infra-bench/pkg/artifact"
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/report"
-	"samebits.com/evidra-infra-bench/pkg/store"
-	"samebits.com/evidra-infra-bench/pkg/verifier"
+	"github.com/vitas/evidra-bench/pkg/adapter"
+	"github.com/vitas/evidra-bench/pkg/artifact"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/report"
+	"github.com/vitas/evidra-bench/pkg/store"
+	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
 func (h *Harness) writeRunArtifacts(req RunRequest, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, startTime, endTime time.Time) (string, json.RawMessage) {

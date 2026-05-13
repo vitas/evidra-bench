@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"samebits.com/evidra-infra-bench/pkg/adapter"
-	"samebits.com/evidra-infra-bench/pkg/verifier"
+	"github.com/vitas/evidra-bench/pkg/adapter"
+	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
 func (h *Harness) verifyRun(ctx context.Context, req RunRequest, kubeconfigPath string, agentResult *adapter.RunResult, _ string, stageResults []StageResult, isMultiStage bool) (*verifier.VerifyResult, error) {

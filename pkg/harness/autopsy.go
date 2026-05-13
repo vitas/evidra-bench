@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"log"
 
-	"samebits.com/evidra-infra-bench/pkg/autopsy"
-	bench "samebits.com/evidra-infra-bench/pkg/bench"
-	"samebits.com/evidra-infra-bench/pkg/scenario"
-	"samebits.com/evidra-infra-bench/pkg/store"
+	"github.com/vitas/evidra-bench/pkg/autopsy"
+	bench "github.com/vitas/evidra-bench/pkg/bench"
+	"github.com/vitas/evidra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/store"
 )
 
 func buildFailureAutopsyJSON(rec store.RunRecord, toolCallsJSON json.RawMessage, transcript string, checksJSON json.RawMessage, hints scenario.AutopsyHints) json.RawMessage {

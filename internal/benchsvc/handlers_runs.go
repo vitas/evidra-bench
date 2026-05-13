@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"samebits.com/evidra-infra-bench/internal/apiutil"
-	"samebits.com/evidra-infra-bench/internal/auth"
-	bench "samebits.com/evidra-infra-bench/pkg/bench"
+	"github.com/vitas/evidra-bench/internal/apiutil"
+	"github.com/vitas/evidra-bench/internal/auth"
+	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
 func handleListRuns(svc *Service) http.HandlerFunc {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"samebits.com/evidra-infra-bench/pkg/signalaudit"
+	"github.com/vitas/evidra-bench/pkg/signalaudit"
 )
 
 func newAuditCommand(defaultRunsDir string) *cobra.Command {

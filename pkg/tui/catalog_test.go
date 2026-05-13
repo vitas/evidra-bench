@@ -3,7 +3,7 @@ package tui
 import (
 	"testing"
 
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 func testScenarios() []CatalogItem {

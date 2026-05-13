@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	bench "samebits.com/evidra-infra-bench/pkg/bench"
+	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
 func TestLeaderboard_PassKMath(t *testing.T) {

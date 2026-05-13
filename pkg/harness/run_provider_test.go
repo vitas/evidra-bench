@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/agent"
+	"github.com/vitas/evidra-bench/pkg/agent"
 )
 
 func TestProviderEvidenceDir_IsIsolatedPerRun(t *testing.T) {

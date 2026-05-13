@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 func TestExecuteSingleAgent_A2APrecedesProvider(t *testing.T) {

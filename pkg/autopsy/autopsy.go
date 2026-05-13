@@ -7,8 +7,8 @@ import (
 	"path"
 	"strings"
 
+	bench "github.com/vitas/evidra-bench/pkg/bench"
 	"gopkg.in/yaml.v3"
-	bench "samebits.com/evidra-infra-bench/pkg/bench"
 )
 
 // ReportVersion is the current failure autopsy artifact schema version.

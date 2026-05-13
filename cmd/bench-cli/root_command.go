@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"samebits.com/evidra-infra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/config"
 )
 
 func newRootCommand() *cobra.Command {

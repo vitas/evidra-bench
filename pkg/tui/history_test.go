@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/artifact"
-	"samebits.com/evidra-infra-bench/pkg/verifier"
+	"github.com/vitas/evidra-bench/pkg/artifact"
+	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
 func writeRunJSON(t *testing.T, dir string, bundle artifact.RunBundle) {

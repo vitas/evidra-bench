@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 // ProfileAssets holds resolved filesystem paths for a provider+profile combination.

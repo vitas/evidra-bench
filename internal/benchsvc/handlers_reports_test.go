@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	bench "samebits.com/evidra-infra-bench/pkg/bench"
+	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
 func TestHandleToolServerReport_ReturnsJSON(t *testing.T) {

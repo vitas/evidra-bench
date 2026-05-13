@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"samebits.com/evidra-infra-bench/internal/benchsvc"
-	"samebits.com/evidra-infra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/internal/benchsvc"
+	"github.com/vitas/evidra-bench/pkg/config"
 )
 
 func TestRegisterBenchAPIRoutes_ProtectsWriteEndpoint(t *testing.T) {

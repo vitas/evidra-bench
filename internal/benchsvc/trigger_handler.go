@@ -10,8 +10,8 @@ import (
 	"os"
 	"time"
 
-	"samebits.com/evidra-infra-bench/internal/apiutil"
-	"samebits.com/evidra-infra-bench/internal/auth"
+	"github.com/vitas/evidra-bench/internal/apiutil"
+	"github.com/vitas/evidra-bench/internal/auth"
 )
 
 var errPinnedRunnerUnavailable = errors.New("pinned runner unavailable")

@@ -1,4 +1,4 @@
-module samebits.com/evidra-infra-bench
+module github.com/vitas/evidra-bench
 
 go 1.25.0
 

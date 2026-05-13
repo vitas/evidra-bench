@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/verifier"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
 func countChecks(vr *verifier.VerifyResult) (passed, total int) {

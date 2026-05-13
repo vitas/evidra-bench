@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"samebits.com/evidra-infra-bench/pkg/verifier"
+	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
 func TestBuildPairResultFromRuns(t *testing.T) {

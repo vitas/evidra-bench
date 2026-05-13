@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/signalaudit"
+	"github.com/vitas/evidra-bench/pkg/signalaudit"
 )
 
 func TestLoadRun_UsesScorecardWhenPresent(t *testing.T) {

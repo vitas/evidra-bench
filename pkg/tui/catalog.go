@@ -3,7 +3,7 @@ package tui
 import (
 	"strings"
 
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 // CatalogItem wraps a scenario for display in the TUI catalog.

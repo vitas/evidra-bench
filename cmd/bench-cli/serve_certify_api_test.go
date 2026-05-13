@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra-infra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/config"
 )
 
 func TestHandleCertifyAPI_RejectsUnsupportedEvidenceMode(t *testing.T) {

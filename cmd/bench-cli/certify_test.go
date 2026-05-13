@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"samebits.com/evidra-infra-bench/pkg/config"
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 func TestCertifyFiltering_ExcludesIncompatibleAndSkipped(t *testing.T) {

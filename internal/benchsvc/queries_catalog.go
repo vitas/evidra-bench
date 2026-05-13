@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	bench "samebits.com/evidra-infra-bench/pkg/bench"
+	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
 // FilteredStats returns aggregate statistics matching the given filters.

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"samebits.com/evidra-infra-bench/pkg/harness"
+	"github.com/vitas/evidra-bench/pkg/harness"
 )
 
 var (

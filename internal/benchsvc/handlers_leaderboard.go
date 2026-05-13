@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"samebits.com/evidra-infra-bench/internal/apiutil"
+	"github.com/vitas/evidra-bench/internal/apiutil"
 )
 
 func handleLeaderboard(svc *Service) http.HandlerFunc {

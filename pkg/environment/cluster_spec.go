@@ -1,6 +1,6 @@
 package environment
 
-import "samebits.com/evidra-infra-bench/pkg/scenario"
+import "github.com/vitas/evidra-bench/pkg/scenario"
 
 // ClusterSpec describes what cluster to create. Providers check ConfigPath
 // first (checked-in asset file), then fall back to LegacyKubernetes (generated

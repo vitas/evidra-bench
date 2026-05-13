@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 func TestAssetResolver_ResolveDefaultProfile(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	bench "samebits.com/evidra-infra-bench/pkg/bench"
+	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
 const (

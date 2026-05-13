@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"samebits.com/evidra-infra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
 func TestKindProvider_CreateCommand(t *testing.T) {

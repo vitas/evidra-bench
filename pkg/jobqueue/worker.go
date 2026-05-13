@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/riverqueue/river"
-	"samebits.com/evidra-infra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/config"
 )
 
 // RunFunc is the function that executes a single scenario.

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"samebits.com/evidra-infra-bench/pkg/harness"
+	"github.com/vitas/evidra-bench/pkg/harness"
 )
 
 func TestAgentCommandRequired(t *testing.T) {

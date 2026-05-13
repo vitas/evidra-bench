@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"samebits.com/evidra-infra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/config"
 )
 
 // executeCertifyExam runs certification across multiple tracks (CKA, CKS, or all).
