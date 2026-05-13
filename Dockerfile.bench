@@ -16,8 +16,19 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
 # Runtime — Alpine with kubectl + bench-cli + scenarios.
 FROM alpine:3.21
 
+ARG VERSION=dev
+ARG COMMIT=dev
+ARG BUILD_DATE=unknown
 ARG KUBECTL_VERSION=v1.32.0
 ARG KIND_VERSION=v0.27.0
+
+LABEL org.opencontainers.image.title="Evidra Bench CLI" \
+      org.opencontainers.image.description="Live infrastructure exams and regression testing for AI agents" \
+      org.opencontainers.image.source="https://github.com/vitas/evidra-bench" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${COMMIT}" \
+      org.opencontainers.image.created="${BUILD_DATE}"
 
 RUN apk add --no-cache ca-certificates curl docker-cli && \
     ARCH=$(uname -m) && \

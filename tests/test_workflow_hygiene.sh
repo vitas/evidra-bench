@@ -25,10 +25,20 @@ grep -q -- 'bash tests/test_artifact_hygiene.sh' .github/workflows/ci.yml \
 grep -q -- 'bash tests/test_artifact_hygiene.sh' .github/workflows/release.yml \
   || fail "release should run artifact hygiene checks"
 
+grep -q -- 'bash tests/test_secret_hygiene.sh' .github/workflows/ci.yml \
+  || fail "CI should run repository secret hygiene checks"
+grep -q -- 'bash tests/test_secret_hygiene.sh' .github/workflows/release.yml \
+  || fail "release should run repository secret hygiene checks"
+
 grep -q -- 'bash tests/test_ui_secret_hygiene.sh' .github/workflows/ci.yml \
   || fail "CI should run UI secret hygiene checks"
 grep -q -- 'bash tests/test_ui_secret_hygiene.sh' .github/workflows/release.yml \
   || fail "release should run UI secret hygiene checks"
+
+grep -q -- 'bash tests/test_dco_signoff.sh' .github/workflows/ci.yml \
+  || fail "CI should run DCO sign-off checks"
+grep -q -- 'bash tests/test_dco_signoff.sh' .github/workflows/release.yml \
+  || fail "release should run DCO sign-off checks"
 
 awk '/^  release:/{in_release=1; next} /^  docker:/{in_release=0} in_release {print}' .github/workflows/release.yml |
   grep -q -- "if: startsWith(github.ref, 'refs/tags/')" \
