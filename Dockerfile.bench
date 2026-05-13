@@ -1,4 +1,4 @@
-FROM golang:1.26.3-alpine AS bench-builder
+FROM golang:1.25-alpine AS bench-builder
 WORKDIR /build
 
 # Copy bench service source and build.
