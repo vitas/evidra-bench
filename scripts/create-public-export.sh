@@ -14,7 +14,7 @@ git archive --format=tar HEAD | tar -x -C "$target"
 (
   cd "$target"
   git init -b main
-  git add .
+  git add -f .
   git commit -s -m "chore: import evidra bench open source baseline"
 )
 
