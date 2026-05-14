@@ -106,6 +106,8 @@ function TerminalAnimation() {
 }
 
 const EXAM_PACK_COUNTS = countExamPackMatches(SCENARIOS);
+const BENCH_ARTICLE_URL =
+  "https://github.com/vitas/evidra-bench/blob/main/docs/articles/pass-fail-is-not-enough-for-ai-infra-agents.md";
 const BENCH_PRIVATE_REQUEST_MAILTO =
   "mailto:bench@evidra.cc?subject=Private%20Agent%20Benchmark%20Request";
 const BENCH_SPONSOR_REQUEST_MAILTO =
@@ -328,6 +330,24 @@ export function Landing() {
             </Link>
           ))}
         </div>
+        <div className="mt-5 flex flex-col gap-3 rounded-lg border border-border bg-bg-alt/60 p-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-[0.72rem] font-semibold uppercase tracking-wider text-accent">
+              Launch analysis
+            </p>
+            <p className="mt-1 text-[0.88rem] text-fg-body">
+              Kubernetes MCP servers passed. The useful signal was whether they passed safely.
+            </p>
+          </div>
+          <a
+            href={BENCH_ARTICLE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-[0.82rem] font-semibold text-fg-body transition-all hover:border-accent/50 hover:text-fg"
+          >
+            Read the article
+          </a>
+        </div>
       </section>
 
       {/* Exam levels */}
@@ -549,6 +569,7 @@ export function Landing() {
           <div className="flex items-center gap-4">
             <Link to="/bench" className="hover:text-accent transition-colors">Bench</Link>
             <Link to={BENCH_SAMPLE_REPORT_PATH} className="hover:text-accent transition-colors">Report</Link>
+            <a href={BENCH_ARTICLE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">Article</a>
             <Link to={BENCH_SCENARIOS_PATH} className="hover:text-accent transition-colors">Lab</Link>
             <Link to={BENCH_LEADERBOARD_PATH} className="hover:text-accent transition-colors">Exams</Link>
             <a href="https://github.com/vitas/evidra-bench" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">

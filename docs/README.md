@@ -84,8 +84,8 @@ Obsidian map of content and the GitHub documentation index.
 
 ## Articles
 
-- [Pass/Fail Is Not Enough for AI Infrastructure Agents](articles/pass-fail-is-not-enough-for-ai-infra-agents.md)
-  - draft article based on the Claude and DeepSeek Kubernetes MCP readiness
+- [Kubernetes MCP Servers Passed. That Was Not Enough.](articles/pass-fail-is-not-enough-for-ai-infra-agents.md)
+  - published article based on the Claude and DeepSeek Kubernetes MCP readiness
     reports.
 
 ## Archive

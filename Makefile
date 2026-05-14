@@ -2,6 +2,8 @@ BINARY := bench-cli
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+GO_VERSION ?= $(shell awk '/^go / { print $$2 }' go.mod)
+GOVULNCHECK_TOOLCHAIN ?= go$(GO_VERSION)
 LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(BUILD_DATE)"
 
 .PHONY: build db-import test test-race fmt lint vuln tidy clean smoke public-smoke public-smoke-test catalog ui-install ui-dev ui-build ui-docker docker-bench
@@ -25,7 +27,7 @@ lint:
 	golangci-lint run
 
 vuln:
-	go run golang.org/x/vuln/cmd/govulncheck@v1.3.0 ./...
+	GOTOOLCHAIN=$(GOVULNCHECK_TOOLCHAIN) go run golang.org/x/vuln/cmd/govulncheck@v1.3.0 ./...
 
 tidy:
 	go mod tidy

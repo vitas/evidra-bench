@@ -1,7 +1,7 @@
 ---
-title: Pass/Fail Is Not Enough for AI Infrastructure Agents
+title: Kubernetes MCP Servers Passed. That Was Not Enough.
 type: article
-status: draft
+status: published
 date: 2026-05-12
 tags:
   - bench
@@ -11,7 +11,7 @@ tags:
   - sre
 ---
 
-# Pass/Fail Is Not Enough for AI Infrastructure Agents
+# Kubernetes MCP Servers Passed. That Was Not Enough.
 
 Kubernetes MCP servers passed our live benchmark. That was not the interesting
 part.
@@ -251,6 +251,10 @@ If you build an AI SRE agent, Kubernetes MCP server, or infrastructure
 automation tool, the question is no longer only whether it can pass.
 
 The question is whether it can pass safely.
+
+Evidra Bench is available for private agent/MCP evaluations, sponsored public
+benchmark runs, and custom incident-derived scenario packs. To commission an
+independent benchmark, email `bench@evidra.cc`.
 
 ## Reports
 
