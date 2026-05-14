@@ -8,11 +8,11 @@ fail() {
   exit 1
 }
 
-if rg -n 'VITE_BENCH_API_KEY|secrets\.BENCH_API_KEY' ui .github/workflows .env.example docs/guides/bench-service-setup.md; then
+if grep -R -nE 'VITE_BENCH_API_KEY|secrets\.BENCH_API_KEY' ui .github/workflows .env.example docs/guides/bench-service-setup.md; then
   fail "public UI build must not receive or reference BENCH_API_KEY"
 fi
 
-if rg -n 'Authorization' ui/src; then
+if grep -R -nE 'Authorization' ui/src; then
   fail "browser UI must not send static Authorization headers"
 fi
 

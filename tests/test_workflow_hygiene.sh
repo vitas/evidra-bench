@@ -50,7 +50,7 @@ grep -Fq -- 'node --test src/lib/*.test.mts' .github/workflows/ci.yml \
 grep -Fq -- 'node --test src/lib/*.test.mts' .github/workflows/release.yml \
   || fail "release should run all UI lib tests"
 
-if rg -n 'git[[:space:]]+grep' tests --glob '*.sh' --glob '!test_workflow_hygiene.sh'; then
+if grep -R -nE --include='*.sh' 'git[[:space:]]+grep' tests | grep -v 'tests/test_workflow_hygiene.sh'; then
   fail "shell tests should use portable grep/rg checks instead of direct git-grep"
 fi
 

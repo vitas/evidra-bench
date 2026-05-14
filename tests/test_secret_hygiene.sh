@@ -14,12 +14,12 @@ patterns=(
 combined="$(IFS='|'; echo "${patterns[*]}")"
 
 set +e
-matches="$(rg --hidden -nI -e "$combined" \
-  --glob '!.git/**' \
-  --glob '!go.sum' \
-  --glob '!ui/package-lock.json' \
-  --glob '!docs/archive/**' \
-  . 2>&1)"
+matches="$(find . \
+  -path './.git' -prune -o \
+  -path './docs/archive' -prune -o \
+  -path './go.sum' -prune -o \
+  -path './ui/package-lock.json' -prune -o \
+  -type f -exec grep -nI -E "$combined" {} + 2>&1)"
 status=$?
 set -e
 
