@@ -57,13 +57,13 @@ ui-build: catalog
 	cd ui && npm ci && npm run build
 
 ui-docker:
-	docker build -t ghcr.io/vitas/bench-ui:latest ui/
+	docker build -t ghcr.io/vitas/evidra-bench-ui:latest ui/
 
 docker-bench:
 	docker build -f Dockerfile.bench \
 		--build-arg VERSION=$(VERSION) \
 		--build-arg COMMIT=$(COMMIT) \
 		--build-arg BUILD_DATE=$(BUILD_DATE) \
-		-t ghcr.io/vitas/bench-cli:latest \
-		-t ghcr.io/vitas/bench-cli:$(VERSION) \
+		-t ghcr.io/vitas/evidra-bench-cli:latest \
+		-t ghcr.io/vitas/evidra-bench-cli:$(VERSION) \
 		.
