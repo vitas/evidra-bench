@@ -6,36 +6,71 @@ cd "$(dirname "$0")/.."
 fail_found() {
   local description="$1"
   shift
-  if "$@"; then
+  local output status
+  set +e
+  output="$("$@" 2>&1)"
+  status=$?
+  set -e
+  if [[ "$status" -eq 0 ]]; then
+    echo "$output" >&2
     echo "legacy core evidra dependency found: ${description}" >&2
+    return 1
+  fi
+  if [[ "$status" -gt 1 ]]; then
+    echo "$output" >&2
+    echo "legacy dependency search failed: ${description}" >&2
     return 1
   fi
   return 0
 }
 
+rg_repo() {
+  rg --hidden --glob '!.git/**' "$@"
+}
+
 fail_found "go.mod require/replace samebits.com/evidra" \
-  grep -nE 'samebits\.com/evidra(\s|$)' go.mod
+  rg_repo -n -e 'samebits\.com/evidra(\s|$)' go.mod
 
 fail_found "Go imports from core evidra" \
-  sh -c "git grep -n '\"samebits.com/evidra/' -- '*.go'"
+  rg_repo -n -e '"samebits.com/evidra/' --glob '*.go' .
 
 fail_found "CI/release checkout of core evidra" \
-  grep -rnE 'Checkout evidra|repository: .*/evidra$' .github/workflows
+  rg_repo -n -e 'Checkout evidra|repository: .*/evidra$' .github/workflows
 
 fail_found "Dockerfile.bench cloning/building core evidra" \
-  grep -nE 'EVIDRA_REPO|EVIDRA_REF|/build/parent|cmd/evidra-mcp' Dockerfile.bench
+  rg_repo -n -e 'EVIDRA_REPO|EVIDRA_REF|/build/parent|cmd/evidra-mcp' Dockerfile.bench
 
 fail_found "bench CLI special evidra mode flag registrations" \
-  sh -c "git grep -nE '(StringVar|BoolVar|StringSliceVar|StringP|BoolP)[^(]*\\([^)]*\"(evidra-bin|evidra-evidence-dir|proxy-mode|smart-prescribe|trace|evidra)\"' -- cmd pkg internal ':(exclude)*_test.go'"
+  rg_repo -n -e '(StringVar|BoolVar|StringSliceVar|StringP|BoolP)[^(]*\([^)]*"(evidra-bin|evidra-evidence-dir|proxy-mode|smart-prescribe|trace|evidra)"' \
+    --glob '!**/*_test.go' cmd pkg internal
 
 fail_found "active code still exposes Evidra-named bench API contract" \
-  sh -c "git grep -nE '(EVIDRA_[A-Z0-9_]+|VITE_EVIDRA_API|--evidra-url|--evidra-api-key|EvidraURL|EvidraAPIKey|X-Evidra-Tenant|evidra_url|evidra_api_key)' -- cmd pkg internal profiles scripts ui/src ui/Dockerfile .github Dockerfile.bench ':(exclude)*_test.go' ':(exclude)*.test.mts' ':(exclude)*.test.ts' ':(exclude)*.test.tsx'"
+  rg_repo -n -e '(EVIDRA_[A-Z0-9_]+|VITE_EVIDRA_API|--evidra-url|--evidra-api-key|EvidraURL|EvidraAPIKey|X-Evidra-Tenant|evidra_url|evidra_api_key)' \
+    --glob '!**/*_test.go' \
+    --glob '!**/*.test.mts' \
+    --glob '!**/*.test.ts' \
+    --glob '!**/*.test.tsx' \
+    cmd pkg internal profiles scripts ui/src ui/Dockerfile .github Dockerfile.bench
 
 fail_found "active Evidra protocol verifier surface" \
-  sh -c "git grep -nE '(EvidraExpectations|BuildEvidraCheckers|EvidraCheckConfig|evidra-protocol|evidra_enabled)' -- cmd pkg internal ui/src scenarios ':(exclude)*_test.go' ':(exclude)*.test.mts' ':(exclude)*.test.ts' ':(exclude)*.test.tsx'"
+  rg_repo -n -e '(EvidraExpectations|BuildEvidraCheckers|EvidraCheckConfig|evidra-protocol|evidra_enabled)' \
+    --glob '!**/*_test.go' \
+    --glob '!**/*.test.mts' \
+    --glob '!**/*.test.ts' \
+    --glob '!**/*.test.tsx' \
+    cmd pkg internal ui/src scenarios
 
 fail_found "scenario-level evidra expectations" \
-  sh -c "git grep -nE '^evidra:' -- scenarios"
+  rg_repo -n -e '^evidra:' scenarios
 
 fail_found "bench-owned evidra-mcp special mode" \
-  sh -c "git grep -nE 'evidra-mcp|Evidra MCP|evidra mcp' -- cmd pkg internal scripts ui/src docs README.md CLAUDE.md ':(exclude)docs/archive/**' ':(exclude)docs/backlog/**' ':(exclude)docs/ideas/**' ':(exclude)docs/plans/**' ':(exclude)*_test.go' ':(exclude)*.test.mts' ':(exclude)*.test.ts' ':(exclude)*.test.tsx'"
+  rg_repo -n -e 'evidra-mcp|Evidra MCP|evidra mcp' \
+    --glob '!docs/archive/**' \
+    --glob '!docs/backlog/**' \
+    --glob '!docs/ideas/**' \
+    --glob '!docs/plans/**' \
+    --glob '!**/*_test.go' \
+    --glob '!**/*.test.mts' \
+    --glob '!**/*.test.ts' \
+    --glob '!**/*.test.tsx' \
+    cmd pkg internal scripts ui/src docs README.md

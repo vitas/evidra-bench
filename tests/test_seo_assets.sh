@@ -36,6 +36,8 @@ require_contains ui/public/robots.txt "Sitemap: https://bench.evidra.cc/sitemap.
 
 require_file ui/public/sitemap.xml
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/</loc>"
+require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05</loc>"
+require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/kubernetes-ai-agent-benchmark/</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/mcp-server-benchmark/</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/ai-sre-regression-testing/</loc>"

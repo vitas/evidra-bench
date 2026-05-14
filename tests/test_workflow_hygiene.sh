@@ -45,6 +45,15 @@ grep -q -- 'bash tests/test_dco_signoff.sh' .github/workflows/ci.yml \
 grep -q -- 'bash tests/test_dco_signoff.sh' .github/workflows/release.yml \
   || fail "release should run DCO sign-off checks"
 
+grep -Fq -- 'node --test src/lib/*.test.mts' .github/workflows/ci.yml \
+  || fail "CI should run all UI lib tests"
+grep -Fq -- 'node --test src/lib/*.test.mts' .github/workflows/release.yml \
+  || fail "release should run all UI lib tests"
+
+if rg -n 'git[[:space:]]+grep' tests --glob '*.sh' --glob '!test_workflow_hygiene.sh'; then
+  fail "shell tests should use portable grep/rg checks instead of direct git-grep"
+fi
+
 awk '/^  release:/{in_release=1; next} /^  docker:/{in_release=0} in_release {print}' .github/workflows/release.yml |
   grep -q -- "if: startsWith(github.ref, 'refs/tags/')" \
   || fail "release job should run only for tag refs"

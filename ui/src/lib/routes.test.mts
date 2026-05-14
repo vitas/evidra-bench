@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  BENCH_ARTICLE_PASS_FAIL_PATH,
   BENCH_LEADERBOARD_PATH,
   BENCH_MCP_READINESS_PATH,
   BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH,
@@ -9,6 +10,7 @@ import {
   BENCH_SAMPLE_REPORT_PATH,
   BENCH_SCENARIOS_PATH,
   BENCH_TOOL_SERVER_REPORT_PATH,
+  benchPassFailArticlePagePath,
   benchPublicKubernetesMCPReportPagePath,
   benchMCPReadinessPagePath,
   benchLeaderboardPagePath,
@@ -22,6 +24,7 @@ import {
 } from "./routes.mts";
 
 test("bench route constants use canonical bench paths", () => {
+  assert.equal(BENCH_ARTICLE_PASS_FAIL_PATH, "/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough");
   assert.equal(BENCH_LEADERBOARD_PATH, "/bench/leaderboard");
   assert.equal(BENCH_MCP_READINESS_PATH, "/bench/mcp-readiness");
   assert.equal(BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH, "/bench/reports/kubernetes-mcp-readiness-2026-05");
@@ -29,6 +32,13 @@ test("bench route constants use canonical bench paths", () => {
   assert.equal(BENCH_SAMPLE_REPORT_PATH, "/bench/sample-report");
   assert.equal(BENCH_SCENARIOS_PATH, "/bench/scenarios");
   assert.equal(BENCH_TOOL_SERVER_REPORT_PATH, "/bench/reports/tool-server");
+});
+
+test("bench pass/fail article helper appends encoded query parameters", () => {
+  assert.equal(
+    benchPassFailArticlePagePath({ source: "landing article" }),
+    "/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough?source=landing+article",
+  );
 });
 
 test("bench public Kubernetes MCP report helper appends encoded query parameters", () => {

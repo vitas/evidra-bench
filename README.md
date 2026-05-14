@@ -181,9 +181,9 @@ bench-cli report-pack \
 
 See [Private Report Pack](docs/PRIVATE_REPORT_PACK.md) for the reporting
 workflow. The first public multi-server report is tracked in
-[Kubernetes MCP Readiness 2026-05](docs/reports/kubernetes-mcp-readiness-2026-05.md).
+[Kubernetes MCP Readiness 2026-05](https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05).
 The launch article is
-[Kubernetes MCP Servers Passed. That Was Not Enough.](docs/articles/pass-fail-is-not-enough-for-ai-infra-agents.md).
+[Kubernetes MCP Servers Passed. That Was Not Enough.](https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough).
 
 ## How It Works
 

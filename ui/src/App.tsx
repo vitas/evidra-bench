@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { BrowserRouter, Navigate, Routes, Route, useLocation, useParams } from "react-router";
 import { Layout } from "./components/Layout";
 import { Landing } from "./pages/Landing";
 import { Designer } from "./pages/Designer";
 import {
+  BENCH_ARTICLE_PASS_FAIL_PATH,
   BENCH_LEADERBOARD_PATH,
   BENCH_MCP_READINESS_PATH,
   BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH,
@@ -31,10 +33,12 @@ import { ToolServerReport } from "./pages/bench/ToolServerReport";
 import { SampleReport } from "./pages/bench/SampleReport";
 import { LiveToolServerReport } from "./pages/bench/LiveToolServerReport";
 import { PublicKubernetesMCPReport } from "./pages/bench/PublicKubernetesMCPReport";
+import { PassFailArticle } from "./pages/bench/PassFailArticle";
 
 export function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<Landing />} />
 
@@ -49,6 +53,7 @@ export function App() {
         <Route path="/bench/compare" element={<BenchLayout><Compare /></BenchLayout>} />
         <Route path={BENCH_MCP_READINESS_PATH} element={<BenchLayout><ToolServerReport /></BenchLayout>} />
         <Route path={BENCH_SAMPLE_REPORT_PATH} element={<BenchLayout><SampleReport /></BenchLayout>} />
+        <Route path={BENCH_ARTICLE_PASS_FAIL_PATH} element={<BenchLayout><PassFailArticle /></BenchLayout>} />
         <Route path={BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH} element={<BenchLayout><PublicKubernetesMCPReport /></BenchLayout>} />
         <Route path={BENCH_TOOL_SERVER_REPORT_PATH} element={<BenchLayout><LiveToolServerReport /></BenchLayout>} />
         <Route path="/bench/reports/:reportId" element={<BenchLayout><PublicKubernetesMCPReport /></BenchLayout>} />
@@ -68,6 +73,16 @@ export function App() {
       </Routes>
     </BrowserRouter>
   );
+}
+
+function ScrollToTop() {
+  const { pathname, search } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [pathname, search]);
+
+  return null;
 }
 
 function RedirectWithSearch({ to }: { to: string }) {

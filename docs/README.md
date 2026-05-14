@@ -53,6 +53,7 @@ Obsidian map of content and the GitHub documentation index.
   report structure.
 - [Kubernetes MCP Readiness 2026-05](reports/kubernetes-mcp-readiness-2026-05.md)
   - published public baseline versus two Kubernetes MCP servers.
+  Public page: <https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05>
 
 ## Build Scenarios
 
@@ -87,6 +88,8 @@ Obsidian map of content and the GitHub documentation index.
 - [Kubernetes MCP Servers Passed. That Was Not Enough.](articles/pass-fail-is-not-enough-for-ai-infra-agents.md)
   - published article based on the Claude and DeepSeek Kubernetes MCP readiness
     reports.
+  Public post:
+  <https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough>
 
 ## Archive
 

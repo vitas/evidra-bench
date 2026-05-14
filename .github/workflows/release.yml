@@ -94,9 +94,9 @@ jobs:
         working-directory: bench/ui
         run: npm ci
 
-      - name: Run UI command tests
+      - name: Run UI lib tests
         working-directory: bench/ui
-        run: node --test src/lib/runOptions.test.mts src/lib/commandBuilder.test.mts
+        run: node --test src/lib/*.test.mts
 
       - name: Build UI
         working-directory: bench/ui

@@ -13,12 +13,24 @@ patterns=(
 
 combined="$(IFS='|'; echo "${patterns[*]}")"
 
-if git grep -nI -E "$combined" -- \
-  . \
-  ':!go.sum' \
-  ':!ui/package-lock.json' \
-  ':!docs/archive/**'; then
-  echo "FAIL: possible secret pattern found in tracked files" >&2
+set +e
+matches="$(rg --hidden -nI -e "$combined" \
+  --glob '!.git/**' \
+  --glob '!go.sum' \
+  --glob '!ui/package-lock.json' \
+  --glob '!docs/archive/**' \
+  . 2>&1)"
+status=$?
+set -e
+
+if [[ "$status" -eq 0 ]]; then
+  echo "$matches" >&2
+  echo "FAIL: possible secret pattern found in repository files" >&2
+  exit 1
+fi
+if [[ "$status" -gt 1 ]]; then
+  echo "$matches" >&2
+  echo "FAIL: secret hygiene search failed" >&2
   exit 1
 fi
 

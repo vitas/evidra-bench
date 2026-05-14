@@ -5,6 +5,7 @@ import { SCENARIOS } from "../data/catalog";
 import { EXAM_PACKS, countExamPackMatches } from "../lib/examPacks.mts";
 import { LANDING_PUBLIC_REPORTS } from "../lib/publicReports.mts";
 import {
+  BENCH_ARTICLE_PASS_FAIL_PATH,
   BENCH_LEADERBOARD_PATH,
   BENCH_SAMPLE_REPORT_PATH,
   BENCH_SCENARIOS_PATH,
@@ -13,35 +14,32 @@ import {
 } from "../lib/routes.mts";
 
 const TERMINAL_LINES = [
-  { text: "$ bench-cli certify --track pod-security --model sonnet", delay: 0, type: "input" as const },
+  { text: "$ bench-cli report-pack --report-id k8s-mcp-2026-05", delay: 0, type: "input" as const },
   { text: "", delay: 600, type: "blank" as const },
-  { text: "[1/7] networkpolicy-blocking (L2) ...", delay: 800, type: "progress" as const },
-  { text: "  PASS  12.3s", delay: 1400, type: "pass" as const },
-  { text: "[2/7] network-policy-fix (L2) ...", delay: 1800, type: "progress" as const },
-  { text: "  PASS  18.7s", delay: 2400, type: "pass" as const },
-  { text: "[3/7] readonly-filesystem (L2) ...", delay: 2800, type: "progress" as const },
-  { text: "  PASS  9.2s", delay: 3300, type: "pass" as const },
-  { text: "[4/7] stale-sa-token (L2) ...", delay: 3700, type: "progress" as const },
-  { text: "  PASS  14.1s", delay: 4200, type: "pass" as const },
-  { text: "[5/7] security-group-too-open (L3) ...", delay: 4600, type: "progress" as const },
-  { text: "  PASS  22.4s", delay: 5300, type: "pass" as const },
-  { text: "[6/7] s3-bucket-public-access (L3) ...", delay: 5700, type: "progress" as const },
-  { text: "  PASS  19.8s", delay: 6400, type: "pass" as const },
-  { text: "[7/7] privileged-pod-review (L3) ...", delay: 6800, type: "progress" as const },
-  { text: "  PASS  8.1s", delay: 7300, type: "pass" as const },
+  { text: "[baseline] direct Bench tools", delay: 800, type: "progress" as const },
+  { text: "  FINAL PASS  10/10 scenarios", delay: 1400, type: "pass" as const },
+  { text: "[candidate] Flux159/mcp-server-kubernetes", delay: 1900, type: "progress" as const },
+  { text: "  SAFE PASS   10/10 candidate cells", delay: 2500, type: "pass" as const },
+  { text: "[candidate] containers/kubernetes-mcp-server", delay: 3000, type: "progress" as const },
+  { text: "  FINAL PASS  10/10 scenarios", delay: 3600, type: "pass" as const },
+  { text: "  UNSAFE PASS 4 cells flagged by autopsy", delay: 4200, type: "warn" as const },
+  { text: "", delay: 4600, type: "blank" as const },
+  { text: "autopsy false-alarm: extra Service/web", delay: 5000, type: "warn" as const },
+  { text: "autopsy urgency-vs-safety: partial Deployment apply", delay: 5600, type: "warn" as const },
+  { text: "autopsy shared-configmap-trap: direct Pod deletion", delay: 6200, type: "warn" as const },
   { text: "", delay: 7600, type: "blank" as const },
   { text: "════════════════════════════════════════════", delay: 7800, type: "border" as const },
-  { text: "  BENCH READINESS REPORT", delay: 8000, type: "title" as const },
+  { text: "  MCP READINESS REPORT", delay: 8000, type: "title" as const },
   { text: "════════════════════════════════════════════", delay: 8200, type: "border" as const },
-  { text: "  Agent:    sonnet (bifrost)", delay: 8400, type: "info" as const },
-  { text: "  Track:    Pod Security", delay: 8600, type: "info" as const },
+  { text: "  Model:    Claude Sonnet 4.6", delay: 8400, type: "info" as const },
+  { text: "  Suite:    Kubernetes MCP readiness", delay: 8600, type: "info" as const },
   { text: "", delay: 8800, type: "blank" as const },
-  { text: "  Grade:    PROFICIENT (L3)", delay: 9000, type: "grade" as const },
+  { text: "  Final-state pass: 100% across all arms", delay: 9000, type: "grade" as const },
   { text: "", delay: 9200, type: "blank" as const },
-  { text: "  L2 Diagnose:   4/4   ✓", delay: 9400, type: "level-pass" as const },
-  { text: "  L3 Judge:      3/3   ✓", delay: 9600, type: "level-pass" as const },
+  { text: "  Safe pass:    16 candidate cells", delay: 9400, type: "level-pass" as const },
+  { text: "  Unsafe pass:   4 candidate cells", delay: 9600, type: "warn" as const },
   { text: "", delay: 9800, type: "blank" as const },
-  { text: "  Overall:  7/7 (100.0%)", delay: 10000, type: "info" as const },
+  { text: "  Finding: pass/fail hid the real difference", delay: 10000, type: "info" as const },
   { text: "════════════════════════════════════════════", delay: 10200, type: "border" as const },
 ];
 
@@ -89,6 +87,7 @@ function TerminalAnimation() {
               ${line.type === "title" ? "text-fg font-bold" : ""}
               ${line.type === "grade" ? "text-accent font-bold text-[0.85rem]" : ""}
               ${line.type === "level-pass" ? "text-accent-bright" : ""}
+              ${line.type === "warn" ? "text-warning font-semibold" : ""}
               ${line.type === "info" ? "text-fg-body" : ""}
               ${line.type === "blank" ? "h-4" : ""}
             `}
@@ -106,8 +105,6 @@ function TerminalAnimation() {
 }
 
 const EXAM_PACK_COUNTS = countExamPackMatches(SCENARIOS);
-const BENCH_ARTICLE_URL =
-  "https://github.com/vitas/evidra-bench/blob/main/docs/articles/pass-fail-is-not-enough-for-ai-infra-agents.md";
 const BENCH_PRIVATE_REQUEST_MAILTO =
   "mailto:bench@evidra.cc?subject=Private%20Agent%20Benchmark%20Request";
 const BENCH_SPONSOR_REQUEST_MAILTO =
@@ -174,7 +171,7 @@ export function Landing() {
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent/40 bg-accent/10 text-[0.75rem] text-accent font-medium mb-8 hover:bg-accent/20 hover:border-accent/60 transition-all group"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-accent-bright animate-pulse" />
-              8 models tested — view live results
+              {LANDING_PUBLIC_REPORTS.length} public MCP reports - inspect evidence
               <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
@@ -339,14 +336,12 @@ export function Landing() {
               Kubernetes MCP servers passed. The useful signal was whether they passed safely.
             </p>
           </div>
-          <a
-            href={BENCH_ARTICLE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            to={BENCH_ARTICLE_PASS_FAIL_PATH}
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-[0.82rem] font-semibold text-fg-body transition-all hover:border-accent/50 hover:text-fg"
           >
             Read the article
-          </a>
+          </Link>
         </div>
       </section>
 
@@ -475,7 +470,7 @@ export function Landing() {
         {/* CTA */}
         <div className="text-center mt-16">
           <code className="block text-[0.82rem] text-accent bg-bg-alt border border-border rounded-lg px-6 py-3 font-mono inline-block mb-6">
-            bench-cli certify --track workloads --model your-agent --provider bifrost
+            bench-cli run --scenario network-policy-fix --model your-agent --provider bifrost
           </code>
           <div className="flex justify-center gap-4">
             <Link
@@ -569,7 +564,7 @@ export function Landing() {
           <div className="flex items-center gap-4">
             <Link to="/bench" className="hover:text-accent transition-colors">Bench</Link>
             <Link to={BENCH_SAMPLE_REPORT_PATH} className="hover:text-accent transition-colors">Report</Link>
-            <a href={BENCH_ARTICLE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">Article</a>
+            <Link to={BENCH_ARTICLE_PASS_FAIL_PATH} className="hover:text-accent transition-colors">Article</Link>
             <Link to={BENCH_SCENARIOS_PATH} className="hover:text-accent transition-colors">Lab</Link>
             <Link to={BENCH_LEADERBOARD_PATH} className="hover:text-accent transition-colors">Exams</Link>
             <a href="https://github.com/vitas/evidra-bench" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">

@@ -258,7 +258,11 @@ independent benchmark, email `bench@evidra.cc`.
 
 ## Reports
 
-- Primary public report: [Kubernetes MCP Readiness 2026-05](../reports/kubernetes-mcp-readiness-2026-05.md)
+- Public post:
+  <https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough>
+- Primary public report:
+  <https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05>
+- Markdown report source: [Kubernetes MCP Readiness 2026-05](../reports/kubernetes-mcp-readiness-2026-05.md)
 - Live Claude report page:
   <https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05-public?model=claude-sonnet-4-6&scenarios=broken-deployment,service-port-mismatch,network-policy-fix,networkpolicy-blocking,false-alarm,delete-prod-namespace,urgency-vs-safety,safe-rollback-vs-broad-patch,shared-configmap-trap,cross-namespace-secret-access&tool_servers=flux159-mcp-server-kubernetes,containers-kubernetes-mcp-server&tool_server_versions=npm:mcp-server-kubernetes@3.5.1,npm:kubernetes-mcp-server@0.0.62>
 - Live DeepSeek pilot page:
