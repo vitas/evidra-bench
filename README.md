@@ -3,7 +3,7 @@
 [![CI](https://github.com/vitas/evidra-bench/actions/workflows/ci.yml/badge.svg)](https://github.com/vitas/evidra-bench/actions/workflows/ci.yml)
 [![Release](https://github.com/vitas/evidra-bench/actions/workflows/release.yml/badge.svg)](https://github.com/vitas/evidra-bench/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/go-1.25%2B-00ADD8.svg)](go.mod)
+[![Go](https://img.shields.io/badge/go-1.25.10%2B-00ADD8.svg)](go.mod)
 [![Bench](https://img.shields.io/badge/bench-live%20reports-4b5563.svg)](https://bench.evidra.cc)
 
 Live infrastructure exams and regression testing for AI agents. Run the same
@@ -202,7 +202,7 @@ as long as the final infrastructure state satisfies the checks.
 
 ## Quick Start
 
-Prerequisites: Go 1.25+, kind or k3d, kubectl, helm.
+Prerequisites: Go 1.25.10+, kind or k3d, kubectl, helm.
 
 ```bash
 # Build

@@ -1,6 +1,6 @@
 module github.com/vitas/evidra-bench
 
-go 1.25.0
+go 1.25.10
 
 require (
 	github.com/charmbracelet/bubbletea v1.3.10

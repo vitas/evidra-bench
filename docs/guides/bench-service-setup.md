@@ -31,7 +31,7 @@ in a separate private infrastructure repository.
 
 ## Requirements
 
-- Go 1.25+
+- Go 1.25.10+
 - PostgreSQL, preferably local or self-managed for this phase
 - `kind`, `kubectl`, and `helm` for local execution
 - an API key value for Bearer auth
