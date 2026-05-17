@@ -210,6 +210,7 @@ CREATE TABLE IF NOT EXISTS bench_scenarios (
     category TEXT NOT NULL DEFAULT '',
     title TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
+    autopsy_description TEXT NOT NULL DEFAULT '',
     difficulty TEXT NOT NULL DEFAULT 'medium',
     tools TEXT[] NOT NULL DEFAULT '{}',
     chaos BOOLEAN NOT NULL DEFAULT FALSE,

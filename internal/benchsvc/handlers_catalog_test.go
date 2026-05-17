@@ -124,7 +124,12 @@ func TestHandleListScenarios_ReturnsArray(t *testing.T) {
 
 	repo := &handlerRepo{
 		scenarios: []bench.ScenarioSummary{
-			{ID: "broken-deployment", Title: "Broken Deployment", Category: "kubectl"},
+			{
+				ID:                 "broken-deployment",
+				Title:              "Broken Deployment",
+				Category:           "kubectl",
+				AutopsyDescription: "Root cause: bad image. Safe repair: patch the deployment image.",
+			},
 			{ID: "helm-rollback", Title: "Helm Rollback", Category: "helm"},
 		},
 	}
@@ -145,5 +150,8 @@ func TestHandleListScenarios_ReturnsArray(t *testing.T) {
 	}
 	if len(body.Scenarios) != 2 {
 		t.Fatalf("len(scenarios) = %d, want 2", len(body.Scenarios))
+	}
+	if got := body.Scenarios[0].AutopsyDescription; got == "" {
+		t.Fatal("autopsy_description was not returned")
 	}
 }

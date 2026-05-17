@@ -67,17 +67,18 @@ type ToolServerReportSummary struct {
 }
 
 type ToolServerReportScenario struct {
-	ID             string                         `json:"id"`
-	Title          string                         `json:"title,omitempty"`
-	Category       string                         `json:"category,omitempty"`
-	Level          string                         `json:"level,omitempty"`
-	Classification string                         `json:"classification"`
-	Result         string                         `json:"result"`
-	Baseline       ToolServerAggregate            `json:"baseline"`
-	Candidate      ToolServerAggregate            `json:"candidate"`
-	Delta          ToolServerMetricDelta          `json:"delta"`
-	CandidateRunID string                         `json:"candidate_run_id,omitempty"`
-	EvidenceLinks  []ToolServerReportEvidenceLink `json:"evidence_links,omitempty"`
+	ID                 string                         `json:"id"`
+	Title              string                         `json:"title,omitempty"`
+	Category           string                         `json:"category,omitempty"`
+	Level              string                         `json:"level,omitempty"`
+	AutopsyDescription string                         `json:"autopsy_description,omitempty"`
+	Classification     string                         `json:"classification"`
+	Result             string                         `json:"result"`
+	Baseline           ToolServerAggregate            `json:"baseline"`
+	Candidate          ToolServerAggregate            `json:"candidate"`
+	Delta              ToolServerMetricDelta          `json:"delta"`
+	CandidateRunID     string                         `json:"candidate_run_id,omitempty"`
+	EvidenceLinks      []ToolServerReportEvidenceLink `json:"evidence_links,omitempty"`
 }
 
 type ToolServerReportCostBucket struct {
@@ -231,17 +232,18 @@ func (s *Service) BuildToolServerReport(ctx context.Context, tenantID string, re
 		links := reportEvidenceLinks(candidateRun.ID)
 		scenario := scenariosByID[scenarioID]
 		report.Scenarios = append(report.Scenarios, ToolServerReportScenario{
-			ID:             scenarioID,
-			Title:          scenario.Title,
-			Category:       scenario.Category,
-			Level:          scenario.Level,
-			Classification: classification,
-			Result:         result,
-			Baseline:       row.Baseline,
-			Candidate:      row.Candidate,
-			Delta:          row.Delta,
-			CandidateRunID: candidateRun.ID,
-			EvidenceLinks:  links,
+			ID:                 scenarioID,
+			Title:              scenario.Title,
+			Category:           scenario.Category,
+			Level:              scenario.Level,
+			AutopsyDescription: scenario.AutopsyDescription,
+			Classification:     classification,
+			Result:             result,
+			Baseline:           row.Baseline,
+			Candidate:          row.Candidate,
+			Delta:              row.Delta,
+			CandidateRunID:     candidateRun.ID,
+			EvidenceLinks:      links,
 		})
 		if candidateRun.ID != "" && classification != ToolServerReportMissingEvidence {
 			addCostBucket(costBuckets, classification, row.Candidate)
@@ -620,6 +622,15 @@ func RenderToolServerReportMarkdown(report *ToolServerReport) string {
 		fmt.Fprintf(&b, "| %s | %s | %s |\n", mdEscape(row.ID), mdValue(row.Category), mdValue(row.Level))
 	}
 	b.WriteString("\n")
+	if hasScenarioAutopsyDescriptions(report.Scenarios) {
+		b.WriteString("### Autopsy Rulebook\n\n")
+		for _, row := range report.Scenarios {
+			if strings.TrimSpace(row.AutopsyDescription) == "" {
+				continue
+			}
+			fmt.Fprintf(&b, "#### %s\n\n%s\n\n", mdEscape(row.ID), mdEscape(strings.TrimSpace(row.AutopsyDescription)))
+		}
+	}
 
 	b.WriteString("## 4. Results Table\n\n")
 	b.WriteString("| Scenario | Result | Classification | Turns | Tokens | Duration | Cost |\n| --- | --- | --- | ---: | ---: | ---: | ---: |\n")
@@ -705,6 +716,15 @@ func mdValue(value string) string {
 		return "-"
 	}
 	return mdEscape(value)
+}
+
+func hasScenarioAutopsyDescriptions(scenarios []ToolServerReportScenario) bool {
+	for _, row := range scenarios {
+		if strings.TrimSpace(row.AutopsyDescription) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func mdEscape(value string) string {

@@ -70,16 +70,17 @@ func pushScenarios(scenariosDir, benchURL, apiKey string) error {
 	}
 
 	type scenarioPayload struct {
-		ID          string   `json:"id"`
-		Title       string   `json:"title"`
-		Description string   `json:"description"`
-		Category    string   `json:"category"`
-		Track       string   `json:"track,omitempty"`
-		Level       string   `json:"level,omitempty"`
-		Timeout     string   `json:"timeout,omitempty"`
-		Tags        []string `json:"tags"`
-		Chaos       bool     `json:"chaos"`
-		Skip        bool     `json:"skip,omitempty"`
+		ID                 string   `json:"id"`
+		Title              string   `json:"title"`
+		Description        string   `json:"description"`
+		AutopsyDescription string   `json:"autopsy_description,omitempty"`
+		Category           string   `json:"category"`
+		Track              string   `json:"track,omitempty"`
+		Level              string   `json:"level,omitempty"`
+		Timeout            string   `json:"timeout,omitempty"`
+		Tags               []string `json:"tags"`
+		Chaos              bool     `json:"chaos"`
+		Skip               bool     `json:"skip,omitempty"`
 	}
 
 	var items []scenarioPayload
@@ -89,16 +90,17 @@ func pushScenarios(scenariosDir, benchURL, apiKey string) error {
 			tags = []string{}
 		}
 		items = append(items, scenarioPayload{
-			ID:          s.ID,
-			Title:       s.Title,
-			Description: s.Description,
-			Category:    s.Category,
-			Track:       s.Track,
-			Level:       s.Level,
-			Timeout:     s.Timeout.String(),
-			Tags:        tags,
-			Chaos:       len(s.Chaos.Steps) > 0,
-			Skip:        s.Skip,
+			ID:                 s.ID,
+			Title:              s.Title,
+			Description:        s.Description,
+			AutopsyDescription: s.Autopsy.Description,
+			Category:           s.Category,
+			Track:              s.Track,
+			Level:              s.Level,
+			Timeout:            s.Timeout.String(),
+			Tags:               tags,
+			Chaos:              len(s.Chaos.Steps) > 0,
+			Skip:               s.Skip,
 		})
 	}
 
