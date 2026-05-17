@@ -1,4 +1,4 @@
-# Bench
+# Evidra Bench
 
 [![CI](https://github.com/vitas/evidra-bench/actions/workflows/ci.yml/badge.svg)](https://github.com/vitas/evidra-bench/actions/workflows/ci.yml)
 [![Release](https://github.com/vitas/evidra-bench/actions/workflows/release.yml/badge.svg)](https://github.com/vitas/evidra-bench/actions/workflows/release.yml)
@@ -6,10 +6,10 @@
 [![Go](https://img.shields.io/badge/go-1.25.10%2B-00ADD8.svg)](go.mod)
 [![Bench](https://img.shields.io/badge/bench-live%20reports-4b5563.svg)](https://bench.evidra.cc)
 
-Live infrastructure exams and regression testing for AI agents. Run the same
-real Kubernetes, Helm, Argo CD, Terraform, and AWS/LocalStack scenarios across
-models, MCP servers, skills, and remote agents. Track pass rate, cost, turns,
-token use, and failure patterns over time.
+Evidra Bench is an AI infrastructure agent benchmark and regression testing
+system. Run the same real Kubernetes, Helm, Argo CD, Terraform, and
+AWS/LocalStack scenarios across models, MCP servers, skills, and remote agents.
+Track pass rate, cost, turns, token use, and failure patterns over time.
 
 Bench answers the questions that matter before an agent touches production:
 

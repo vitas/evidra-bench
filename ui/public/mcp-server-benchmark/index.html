@@ -16,32 +16,161 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "MCP Server Benchmark",
+        "url": "https://bench.evidra.cc/mcp-server-benchmark/",
+        "description": "Evidra Bench compares MCP servers on live infrastructure benchmark scenarios with baseline runs, cost, turns, tool calls, and failure autopsy evidence.",
+        "isPartOf": {
+          "@type": "WebSite",
+          "name": "Evidra Bench",
+          "url": "https://bench.evidra.cc/"
+        },
+        "about": [
+          "MCP server benchmark",
+          "Model Context Protocol evaluation",
+          "Kubernetes MCP readiness",
+          "AI infrastructure agent benchmark"
+        ]
+      }
+    </script>
     <style>
-      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f5; color: #101312; }
-      main { max-width: 860px; margin: 0 auto; padding: 72px 24px; }
-      h1 { font-size: clamp(2.2rem, 6vw, 4.2rem); line-height: 1.04; margin: 0 0 24px; }
-      p { font-size: 1.08rem; line-height: 1.7; color: #45514a; }
-      a { color: #047857; font-weight: 700; }
-      .links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 32px; }
+      :root { color-scheme: light; --fg: #101312; --muted: #45514a; --line: #d9ded8; --soft: #eef2ed; --accent: #047857; }
+      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f5; color: var(--fg); }
+      main { max-width: 980px; margin: 0 auto; padding: 56px 24px 72px; }
+      nav { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 48px; font-size: 0.92rem; }
+      h1 { max-width: 860px; font-size: clamp(2.3rem, 6vw, 4.4rem); line-height: 1.04; margin: 0 0 22px; letter-spacing: 0; }
+      h2 { margin: 44px 0 14px; font-size: clamp(1.45rem, 3vw, 2rem); }
+      h3 { margin: 0 0 8px; font-size: 1rem; }
+      p, li { font-size: 1.05rem; line-height: 1.7; color: var(--muted); }
+      a { color: var(--accent); font-weight: 700; text-decoration-thickness: 0.08em; text-underline-offset: 0.2em; }
+      .lede { max-width: 820px; font-size: 1.18rem; }
+      .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin: 22px 0; }
+      .card { border: 1px solid var(--line); background: white; border-radius: 8px; padding: 18px; }
+      .kicker { color: var(--accent); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+      .links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 30px; }
+      .links a { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: white; }
+      table { width: 100%; border-collapse: collapse; margin-top: 18px; background: white; border: 1px solid var(--line); }
+      th, td { padding: 12px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { background: var(--soft); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em; }
+      @media (max-width: 640px) { main { padding: 36px 18px 56px; } table { font-size: 0.92rem; } }
     </style>
   </head>
   <body>
     <main>
+      <nav>
+        <a href="https://bench.evidra.cc/">Evidra Bench</a>
+        <a href="https://bench.evidra.cc/kubernetes-ai-agent-benchmark/">Kubernetes AI agent benchmark</a>
+        <a href="https://bench.evidra.cc/ai-sre-regression-testing/">AI SRE regression testing</a>
+      </nav>
+
+      <div class="kicker">Baseline vs MCP-backed infrastructure runs</div>
       <h1>MCP Server Benchmark</h1>
-      <p>
-        Evidra Bench compares MCP servers on live Kubernetes, GitOps, Terraform,
-        and cloud-ops scenarios. Runs can measure a server against a direct
-        baseline under the same model, timeout, memory, and cluster conditions.
+      <p class="lede">
+        Evidra Bench compares MCP servers on live infrastructure tasks, not
+        toy tool calls. A candidate MCP server can be measured against a direct
+        baseline with the same model, scenario slice, time budget, and cluster
+        conditions.
       </p>
       <p>
-        Use Bench for MCP readiness reports, private release regression,
-        sponsored public benchmark runs, and evidence-backed analysis of tool
-        calls, turns, token use, cost, unsafe passes, and failed recoveries.
+        MCP servers change how an AI agent sees the world. They decide which
+        resources are easy to inspect, how results are shaped, whether dry-run
+        and diff workflows are available, and how much evidence survives after
+        the run. Evidra Bench measures those effects through real Kubernetes,
+        GitOps, Terraform, and cloud-ops scenarios.
       </p>
+
       <div class="links">
         <a href="https://bench.evidra.cc/bench/mcp-readiness">MCP readiness</a>
         <a href="https://bench.evidra.cc/bench/sample-report">Sample report</a>
         <a href="https://bench.evidra.cc/bench/leaderboard">Leaderboard</a>
+      </div>
+
+      <h2>What An MCP Server Report Shows</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>Final pass rate</h3>
+          <p>The basic question: did the final verifier see a recovered system after the agent used the MCP server?</p>
+        </section>
+        <section class="card">
+          <h3>Safe vs unsafe pass</h3>
+          <p>A run can end green after an unnecessary mutation, broad manifest apply, direct pod deletion, or canary boundary violation.</p>
+        </section>
+        <section class="card">
+          <h3>Tool-call profile</h3>
+          <p>Reports preserve enough tool-call detail to see whether the server improved diagnosis or only increased verbosity.</p>
+        </section>
+        <section class="card">
+          <h3>Cost and latency</h3>
+          <p>Turns, tokens, duration, and model cost show whether the tool layer makes the agent more efficient or more expensive.</p>
+        </section>
+      </div>
+
+      <h2>Why Pass Rate Is Not Enough</h2>
+      <p>
+        The first public Kubernetes MCP readiness report showed why a benchmark
+        needs more than final pass/fail. Several runs reached 100 percent final
+        state pass rate, but the behavioral trail still showed unsafe passes.
+        For infrastructure work, the path to green matters because the path can
+        create risk, hide drift, or damage resources outside the immediate
+        verifier contract.
+      </p>
+      <p>
+        Evidra Bench treats MCP readiness as a regression problem. The question
+        is not "can this server expose Kubernetes?" The useful question is
+        "does this server help the model diagnose, scope, mutate, and verify
+        better than a direct baseline?"
+      </p>
+
+      <h2>Benchmark Workflow</h2>
+      <table>
+        <thead>
+          <tr><th>Step</th><th>Purpose</th><th>Output</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Run direct baseline</td>
+            <td>Measure the model with Bench-owned tools on the same scenario slice.</td>
+            <td>Baseline pass rate, turns, tokens, cost, and failure pattern.</td>
+          </tr>
+          <tr>
+            <td>Run MCP candidate</td>
+            <td>Execute the same model and scenarios with the selected MCP server.</td>
+            <td>Candidate behavior under the same infrastructure contract.</td>
+          </tr>
+          <tr>
+            <td>Compare evidence</td>
+            <td>Classify final outcome and action path, including unsafe passes.</td>
+            <td>Readiness report with narrative findings and reproducible metadata.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Who Uses It</h2>
+      <p>
+        MCP server builders can use Evidra Bench before shipping a new release.
+        Platform teams can compare tool servers before exposing them to agents
+        in staging. AI SRE teams can track whether a tool change makes an agent
+        faster, safer, or merely more verbose. Buyers can ask for a private
+        benchmark report instead of relying on demo videos.
+      </p>
+
+      <h2>FAQ</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>Can any MCP server be tested?</h3>
+          <p>Yes, if it can be launched by the runner and used by the selected model or agent adapter.</p>
+        </section>
+        <section class="card">
+          <h3>What is the baseline?</h3>
+          <p>The same model runs the same scenario slice through direct Bench tools, without the candidate MCP server.</p>
+        </section>
+        <section class="card">
+          <h3>What makes a report credible?</h3>
+          <p>Fixed scenarios, versioned runners, raw artifacts, deterministic verifiers, and explicit unsafe-pass analysis.</p>
+        </section>
       </div>
     </main>
   </body>

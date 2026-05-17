@@ -16,33 +16,160 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "AI SRE Regression Testing",
+        "url": "https://bench.evidra.cc/ai-sre-regression-testing/",
+        "description": "Evidra Bench turns production-style infrastructure incidents into recurring regression tests for AI SRE agents, automation tools, skills, and MCP servers.",
+        "isPartOf": {
+          "@type": "WebSite",
+          "name": "Evidra Bench",
+          "url": "https://bench.evidra.cc/"
+        },
+        "about": [
+          "AI SRE regression testing",
+          "AI infrastructure automation testing",
+          "Kubernetes agent benchmark",
+          "MCP server release readiness"
+        ]
+      }
+    </script>
     <style>
-      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f5; color: #101312; }
-      main { max-width: 860px; margin: 0 auto; padding: 72px 24px; }
-      h1 { font-size: clamp(2.2rem, 6vw, 4.2rem); line-height: 1.04; margin: 0 0 24px; }
-      p { font-size: 1.08rem; line-height: 1.7; color: #45514a; }
-      a { color: #047857; font-weight: 700; }
-      .links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 32px; }
+      :root { color-scheme: light; --fg: #101312; --muted: #45514a; --line: #d9ded8; --soft: #eef2ed; --accent: #047857; }
+      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f5; color: var(--fg); }
+      main { max-width: 980px; margin: 0 auto; padding: 56px 24px 72px; }
+      nav { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 48px; font-size: 0.92rem; }
+      h1 { max-width: 860px; font-size: clamp(2.3rem, 6vw, 4.4rem); line-height: 1.04; margin: 0 0 22px; letter-spacing: 0; }
+      h2 { margin: 44px 0 14px; font-size: clamp(1.45rem, 3vw, 2rem); }
+      h3 { margin: 0 0 8px; font-size: 1rem; }
+      p, li { font-size: 1.05rem; line-height: 1.7; color: var(--muted); }
+      a { color: var(--accent); font-weight: 700; text-decoration-thickness: 0.08em; text-underline-offset: 0.2em; }
+      .lede { max-width: 820px; font-size: 1.18rem; }
+      .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin: 22px 0; }
+      .card { border: 1px solid var(--line); background: white; border-radius: 8px; padding: 18px; }
+      .kicker { color: var(--accent); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+      .links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 30px; }
+      .links a { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: white; }
+      table { width: 100%; border-collapse: collapse; margin-top: 18px; background: white; border: 1px solid var(--line); }
+      th, td { padding: 12px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { background: var(--soft); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em; }
+      @media (max-width: 640px) { main { padding: 36px 18px 56px; } table { font-size: 0.92rem; } }
     </style>
   </head>
   <body>
     <main>
+      <nav>
+        <a href="https://bench.evidra.cc/">Evidra Bench</a>
+        <a href="https://bench.evidra.cc/kubernetes-ai-agent-benchmark/">Kubernetes AI agent benchmark</a>
+        <a href="https://bench.evidra.cc/mcp-server-benchmark/">MCP server benchmark</a>
+      </nav>
+
+      <div class="kicker">Release gates for infrastructure agents</div>
       <h1>AI SRE Regression Testing</h1>
-      <p>
+      <p class="lede">
         Evidra Bench turns production-style infrastructure failures into
-        recurring live regression tests for AI SRE agents, automation tools,
-        MCP servers, and skills.
+        recurring live regression tests for AI SRE agents, infrastructure
+        automation tools, MCP servers, and operational skills.
       </p>
       <p>
-        Track whether each release still diagnoses the incident, chooses safe
-        actions, verifies recovery, and avoids expensive dead ends. Reports can
-        include pass rate, unsafe pass, failure autopsy, turns, token use, cost,
-        and links to raw evidence artifacts.
+        AI agents can improve from one model release to the next, then regress
+        in a different kind of incident. A model may become better at Helm but
+        worse under urgency pressure. A skill may help simple Kubernetes
+        rollouts but hurt harder diagnosis tasks. A new MCP server release may
+        reduce turns while adding unsafe mutation paths. Regression testing is
+        how those changes become visible before the agent reaches production.
       </p>
+
       <div class="links">
         <a href="https://bench.evidra.cc/bench/sample-report">Sample report</a>
         <a href="https://bench.evidra.cc/bench/scenarios">Scenario catalog</a>
         <a href="mailto:bench@evidra.cc?subject=Private%20AI%20SRE%20Regression%20Testing">Request a private run</a>
+      </div>
+
+      <h2>What Gets Regressed</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>Models</h3>
+          <p>Compare a new model, reasoning setting, or provider route against your previous baseline on the same incidents.</p>
+        </section>
+        <section class="card">
+          <h3>Skills and prompts</h3>
+          <p>Test whether an operational skill improves diagnosis or only adds ceremony and tool-call overhead.</p>
+        </section>
+        <section class="card">
+          <h3>MCP servers</h3>
+          <p>Measure whether a tool server helps the agent inspect, scope, mutate, and verify infrastructure safely.</p>
+        </section>
+        <section class="card">
+          <h3>Customer incidents</h3>
+          <p>Convert sanitized outage patterns into private regression suites that can run before major agent changes.</p>
+        </section>
+      </div>
+
+      <h2>Signals Beyond Green Checks</h2>
+      <p>
+        A regression suite should not stop at "passed" or "failed." Evidra
+        Bench tracks the operational path: discovery, diagnosis, mutation,
+        verification, turns, token use, estimated cost, tool calls, failure
+        patterns, and unsafe passes. That makes it possible to distinguish a
+        clean recovery from a risky recovery that only happened to satisfy the
+        final verifier.
+      </p>
+      <p>
+        This matters for AI SRE workflows because the agent is not only writing
+        code. It is acting against systems with state, policies, blast radius,
+        and humans who need to understand what happened after the run.
+      </p>
+
+      <h2>Example Release Gate</h2>
+      <table>
+        <thead>
+          <tr><th>Gate</th><th>Regression Signal</th><th>Decision</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Model upgrade</td>
+            <td>Pass rate improves, but unsafe-pass count rises under urgency and namespace-similarity tasks.</td>
+            <td>Hold rollout or restrict the model to lower-risk tasks.</td>
+          </tr>
+          <tr>
+            <td>MCP server update</td>
+            <td>Turns fall, but token usage doubles and verifier evidence shows broad manifests.</td>
+            <td>Fix tool schemas and mutation affordances before release.</td>
+          </tr>
+          <tr>
+            <td>Skill prompt change</td>
+            <td>Easy tasks improve, L3/L4 diagnosis regresses, and the agent stops re-checking after failed fixes.</td>
+            <td>Split the skill by domain or remove over-prescriptive rules.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Private Regression Reports</h2>
+      <p>
+        Public reports are useful proof points. Private reports are where the
+        release workflow becomes practical. Evidra Bench can run a fixed
+        scenario slice against the current stack and the candidate stack, then
+        produce a report that shows exactly what changed. For platform teams,
+        that creates a repeatable evidence loop for AI SRE adoption.
+      </p>
+
+      <h2>FAQ</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>Is this a replacement for staging?</h3>
+          <p>No. It is a controlled regression layer that should run before agents are trusted in staging or production workflows.</p>
+        </section>
+        <section class="card">
+          <h3>Can past incidents become scenarios?</h3>
+          <p>Yes. Sanitized incident patterns can become private scenarios with deterministic setup, break, and verifier steps.</p>
+        </section>
+        <section class="card">
+          <h3>What is a good first suite?</h3>
+          <p>Start with Kubernetes workload, networking, security, and release scenarios that match the agent's expected operating scope.</p>
+        </section>
       </div>
     </main>
   </body>

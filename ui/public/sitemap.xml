@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://bench.evidra.cc/</loc>
-    <lastmod>2026-05-11</lastmod>
+    <lastmod>2026-05-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
@@ -31,6 +31,12 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://bench.evidra.cc/open-infrastructure-agent-benchmarks/</loc>
+    <lastmod>2026-05-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://bench.evidra.cc/bench/mcp-readiness</loc>
     <lastmod>2026-05-11</lastmod>
     <changefreq>weekly</changefreq>
@@ -44,19 +50,19 @@
   </url>
   <url>
     <loc>https://bench.evidra.cc/kubernetes-ai-agent-benchmark/</loc>
-    <lastmod>2026-05-11</lastmod>
+    <lastmod>2026-05-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://bench.evidra.cc/mcp-server-benchmark/</loc>
-    <lastmod>2026-05-11</lastmod>
+    <lastmod>2026-05-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://bench.evidra.cc/ai-sre-regression-testing/</loc>
-    <lastmod>2026-05-11</lastmod>
+    <lastmod>2026-05-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>

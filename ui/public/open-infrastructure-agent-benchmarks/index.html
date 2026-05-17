@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Open Infrastructure Agent Benchmarks - Evidra Bench</title>
+    <meta name="description" content="A practical guide to open infrastructure agent benchmarks, how Evidra Bench measures live Kubernetes and MCP behavior, and how it differs from task datasets." />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://bench.evidra.cc/open-infrastructure-agent-benchmarks/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="Open Infrastructure Agent Benchmarks - Evidra Bench" />
+    <meta property="og:description" content="Understand infrastructure agent benchmarks, live Kubernetes evaluations, MCP server readiness, and where Evidra Bench fits." />
+    <meta property="og:url" content="https://bench.evidra.cc/open-infrastructure-agent-benchmarks/" />
+    <meta property="og:image" content="https://bench.evidra.cc/og-bench.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": "Open Infrastructure Agent Benchmarks",
+        "url": "https://bench.evidra.cc/open-infrastructure-agent-benchmarks/",
+        "datePublished": "2026-05-17",
+        "dateModified": "2026-05-17",
+        "author": {
+          "@type": "Organization",
+          "name": "Evidra"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Evidra"
+        },
+        "description": "A guide to infrastructure agent benchmarks and how Evidra Bench measures live Kubernetes, MCP server, and AI SRE behavior."
+      }
+    </script>
+    <style>
+      :root { color-scheme: light; --fg: #101312; --muted: #45514a; --line: #d9ded8; --soft: #eef2ed; --accent: #047857; }
+      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f5; color: var(--fg); }
+      main { max-width: 980px; margin: 0 auto; padding: 56px 24px 72px; }
+      nav { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 48px; font-size: 0.92rem; }
+      h1 { max-width: 860px; font-size: clamp(2.3rem, 6vw, 4.4rem); line-height: 1.04; margin: 0 0 22px; letter-spacing: 0; }
+      h2 { margin: 44px 0 14px; font-size: clamp(1.45rem, 3vw, 2rem); }
+      h3 { margin: 0 0 8px; font-size: 1rem; }
+      p, li { font-size: 1.05rem; line-height: 1.7; color: var(--muted); }
+      a { color: var(--accent); font-weight: 700; text-decoration-thickness: 0.08em; text-underline-offset: 0.2em; }
+      .lede { max-width: 820px; font-size: 1.18rem; }
+      .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin: 22px 0; }
+      .card { border: 1px solid var(--line); background: white; border-radius: 8px; padding: 18px; }
+      .kicker { color: var(--accent); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+      .links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 30px; }
+      .links a { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: white; }
+      table { width: 100%; border-collapse: collapse; margin-top: 18px; background: white; border: 1px solid var(--line); }
+      th, td { padding: 12px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { background: var(--soft); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em; }
+      @media (max-width: 640px) { main { padding: 36px 18px 56px; } table { font-size: 0.92rem; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav>
+        <a href="https://bench.evidra.cc/">Evidra Bench</a>
+        <a href="https://bench.evidra.cc/kubernetes-ai-agent-benchmark/">Kubernetes AI agent benchmark</a>
+        <a href="https://bench.evidra.cc/mcp-server-benchmark/">MCP server benchmark</a>
+        <a href="https://bench.evidra.cc/ai-sre-regression-testing/">AI SRE regression testing</a>
+      </nav>
+
+      <div class="kicker">Category guide</div>
+      <h1>Open Infrastructure Agent Benchmarks</h1>
+      <p class="lede">
+        An infrastructure agent benchmark measures whether an AI agent can
+        operate real systems, not just write plausible YAML or explain cloud
+        concepts. Evidra Bench is an open benchmark and regression testing
+        system for Kubernetes, GitOps, Terraform, cloud-ops, MCP servers, skills,
+        and AI SRE agents.
+      </p>
+      <p>
+        The category is still young, and names can be confusing. Coding
+        benchmarks measure source edits. Terminal benchmarks measure command-line
+        problem solving. Infrastructure agent benchmarks need a different shape:
+        live state, side effects, blast radius, safety constraints, and final
+        verifiers that inspect the system after the agent acts.
+      </p>
+
+      <div class="links">
+        <a href="https://bench.evidra.cc/bench/sample-report">Sample report</a>
+        <a href="https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough">Public MCP article</a>
+        <a href="https://github.com/vitas/evidra-bench">GitHub repository</a>
+      </div>
+
+      <h2>What Makes Infrastructure Different</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>There is live state</h3>
+          <p>A valid manifest can still fail at runtime. The benchmark has to inspect pods, events, endpoints, volumes, and controller state.</p>
+        </section>
+        <section class="card">
+          <h3>There are side effects</h3>
+          <p>A broad patch, delete, or recreate can make the final check pass while damaging unrelated resources or losing state.</p>
+        </section>
+        <section class="card">
+          <h3>There is operational judgment</h3>
+          <p>The correct response may be to decline, ask for approval, preserve a canary, or avoid an urgent but unsafe shortcut.</p>
+        </section>
+        <section class="card">
+          <h3>There is tool behavior</h3>
+          <p>MCP servers, skills, and CLIs change what the model sees and how it acts. They need regression testing too.</p>
+        </section>
+      </div>
+
+      <h2>Evidra Bench vs Harbor task datasets</h2>
+      <p>
+        Evidra Bench and Harbor-compatible task datasets can both be useful, but
+        they solve different problems. A task dataset is a portable collection
+        of agent tasks that can run through an external harness. Evidra Bench is
+        a product-oriented benchmark system with its own scenario schema,
+        adapters, execution loop, reports, failure autopsy, cost tracking, and
+        MCP readiness workflow.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Capability</th><th>Evidra Bench</th><th>Harbor-style task dataset</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Primary goal</td>
+            <td>Regression testing and readiness reports for infrastructure agents, MCP servers, skills, and model changes.</td>
+            <td>Portable task definitions that can be executed by a compatible benchmark runner.</td>
+          </tr>
+          <tr>
+            <td>Execution model</td>
+            <td>Bench-owned harness with provider loop, CLI adapter, MCP adapter, A2A adapter, artifacts, and verifier contracts.</td>
+            <td>External runner executes task instructions, solution scripts, and verifier scripts.</td>
+          </tr>
+          <tr>
+            <td>Report output</td>
+            <td>Pass rate, safe or unsafe pass, turns, tokens, cost, timeline, tool calls, and failure autopsy.</td>
+            <td>Usually task score, logs, and runner-specific artifacts.</td>
+          </tr>
+          <tr>
+            <td>Best use</td>
+            <td>Model upgrade gates, MCP server benchmark reports, AI SRE regression testing, and customer incident suites.</td>
+            <td>Publishing reusable task corpora and running broad benchmark sweeps through a common task format.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>How Evidra Bench Measures A Run</h2>
+      <p>
+        A run starts by provisioning a workspace, bootstrapping a healthy
+        baseline, injecting a failure, executing the agent through the selected
+        adapter, collecting artifacts, and verifying the final infrastructure
+        state. The same scenario can be replayed across models, MCP servers,
+        skills, and remote agents.
+      </p>
+      <p>
+        The important part is repeatability. If a new model fixes Helm state
+        recovery but regresses on safety under pressure, the benchmark should
+        show that. If an MCP server reaches the same final pass rate but doubles
+        token use or encourages broad patches, the report should show that too.
+      </p>
+
+      <h2>Open Source Boundary</h2>
+      <p>
+        Evidra Bench keeps the public benchmark surface open: scenario schema,
+        public fixtures, local execution, docs, and the report examples that make
+        the method inspectable. Hosted control-plane deployment details and
+        customer-specific incident suites can stay private. That split lets the
+        benchmark be useful for the ecosystem without exposing real customer
+        infrastructure.
+      </p>
+
+      <h2>Where To Start</h2>
+      <p>
+        If you are evaluating an infrastructure agent, start with a small live
+        Kubernetes slice: a workload task, a networking task, a security task,
+        and a judgment task. Run a direct baseline, then run the candidate model,
+        MCP server, or skill. Read the final outcome and the action path. The
+        result should tell you not only whether the agent can make the cluster
+        green, but whether it can do that in a way an operator would trust.
+      </p>
+    </main>
+  </body>
+</html>

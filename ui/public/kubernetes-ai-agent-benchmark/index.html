@@ -16,32 +16,161 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "Kubernetes AI Agent Benchmark",
+        "url": "https://bench.evidra.cc/kubernetes-ai-agent-benchmark/",
+        "description": "Evidra Bench runs live Kubernetes benchmark scenarios for AI infrastructure agents, MCP servers, skills, and models.",
+        "isPartOf": {
+          "@type": "WebSite",
+          "name": "Evidra Bench",
+          "url": "https://bench.evidra.cc/"
+        },
+        "about": [
+          "Kubernetes AI agent benchmark",
+          "AI infrastructure agent evaluation",
+          "MCP server benchmark",
+          "AI SRE regression testing"
+        ]
+      }
+    </script>
     <style>
-      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f5; color: #101312; }
-      main { max-width: 860px; margin: 0 auto; padding: 72px 24px; }
-      h1 { font-size: clamp(2.2rem, 6vw, 4.2rem); line-height: 1.04; margin: 0 0 24px; }
-      p { font-size: 1.08rem; line-height: 1.7; color: #45514a; }
-      a { color: #047857; font-weight: 700; }
-      .links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 32px; }
+      :root { color-scheme: light; --fg: #101312; --muted: #45514a; --line: #d9ded8; --soft: #eef2ed; --accent: #047857; }
+      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f5; color: var(--fg); }
+      main { max-width: 980px; margin: 0 auto; padding: 56px 24px 72px; }
+      nav { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 48px; font-size: 0.92rem; }
+      h1 { max-width: 860px; font-size: clamp(2.3rem, 6vw, 4.4rem); line-height: 1.04; margin: 0 0 22px; letter-spacing: 0; }
+      h2 { margin: 44px 0 14px; font-size: clamp(1.45rem, 3vw, 2rem); }
+      h3 { margin: 0 0 8px; font-size: 1rem; }
+      p, li { font-size: 1.05rem; line-height: 1.7; color: var(--muted); }
+      a { color: var(--accent); font-weight: 700; text-decoration-thickness: 0.08em; text-underline-offset: 0.2em; }
+      .lede { max-width: 820px; font-size: 1.18rem; }
+      .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin: 22px 0; }
+      .card { border: 1px solid var(--line); background: white; border-radius: 8px; padding: 18px; }
+      .kicker { color: var(--accent); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+      .links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 30px; }
+      .links a { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: white; }
+      table { width: 100%; border-collapse: collapse; margin-top: 18px; background: white; border: 1px solid var(--line); }
+      th, td { padding: 12px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { background: var(--soft); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em; }
+      @media (max-width: 640px) { main { padding: 36px 18px 56px; } table { font-size: 0.92rem; } }
     </style>
   </head>
   <body>
     <main>
+      <nav>
+        <a href="https://bench.evidra.cc/">Evidra Bench</a>
+        <a href="https://bench.evidra.cc/mcp-server-benchmark/">MCP server benchmark</a>
+        <a href="https://bench.evidra.cc/ai-sre-regression-testing/">AI SRE regression testing</a>
+      </nav>
+
+      <div class="kicker">Live Kubernetes exams for AI agents</div>
       <h1>Kubernetes AI Agent Benchmark</h1>
-      <p>
-        Evidra Bench runs live Kubernetes scenarios for AI infrastructure agents:
-        broken deployments, wrong service selectors, network policy failures,
-        unsafe shortcuts, misleading ingress symptoms, and recovery verification.
+      <p class="lede">
+        Evidra Bench evaluates AI infrastructure agents on real Kubernetes work:
+        broken rollouts, bad Services, misleading symptoms, storage failures,
+        unsafe shortcuts, security boundaries, and recovery checks that run
+        against live cluster state.
       </p>
       <p>
-        Use it to compare models, MCP servers, skills, and AI SRE agents under
-        the same real cluster conditions. Bench records pass rate, turns,
-        token use, cost, tool calls, and failure autopsy evidence.
+        Generic coding benchmarks do not answer whether an agent can operate a
+        cluster. Kubernetes incidents involve state, side effects, partial
+        evidence, and resources that must not be changed. Evidra Bench creates a
+        clean environment, injects a specific failure, lets the agent operate
+        through its normal tool surface, and verifies the final system contract.
       </p>
+
       <div class="links">
         <a href="https://bench.evidra.cc/bench/scenarios">Scenario catalog</a>
         <a href="https://bench.evidra.cc/bench/leaderboard">Leaderboard</a>
         <a href="https://bench.evidra.cc/bench/sample-report">Sample report</a>
+      </div>
+
+      <h2>What The Benchmark Measures</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>Outcome</h3>
+          <p>Did the Deployment roll out, did the Service get endpoints, did DNS resolve, did storage bind, and did the intended workload recover?</p>
+        </section>
+        <section class="card">
+          <h3>Path</h3>
+          <p>Did the agent inspect the right evidence before mutating, or did it jump to a broad patch because the incident sounded familiar?</p>
+        </section>
+        <section class="card">
+          <h3>Cost</h3>
+          <p>How many turns, tokens, tool calls, and dollars did the run consume before it reached a verified result?</p>
+        </section>
+        <section class="card">
+          <h3>Safety</h3>
+          <p>Did the agent preserve canaries, NetworkPolicies, PDBs, security context, namespaces, and unrelated healthy resources?</p>
+        </section>
+      </div>
+
+      <h2>Kubernetes Scenario Coverage</h2>
+      <table>
+        <thead>
+          <tr><th>Track</th><th>Examples</th><th>Why It Matters</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Workloads</td>
+            <td>CrashLoopBackOff, wrong probes, missing ConfigMap, image pull issues</td>
+            <td>Agents must read events, conditions, logs, and specs before choosing a repair.</td>
+          </tr>
+          <tr>
+            <td>Networking</td>
+            <td>Service selector mismatch, DNS failures, ingress routing, NetworkPolicy traps</td>
+            <td>The correct fix is often not the first object named in the user report.</td>
+          </tr>
+          <tr>
+            <td>Storage</td>
+            <td>PVC binding, volume expansion, PV reuse, stateful identity</td>
+            <td>Deleting and recreating resources can make a check green while losing operational state.</td>
+          </tr>
+          <tr>
+            <td>Security</td>
+            <td>RBAC escalation, Pod Security Admission, readonly filesystems, secret exposure</td>
+            <td>A strong infrastructure agent fixes the incident without weakening the control plane.</td>
+          </tr>
+          <tr>
+            <td>Judgment</td>
+            <td>Urgency pressure, false alarms, wrong namespace similarity, canary blast radius</td>
+            <td>Production readiness depends on knowing when not to mutate.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Use It To Compare Models, MCP Servers, And Skills</h2>
+      <p>
+        Evidra Bench can run the same Kubernetes scenario against a direct model
+        loop, an MCP server, a CLI agent, an A2A agent, or the same model with a
+        skill prompt. That makes the benchmark useful for model upgrades, MCP
+        server release gates, AI SRE workflow tests, and prompt or skill
+        experiments.
+      </p>
+      <p>
+        A final pass rate is only one dimension. The report also shows turns,
+        tool calls, token use, cost, timeline phases, unsafe passes, and failure
+        autopsy findings. Those signals show whether the agent understood the
+        incident or simply reached a green final state by chance.
+      </p>
+
+      <h2>FAQ</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>Is this only a YAML benchmark?</h3>
+          <p>No. Scenarios run against live Kubernetes state and can require runtime evidence, events, endpoints, logs, and rollout verification.</p>
+        </section>
+        <section class="card">
+          <h3>Can it test an MCP server?</h3>
+          <p>Yes. Run a direct baseline and the MCP-backed candidate with the same model and scenario slice, then compare outcome and behavior.</p>
+        </section>
+        <section class="card">
+          <h3>Does a pass mean production ready?</h3>
+          <p>No. A pass is evidence for a scenario. Readiness requires repeated runs, unsafe-pass analysis, and your own operating constraints.</p>
+        </section>
       </div>
     </main>
   </body>

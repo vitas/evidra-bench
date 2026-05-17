@@ -1,5 +1,5 @@
 ---
-title: Bench Positioning
+title: Evidra Bench Positioning
 type: product
 status: active
 tags:
@@ -8,9 +8,9 @@ tags:
   - agents
 ---
 
-# Bench Positioning
+# Evidra Bench Positioning
 
-Bench is live infrastructure exams and regression testing for AI agents.
+Evidra Bench is live infrastructure exams and regression testing for AI agents.
 
 It runs real Kubernetes, Helm, Argo CD, Terraform, and AWS scenarios against
 models, MCP servers, skills, and remote agents. The output is not a generic
@@ -51,7 +51,7 @@ Private incident suites are the paid wedge:
 
 ## What Bench Is Not
 
-Bench is not an official certification authority and does not require the
+Evidra Bench is not an official certification authority and does not require the
 user to adopt any particular MCP server. Exam-aligned suites can reference
 public skill domains, but they are not affiliated with CNCF, Linux Foundation,
 HashiCorp, or AWS. External MCP servers and future agent protocols are systems
