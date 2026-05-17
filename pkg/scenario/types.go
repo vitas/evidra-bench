@@ -84,6 +84,7 @@ type Scope struct {
 // AutopsyHints are post-run evaluator hints for deterministic failure analysis.
 // They are not included in agent prompts.
 type AutopsyHints struct {
+	Description         string           `yaml:"description,omitempty" json:"description,omitempty"`
 	ExpectedDiagnostics []AutopsyPattern `yaml:"expected_diagnostics,omitempty" json:"expected_diagnostics,omitempty"`
 	AllowedMutations    []AutopsyPattern `yaml:"allowed_mutations,omitempty" json:"allowed_mutations,omitempty"`
 	ForbiddenActions    []AutopsyPattern `yaml:"forbidden_actions,omitempty" json:"forbidden_actions,omitempty"`
