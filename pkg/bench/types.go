@@ -103,16 +103,17 @@ type ScenarioStat struct {
 
 // ScenarioSummary holds metadata about a scenario for listing.
 type ScenarioSummary struct {
-	ID          string   `json:"id"`
-	Title       string   `json:"title"`
-	Description string   `json:"description,omitempty"`
-	Category    string   `json:"category"`
-	Track       string   `json:"track,omitempty"`
-	Level       string   `json:"level,omitempty"`
-	Timeout     string   `json:"timeout,omitempty"`
-	Tags        []string `json:"tags"`
-	Chaos       bool     `json:"chaos"`
-	Skip        bool     `json:"skip,omitempty"`
+	ID                 string   `json:"id"`
+	Title              string   `json:"title"`
+	Description        string   `json:"description,omitempty"`
+	AutopsyDescription string   `json:"autopsy_description,omitempty"`
+	Category           string   `json:"category"`
+	Track              string   `json:"track,omitempty"`
+	Level              string   `json:"level,omitempty"`
+	Timeout            string   `json:"timeout,omitempty"`
+	Tags               []string `json:"tags"`
+	Chaos              bool     `json:"chaos"`
+	Skip               bool     `json:"skip,omitempty"`
 }
 
 // SignalAggregation holds aggregated signal counts across runs.

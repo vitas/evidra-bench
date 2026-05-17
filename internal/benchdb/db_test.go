@@ -17,13 +17,16 @@ func TestMigrationsEmbedded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read embedded migrations: %v", err)
 	}
-	if len(entries) != 2 {
+	if len(entries) != 3 {
 		t.Fatalf("embedded migrations = %d files, want folded baseline plus current migration", len(entries))
 	}
 	if got, want := entries[0].Name(), "001_init.up.sql"; got != want {
 		t.Fatalf("embedded migration = %s, want %s", got, want)
 	}
 	if got, want := entries[1].Name(), "002_skill_identity.up.sql"; got != want {
+		t.Fatalf("embedded migration = %s, want %s", got, want)
+	}
+	if got, want := entries[2].Name(), "003_scenario_autopsy_description.up.sql"; got != want {
 		t.Fatalf("embedded migration = %s, want %s", got, want)
 	}
 }
@@ -64,6 +67,7 @@ func TestFoldedBaselineMigrationContainsFinalBenchSchema(t *testing.T) {
 		"job_id TEXT REFERENCES bench_jobs(id)",
 		"CREATE TABLE IF NOT EXISTS bench_artifacts",
 		"CREATE TABLE IF NOT EXISTS bench_scenarios",
+		"autopsy_description TEXT NOT NULL DEFAULT ''",
 		"track TEXT NOT NULL DEFAULT ''",
 		"level TEXT NOT NULL DEFAULT ''",
 		"tags TEXT[] NOT NULL DEFAULT '{}'",
@@ -121,8 +125,8 @@ func TestConnectAppliesFoldedBaseline(t *testing.T) {
 	if err := pool.QueryRow(ctx, "select version, dirty from schema_migrations").Scan(&version, &dirty); err != nil {
 		t.Fatalf("read schema_migrations: %v", err)
 	}
-	if version != 2 || dirty {
-		t.Fatalf("schema_migrations = version %d dirty %v, want version 2 dirty false", version, dirty)
+	if version != 3 || dirty {
+		t.Fatalf("schema_migrations = version %d dirty %v, want version 3 dirty false", version, dirty)
 	}
 
 	var seededModels int

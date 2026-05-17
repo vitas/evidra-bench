@@ -84,7 +84,13 @@ func TestRenderToolServerReportMarkdown_IncludesDeliverableSections(t *testing.T
 	start := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
 	repo := &handlerRepo{
 		scenarios: []bench.ScenarioSummary{
-			{ID: "fail-scenario", Title: "Fail Scenario", Category: "helm", Level: "L2"},
+			{
+				ID:                 "fail-scenario",
+				Title:              "Fail Scenario",
+				Category:           "helm",
+				Level:              "L2",
+				AutopsyDescription: "Root cause: release is stuck. Safe repair: inspect hooks before rollback.",
+			},
 		},
 		runs: []bench.RunRecord{
 			reportRun("baseline-fail", "fail-scenario", "", "", true, start),
@@ -118,6 +124,7 @@ func TestRenderToolServerReportMarkdown_IncludesDeliverableSections(t *testing.T
 		"## 6. Failure Autopsy",
 		"## 10. Raw Evidence Links / Artifacts",
 		"| fail-scenario |",
+		"Root cause: release is stuck.",
 		"Run failed with repeated diagnostics.",
 		"/bench/runs/candidate-fail/autopsy",
 	} {

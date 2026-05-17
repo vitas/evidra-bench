@@ -30,6 +30,7 @@ interface Scenario {
   id: string;
   title: string;
   description?: string;
+  autopsy_description?: string;
   category: string;
   tags: string[];
   chaos: boolean;
@@ -210,6 +211,17 @@ export function ScenarioDetail() {
               </span>
             )}
           </div>
+
+          {scenario.autopsy_description && (
+            <div className="mt-4 rounded-lg border border-border bg-bg-elevated p-4">
+              <div className="mb-2 text-[0.68rem] font-semibold uppercase tracking-wide text-fg-muted">
+                Autopsy rulebook
+              </div>
+              <p className="whitespace-pre-line text-[0.8rem] leading-relaxed text-fg-body">
+                {scenario.autopsy_description.trim()}
+              </p>
+            </div>
+          )}
 
           {/* Stats row */}
           <div className="flex items-center gap-6 mt-4 font-mono text-[0.82rem]">

@@ -211,7 +211,7 @@ func (s *PgStore) Catalog(ctx context.Context, tenantID string) (*bench.RunCatal
 // ListScenarios returns all scenarios from the global catalog.
 func (s *PgStore) ListScenarios(ctx context.Context) ([]bench.ScenarioSummary, error) {
 	rows, err := s.db.Query(ctx,
-		`SELECT id, category, title, tools, chaos, track, level
+		`SELECT id, category, title, description, autopsy_description, tools, chaos, track, level
 		 FROM bench_scenarios ORDER BY category, id`)
 	if err != nil {
 		return nil, fmt.Errorf("bench.ListScenarios: %w", err)
@@ -222,7 +222,7 @@ func (s *PgStore) ListScenarios(ctx context.Context) ([]bench.ScenarioSummary, e
 	for rows.Next() {
 		var sc bench.ScenarioSummary
 		var tools []string
-		if err := rows.Scan(&sc.ID, &sc.Category, &sc.Title, &tools, &sc.Chaos, &sc.Track, &sc.Level); err != nil {
+		if err := rows.Scan(&sc.ID, &sc.Category, &sc.Title, &sc.Description, &sc.AutopsyDescription, &tools, &sc.Chaos, &sc.Track, &sc.Level); err != nil {
 			return nil, fmt.Errorf("bench.ListScenarios: scan: %w", err)
 		}
 		sc.Tags = tools
@@ -240,18 +240,19 @@ func (s *PgStore) UpsertScenarios(ctx context.Context, scenarios []bench.Scenari
 			tags = []string{}
 		}
 		_, err := s.db.Exec(ctx,
-			`INSERT INTO bench_scenarios (id, category, title, description, tools, chaos, track, level, updated_at)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+			`INSERT INTO bench_scenarios (id, category, title, description, autopsy_description, tools, chaos, track, level, updated_at)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
 			 ON CONFLICT (id) DO UPDATE SET
 			   category = EXCLUDED.category,
 			   title = EXCLUDED.title,
 			   description = EXCLUDED.description,
+			   autopsy_description = EXCLUDED.autopsy_description,
 			   tools = EXCLUDED.tools,
 			   chaos = EXCLUDED.chaos,
 			   track = EXCLUDED.track,
 			   level = EXCLUDED.level,
 			   updated_at = NOW()`,
-			sc.ID, sc.Category, sc.Title, sc.Description, tags, sc.Chaos, sc.Track, sc.Level)
+			sc.ID, sc.Category, sc.Title, sc.Description, sc.AutopsyDescription, tags, sc.Chaos, sc.Track, sc.Level)
 		if err != nil {
 			return upserted, fmt.Errorf("bench.UpsertScenarios(%s): %w", sc.ID, err)
 		}

@@ -64,6 +64,7 @@ interface ReportScenario {
   title?: string;
   category?: string;
   level?: string;
+  autopsy_description?: string;
   classification: string;
   result: string;
   baseline: ToolServerAggregate;
@@ -282,6 +283,7 @@ export function LiveToolServerReport() {
   const scenarios = report.scenarios ?? [];
   const autopsies = report.autopsies ?? [];
   const costBuckets = report.cost_buckets ?? [];
+  const scenarioRulebooks = scenarios.filter((row) => row.autopsy_description?.trim());
   const findings = report.findings ?? [];
   const recommendations = report.recommendations ?? [];
   const evidenceLinks = report.evidence_links ?? [];
@@ -429,6 +431,19 @@ export function LiveToolServerReport() {
                 </tr>
               ))}
             </DataTable>
+            {scenarioRulebooks.length > 0 && (
+              <div className="mt-5 space-y-3">
+                <h3 className="text-sm font-semibold text-fg">Autopsy Rulebook</h3>
+                {scenarioRulebooks.map((row) => (
+                  <div key={`${row.id}-rulebook`} className="rounded-lg border border-border bg-bg-elevated p-4">
+                    <div className="mb-2 font-mono text-[0.78rem] font-semibold text-fg">{row.id}</div>
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-fg-muted">
+                      {row.autopsy_description?.trim()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </ReportSection>
 
           <ReportSection id="results" title="4. Results Table">
