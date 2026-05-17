@@ -2,13 +2,14 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
+import { buildBenchApiURL } from "../../lib/apiBase.mts";
 import type { AutopsyReport } from "../../lib/autopsyView.mts";
 import { normalizeAutopsyReport } from "../../lib/autopsyView.mts";
 
 const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
 
 function fetchApi(path: string): Promise<Response> {
-  return fetch(`${API_BASE}${path}`);
+  return fetch(buildBenchApiURL(API_BASE, path));
 }
 
 interface RunRecord {

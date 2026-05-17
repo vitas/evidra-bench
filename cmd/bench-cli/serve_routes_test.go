@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -25,6 +26,36 @@ func TestRegisterBenchAPIRoutes_ProtectsWriteEndpoint(t *testing.T) {
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401; body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRegisterBenchAPIRoutes_InfoIsPublicJSON(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	svc := benchsvc.NewService(nil, benchsvc.ServiceConfig{})
+	registerBenchAPIRoutes(mux, svc, "secret")
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/bench/info", nil)
+	rec := httptest.NewRecorder()
+
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Readonly bool   `json:"readonly"`
+		Version  string `json:"version"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode info response: %v", err)
+	}
+	if !body.Readonly {
+		t.Fatal("readonly = false, want true")
+	}
+	if body.Version == "" {
+		t.Fatal("version is empty")
 	}
 }
 

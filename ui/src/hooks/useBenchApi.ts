@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { buildBenchApiURL } from "../lib/apiBase.mts";
 
 const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
 const READ_METHODS = new Set(["GET", "HEAD"]);
@@ -16,7 +17,7 @@ export function useBenchApi() {
         "Content-Type": "application/json",
         ...(options.headers as Record<string, string>),
       };
-      const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+      const res = await fetch(buildBenchApiURL(API_BASE, path), { ...options, headers });
       if (!res.ok) {
         let message = res.statusText;
         try {

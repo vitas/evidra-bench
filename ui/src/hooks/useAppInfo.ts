@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { buildBenchApiURL } from "../lib/apiBase.mts";
+
+const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
 
 interface AppInfo {
   readonly: boolean;
@@ -10,7 +13,7 @@ export function useAppInfo(): AppInfo {
   const [info, setInfo] = useState<AppInfo>({ readonly: true, version: "", loading: true });
 
   useEffect(() => {
-    fetch("/v1/bench/info")
+    fetch(buildBenchApiURL(API_BASE, "/v1/bench/info"))
       .then((res) => res.json())
       .then((data) =>
         setInfo({

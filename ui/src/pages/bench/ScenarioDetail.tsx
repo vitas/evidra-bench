@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
+import { buildBenchApiURL } from "../../lib/apiBase.mts";
 import { usePageTitle } from "../../hooks/usePageTitle";
+
+const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
 
 /* ── Types ── */
 
@@ -121,7 +124,7 @@ export function ScenarioDetail() {
   useEffect(() => {
     if (!expandedRun || transcripts[expandedRun] !== undefined) return;
     setTranscriptLoading(expandedRun);
-    fetch(`/v1/bench/runs/${expandedRun}/transcript`)
+    fetch(buildBenchApiURL(API_BASE, `/v1/bench/runs/${expandedRun}/transcript`))
       .then((res) => (res.ok ? res.text() : Promise.resolve("")))
       .then((text) => setTranscripts((prev) => ({ ...prev, [expandedRun]: text })))
       .catch(() => setTranscripts((prev) => ({ ...prev, [expandedRun]: "" })))
