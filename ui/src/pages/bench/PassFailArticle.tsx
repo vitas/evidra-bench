@@ -134,6 +134,14 @@ export function PassFailArticle() {
             >
               Open pilot replication
             </Link>
+            <a
+              href="https://github.com/vitas/evidra-bench"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex rounded-md border border-border px-4 py-2 text-sm font-semibold text-fg-body transition-colors hover:border-accent/50 hover:text-fg"
+            >
+              View GitHub repo
+            </a>
           </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
@@ -248,6 +256,14 @@ export function PassFailArticle() {
           >
             Sample private report
           </Link>
+          <a
+            href="https://github.com/vitas/evidra-bench"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex rounded-md border border-border px-4 py-2 text-sm font-semibold text-fg-body transition-colors hover:border-accent/50 hover:text-fg"
+          >
+            GitHub repository
+          </a>
         </div>
       </ArticleSection>
     </article>
