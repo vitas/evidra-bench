@@ -1,7 +1,9 @@
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { resolveRunsLimit } from "../../lib/benchmarkData.mts";
+import { LANDING_PUBLIC_REPORTS } from "../../lib/publicReports.mts";
 
 /* ── Types ── */
 
@@ -269,6 +271,37 @@ export function Benchmarks() {
           Benchmark timeline and category breakdown
         </p>
       </div>
+
+      <section className="glass-card p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="mb-2 text-[0.68rem] font-semibold uppercase tracking-wide text-accent">
+              Featured public benchmark
+            </p>
+            <h2 className="text-lg font-bold text-fg">Kubernetes MCP Readiness Benchmark</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-fg-muted">
+              Data-first report for two Kubernetes MCP servers: final pass rate,
+              safe pass rate, unsafe-pass autopsies, and run evidence.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to={LANDING_PUBLIC_REPORTS[0].to}
+              className="rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white hover:bg-accent-bright"
+            >
+              Open benchmark
+            </Link>
+            <a
+              href="https://github.com/vitas/evidra-bench"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-md border border-border px-3 py-2 text-sm font-semibold text-fg-body hover:border-accent/50 hover:text-fg"
+            >
+              GitHub repo
+            </a>
+          </div>
+        </div>
+      </section>
 
       {/* Filters bar */}
       <div className="flex items-center gap-4 flex-wrap">
