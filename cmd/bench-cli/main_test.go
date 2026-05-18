@@ -146,6 +146,115 @@ func TestApplyLabFlagOverrides_PropagatesRunsDir(t *testing.T) {
 	}
 }
 
+func TestApplyLabFlagOverrides_PropagatesRunParityFlags(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.Default()
+	cfg.A2AAgentURL = "https://agent.example/rpc"
+	cfg.ClusterName = "cluster-a"
+	cfg.SystemPromptFile = "prompts/system.md"
+	cfg.SkillFile = "skills/k8s.md"
+	cfg.SkillID = "k8s-admin"
+	cfg.SkillVersion = "2026.05"
+	cfg.SkillSource = "local-file"
+	cfg.SkillSHA256 = "abc123"
+	cfg.MCPServer = "npx -y kubernetes-mcp-server"
+	cfg.ToolServerID = "kubernetes-mcp"
+	cfg.ToolServerVersion = "1.2.3"
+	cfg.ReportID = "report-a"
+	cfg.ContractVersion = "v1.2.0"
+	cfg.Parallel = 2
+	cfg.DatabaseURL = "postgres://bench"
+	cfg.MemoryWindow = 4
+	cfg.ReuseCluster = true
+	cfg.EvidenceDir = "evidence-in"
+	cfg.BenchURL = "https://bench.example"
+	cfg.BenchAPIKey = "secret"
+
+	labCfg := tui.DefaultLabConfig()
+	flags := pflag.NewFlagSet("lab", pflag.ContinueOnError)
+	flags.String("a2a-agent-url", "", "")
+	flags.String("cluster-name", "", "")
+	flags.String("system-prompt-file", "", "")
+	flags.String("skill-file", "", "")
+	flags.String("skill-id", "", "")
+	flags.String("skill-version", "", "")
+	flags.String("skill-source", "", "")
+	flags.String("skill-sha256", "", "")
+	flags.String("mcp-server", "", "")
+	flags.String("tool-server-id", "", "")
+	flags.String("tool-server-version", "", "")
+	flags.String("report-id", "", "")
+	flags.String("contract-version", "", "")
+	flags.Int("parallel", 1, "")
+	flags.String("database-url", "", "")
+	flags.Int("memory-window", -1, "")
+	flags.Bool("reuse-cluster", false, "")
+	flags.String("evidence-dir", "", "")
+	flags.String("bench-url", "", "")
+	flags.String("bench-api-key", "", "")
+
+	for name, value := range map[string]string{
+		"a2a-agent-url":       cfg.A2AAgentURL,
+		"cluster-name":        cfg.ClusterName,
+		"system-prompt-file":  cfg.SystemPromptFile,
+		"skill-file":          cfg.SkillFile,
+		"skill-id":            cfg.SkillID,
+		"skill-version":       cfg.SkillVersion,
+		"skill-source":        cfg.SkillSource,
+		"skill-sha256":        cfg.SkillSHA256,
+		"mcp-server":          cfg.MCPServer,
+		"tool-server-id":      cfg.ToolServerID,
+		"tool-server-version": cfg.ToolServerVersion,
+		"report-id":           cfg.ReportID,
+		"contract-version":    cfg.ContractVersion,
+		"database-url":        cfg.DatabaseURL,
+		"evidence-dir":        cfg.EvidenceDir,
+		"bench-url":           cfg.BenchURL,
+		"bench-api-key":       cfg.BenchAPIKey,
+	} {
+		if err := flags.Set(name, value); err != nil {
+			t.Fatalf("set %s: %v", name, err)
+		}
+	}
+	if err := flags.Set("parallel", "2"); err != nil {
+		t.Fatal(err)
+	}
+	if err := flags.Set("memory-window", "4"); err != nil {
+		t.Fatal(err)
+	}
+	if err := flags.Set("reuse-cluster", "true"); err != nil {
+		t.Fatal(err)
+	}
+
+	applyLabFlagOverrides(&labCfg, cfg, flags)
+
+	if labCfg.A2AAgentURL != cfg.A2AAgentURL || labCfg.ClusterName != cfg.ClusterName {
+		t.Fatalf("a2a/cluster = %q/%q", labCfg.A2AAgentURL, labCfg.ClusterName)
+	}
+	if labCfg.SystemPromptFile != cfg.SystemPromptFile || labCfg.SkillFile != cfg.SkillFile {
+		t.Fatalf("prompt files = %q/%q", labCfg.SystemPromptFile, labCfg.SkillFile)
+	}
+	if labCfg.SkillID != cfg.SkillID || labCfg.SkillVersion != cfg.SkillVersion || labCfg.SkillSource != cfg.SkillSource || labCfg.SkillSHA256 != cfg.SkillSHA256 {
+		t.Fatalf("skill identity = %q/%q/%q/%q", labCfg.SkillID, labCfg.SkillVersion, labCfg.SkillSource, labCfg.SkillSHA256)
+	}
+	if labCfg.MCPServer != cfg.MCPServer || labCfg.ToolServerID != cfg.ToolServerID || labCfg.ToolServerVersion != cfg.ToolServerVersion {
+		t.Fatalf("tool server = %q/%q/%q", labCfg.MCPServer, labCfg.ToolServerID, labCfg.ToolServerVersion)
+	}
+	if labCfg.ReportID != cfg.ReportID || labCfg.ContractVersion != cfg.ContractVersion {
+		t.Fatalf("report/contract = %q/%q", labCfg.ReportID, labCfg.ContractVersion)
+	}
+	if labCfg.Parallel != cfg.Parallel || labCfg.DatabaseURL != cfg.DatabaseURL {
+		t.Fatalf("parallel/database = %d/%q", labCfg.Parallel, labCfg.DatabaseURL)
+	}
+	if labCfg.MemoryWindow != cfg.MemoryWindow || !labCfg.ReuseCluster {
+		t.Fatalf("memory/reuse = %d/%v", labCfg.MemoryWindow, labCfg.ReuseCluster)
+	}
+	if labCfg.EvidenceDir != cfg.EvidenceDir || labCfg.BenchURL != cfg.BenchURL || labCfg.BenchAPIKey != cfg.BenchAPIKey {
+		t.Fatalf("reporting paths = %q/%q/%q", labCfg.EvidenceDir, labCfg.BenchURL, labCfg.BenchAPIKey)
+	}
+}
+
 func TestBuildVersionString_UsesBuildMetadata(t *testing.T) {
 	// Not parallel: mutates package-level version/commit/date vars.
 	originalVersion, originalCommit, originalDate := version, commit, date

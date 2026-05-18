@@ -8,9 +8,11 @@ import (
 	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/artifact"
 	"github.com/vitas/evidra-bench/pkg/environment"
 	"github.com/vitas/evidra-bench/pkg/harness"
+	"github.com/vitas/evidra-bench/pkg/report"
+	"github.com/vitas/evidra-bench/pkg/store"
 )
 
 func (a *App) runScenario() tea.Cmd {
@@ -21,23 +23,7 @@ func (a *App) runScenario() tea.Cmd {
 	a.runErr = nil
 
 	return func() tea.Msg {
-		cfg := config.Config{
-			Scenario:     s.ID,
-			ScenariosDir: a.scenariosDir,
-			Adapter:      a.cfg.Adapter,
-			Provider:     a.cfg.Provider,
-			AgentCommand: a.cfg.AgentCommand,
-			Model:        a.cfg.Model,
-			Timeout:      a.cfg.TimeoutDuration(),
-			DryRun:       a.cfg.DryRun,
-			RunsDir:      a.runsDir,
-			ClusterName:  "bench-cli",
-			EvidenceDir:  a.cfg.EvidenceDir,
-			BenchURL:     a.cfg.BenchURL,
-			BenchAPIKey:  a.cfg.BenchAPIKey,
-			MemoryWindow: a.cfg.MemoryWindow,
-			ReuseCluster: a.cfg.ReuseCluster,
-		}
+		cfg := buildRunConfig(s, a.scenariosDir, a.cfg)
 
 		if a.cfg.DryRun {
 			log.SetOutput(os.Stderr)
@@ -52,14 +38,13 @@ func (a *App) runScenario() tea.Cmd {
 		if agentCommandRequired(a.cfg) {
 			return RunFinishedMsg{Err: fmt.Errorf("agent command not set — press 'e' to configure")}
 		}
+		if err := cfg.Validate(); err != nil {
+			return RunFinishedMsg{Err: err}
+		}
 
 		ctx := context.Background()
 
 		// Acquire a lease from the provisioner.
-		cfg.EnvironmentProvider = a.cfg.EnvironmentProvider
-		if cfg.EnvironmentProvider == "" {
-			cfg.EnvironmentProvider = "kind"
-		}
 		providerName := cfg.EnvironmentProvider
 		providers := map[string]environment.ClusterLifecycle{
 			"kind": environment.NewKindProvider(),
@@ -79,8 +64,27 @@ func (a *App) runScenario() tea.Cmd {
 		}
 		defer func() { _ = lease.Release(ctx) }()
 
-		deps := a.harnessDeps
-		deps.EnvProvider = lease.Provider
+		deps, depErr := buildRunDeps(a.harnessDeps, cfg.Adapter, lease.Provider)
+		if depErr != nil {
+			return RunFinishedMsg{Err: depErr}
+		}
+		deps.Writer = artifact.NewWriter(cfg.RunsDir)
+		deps.Reporter = report.NewReporter(report.Config{
+			EvidencePath: filepath.Join(cfg.RunsDir, "evidence"),
+		})
+		if deps.Store == nil {
+			resultsStore, storeErr := store.Open(cfg.RunsDir)
+			if storeErr != nil {
+				log.Printf("[tui] warning: could not open results store: %v", storeErr)
+			} else {
+				deps.Store = resultsStore
+				defer func() {
+					if closeErr := resultsStore.Close(); closeErr != nil {
+						log.Printf("[tui] warning: could not close results store: %v", closeErr)
+					}
+				}()
+			}
+		}
 		h := harness.New(deps)
 		result, err := h.Run(ctx, harness.RunRequest{
 			Config:         cfg,
@@ -93,5 +97,5 @@ func (a *App) runScenario() tea.Cmd {
 }
 
 func agentCommandRequired(cfg LabConfig) bool {
-	return cfg.Provider == "" && cfg.AgentCommand == ""
+	return cfg.Adapter != "a2a" && cfg.Provider == "" && cfg.AgentCommand == ""
 }

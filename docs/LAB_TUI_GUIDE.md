@@ -10,7 +10,7 @@ tags:
 
 # Lab TUI User Guide
 
-`bench-cli lab` is an interactive terminal UI for browsing, running, and reviewing benchmark scenarios.
+`bench-cli lab` is an interactive terminal UI for browsing, running, and reviewing benchmark scenarios. It is intended to cover the day-to-day single-scenario workflow of `bench-cli run` while keeping batch, certification, service, and report-pack workflows in the regular CLI.
 
 ## Quick Start
 
@@ -48,7 +48,7 @@ Fix a pod stuck in CrashLoopBackOff
   tags: pod, crashloop, container
   checks: deployment-ready/app
 
-j/k:nav  /:filter  t:category  h:history  d:dry-run  e:config  enter:run  ?:help  q:quit
+j/k:nav  /:filter  t:category  h:history  a:artifacts  d:dry-run  e:config  enter:run  ?:help  q:quit
 ```
 
 **Columns:**
@@ -63,6 +63,7 @@ j/k:nav  /:filter  t:category  h:history  d:dry-run  e:config  enter:run  ?:help
 - `t` — cycle category filter: all → kubernetes → helm → argocd → all
 - `Enter` — run the selected scenario
 - `h` — show run history for selected scenario
+- `a` — show latest local artifacts for selected scenario
 - `d` — toggle dry-run mode
 - `e` — edit run configuration
 - `?` — show help
@@ -79,6 +80,34 @@ PASS  scenario=broken-deployment  duration=45.2s
 
 Press any key to return
 ```
+
+When a run writes artifacts, press `a` from the result view to inspect them without leaving the TUI.
+
+### Artifact View (`a`)
+
+Shows local run evidence for the latest selected run, or for the just-completed run when opened from the result view.
+
+```
+Run Artifacts  runs/20260518-120000-broken-deployment-cli
+[summary] [autopsy] [timeline] [transcript] [tool-calls] [scorecard*]
+
+Autopsy
+  outcome: fail
+  primary: missed_diagnostic_step
+  confidence: medium
+
+Run failed with primary failure missed_diagnostic_step.
+
+left/right:tab  esc/q:back  * missing artifact
+```
+
+Tabs:
+- `summary` — which artifact files are available
+- `autopsy` — parsed `failure-autopsy.json`
+- `timeline` — decision timeline derived from `tool-calls.json`
+- `transcript` — raw `transcript.txt`
+- `tool-calls` — formatted `tool-calls.json`
+- `scorecard` — formatted `scorecard.json`
 
 Failed checks show details:
 
@@ -114,21 +143,34 @@ The diff lines between runs show which checks changed between consecutive runs:
 
 ### Config View (`e`)
 
-Toggle adapter and dry-run mode:
+Toggle core run settings and review the full run configuration:
 
 ```
 Run Configuration
 
   [1] Adapter:       cli
   [2] Dry-run:       true
+  [3] Model:         sonnet
+  [4] Provider:      bifrost
       Agent command: /path/to/agent
       Timeout:       5m
+      MCP server:    npx -y kubernetes-mcp-server
+      Tool server:   kubernetes-mcp @ 1.2.3
+      Skill:         k8s-admin @ 2026.05
+      Report ID:     public-report
+      Contract:      v1.2.0
+      Cluster:       bench-cli
+      Environment:   kind
+      Memory window: -1
+      Reuse cluster: true
 
-1/2: toggle  esc: back
+1:adapter  2:dry-run  3:model  4:provider  esc:back
 ```
 
-Press `1` to toggle between `cli` and `mcp` adapter.
+Press `1` to cycle `cli`, `mcp`, and `a2a` adapter.
 Press `2` to toggle dry-run.
+Press `3` to cycle common model aliases.
+Press `4` to cycle provider mode.
 
 Configuration persists across sessions in `.bench-cli-lab.yaml`.
 
@@ -139,9 +181,33 @@ Configuration persists across sessions in `.bench-cli-lab.yaml`.
 ```
 --scenarios-dir    base directory for scenarios (default: scenarios)
 --runs-dir         output directory for run artifacts (default: runs)
---adapter          agent adapter type: cli or mcp (default: cli)
+--adapter          agent adapter type: cli, mcp, or a2a (default: cli)
+--a2a-agent-url    A2A agent URL
 --agent-command    command to invoke the agent
+--model            model for agent
+--provider         provider for Bench-owned tool-use loop
+--environment      environment provider: kind or k3d
+--timeout          agent execution timeout
+--reuse-cluster    reuse an existing local cluster
+--cluster-name     local cluster name
 --dry-run          start in dry-run mode
+--bench-url        Bench API URL for reporting
+--bench-api-key    Bench API key
+--evidence-dir     verifier evidence directory
+--memory-window    agent memory window (-1=full, 0=stateless, N=last N)
+--system-prompt-file
+--skill-file
+--skill-id
+--skill-version
+--skill-source
+--skill-sha256
+--mcp-server
+--tool-server-id
+--tool-server-version
+--report-id
+--contract-version
+--parallel
+--database-url
 ```
 
 CLI flags override saved configuration. Without flags, the TUI loads
@@ -153,10 +219,24 @@ The TUI saves your last-used settings to `.bench-cli-lab.yaml`:
 
 ```yaml
 adapter: cli
+environment_provider: kind
 agent_command: /path/to/agent
+model: sonnet
+provider: bifrost
+runs_dir: runs
+cluster_name: bench-cli
 timeout: 5m
 dry_run: false
-evidra_evidence_dir: ""
+memory_window: -1
+reuse_cluster: true
+mcp_server: npx -y kubernetes-mcp-server
+tool_server_id: kubernetes-mcp
+tool_server_version: 1.2.3
+skill_id: k8s-admin
+skill_version: "2026.05"
+report_id: public-report
+contract_version: v1.2.0
+evidence_dir: ""
 ```
 
 This is created automatically on first use. Edit with `e` inside the TUI
@@ -210,6 +290,8 @@ transcript.txt      # Agent transcript
 stdout.txt          # Agent stdout
 stderr.txt          # Agent stderr
 tool-calls.json     # Tool call log
+failure-autopsy.json # Deterministic failure or unsafe-pass analysis
+scorecard.json      # Signal scorecard when available
 ```
 
 The history view reads these artifacts to show past results.

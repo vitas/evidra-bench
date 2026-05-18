@@ -18,6 +18,7 @@ const (
 	viewConfig
 	viewHelp
 	viewHistory
+	viewArtifact
 )
 
 // RunFinishedMsg is sent when a scenario run completes.
@@ -49,6 +50,8 @@ type App struct {
 	statsMap     map[string]ScenarioStats
 	dbTotal      int
 	dbPassRate   string
+	artifacts    *RunArtifacts
+	artifactTab  int
 }
 
 // NewApp creates a new TUI app.

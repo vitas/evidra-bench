@@ -38,11 +38,16 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		a.view = viewCatalog
 		return a, nil
 	case viewResult:
+		if key == "a" && a.runResult != nil && a.openArtifactsForDir(a.runResult.ArtifactDir) {
+			return a, nil
+		}
 		a.view = viewCatalog
 		return a, nil
 	case viewHistory:
 		a.view = viewCatalog
 		return a, nil
+	case viewArtifact:
+		return a.handleArtifactKey(msg)
 	case viewConfig:
 		return a.handleConfigKey(msg)
 	case viewRunning:
@@ -92,11 +97,29 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if len(a.filtered) > 0 {
 			a.view = viewHistory
 		}
+	case "a":
+		a.openLatestArtifactsForSelectedScenario()
 	case "?":
 		a.view = viewHelp
 	case "enter":
 		if len(a.filtered) > 0 {
 			return a, a.runScenario()
+		}
+	}
+	return a, nil
+}
+
+func (a *App) handleArtifactKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	key := msg.String()
+	switch key {
+	case "esc", "q", "backspace":
+		a.view = viewCatalog
+	case "right", "l", "tab":
+		a.artifactTab = (a.artifactTab + 1) % len(artifactTabs)
+	case "left", "h", "shift+tab":
+		a.artifactTab--
+		if a.artifactTab < 0 {
+			a.artifactTab = len(artifactTabs) - 1
 		}
 	}
 	return a, nil
@@ -128,11 +151,7 @@ func (a *App) handleConfigKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		_ = SaveLabConfig(a.cfgPath, a.cfg)
 		a.view = viewCatalog
 	case "1":
-		if a.cfg.Adapter == "cli" {
-			a.cfg.Adapter = "mcp"
-		} else {
-			a.cfg.Adapter = "cli"
-		}
+		a.cycleAdapter()
 	case "2":
 		a.cfg.DryRun = !a.cfg.DryRun
 	case "3":
@@ -141,6 +160,20 @@ func (a *App) handleConfigKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		a.cycleProvider()
 	}
 	return a, nil
+}
+
+// AdapterChoices are the available adapters for cycling.
+var AdapterChoices = []string{"cli", "mcp", "a2a"}
+
+func (a *App) cycleAdapter() {
+	idx := 0
+	for i, adapter := range AdapterChoices {
+		if adapter == a.cfg.Adapter {
+			idx = i
+			break
+		}
+	}
+	a.cfg.Adapter = AdapterChoices[(idx+1)%len(AdapterChoices)]
 }
 
 // ProviderChoices are the available providers for cycling.

@@ -20,6 +20,8 @@ func (a *App) View() string {
 		return a.renderConfig()
 	case viewHistory:
 		return a.renderHistory()
+	case viewArtifact:
+		return a.renderArtifact()
 	default:
 		return a.renderCatalog()
 	}
@@ -114,7 +116,7 @@ func (a *App) renderCatalog() string {
 		b.WriteString(a.query)
 		b.WriteString("_")
 	} else {
-		b.WriteString(dimStyle.Render("j/k:nav  /:filter  t:cat  p:provider  m:model  h:history  d:dry-run  e:config  enter:run  ?:help  q:quit"))
+		b.WriteString(dimStyle.Render("j/k:nav  /:filter  t:cat  p:provider  m:model  h:history  a:artifacts  d:dry-run  e:config  enter:run  ?:help  q:quit"))
 	}
 
 	return b.String()
@@ -194,7 +196,11 @@ func (a *App) renderResult() string {
 	}
 
 	b.WriteString("\n")
-	b.WriteString(dimStyle.Render("Press any key to return"))
+	if r.ArtifactDir != "" {
+		b.WriteString(dimStyle.Render(fmt.Sprintf("artifacts: %s\n", r.ArtifactDir)))
+	}
+	b.WriteString("\n")
+	b.WriteString(dimStyle.Render("a:artifacts  any other key:return"))
 	return b.String()
 }
 
@@ -220,13 +226,67 @@ func (a *App) renderConfig() string {
 	fmt.Fprintf(&b, "  [4] Provider:      %s\n", providerDisplay)
 	fmt.Fprintf(&b, "      Agent command: %s\n", a.cfg.AgentCommand)
 	fmt.Fprintf(&b, "      Timeout:       %s\n", a.cfg.Timeout)
+	if a.cfg.A2AAgentURL != "" {
+		fmt.Fprintf(&b, "      A2A URL:       %s\n", a.cfg.A2AAgentURL)
+	}
+	if a.cfg.MCPServer != "" {
+		fmt.Fprintf(&b, "      MCP server:    %s\n", a.cfg.MCPServer)
+	}
+	if toolServer := formatIdentityVersion(a.cfg.ToolServerID, a.cfg.ToolServerVersion); toolServer != "" {
+		fmt.Fprintf(&b, "      Tool server:   %s\n", toolServer)
+	}
+	if skill := formatIdentityVersion(a.cfg.SkillID, a.cfg.SkillVersion); skill != "" {
+		fmt.Fprintf(&b, "      Skill:         %s\n", skill)
+	}
+	if a.cfg.SkillFile != "" {
+		fmt.Fprintf(&b, "      Skill file:    %s\n", a.cfg.SkillFile)
+	}
+	if a.cfg.SystemPromptFile != "" {
+		fmt.Fprintf(&b, "      System prompt: %s\n", a.cfg.SystemPromptFile)
+	}
+	if a.cfg.ReportID != "" {
+		fmt.Fprintf(&b, "      Report ID:     %s\n", a.cfg.ReportID)
+	}
+	if a.cfg.ContractVersion != "" {
+		fmt.Fprintf(&b, "      Contract:      %s\n", a.cfg.ContractVersion)
+	}
+	if a.cfg.ClusterName != "" {
+		fmt.Fprintf(&b, "      Cluster:       %s\n", a.cfg.ClusterName)
+	}
+	if a.cfg.EnvironmentProvider != "" {
+		fmt.Fprintf(&b, "      Environment:   %s\n", a.cfg.EnvironmentProvider)
+	}
+	fmt.Fprintf(&b, "      Memory window: %d\n", a.cfg.MemoryWindow)
+	fmt.Fprintf(&b, "      Reuse cluster: %v\n", a.cfg.ReuseCluster)
+	if a.cfg.Parallel > 0 {
+		fmt.Fprintf(&b, "      Parallel:      %d\n", a.cfg.Parallel)
+	}
+	if a.cfg.DatabaseURL != "" {
+		fmt.Fprintf(&b, "      Database URL:  set\n")
+	}
+	if a.cfg.BenchURL != "" {
+		fmt.Fprintf(&b, "      Bench URL:     %s\n", a.cfg.BenchURL)
+	}
+	if a.cfg.BenchAPIKey != "" {
+		fmt.Fprintf(&b, "      Bench API key: set\n")
+	}
 	if a.cfg.EvidenceDir != "" {
 		fmt.Fprintf(&b, "      Evidence dir:  %s\n", a.cfg.EvidenceDir)
 	}
 
 	b.WriteString("\n")
-	b.WriteString(dimStyle.Render("1-4: toggle  esc: back"))
+	b.WriteString(dimStyle.Render("1:adapter  2:dry-run  3:model  4:provider  esc:back"))
 	return b.String()
+}
+
+func formatIdentityVersion(id, version string) string {
+	if id == "" {
+		return ""
+	}
+	if version == "" {
+		return id
+	}
+	return id + " @ " + version
 }
 
 func (a *App) renderHelp() string {
@@ -238,13 +298,14 @@ func (a *App) renderHelp() string {
 	b.WriteString("\n\n")
 	b.WriteString("  j/k, arrows   Navigate scenario list\n")
 	b.WriteString("  /             Search by text (id, title, tags)\n")
-	b.WriteString("  t             Cycle category filter (all/kubernetes/helm/argocd)\n")
+	b.WriteString("  t             Cycle category filter\n")
 	b.WriteString("  Enter         Run selected scenario\n")
 	b.WriteString("  p             Cycle provider (bifrost/claude/none)\n")
 	b.WriteString("  m             Cycle model (sonnet/haiku/opus/default)\n")
 	b.WriteString("  h             Show run history for selected scenario\n")
+	b.WriteString("  a             Show latest run artifacts for selected scenario\n")
 	b.WriteString("  d             Toggle dry-run mode\n")
-	b.WriteString("  e             Edit run configuration\n")
+	b.WriteString("  e             Review/edit run configuration toggles\n")
 	b.WriteString("  ?             Show this help\n")
 	b.WriteString("  q             Quit\n")
 	b.WriteString("\n")
@@ -253,6 +314,42 @@ func (a *App) renderHelp() string {
 	fmt.Fprintf(&b, "  %s = last run failed\n", lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render("F"))
 	b.WriteString("\n")
 	b.WriteString(dimStyle.Render("Press any key to return"))
+	return b.String()
+}
+
+func (a *App) renderArtifact() string {
+	if a.artifacts == nil {
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render("No artifacts loaded\n\nesc: back")
+	}
+	if a.artifactTab < 0 || a.artifactTab >= len(artifactTabs) {
+		a.artifactTab = 0
+	}
+	active := artifactTabs[a.artifactTab]
+	var b strings.Builder
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("99"))
+	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+
+	b.WriteString(headerStyle.Render("Run Artifacts"))
+	b.WriteString(dimStyle.Render(fmt.Sprintf("  %s", a.artifacts.Dir)))
+	b.WriteString("\n")
+	for i, tab := range artifactTabs {
+		label := string(tab)
+		if !a.artifacts.Has(tab) {
+			label += "*"
+		}
+		style := dimStyle
+		if i == a.artifactTab {
+			style = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
+		}
+		b.WriteString(style.Render("[" + label + "]"))
+		if i < len(artifactTabs)-1 {
+			b.WriteString(" ")
+		}
+	}
+	b.WriteString("\n\n")
+	b.WriteString(a.artifacts.Render(active))
+	b.WriteString("\n")
+	b.WriteString(dimStyle.Render("\nleft/right:tab  esc/q:back  * missing artifact"))
 	return b.String()
 }
 
