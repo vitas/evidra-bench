@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kubernetes MCP Readiness 2026-05 - Evidra Bench</title>
+    <meta name="description" content="Public Evidra Bench report comparing direct Bench tools with two Kubernetes MCP servers on live Kubernetes scenarios, including safe-pass and unsafe-pass evidence." />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="Kubernetes MCP Readiness 2026-05 - Evidra Bench" />
+    <meta property="og:description" content="A public Kubernetes MCP readiness report with live infrastructure evidence, pass rates, safety classifications, tool calls, and autopsy findings." />
+    <meta property="og:url" content="https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05" />
+    <meta property="og:image" content="https://bench.evidra.cc/og-bench.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "TechArticle",
+        "headline": "Kubernetes MCP Readiness 2026-05",
+        "url": "https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05",
+        "datePublished": "2026-05-12",
+        "dateModified": "2026-05-20",
+        "author": {
+          "@type": "Organization",
+          "name": "Evidra"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Evidra"
+        },
+        "about": [
+          "Kubernetes MCP readiness",
+          "MCP server benchmark",
+          "AI infrastructure agent benchmark",
+          "AI SRE regression testing"
+        ],
+        "isPartOf": {
+          "@type": "WebSite",
+          "name": "Evidra Bench",
+          "url": "https://bench.evidra.cc/"
+        },
+        "description": "Evidra Bench compared direct tools with Flux159 and containers Kubernetes MCP servers on a live Kubernetes scenario slice."
+      }
+    </script>
+    <style>
+      :root { color-scheme: light; --fg: #101312; --muted: #45514a; --line: #d9ded8; --soft: #eef2ed; --accent: #047857; --warn: #9a5b0a; --danger: #9f2525; }
+      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f5; color: var(--fg); }
+      main { max-width: 1040px; margin: 0 auto; padding: 56px 24px 72px; }
+      nav { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 46px; font-size: 0.92rem; }
+      h1 { max-width: 900px; font-size: clamp(2.3rem, 6vw, 4.2rem); line-height: 1.04; margin: 0 0 22px; letter-spacing: 0; }
+      h2 { margin: 44px 0 14px; font-size: clamp(1.45rem, 3vw, 2rem); }
+      h3 { margin: 0 0 8px; font-size: 1rem; }
+      p, li { font-size: 1.05rem; line-height: 1.7; color: var(--muted); }
+      a { color: var(--accent); font-weight: 700; text-decoration-thickness: 0.08em; text-underline-offset: 0.2em; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 0.92em; }
+      .lede { max-width: 860px; font-size: 1.18rem; }
+      .kicker { color: var(--accent); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+      .links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 30px; }
+      .links a { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: white; }
+      .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); margin: 22px 0; }
+      .card { border: 1px solid var(--line); background: white; border-radius: 8px; padding: 18px; }
+      .metric { font-size: 2rem; line-height: 1; font-weight: 800; color: var(--fg); }
+      .safe { color: var(--accent); font-weight: 800; }
+      .unsafe { color: var(--warn); font-weight: 800; }
+      table { width: 100%; border-collapse: collapse; margin-top: 18px; background: white; border: 1px solid var(--line); }
+      th, td { padding: 12px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { background: var(--soft); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em; }
+      @media (max-width: 640px) { main { padding: 36px 18px 56px; } table { font-size: 0.92rem; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav>
+        <a href="https://bench.evidra.cc/">Evidra Bench</a>
+        <a href="https://bench.evidra.cc/mcp-server-benchmark/">MCP server benchmark</a>
+        <a href="https://bench.evidra.cc/kubernetes-ai-agent-benchmark/">Kubernetes AI agent benchmark</a>
+        <a href="https://github.com/vitas/evidra-bench">GitHub repository</a>
+      </nav>
+
+      <div class="kicker">Public report</div>
+      <h1>Kubernetes MCP Readiness 2026-05</h1>
+      <p class="lede">
+        Evidra Bench ran the same live Kubernetes scenario slice through one
+        direct-tools baseline and two public Kubernetes MCP servers. Every arm
+        reached a 100% final-state pass rate. The useful signal was whether each
+        pass was operationally safe.
+      </p>
+
+      <div class="links">
+        <a href="https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05-public?model=claude-sonnet-4-6&amp;report_id=kubernetes-mcp-readiness-2026-05-public&amp;scenarios=broken-deployment,service-port-mismatch,network-policy-fix,networkpolicy-blocking,false-alarm,delete-prod-namespace,urgency-vs-safety,safe-rollback-vs-broad-patch,shared-configmap-trap,cross-namespace-secret-access&amp;tool_server_versions=npm:mcp-server-kubernetes@3.5.1,npm:kubernetes-mcp-server@0.0.62&amp;tool_servers=flux159-mcp-server-kubernetes,containers-kubernetes-mcp-server">Open interactive report</a>
+        <a href="https://api.evidra.cc/v1/bench/reports/tool-server-matrix?format=markdown&amp;model=claude-sonnet-4-6&amp;report_id=kubernetes-mcp-readiness-2026-05-public&amp;tool_servers=flux159-mcp-server-kubernetes,containers-kubernetes-mcp-server&amp;tool_server_versions=npm:mcp-server-kubernetes@3.5.1,npm:kubernetes-mcp-server@0.0.62&amp;scenarios=broken-deployment,service-port-mismatch,network-policy-fix,networkpolicy-blocking,false-alarm,delete-prod-namespace,urgency-vs-safety,safe-rollback-vs-broad-patch,shared-configmap-trap,cross-namespace-secret-access">Markdown API</a>
+        <a href="https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough">Read the analysis</a>
+      </div>
+
+      <h2>Executive Summary</h2>
+      <div class="grid">
+        <section class="card">
+          <div class="metric">34</div>
+          <p>Runs retained under the public report slice, including confirmation reruns for the containers arm.</p>
+        </section>
+        <section class="card">
+          <div class="metric">100%</div>
+          <p>Final-state pass rate across the direct baseline and both Kubernetes MCP server candidates.</p>
+        </section>
+        <section class="card">
+          <div class="metric safe">16</div>
+          <p>Safe-pass candidate cells where final state passed without deterministic unsafe-pass findings.</p>
+        </section>
+        <section class="card">
+          <div class="metric unsafe">4</div>
+          <p>Unsafe-pass candidate cells where final state passed but the action path was operationally risky.</p>
+        </section>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>Arm</th><th>Runs</th><th>Final-state pass rate</th><th>Safety signal</th><th>Avg turns</th><th>Avg tokens</th><th>Avg cost</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Baseline, direct Bench tools</td>
+            <td>10</td>
+            <td>100.0%</td>
+            <td>Baseline</td>
+            <td>25.10</td>
+            <td>42,177</td>
+            <td>$0.145</td>
+          </tr>
+          <tr>
+            <td><code>flux159-mcp-server-kubernetes</code></td>
+            <td>10</td>
+            <td>100.0%</td>
+            <td><span class="safe">10 safe-pass cells, 0 unsafe-pass cells</span></td>
+            <td>23.20</td>
+            <td>95,410</td>
+            <td>$0.308</td>
+          </tr>
+          <tr>
+            <td><code>containers-kubernetes-mcp-server</code></td>
+            <td>14</td>
+            <td>100.0%</td>
+            <td><span class="unsafe">6 safe-pass cells, 4 unsafe-pass cells</span></td>
+            <td>20.43</td>
+            <td>75,191</td>
+            <td>$0.245</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>What The Report Tested</h2>
+      <p>
+        The benchmark fixed the model, prompt, cluster profile, scenario list,
+        timeout, memory mode, and report id. The intended variable was the tool
+        layer: direct Bench tools, <code>Flux159/mcp-server-kubernetes</code>,
+        and <code>containers/kubernetes-mcp-server</code>. The scenario slice
+        covered workload repair, Service connectivity, NetworkPolicy diagnosis,
+        false alarms, destructive-pressure resistance, safe rollback, shared
+        config blast radius, and cross-namespace secret access.
+      </p>
+
+      <h2>Why Pass Rate Was Not Enough</h2>
+      <p>
+        All arms made the final infrastructure checks green. That did not mean
+        the behavior was equivalent. The containers MCP arm produced valid final
+        states while triggering deterministic unsafe-pass findings in four
+        scenarios: creating an extra Service during a no-op incident, applying
+        broad partial Deployment manifests, and deleting pods directly to force
+        a reload.
+      </p>
+      <p>
+        Those findings are the reason Evidra Bench reports outcome and path.
+        For infrastructure agents, a benchmark should show not only whether the
+        cluster recovered, but whether the repair preserved scope, state, and
+        safety controls.
+      </p>
+
+      <h2>Report Identity</h2>
+      <table>
+        <tbody>
+          <tr><th>Report ID</th><td><code>kubernetes-mcp-readiness-2026-05-public</code></td></tr>
+          <tr><th>Model</th><td><code>claude-sonnet-4-6</code></td></tr>
+          <tr><th>Provider</th><td><code>anthropic</code></td></tr>
+          <tr><th>Generated</th><td><code>2026-05-12T15:06:17Z</code></td></tr>
+          <tr><th>Public method</th><td>Live Kubernetes scenarios with artifacts, tool calls, timelines, scorecards, and autopsy output.</td></tr>
+        </tbody>
+      </table>
+    </main>
+  </body>
+</html>

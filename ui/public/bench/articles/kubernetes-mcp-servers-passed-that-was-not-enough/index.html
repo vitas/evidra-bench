@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kubernetes MCP Servers Passed. That Was Not Enough. - Evidra Bench</title>
+    <meta name="description" content="Kubernetes MCP servers passed a live Evidra Bench report, but unsafe-pass evidence showed why infrastructure agent benchmarks need more than pass or fail." />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="Kubernetes MCP Servers Passed. That Was Not Enough. - Evidra Bench" />
+    <meta property="og:description" content="Final-state pass rate hid real behavioral differences in a live Kubernetes MCP readiness benchmark." />
+    <meta property="og:url" content="https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough" />
+    <meta property="og:image" content="https://bench.evidra.cc/og-bench.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": "Kubernetes MCP Servers Passed. That Was Not Enough.",
+        "url": "https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough",
+        "datePublished": "2026-05-12",
+        "dateModified": "2026-05-20",
+        "author": {
+          "@type": "Organization",
+          "name": "Evidra"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Evidra"
+        },
+        "about": [
+          "Kubernetes MCP server benchmark",
+          "AI infrastructure agent safety",
+          "unsafe-pass autopsy",
+          "AI SRE regression testing"
+        ],
+        "isPartOf": {
+          "@type": "WebSite",
+          "name": "Evidra Bench",
+          "url": "https://bench.evidra.cc/"
+        },
+        "description": "A public article explaining why final-state pass rate is too weak for infrastructure-agent evaluation."
+      }
+    </script>
+    <style>
+      :root { color-scheme: light; --fg: #101312; --muted: #45514a; --line: #d9ded8; --soft: #eef2ed; --accent: #047857; --warn: #9a5b0a; }
+      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f5; color: var(--fg); }
+      main { max-width: 900px; margin: 0 auto; padding: 56px 24px 72px; }
+      nav { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 46px; font-size: 0.92rem; }
+      h1 { max-width: 860px; font-size: clamp(2.35rem, 6vw, 4.2rem); line-height: 1.04; margin: 0 0 22px; letter-spacing: 0; }
+      h2 { margin: 44px 0 14px; font-size: clamp(1.45rem, 3vw, 2rem); }
+      p, li { font-size: 1.07rem; line-height: 1.72; color: var(--muted); }
+      blockquote { margin: 28px 0; padding: 2px 0 2px 20px; border-left: 4px solid var(--accent); color: var(--fg); }
+      blockquote p { color: var(--fg); font-size: 1.3rem; font-weight: 700; }
+      a { color: var(--accent); font-weight: 700; text-decoration-thickness: 0.08em; text-underline-offset: 0.2em; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 0.92em; }
+      .lede { font-size: 1.18rem; }
+      .kicker { color: var(--accent); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+      .links { display: flex; flex-wrap: wrap; gap: 16px; margin: 30px 0 42px; }
+      .links a { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: white; }
+      .callout { border: 1px solid var(--line); background: white; border-radius: 8px; padding: 18px; margin: 24px 0; }
+      table { width: 100%; border-collapse: collapse; margin-top: 18px; background: white; border: 1px solid var(--line); }
+      th, td { padding: 12px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { background: var(--soft); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em; }
+      @media (max-width: 640px) { main { padding: 36px 18px 56px; } table { font-size: 0.92rem; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav>
+        <a href="https://bench.evidra.cc/">Evidra Bench</a>
+        <a href="https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05">Primary report</a>
+        <a href="https://bench.evidra.cc/mcp-server-benchmark/">MCP server benchmark</a>
+        <a href="https://github.com/vitas/evidra-bench">GitHub repository</a>
+      </nav>
+
+      <div class="kicker">Benchmark analysis</div>
+      <h1>Kubernetes MCP Servers Passed. That Was Not Enough.</h1>
+      <p class="lede">
+        Kubernetes MCP servers passed our live benchmark. That was not the
+        interesting part. The interesting part was what happened on the way to
+        the green checks.
+      </p>
+
+      <div class="links">
+        <a href="https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05">Read the report</a>
+        <a href="https://bench.evidra.cc/open-infrastructure-agent-benchmarks/">Benchmark category guide</a>
+        <a href="mailto:bench@evidra.cc?subject=Private%20Agent%20Benchmark%20Request">Commission a benchmark</a>
+      </div>
+
+      <p>
+        In May 2026, Evidra Bench ran public Kubernetes MCP readiness reports.
+        The primary report used Claude Sonnet 4.6 across ten live Kubernetes
+        scenarios. It compared a direct Bench tools baseline with
+        <code>Flux159/mcp-server-kubernetes</code> and
+        <code>containers/kubernetes-mcp-server</code>. Every arm reached a 100%
+        final-state pass rate.
+      </p>
+
+      <blockquote>
+        <p>Did the agent pass safely?</p>
+      </blockquote>
+
+      <p>
+        That is the harder question. For infrastructure agents, final pass/fail
+        is too weak. A system can end in a valid state after the agent changed
+        the wrong resource, deleted something unnecessary, applied a broad
+        manifest, or got lucky because the verifier checked only the final
+        contract.
+      </p>
+
+      <h2>The Signal</h2>
+      <table>
+        <thead>
+          <tr><th>Report</th><th>Candidate cells</th><th>Safe pass</th><th>Unsafe pass</th><th>Fail</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Claude Sonnet 4.6 primary report</td>
+            <td>20</td>
+            <td>16</td>
+            <td>4</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td>DeepSeek V4 Flash pilot</td>
+            <td>6</td>
+            <td>4</td>
+            <td>2</td>
+            <td>0</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>What Passed Unsafely Looked Like</h2>
+      <p>
+        The unsafe passes were concrete action paths that would matter in an
+        incident review. One false-alarm run created an extra Service even
+        though the workload was already healthy. Two runs recovered visible
+        symptoms with broad partial Deployment manifests. One shared ConfigMap
+        run forced recovery by deleting pods directly.
+      </p>
+      <p>
+        Final checks can miss those differences. A benchmark for infrastructure
+        agents needs to make them visible.
+      </p>
+
+      <h2>MCP Servers Change Behavior</h2>
+      <p>
+        A tool server changes what resources the model sees first, how verbose
+        tool results are, whether mutations are scoped or broad, how easy it is
+        to apply partial manifests, and whether tool calls are useful for audit.
+        The benchmark should measure that path, not just the green endpoint.
+      </p>
+
+      <div class="callout">
+        <p>
+          The sample is too small to declare a permanent ranking of Kubernetes
+          MCP servers. The useful conclusion is narrower: final-state pass rate
+          hid real behavioral differences.
+        </p>
+      </div>
+
+      <h2>The Direction</h2>
+      <p>
+        Evidra Bench is built around live infrastructure exams with failure
+        autopsy. It should answer whether the agent identified the right root
+        cause, inspected enough evidence, preserved safety controls, avoided
+        touching healthy resources, chose a narrow repair, and produced evidence
+        a human can inspect.
+      </p>
+      <p>
+        If you build an AI SRE agent, Kubernetes MCP server, or infrastructure
+        automation tool, the question is no longer only whether it can pass. The
+        question is whether it can pass safely.
+      </p>
+    </main>
+  </body>
+</html>

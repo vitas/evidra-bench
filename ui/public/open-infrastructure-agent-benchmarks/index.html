@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Open Infrastructure Agent Benchmarks - Evidra Bench</title>
-    <meta name="description" content="A practical guide to open infrastructure agent benchmarks, how Evidra Bench measures live Kubernetes and MCP behavior, and how it differs from task datasets." />
+    <meta name="description" content="A practical guide to open infrastructure agent benchmarks, how Evidra Bench measures live Kubernetes and MCP behavior, and how it differs from task datasets and Kubeply Infra-Bench." />
     <meta name="robots" content="index,follow" />
     <link rel="canonical" href="https://bench.evidra.cc/open-infrastructure-agent-benchmarks/" />
     <meta property="og:type" content="article" />
@@ -23,7 +23,7 @@
         "headline": "Open Infrastructure Agent Benchmarks",
         "url": "https://bench.evidra.cc/open-infrastructure-agent-benchmarks/",
         "datePublished": "2026-05-17",
-        "dateModified": "2026-05-17",
+        "dateModified": "2026-05-20",
         "author": {
           "@type": "Organization",
           "name": "Evidra"
@@ -32,7 +32,7 @@
           "@type": "Organization",
           "name": "Evidra"
         },
-        "description": "A guide to infrastructure agent benchmarks and how Evidra Bench measures live Kubernetes, MCP server, and AI SRE behavior."
+        "description": "A guide to infrastructure agent benchmarks and how Evidra Bench measures live Kubernetes, MCP server, and AI SRE behavior, including comparison points for Kubeply Infra-Bench."
       }
     </script>
     <style>
@@ -145,6 +145,23 @@
           </tr>
         </tbody>
       </table>
+
+      <h2>Evidra Bench and Kubeply Infra-Bench</h2>
+      <p>
+        Kubeply Infra-Bench is part of the same emerging category: benchmarks
+        that ask whether AI agents can handle infrastructure work instead of
+        only answering static coding tasks. That competition is useful. Users
+        should compare benchmark scope, scenario realism, evidence quality,
+        repeatability, safety checks, and report transparency before deciding
+        which benchmark fits their agent or MCP server evaluation.
+      </p>
+      <p>
+        Evidra Bench focuses on live Kubernetes, GitOps, Terraform, cloud-ops,
+        MCP server, skill, and AI SRE regression workflows with artifacts,
+        timelines, tool calls, cost tracking, and unsafe-pass autopsy. If another
+        infra-bench suite covers a different slice of the problem, that gives
+        users more evidence, not less.
+      </p>
 
       <h2>How Evidra Bench Measures A Run</h2>
       <p>

@@ -39,6 +39,13 @@ require_contains ui/public/google8a0c3bd916294bb0.html "google-site-verification
 require_file ui/public/robots.txt
 require_contains ui/public/robots.txt "Sitemap: https://bench.evidra.cc/sitemap.xml"
 
+require_file ui/public/_redirects
+require_contains ui/public/_redirects "/bench/reports/kubernetes-mcp-readiness-2026-05 /bench/reports/kubernetes-mcp-readiness-2026-05/index.html 200"
+require_contains ui/public/_redirects "/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough /bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough/index.html 200"
+
+require_file ui/nginx.conf
+require_contains ui/nginx.conf 'try_files $uri $uri/index.html $uri/ /index.html;'
+
 require_file ui/public/sitemap.xml
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05</loc>"
@@ -65,7 +72,21 @@ require_file ui/public/open-infrastructure-agent-benchmarks/index.html
 require_contains ui/public/open-infrastructure-agent-benchmarks/index.html "Evidra Bench"
 require_contains ui/public/open-infrastructure-agent-benchmarks/index.html "infrastructure agent benchmark"
 require_contains ui/public/open-infrastructure-agent-benchmarks/index.html "Evidra Bench vs Harbor task datasets"
+require_contains ui/public/open-infrastructure-agent-benchmarks/index.html "Evidra Bench and Kubeply Infra-Bench"
 require_contains ui/public/open-infrastructure-agent-benchmarks/index.html "<link rel=\"canonical\" href=\"https://bench.evidra.cc/open-infrastructure-agent-benchmarks/\""
+
+require_file ui/public/bench/reports/kubernetes-mcp-readiness-2026-05/index.html
+require_contains ui/public/bench/reports/kubernetes-mcp-readiness-2026-05/index.html "<title>Kubernetes MCP Readiness 2026-05 - Evidra Bench</title>"
+require_contains ui/public/bench/reports/kubernetes-mcp-readiness-2026-05/index.html "<link rel=\"canonical\" href=\"https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05\""
+require_contains ui/public/bench/reports/kubernetes-mcp-readiness-2026-05/index.html "100% final-state pass rate"
+require_contains ui/public/bench/reports/kubernetes-mcp-readiness-2026-05/index.html "unsafe-pass"
+require_contains ui/public/bench/reports/kubernetes-mcp-readiness-2026-05/index.html "application/ld+json"
+
+require_file ui/public/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough/index.html
+require_contains ui/public/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough/index.html "<title>Kubernetes MCP Servers Passed. That Was Not Enough. - Evidra Bench</title>"
+require_contains ui/public/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough/index.html "<link rel=\"canonical\" href=\"https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough\""
+require_contains ui/public/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough/index.html "Did the agent pass safely?"
+require_contains ui/public/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough/index.html "application/ld+json"
 
 require_file README.md
 require_contains README.md "# Evidra Bench"
