@@ -47,6 +47,12 @@ require_file ui/nginx.conf
 require_contains ui/nginx.conf 'try_files $uri $uri/index.html $uri/ /index.html;'
 require_contains ui/nginx.conf 'location = /bench {'
 require_contains ui/nginx.conf 'location = /bench/ {'
+require_contains ui/nginx.conf 'location = /sitemap.xml {'
+require_contains ui/nginx.conf 'location = /sitemap.xml/ {'
+require_contains ui/nginx.conf 'return 301 /sitemap.xml;'
+require_contains ui/nginx.conf 'location = /robots.txt {'
+require_contains ui/nginx.conf 'location = /robots.txt/ {'
+require_contains ui/nginx.conf 'return 301 /robots.txt;'
 
 require_file ui/public/sitemap.xml
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/</loc>"
