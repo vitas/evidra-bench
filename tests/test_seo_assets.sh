@@ -47,6 +47,7 @@ require_file ui/nginx.conf
 require_contains ui/nginx.conf 'try_files $uri $uri/index.html $uri/ /index.html;'
 require_contains ui/nginx.conf 'location = /bench {'
 require_contains ui/nginx.conf 'location = /bench/ {'
+require_contains ui/nginx.conf 'X-Robots-Tag "noindex, follow" always;'
 require_contains ui/nginx.conf 'location = /sitemap.xml {'
 require_contains ui/nginx.conf 'location = /sitemap.xml/ {'
 require_contains ui/nginx.conf 'return 301 /sitemap.xml;'
@@ -62,6 +63,10 @@ require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/open-infras
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/kubernetes-ai-agent-benchmark/</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/mcp-server-benchmark/</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/ai-sre-regression-testing/</loc>"
+if grep -Eq '<loc>https://bench\.evidra\.cc/bench/(leaderboard|sample-report|mcp-readiness|scenarios)</loc>' ui/public/sitemap.xml; then
+  echo "FAIL: sitemap should not include SPA app routes with root canonical" >&2
+  exit 1
+fi
 
 for page in \
   ui/public/kubernetes-ai-agent-benchmark/index.html \
