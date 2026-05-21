@@ -50,10 +50,10 @@ require_contains ui/nginx.conf 'location = /bench/ {'
 require_contains ui/nginx.conf 'X-Robots-Tag "noindex, follow" always;'
 require_contains ui/nginx.conf 'location = /sitemap.xml {'
 require_contains ui/nginx.conf 'location = /sitemap.xml/ {'
-require_contains ui/nginx.conf 'return 301 /sitemap.xml;'
+require_contains ui/nginx.conf 'return 301 https://bench.evidra.cc/sitemap.xml;'
 require_contains ui/nginx.conf 'location = /robots.txt {'
 require_contains ui/nginx.conf 'location = /robots.txt/ {'
-require_contains ui/nginx.conf 'return 301 /robots.txt;'
+require_contains ui/nginx.conf 'return 301 https://bench.evidra.cc/robots.txt;'
 
 require_file ui/public/sitemap.xml
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/</loc>"
