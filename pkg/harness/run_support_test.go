@@ -2,6 +2,7 @@ package harness
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -72,6 +73,18 @@ func (s *sleepingAdapter) Run(ctx context.Context, _ adapter.RunInput) (*adapter
 	case <-timer.C:
 		return &adapter.RunResult{ExitCode: 0, Transcript: "done"}, nil
 	}
+}
+
+type failingAdapter struct {
+	result *adapter.RunResult
+	err    error
+}
+
+func (f *failingAdapter) Run(_ context.Context, _ adapter.RunInput) (*adapter.RunResult, error) {
+	if f.err == nil {
+		f.err = errors.New("adapter failed")
+	}
+	return f.result, f.err
 }
 
 type autopsyAdapter struct{}

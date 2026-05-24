@@ -292,7 +292,8 @@ Storage model:
 
 - `runs/bench.db` - SQLite, gitignored, queryable
 - `runs/results.jsonl` - append-only backup
-- run artifacts - transcript, tool calls, verifier output, scorecard, timeline
+- run artifacts - transcript, tool calls, verifier output, scorecard, timeline,
+  failure autopsy, run error, and run events
 
 Records include scenario, model, provider, adapter, pass/fail, duration, turns,
 memory window, prompt tokens, completion tokens, estimated cost, and checks.
@@ -305,6 +306,7 @@ memory window, prompt tokens, completion tokens, estimated cost, and checks.
 run scenarios
   -> write artifacts
   -> derive timeline and scorecard when available
+  -> preserve run error and lifecycle events for failed attempts
   -> audit expected signals
   -> store local and optional API results
 ```
@@ -328,6 +330,8 @@ runs/bench/<timestamp>/
     tool-calls.json
     timeline.json
     failure-autopsy.json
+    run-error.json
+    run-events.json
     scorecard.json
 ```
 

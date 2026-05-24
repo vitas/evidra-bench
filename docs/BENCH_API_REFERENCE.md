@@ -157,7 +157,9 @@ artifact fields:
   "transcript": "optional text transcript",
   "tool_calls": [],
   "timeline": { "total_steps": 0, "mutation_count": 0 },
-  "autopsy": { "outcome": "pass", "primary_failure": "" }
+  "autopsy": { "outcome": "pass", "primary_failure": "" },
+  "run_error": { "phase": "agent_run", "kind": "adapter_error" },
+  "run_events": [{ "phase": "run", "status": "started" }]
 }
 ```
 
@@ -239,6 +241,15 @@ Returns failure autopsy artifact JSON when the run has one. Current generated
 artifacts use `version: "autopsy.v1"` and include a deterministic `confidence`
 value. Older artifacts may omit `version`; clients should treat those as legacy
 v0 reports and continue rendering the common fields.
+
+### GET /v1/bench/runs/{id}/run-error
+
+Returns normalized failed-run error JSON when a run failed before or during the
+harness lifecycle.
+
+### GET /v1/bench/runs/{id}/run-events
+
+Returns lifecycle event JSON for the run attempt.
 
 ## Analytics
 

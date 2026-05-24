@@ -25,6 +25,8 @@ type RunBundle struct {
 	Timeline       json.RawMessage   `json:"timeline,omitempty"`
 	Checks         json.RawMessage   `json:"checks,omitempty"`
 	Autopsy        json.RawMessage   `json:"autopsy,omitempty"`
+	RunError       json.RawMessage   `json:"run_error,omitempty"`
+	RunEvents      json.RawMessage   `json:"run_events,omitempty"`
 	ChaosEnabled   bool              `json:"chaos_enabled,omitempty"`
 	ChaosMode      string            `json:"chaos_mode,omitempty"`
 	ChaosStepCount int               `json:"chaos_step_count,omitempty"`
@@ -117,6 +119,20 @@ func (w *Writer) Write(bundle RunBundle) (*WriteOutput, error) {
 	if len(bundle.Autopsy) > 0 {
 		if err := os.WriteFile(filepath.Join(runDir, "failure-autopsy.json"), bundle.Autopsy, 0644); err != nil {
 			return nil, fmt.Errorf("artifact.Writer.Write: write failure-autopsy.json: %w", err)
+		}
+	}
+
+	// Write run-error.json if present.
+	if len(bundle.RunError) > 0 {
+		if err := os.WriteFile(filepath.Join(runDir, "run-error.json"), bundle.RunError, 0644); err != nil {
+			return nil, fmt.Errorf("artifact.Writer.Write: write run-error.json: %w", err)
+		}
+	}
+
+	// Write run-events.json if present.
+	if len(bundle.RunEvents) > 0 {
+		if err := os.WriteFile(filepath.Join(runDir, "run-events.json"), bundle.RunEvents, 0644); err != nil {
+			return nil, fmt.Errorf("artifact.Writer.Write: write run-events.json: %w", err)
 		}
 	}
 

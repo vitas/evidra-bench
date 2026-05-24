@@ -193,3 +193,58 @@ func TestHandleGetAutopsy_404WhenMissing(t *testing.T) {
 		t.Fatalf("artifact type = %q, want failure_autopsy", repo.lastArtifactType)
 	}
 }
+
+func TestHandleGetRunErrorAndEvents_ReturnsJSON(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		path         string
+		artifactType string
+		body         []byte
+	}{
+		{
+			name:         "run error",
+			path:         "/v1/bench/runs/r1/run-error",
+			artifactType: "run_error",
+			body:         []byte(`{"phase":"agent_run","kind":"adapter_error"}`),
+		},
+		{
+			name:         "run events",
+			path:         "/v1/bench/runs/r1/run-events",
+			artifactType: "run_events",
+			body:         []byte(`[{"phase":"run","status":"started"},{"phase":"agent_run","status":"failed"}]`),
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			repo := &handlerRepo{
+				artifacts: map[string][]byte{
+					"r1:" + tt.artifactType: tt.body,
+				},
+			}
+			mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", tt.path, nil)
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+			}
+			if repo.lastArtifactType != tt.artifactType {
+				t.Fatalf("artifact type = %q, want %s", repo.lastArtifactType, tt.artifactType)
+			}
+			if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+				t.Fatalf("Content-Type = %q, want application/json", ct)
+			}
+			if !json.Valid(rec.Body.Bytes()) {
+				t.Fatalf("body is not JSON: %s", rec.Body.String())
+			}
+		})
+	}
+}

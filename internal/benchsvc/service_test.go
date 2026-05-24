@@ -358,12 +358,16 @@ func TestIngestRunRequest_JSONRoundtrip(t *testing.T) {
 
 	autopsy := json.RawMessage(`{"outcome":"fail","primary_failure":"retry_loop"}`)
 	timeline := json.RawMessage(`{"total_steps":2,"mutation_count":1}`)
+	runError := json.RawMessage(`{"phase":"agent_run","kind":"adapter_error"}`)
+	runEvents := json.RawMessage(`[{"phase":"run","status":"started"},{"phase":"agent_run","status":"failed"}]`)
 	req := IngestRunRequest{
 		RunRecord:  bench.RunRecord{ID: "r1", ScenarioID: "s1", Model: "m1"},
 		Transcript: "step 1\nstep 2",
 		ToolCalls:  json.RawMessage(`[{"tool":"kubectl","args":["get","pods"]}]`),
 		Timeline:   timeline,
 		Autopsy:    autopsy,
+		RunError:   runError,
+		RunEvents:  runEvents,
 	}
 
 	data, err := json.Marshal(req)
@@ -390,6 +394,12 @@ func TestIngestRunRequest_JSONRoundtrip(t *testing.T) {
 	}
 	if string(decoded.Autopsy) != string(autopsy) {
 		t.Errorf("Autopsy = %s, want %s", decoded.Autopsy, autopsy)
+	}
+	if string(decoded.RunError) != string(runError) {
+		t.Errorf("RunError = %s, want %s", decoded.RunError, runError)
+	}
+	if string(decoded.RunEvents) != string(runEvents) {
+		t.Errorf("RunEvents = %s, want %s", decoded.RunEvents, runEvents)
 	}
 }
 
@@ -456,6 +466,48 @@ func TestServiceIngestRun_StoresFailureAutopsyArtifact(t *testing.T) {
 	}
 	if string(data) != string(autopsy) {
 		t.Fatalf("artifact data = %s, want %s", data, autopsy)
+	}
+}
+
+func TestServiceIngestRun_StoresRunErrorAndEventsArtifacts(t *testing.T) {
+	t.Parallel()
+
+	tx := &fakeTx{}
+	repo := &fakeRepo{tx: tx}
+	svc := NewService(repo, ServiceConfig{})
+
+	runError := []byte(`{"phase":"agent_run","kind":"adapter_error"}`)
+	runEvents := []byte(`[{"phase":"run","status":"started"},{"phase":"agent_run","status":"failed"}]`)
+	err := svc.IngestRun(context.Background(), "tenant-a", IngestRunRequest{
+		RunRecord: bench.RunRecord{ID: "run-1", ScenarioID: "s1", Model: "m1"},
+		RunError:  runError,
+		RunEvents: runEvents,
+	})
+	if err != nil {
+		t.Fatalf("IngestRun: %v", err)
+	}
+	if len(tx.execArgs) != 3 {
+		t.Fatalf("exec count = %d, want 3", len(tx.execArgs))
+	}
+	if got := tx.execArgs[1][1]; got != "run_error" {
+		t.Fatalf("artifact type = %v, want run_error", got)
+	}
+	if got := tx.execArgs[2][1]; got != "run_events" {
+		t.Fatalf("artifact type = %v, want run_events", got)
+	}
+	data, ok := tx.execArgs[1][3].([]byte)
+	if !ok {
+		t.Fatalf("run_error data type = %T, want []byte", tx.execArgs[1][3])
+	}
+	if string(data) != string(runError) {
+		t.Fatalf("run_error data = %s, want %s", data, runError)
+	}
+	data, ok = tx.execArgs[2][3].([]byte)
+	if !ok {
+		t.Fatalf("run_events data type = %T, want []byte", tx.execArgs[2][3])
+	}
+	if string(data) != string(runEvents) {
+		t.Fatalf("run_events data = %s, want %s", data, runEvents)
 	}
 }
 

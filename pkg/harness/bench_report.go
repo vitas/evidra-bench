@@ -18,10 +18,12 @@ type benchIngestRequest struct {
 	ToolCalls  any             `json:"tool_calls,omitempty"`
 	Timeline   json.RawMessage `json:"timeline,omitempty"`
 	Autopsy    json.RawMessage `json:"autopsy,omitempty"`
+	RunError   json.RawMessage `json:"run_error,omitempty"`
+	RunEvents  json.RawMessage `json:"run_events,omitempty"`
 }
 
 // ReportToBench posts a run record with artifacts to the bench API bench ingest endpoint.
-func ReportToBench(benchURL, apiKey string, rec store.RunRecord, transcript string, toolCalls any, timeline, autopsy json.RawMessage) {
+func ReportToBench(benchURL, apiKey string, rec store.RunRecord, transcript string, toolCalls any, timeline, autopsy, runError, runEvents json.RawMessage) {
 	if benchURL == "" || apiKey == "" {
 		return
 	}
@@ -32,6 +34,8 @@ func ReportToBench(benchURL, apiKey string, rec store.RunRecord, transcript stri
 		ToolCalls:  toolCalls,
 		Timeline:   timeline,
 		Autopsy:    autopsy,
+		RunError:   runError,
+		RunEvents:  runEvents,
 	}
 
 	body, err := json.Marshal(payload)

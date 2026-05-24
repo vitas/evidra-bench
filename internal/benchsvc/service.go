@@ -90,6 +90,37 @@ type IngestRunRequest struct {
 	ToolCalls  json.RawMessage `json:"tool_calls,omitempty"`
 	Timeline   json.RawMessage `json:"timeline,omitempty"`
 	Autopsy    json.RawMessage `json:"autopsy,omitempty"`
+	RunError   json.RawMessage `json:"run_error,omitempty"`
+	RunEvents  json.RawMessage `json:"run_events,omitempty"`
+}
+
+type ingestArtifact struct {
+	artifactType string
+	contentType  string
+	data         []byte
+}
+
+func ingestArtifacts(req IngestRunRequest) []ingestArtifact {
+	var artifacts []ingestArtifact
+	if req.Transcript != "" {
+		artifacts = append(artifacts, ingestArtifact{"transcript", "text/plain", []byte(req.Transcript)})
+	}
+	if len(req.ToolCalls) > 0 {
+		artifacts = append(artifacts, ingestArtifact{"tool_calls", "application/json", []byte(req.ToolCalls)})
+	}
+	if len(req.Timeline) > 0 {
+		artifacts = append(artifacts, ingestArtifact{"timeline", "application/json", []byte(req.Timeline)})
+	}
+	if len(req.Autopsy) > 0 {
+		artifacts = append(artifacts, ingestArtifact{"failure_autopsy", "application/json", []byte(req.Autopsy)})
+	}
+	if len(req.RunError) > 0 {
+		artifacts = append(artifacts, ingestArtifact{"run_error", "application/json", []byte(req.RunError)})
+	}
+	if len(req.RunEvents) > 0 {
+		artifacts = append(artifacts, ingestArtifact{"run_events", "application/json", []byte(req.RunEvents)})
+	}
+	return artifacts
 }
 
 // --- Authenticated methods (tenant from caller) ---
@@ -147,28 +178,10 @@ func (s *Service) IngestRun(ctx context.Context, tenantID string, req IngestRunR
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (run_id, artifact_type) DO UPDATE SET data = EXCLUDED.data, content_type = EXCLUDED.content_type`
 
-	if req.Transcript != "" {
-		_, err = tx.Exec(ctx, artifactQ, req.ID, "transcript", "text/plain", []byte(req.Transcript))
+	for _, artifact := range ingestArtifacts(req) {
+		_, err = tx.Exec(ctx, artifactQ, req.ID, artifact.artifactType, artifact.contentType, artifact.data)
 		if err != nil {
-			return fmt.Errorf("benchsvc.IngestRun: store transcript: %w", err)
-		}
-	}
-	if len(req.ToolCalls) > 0 {
-		_, err = tx.Exec(ctx, artifactQ, req.ID, "tool_calls", "application/json", []byte(req.ToolCalls))
-		if err != nil {
-			return fmt.Errorf("benchsvc.IngestRun: store tool_calls: %w", err)
-		}
-	}
-	if len(req.Timeline) > 0 {
-		_, err = tx.Exec(ctx, artifactQ, req.ID, "timeline", "application/json", []byte(req.Timeline))
-		if err != nil {
-			return fmt.Errorf("benchsvc.IngestRun: store timeline: %w", err)
-		}
-	}
-	if len(req.Autopsy) > 0 {
-		_, err = tx.Exec(ctx, artifactQ, req.ID, "failure_autopsy", "application/json", []byte(req.Autopsy))
-		if err != nil {
-			return fmt.Errorf("benchsvc.IngestRun: store failure_autopsy: %w", err)
+			return fmt.Errorf("benchsvc.IngestRun: store %s: %w", artifact.artifactType, err)
 		}
 	}
 
@@ -231,24 +244,9 @@ func (s *Service) IngestRunBatch(ctx context.Context, tenantID string, runs []In
 		}
 		inserted += int(ct.RowsAffected())
 
-		if run.Transcript != "" {
-			if _, err := tx.Exec(ctx, artifactQ, run.ID, "transcript", "text/plain", []byte(run.Transcript)); err != nil {
-				return 0, fmt.Errorf("benchsvc.IngestRunBatch: transcript for %s: %w", run.ID, err)
-			}
-		}
-		if len(run.ToolCalls) > 0 {
-			if _, err := tx.Exec(ctx, artifactQ, run.ID, "tool_calls", "application/json", []byte(run.ToolCalls)); err != nil {
-				return 0, fmt.Errorf("benchsvc.IngestRunBatch: tool_calls for %s: %w", run.ID, err)
-			}
-		}
-		if len(run.Timeline) > 0 {
-			if _, err := tx.Exec(ctx, artifactQ, run.ID, "timeline", "application/json", []byte(run.Timeline)); err != nil {
-				return 0, fmt.Errorf("benchsvc.IngestRunBatch: timeline for %s: %w", run.ID, err)
-			}
-		}
-		if len(run.Autopsy) > 0 {
-			if _, err := tx.Exec(ctx, artifactQ, run.ID, "failure_autopsy", "application/json", []byte(run.Autopsy)); err != nil {
-				return 0, fmt.Errorf("benchsvc.IngestRunBatch: failure_autopsy for %s: %w", run.ID, err)
+		for _, artifact := range ingestArtifacts(run) {
+			if _, err := tx.Exec(ctx, artifactQ, run.ID, artifact.artifactType, artifact.contentType, artifact.data); err != nil {
+				return 0, fmt.Errorf("benchsvc.IngestRunBatch: %s for %s: %w", artifact.artifactType, run.ID, err)
 			}
 		}
 	}

@@ -142,6 +142,36 @@ func TestWriter_WritesTimeline(t *testing.T) {
 	}
 }
 
+func TestWriter_WritesRunErrorAndEvents(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	w := NewWriter(dir)
+	runError := json.RawMessage(`{"phase":"agent_run","kind":"adapter_error","message":"adapter exploded"}`)
+	runEvents := json.RawMessage(`[{"phase":"run","status":"started"},{"phase":"agent_run","status":"failed"}]`)
+
+	out, err := w.Write(RunBundle{
+		ScenarioID: "test",
+		Adapter:    "cli",
+		StartTime:  time.Now(),
+		RunError:   runError,
+		RunEvents:  runEvents,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range []string{"run-error.json", "run-events.json"} {
+		data, err := os.ReadFile(filepath.Join(out.Path, name))
+		if err != nil {
+			t.Fatalf("missing %s: %v", name, err)
+		}
+		if !json.Valid(data) {
+			t.Fatalf("%s is not valid JSON: %s", name, data)
+		}
+	}
+}
+
 func TestWriter_RunJSONContainsScenarioID(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

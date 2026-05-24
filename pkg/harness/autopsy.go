@@ -2,6 +2,7 @@ package harness
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/vitas/evidra-bench/pkg/autopsy"
@@ -28,6 +29,39 @@ func buildFailureAutopsyJSON(rec store.RunRecord, toolCallsJSON json.RawMessage,
 	data, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
 		log.Printf("[harness] warning: failure autopsy skipped: marshal: %v", err)
+		return nil
+	}
+	return data
+}
+
+func buildRunErrorAutopsyJSON(rec store.RunRecord, runErr runErrorArtifact) json.RawMessage {
+	report := autopsy.Report{
+		Version:        autopsy.ReportVersion,
+		Outcome:        "fail",
+		PrimaryFailure: autopsy.FailureKind("run_error"),
+		Summary:        fmt.Sprintf("Run failed during %s before complete deterministic autopsy was available.", runErr.Phase),
+		Confidence:     autopsy.ConfidenceMedium,
+		Findings: []autopsy.Finding{
+			{
+				Kind:     autopsy.FailureKind("run_error"),
+				Severity: autopsy.SeverityCritical,
+				Message:  fmt.Sprintf("Run ended with %s.", runErr.Kind),
+				Evidence: runErr.Message,
+			},
+		},
+		Metrics: autopsy.Metrics{
+			Turns:            rec.Turns,
+			PromptTokens:     rec.PromptTokens,
+			CompletionTokens: rec.CompletionTokens,
+			TotalTokens:      rec.PromptTokens + rec.CompletionTokens,
+			EstimatedCostUSD: rec.EstimatedCost,
+			ChecksPassed:     rec.ChecksPassed,
+			ChecksTotal:      rec.ChecksTotal,
+		},
+	}
+	data, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		log.Printf("[harness] warning: failure autopsy skipped: marshal run error: %v", err)
 		return nil
 	}
 	return data

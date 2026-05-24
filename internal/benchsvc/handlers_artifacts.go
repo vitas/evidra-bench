@@ -121,3 +121,30 @@ func handleGetAutopsy(svc *Service) http.HandlerFunc {
 		_, _ = w.Write(data)
 	}
 }
+
+func handleGetRunError(svc *Service) http.HandlerFunc {
+	return handleGetJSONArtifact(svc, "run_error", "run error not found")
+}
+
+func handleGetRunEvents(svc *Service) http.HandlerFunc {
+	return handleGetJSONArtifact(svc, "run_events", "run events not found")
+}
+
+func handleGetJSONArtifact(svc *Service, artifactType, notFoundMessage string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenantID := auth.TenantID(r.Context())
+		id := r.PathValue("id")
+		data, contentType, err := svc.GetArtifact(r.Context(), tenantID, id, artifactType)
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				apiutil.WriteError(w, http.StatusNotFound, notFoundMessage)
+				return
+			}
+			apiutil.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", contentType)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(data)
+	}
+}

@@ -122,6 +122,57 @@ func TestServiceIngestRunBatch_StoresTimelineArtifact(t *testing.T) {
 	}
 }
 
+func TestServiceIngestRunBatch_StoresRunErrorAndEventsArtifacts(t *testing.T) {
+	t.Parallel()
+
+	tx := &fakeTx{
+		execTags: []pgconn.CommandTag{
+			pgconn.NewCommandTag("INSERT 0 1"),
+		},
+	}
+	repo := &fakeRepo{tx: tx}
+	svc := NewService(repo, ServiceConfig{})
+
+	runError := []byte(`{"phase":"agent_run","kind":"adapter_error"}`)
+	runEvents := []byte(`[{"phase":"run","status":"started"},{"phase":"agent_run","status":"failed"}]`)
+	count, err := svc.IngestRunBatch(context.Background(), "tenant-a", []IngestRunRequest{
+		{
+			RunRecord: bench.RunRecord{ID: "run-1", ScenarioID: "s1", Model: "m1"},
+			RunError:  runError,
+			RunEvents: runEvents,
+		},
+	})
+	if err != nil {
+		t.Fatalf("IngestRunBatch: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("count = %d, want 1", count)
+	}
+	if len(tx.execArgs) != 3 {
+		t.Fatalf("exec count = %d, want 3", len(tx.execArgs))
+	}
+	if got := tx.execArgs[1][1]; got != "run_error" {
+		t.Fatalf("artifact type = %v, want run_error", got)
+	}
+	if got := tx.execArgs[2][1]; got != "run_events" {
+		t.Fatalf("artifact type = %v, want run_events", got)
+	}
+	data, ok := tx.execArgs[1][3].([]byte)
+	if !ok {
+		t.Fatalf("run_error data type = %T, want []byte", tx.execArgs[1][3])
+	}
+	if string(data) != string(runError) {
+		t.Fatalf("run_error data = %s, want %s", data, runError)
+	}
+	data, ok = tx.execArgs[2][3].([]byte)
+	if !ok {
+		t.Fatalf("run_events data type = %T, want []byte", tx.execArgs[2][3])
+	}
+	if string(data) != string(runEvents) {
+		t.Fatalf("run_events data = %s, want %s", data, runEvents)
+	}
+}
+
 func TestServiceIngestRunBatch_PreservesToolServerIdentity(t *testing.T) {
 	t.Parallel()
 

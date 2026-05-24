@@ -3,18 +3,231 @@ package harness
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/vitas/evidra-bench/pkg/adapter"
 	"github.com/vitas/evidra-bench/pkg/artifact"
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/environment"
 	"github.com/vitas/evidra-bench/pkg/scenario"
 	"github.com/vitas/evidra-bench/pkg/store"
 )
+
+func TestHarness_RunWritesFailureArtifactsWhenAdapterErrors(t *testing.T) {
+	t.Parallel()
+
+	artifactRoot := t.TempDir()
+	h := New(Deps{
+		EnvProvider: &fakeProvider{},
+		Adapter:     &failingAdapter{err: errors.New("adapter exploded")},
+		Writer:      artifact.NewWriter(artifactRoot),
+	})
+
+	cfg := config.Default()
+	cfg.Scenario = "adapter-error"
+	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
+
+	_, err := h.Run(context.Background(), RunRequest{
+		Config:         cfg,
+		KubeconfigPath: fakeKubeconfig(t),
+		Scenario: &scenario.Scenario{
+			ID:       "adapter-error",
+			Title:    "Adapter error",
+			Category: "kubernetes",
+		},
+	})
+	if err == nil {
+		t.Fatal("expected adapter error")
+	}
+
+	runDir := singleArtifactDir(t, artifactRoot)
+	for _, name := range []string{"tool-calls.json", "timeline.json", "failure-autopsy.json", "run-error.json", "run-events.json"} {
+		if _, err := os.Stat(filepath.Join(runDir, name)); err != nil {
+			t.Fatalf("missing %s: %v", name, err)
+		}
+	}
+
+	var toolCalls []adapter.ToolCallRecord
+	readArtifactJSON(t, runDir, "tool-calls.json", &toolCalls)
+	if len(toolCalls) != 0 {
+		t.Fatalf("tool calls = %d, want 0", len(toolCalls))
+	}
+
+	var timeline struct {
+		TotalSteps    int `json:"total_steps"`
+		MutationCount int `json:"mutation_count"`
+	}
+	readArtifactJSON(t, runDir, "timeline.json", &timeline)
+	if timeline.TotalSteps != 0 || timeline.MutationCount != 0 {
+		t.Fatalf("timeline = %+v, want empty failed-run timeline", timeline)
+	}
+
+	var runErr struct {
+		Phase    string `json:"phase"`
+		Kind     string `json:"kind"`
+		Message  string `json:"message"`
+		ExitCode int    `json:"exit_code"`
+	}
+	readArtifactJSON(t, runDir, "run-error.json", &runErr)
+	if runErr.Phase != "agent_run" {
+		t.Fatalf("run-error phase = %q, want agent_run", runErr.Phase)
+	}
+	if runErr.Kind != "adapter_error" {
+		t.Fatalf("run-error kind = %q, want adapter_error", runErr.Kind)
+	}
+	if !strings.Contains(runErr.Message, "adapter exploded") {
+		t.Fatalf("run-error message = %q, want adapter exploded", runErr.Message)
+	}
+	if runErr.ExitCode != -1 {
+		t.Fatalf("run-error exit_code = %d, want -1", runErr.ExitCode)
+	}
+
+	var events []struct {
+		Phase  string `json:"phase"`
+		Status string `json:"status"`
+	}
+	readArtifactJSON(t, runDir, "run-events.json", &events)
+	if len(events) < 2 {
+		t.Fatalf("events = %d, want at least start and failed", len(events))
+	}
+	if events[len(events)-1].Status != "failed" {
+		t.Fatalf("last event status = %q, want failed", events[len(events)-1].Status)
+	}
+
+	var autopsy struct {
+		Outcome        string `json:"outcome"`
+		PrimaryFailure string `json:"primary_failure"`
+		Summary        string `json:"summary"`
+	}
+	readArtifactJSON(t, runDir, "failure-autopsy.json", &autopsy)
+	if autopsy.Outcome != "fail" {
+		t.Fatalf("autopsy outcome = %q, want fail", autopsy.Outcome)
+	}
+	if autopsy.PrimaryFailure != "run_error" {
+		t.Fatalf("autopsy primary_failure = %q, want run_error", autopsy.PrimaryFailure)
+	}
+	if !strings.Contains(autopsy.Summary, "agent_run") {
+		t.Fatalf("autopsy summary = %q, want phase context", autopsy.Summary)
+	}
+}
+
+func TestHarness_RunPreservesToolCallsWhenVerifierErrors(t *testing.T) {
+	t.Parallel()
+
+	artifactRoot := t.TempDir()
+	h := New(Deps{
+		EnvProvider: &fakeProvider{},
+		Adapter:     &autopsyAdapter{},
+		Writer:      artifact.NewWriter(artifactRoot),
+	})
+
+	cfg := config.Default()
+	cfg.Scenario = "verifier-error"
+	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
+
+	_, err := h.Run(context.Background(), RunRequest{
+		Config:         cfg,
+		KubeconfigPath: fakeKubeconfig(t),
+		Scenario: &scenario.Scenario{
+			ID:       "verifier-error",
+			Title:    "Verifier error",
+			Category: "kubernetes",
+			Checks:   []scenario.Check{{Type: "unknown-check", Name: "web"}},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected verifier error")
+	}
+
+	runDir := singleArtifactDir(t, artifactRoot)
+
+	var toolCalls []adapter.ToolCallRecord
+	readArtifactJSON(t, runDir, "tool-calls.json", &toolCalls)
+	if len(toolCalls) == 0 {
+		t.Fatal("tool calls were not preserved after verifier error")
+	}
+
+	var timeline struct {
+		TotalSteps    int `json:"total_steps"`
+		MutationCount int `json:"mutation_count"`
+	}
+	readArtifactJSON(t, runDir, "timeline.json", &timeline)
+	if timeline.TotalSteps == 0 {
+		t.Fatal("timeline total_steps = 0, want preserved adapter tool calls")
+	}
+	if timeline.MutationCount == 0 {
+		t.Fatal("timeline mutation_count = 0, want preserved mutation")
+	}
+
+	var runErr struct {
+		Phase string `json:"phase"`
+		Kind  string `json:"kind"`
+	}
+	readArtifactJSON(t, runDir, "run-error.json", &runErr)
+	if runErr.Phase != "verification" {
+		t.Fatalf("run-error phase = %q, want verification", runErr.Phase)
+	}
+	if runErr.Kind != "verifier_error" {
+		t.Fatalf("run-error kind = %q, want verifier_error", runErr.Kind)
+	}
+}
+
+func TestHarness_RunStoresFailedRecordWhenAdapterErrors(t *testing.T) {
+	t.Parallel()
+
+	resultsStore, err := store.Open(filepath.Join(t.TempDir(), "store"))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer func() { _ = resultsStore.Close() }()
+
+	artifactRoot := t.TempDir()
+	h := New(Deps{
+		EnvProvider: &fakeProvider{},
+		Adapter:     &failingAdapter{err: errors.New("adapter exploded")},
+		Writer:      artifact.NewWriter(artifactRoot),
+		Store:       resultsStore,
+	})
+
+	cfg := config.Default()
+	cfg.Scenario = "adapter-error-store"
+	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
+
+	_, err = h.Run(context.Background(), RunRequest{
+		Config:         cfg,
+		KubeconfigPath: fakeKubeconfig(t),
+		Scenario: &scenario.Scenario{
+			ID:       "adapter-error-store",
+			Title:    "Adapter error",
+			Category: "kubernetes",
+		},
+	})
+	if err == nil {
+		t.Fatal("expected adapter error")
+	}
+
+	records, err := resultsStore.Query(store.QueryFilters{ScenarioID: "adapter-error-store"})
+	if err != nil {
+		t.Fatalf("query store: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("records = %d, want 1", len(records))
+	}
+	if records[0].Passed {
+		t.Fatal("stored record passed = true, want false")
+	}
+	if records[0].ArtifactDir == "" {
+		t.Fatal("stored record artifact_dir is empty")
+	}
+	if records[0].ExitCode != -1 {
+		t.Fatalf("stored record exit_code = %d, want -1", records[0].ExitCode)
+	}
+}
 
 func TestHarness_RunExecutesChaosStepsDuringAgent(t *testing.T) {
 	t.Parallel()
@@ -329,5 +542,34 @@ func TestBuildFailureAutopsyJSONUsesScenarioHints(t *testing.T) {
 	}
 	if parsed.PrimaryFailure != "unsafe_action" {
 		t.Fatalf("primary_failure = %q, want unsafe_action", parsed.PrimaryFailure)
+	}
+}
+
+func singleArtifactDir(t *testing.T, root string) string {
+	t.Helper()
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatalf("read artifact root: %v", err)
+	}
+	var dirs []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			dirs = append(dirs, filepath.Join(root, entry.Name()))
+		}
+	}
+	if len(dirs) != 1 {
+		t.Fatalf("artifact dirs = %v, want exactly one", dirs)
+	}
+	return dirs[0]
+}
+
+func readArtifactJSON(t *testing.T, runDir, name string, out any) {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(runDir, name))
+	if err != nil {
+		t.Fatalf("read %s: %v", name, err)
+	}
+	if err := json.Unmarshal(data, out); err != nil {
+		t.Fatalf("parse %s: %v", name, err)
 	}
 }
