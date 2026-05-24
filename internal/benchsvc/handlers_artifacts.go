@@ -52,6 +52,17 @@ func handleGetTimeline(svc *Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tenantID := auth.TenantID(r.Context())
 		id := r.PathValue("id")
+
+		if data, contentType, err := svc.GetArtifact(r.Context(), tenantID, id, "timeline"); err == nil {
+			w.Header().Set("Content-Type", contentType)
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(data)
+			return
+		} else if !errors.Is(err, ErrNotFound) {
+			apiutil.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
 		data, _, err := svc.GetArtifact(r.Context(), tenantID, id, "tool_calls")
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {

@@ -62,8 +62,9 @@ func TestHandleGetTimeline_ComputesPhases(t *testing.T) {
 	data, _ := json.Marshal(toolCalls)
 
 	repo := &handlerRepo{
-		artifact: data,
-		artCT:    "application/json",
+		artifacts: map[string][]byte{
+			"r1:tool_calls": data,
+		},
 	}
 	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
 
@@ -91,6 +92,39 @@ func TestHandleGetTimeline_ComputesPhases(t *testing.T) {
 		if tl.Steps[i].Phase != want {
 			t.Errorf("step[%d].Phase = %q, want %q", i, tl.Steps[i].Phase, want)
 		}
+	}
+}
+
+func TestHandleGetTimeline_ReturnsStoredTimelineWhenPresent(t *testing.T) {
+	t.Parallel()
+
+	stored := []byte(`{"total_steps":7,"mutation_count":2,"phase_count":{"act":2}}`)
+	repo := &handlerRepo{
+		artifacts: map[string][]byte{
+			"r1:timeline": stored,
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/runs/r1/timeline", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if repo.lastArtifactType != "timeline" {
+		t.Fatalf("artifact type = %q, want timeline", repo.lastArtifactType)
+	}
+	var tl bench.Timeline
+	if err := json.Unmarshal(rec.Body.Bytes(), &tl); err != nil {
+		t.Fatalf("decode timeline: %v", err)
+	}
+	if tl.TotalSteps != 7 {
+		t.Fatalf("TotalSteps = %d, want 7", tl.TotalSteps)
+	}
+	if tl.MutationCount != 2 {
+		t.Fatalf("MutationCount = %d, want 2", tl.MutationCount)
 	}
 }
 

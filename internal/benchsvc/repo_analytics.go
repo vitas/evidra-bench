@@ -17,9 +17,10 @@ func (s *PgStore) SignalSummary(ctx context.Context, tenantID string, f bench.Ru
 	// Left join so runs without scorecard artifacts still appear in totals.
 	// bench_runs is not aliased so that buildWhere's bench_runs.created_at qualifier resolves
 	// without ambiguity against bench_artifacts.created_at.
-	query := `SELECT bench_runs.id, a.data
+	query := `SELECT bench_runs.id, sc.data, fa.data
 		FROM bench_runs
-		LEFT JOIN bench_artifacts a ON a.run_id = bench_runs.id AND a.artifact_type = 'scorecard'` +
+		LEFT JOIN bench_artifacts sc ON sc.run_id = bench_runs.id AND sc.artifact_type = 'scorecard'
+		LEFT JOIN bench_artifacts fa ON fa.run_id = bench_runs.id AND fa.artifact_type = 'failure_autopsy'` +
 		where +
 		` ORDER BY bench_runs.created_at DESC LIMIT 1000`
 
@@ -42,25 +43,20 @@ func (s *PgStore) SignalSummary(ctx context.Context, tenantID string, f bench.Ru
 	var scoreSum float64
 	for rows.Next() {
 		var runID string
-		var data *[]byte // nullable for LEFT JOIN
-		if err := rows.Scan(&runID, &data); err != nil {
+		var scorecardData *[]byte // nullable for LEFT JOIN
+		var autopsyData *[]byte   // nullable for LEFT JOIN
+		if err := rows.Scan(&runID, &scorecardData, &autopsyData); err != nil {
 			return nil, fmt.Errorf("bench.SignalSummary: scan: %w", err)
 		}
 
-		if data == nil || len(*data) == 0 {
-			continue // run without scorecard artifact
+		metrics := signalMetricsFromArtifacts(bytesOrNil(scorecardData), bytesOrNil(autopsyData))
+		if metrics.hasScorecard {
+			agg.RunsWithScorecard++
+			if metrics.score > 0 {
+				scoreSum += metrics.score
+			}
 		}
-
-		var sc scorecard
-		if json.Unmarshal(*data, &sc) != nil {
-			continue
-		}
-
-		agg.RunsWithScorecard++
-		if sc.Score > 0 {
-			scoreSum += sc.Score
-		}
-		for signal, count := range sc.Signals {
+		for signal, count := range metrics.counts {
 			entry := agg.Signals[signal]
 			entry.Total += count
 			if count > 0 {
@@ -85,6 +81,70 @@ type scorecard struct {
 	Signals map[string]int `json:"signals"`
 	Score   float64        `json:"score"`
 	Band    string         `json:"band"`
+}
+
+type signalArtifactMetrics struct {
+	counts       map[string]int
+	hasScorecard bool
+	score        float64
+}
+
+func signalMetricsFromArtifacts(scorecardData, autopsyData []byte) signalArtifactMetrics {
+	if len(scorecardData) > 0 {
+		var sc scorecard
+		if json.Unmarshal(scorecardData, &sc) == nil {
+			return signalArtifactMetrics{
+				counts:       copySignalCounts(sc.Signals),
+				hasScorecard: true,
+				score:        sc.Score,
+			}
+		}
+	}
+
+	return signalArtifactMetrics{
+		counts: autopsySignalCounts(autopsyData),
+	}
+}
+
+func copySignalCounts(in map[string]int) map[string]int {
+	out := make(map[string]int, len(in))
+	for signal, count := range in {
+		if strings.TrimSpace(signal) == "" || count <= 0 {
+			continue
+		}
+		out[signal] = count
+	}
+	return out
+}
+
+func autopsySignalCounts(data []byte) map[string]int {
+	counts := map[string]int{}
+	if len(data) == 0 {
+		return counts
+	}
+	var raw struct {
+		Findings []struct {
+			Kind string `json:"kind"`
+		} `json:"findings"`
+	}
+	if json.Unmarshal(data, &raw) != nil {
+		return counts
+	}
+	for _, finding := range raw.Findings {
+		kind := strings.TrimSpace(finding.Kind)
+		if kind == "" {
+			continue
+		}
+		counts[kind]++
+	}
+	return counts
+}
+
+func bytesOrNil(data *[]byte) []byte {
+	if data == nil {
+		return nil
+	}
+	return *data
 }
 
 // Regressions finds scenario/model pairs where the latest run failed but

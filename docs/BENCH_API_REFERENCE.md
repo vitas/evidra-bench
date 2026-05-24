@@ -156,6 +156,7 @@ artifact fields:
   "checks_total": 3,
   "transcript": "optional text transcript",
   "tool_calls": [],
+  "timeline": { "total_steps": 0, "mutation_count": 0 },
   "autopsy": { "outcome": "pass", "primary_failure": "" }
 }
 ```
@@ -225,7 +226,8 @@ Returns tool-call artifact JSON.
 
 ### GET /v1/bench/runs/{id}/timeline
 
-Returns the decision timeline derived from stored artifacts.
+Returns the stored decision timeline artifact. Older runs without a materialized
+timeline fall back to deriving the timeline from stored `tool_calls`.
 
 ### GET /v1/bench/runs/{id}/scorecard
 

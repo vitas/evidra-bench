@@ -22,6 +22,7 @@ type RunBundle struct {
 	Stdout         string            `json:"stdout,omitempty"`
 	Stderr         string            `json:"stderr,omitempty"`
 	ToolCalls      json.RawMessage   `json:"tool_calls,omitempty"`
+	Timeline       json.RawMessage   `json:"timeline,omitempty"`
 	Checks         json.RawMessage   `json:"checks,omitempty"`
 	Autopsy        json.RawMessage   `json:"autopsy,omitempty"`
 	ChaosEnabled   bool              `json:"chaos_enabled,omitempty"`
@@ -95,6 +96,13 @@ func (w *Writer) Write(bundle RunBundle) (*WriteOutput, error) {
 	if len(bundle.ToolCalls) > 0 {
 		if err := os.WriteFile(filepath.Join(runDir, "tool-calls.json"), bundle.ToolCalls, 0644); err != nil {
 			return nil, fmt.Errorf("artifact.Writer.Write: write tool-calls.json: %w", err)
+		}
+	}
+
+	// Write timeline.json if present.
+	if len(bundle.Timeline) > 0 {
+		if err := os.WriteFile(filepath.Join(runDir, "timeline.json"), bundle.Timeline, 0644); err != nil {
+			return nil, fmt.Errorf("artifact.Writer.Write: write timeline.json: %w", err)
 		}
 	}
 

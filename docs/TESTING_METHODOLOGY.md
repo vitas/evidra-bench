@@ -326,6 +326,8 @@ runs/bench/<timestamp>/
     verifier.json
     transcript.txt
     tool-calls.json
+    timeline.json
+    failure-autopsy.json
     scorecard.json
 ```
 

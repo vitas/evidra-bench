@@ -9,6 +9,7 @@ import (
 
 	"github.com/vitas/evidra-bench/pkg/adapter"
 	"github.com/vitas/evidra-bench/pkg/artifact"
+	bench "github.com/vitas/evidra-bench/pkg/bench"
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/report"
 	"github.com/vitas/evidra-bench/pkg/store"
@@ -19,6 +20,7 @@ func (h *Harness) writeRunArtifacts(req RunRequest, agentResult *adapter.RunResu
 	s := req.Scenario
 	checksJSON, _ := json.Marshal(verifyResult)
 	toolCallsJSON, _ := json.Marshal(agentResult.ToolCalls)
+	timelineJSON := buildTimelineJSON(toolCallsJSON)
 	checksPassedForAutopsy, checksTotalForAutopsy := countChecks(verifyResult)
 	autopsyJSON := buildFailureAutopsyJSON(store.RunRecord{
 		ScenarioID:       s.ID,
@@ -60,6 +62,7 @@ func (h *Harness) writeRunArtifacts(req RunRequest, agentResult *adapter.RunResu
 		Stdout:         agentResult.Stdout,
 		Stderr:         agentResult.Stderr,
 		ToolCalls:      toolCallsJSON,
+		Timeline:       timelineJSON,
 		Checks:         checksJSON,
 		Autopsy:        autopsyJSON,
 		ChaosEnabled:   chaosRunner != nil,
@@ -172,5 +175,31 @@ func (h *Harness) storeRun(req RunRequest, agentResult *adapter.RunResult, verif
 	if err := h.deps.Store.Insert(rec); err != nil {
 		log.Printf("[harness] warning: store insert failed: %v", err)
 	}
-	ReportToBench(req.Config.BenchURL, req.Config.BenchAPIKey, rec, agentResult.Transcript, agentResult.ToolCalls, autopsyJSON)
+	timelineJSON := buildTimelineJSONFromToolCalls(agentResult.ToolCalls)
+	ReportToBench(req.Config.BenchURL, req.Config.BenchAPIKey, rec, agentResult.Transcript, agentResult.ToolCalls, timelineJSON, autopsyJSON)
+}
+
+func buildTimelineJSON(toolCallsJSON json.RawMessage) json.RawMessage {
+	var calls []bench.ToolCall
+	if len(toolCallsJSON) > 0 {
+		if err := json.Unmarshal(toolCallsJSON, &calls); err != nil {
+			log.Printf("[harness] warning: timeline skipped: parse tool calls: %v", err)
+			return nil
+		}
+	}
+	data, err := json.MarshalIndent(bench.Parse(calls), "", "  ")
+	if err != nil {
+		log.Printf("[harness] warning: timeline skipped: marshal: %v", err)
+		return nil
+	}
+	return data
+}
+
+func buildTimelineJSONFromToolCalls(toolCalls []adapter.ToolCallRecord) json.RawMessage {
+	toolCallsJSON, err := json.Marshal(toolCalls)
+	if err != nil {
+		log.Printf("[harness] warning: timeline skipped: marshal tool calls: %v", err)
+		return nil
+	}
+	return buildTimelineJSON(toolCallsJSON)
 }

@@ -357,10 +357,12 @@ func TestIngestRunRequest_JSONRoundtrip(t *testing.T) {
 	t.Parallel()
 
 	autopsy := json.RawMessage(`{"outcome":"fail","primary_failure":"retry_loop"}`)
+	timeline := json.RawMessage(`{"total_steps":2,"mutation_count":1}`)
 	req := IngestRunRequest{
 		RunRecord:  bench.RunRecord{ID: "r1", ScenarioID: "s1", Model: "m1"},
 		Transcript: "step 1\nstep 2",
 		ToolCalls:  json.RawMessage(`[{"tool":"kubectl","args":["get","pods"]}]`),
+		Timeline:   timeline,
 		Autopsy:    autopsy,
 	}
 
@@ -383,8 +385,44 @@ func TestIngestRunRequest_JSONRoundtrip(t *testing.T) {
 	if string(decoded.ToolCalls) != string(req.ToolCalls) {
 		t.Errorf("ToolCalls = %s, want %s", decoded.ToolCalls, req.ToolCalls)
 	}
+	if string(decoded.Timeline) != string(timeline) {
+		t.Errorf("Timeline = %s, want %s", decoded.Timeline, timeline)
+	}
 	if string(decoded.Autopsy) != string(autopsy) {
 		t.Errorf("Autopsy = %s, want %s", decoded.Autopsy, autopsy)
+	}
+}
+
+func TestServiceIngestRun_StoresTimelineArtifact(t *testing.T) {
+	t.Parallel()
+
+	tx := &fakeTx{}
+	repo := &fakeRepo{tx: tx}
+	svc := NewService(repo, ServiceConfig{})
+
+	timeline := []byte(`{"total_steps":2,"mutation_count":1}`)
+	err := svc.IngestRun(context.Background(), "tenant-a", IngestRunRequest{
+		RunRecord: bench.RunRecord{ID: "run-1", ScenarioID: "s1", Model: "m1"},
+		Timeline:  timeline,
+	})
+	if err != nil {
+		t.Fatalf("IngestRun: %v", err)
+	}
+	if len(tx.execArgs) != 2 {
+		t.Fatalf("exec count = %d, want 2", len(tx.execArgs))
+	}
+	if got := tx.execArgs[1][1]; got != "timeline" {
+		t.Fatalf("artifact type = %v, want timeline", got)
+	}
+	if got := tx.execArgs[1][2]; got != "application/json" {
+		t.Fatalf("content type = %v, want application/json", got)
+	}
+	data, ok := tx.execArgs[1][3].([]byte)
+	if !ok {
+		t.Fatalf("artifact data type = %T, want []byte", tx.execArgs[1][3])
+	}
+	if string(data) != string(timeline) {
+		t.Fatalf("artifact data = %s, want %s", data, timeline)
 	}
 }
 

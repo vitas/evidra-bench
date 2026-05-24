@@ -83,6 +83,45 @@ func TestServiceIngestRunBatch_StoresFailureAutopsyArtifact(t *testing.T) {
 	}
 }
 
+func TestServiceIngestRunBatch_StoresTimelineArtifact(t *testing.T) {
+	t.Parallel()
+
+	tx := &fakeTx{
+		execTags: []pgconn.CommandTag{
+			pgconn.NewCommandTag("INSERT 0 1"),
+		},
+	}
+	repo := &fakeRepo{tx: tx}
+	svc := NewService(repo, ServiceConfig{})
+
+	timeline := []byte(`{"total_steps":3,"mutation_count":1}`)
+	count, err := svc.IngestRunBatch(context.Background(), "tenant-a", []IngestRunRequest{
+		{
+			RunRecord: bench.RunRecord{ID: "run-1", ScenarioID: "s1", Model: "m1"},
+			Timeline:  timeline,
+		},
+	})
+	if err != nil {
+		t.Fatalf("IngestRunBatch: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("count = %d, want 1", count)
+	}
+	if len(tx.execArgs) != 2 {
+		t.Fatalf("exec count = %d, want 2", len(tx.execArgs))
+	}
+	if got := tx.execArgs[1][1]; got != "timeline" {
+		t.Fatalf("artifact type = %v, want timeline", got)
+	}
+	data, ok := tx.execArgs[1][3].([]byte)
+	if !ok {
+		t.Fatalf("artifact data type = %T, want []byte", tx.execArgs[1][3])
+	}
+	if string(data) != string(timeline) {
+		t.Fatalf("artifact data = %s, want %s", data, timeline)
+	}
+}
+
 func TestServiceIngestRunBatch_PreservesToolServerIdentity(t *testing.T) {
 	t.Parallel()
 

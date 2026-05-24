@@ -96,6 +96,11 @@ func (a *autopsyAdapter) Run(_ context.Context, _ adapter.RunInput) (*adapter.Ru
 				Args:   map[string]any{"command": "kubectl get pods -n bench"},
 				Result: "web 0/1 ErrImagePull",
 			},
+			{
+				Tool:   "run_command",
+				Args:   map[string]any{"command": "kubectl apply -f fix.yaml -n bench"},
+				Result: "deployment.apps/web configured",
+			},
 		},
 		Metadata: map[string]string{"turns": "3", "prompt_tokens": "100", "completion_tokens": "50"},
 	}, nil

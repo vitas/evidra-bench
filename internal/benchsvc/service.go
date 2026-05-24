@@ -88,6 +88,7 @@ type IngestRunRequest struct {
 	bench.RunRecord
 	Transcript string          `json:"transcript,omitempty"`
 	ToolCalls  json.RawMessage `json:"tool_calls,omitempty"`
+	Timeline   json.RawMessage `json:"timeline,omitempty"`
 	Autopsy    json.RawMessage `json:"autopsy,omitempty"`
 }
 
@@ -156,6 +157,12 @@ func (s *Service) IngestRun(ctx context.Context, tenantID string, req IngestRunR
 		_, err = tx.Exec(ctx, artifactQ, req.ID, "tool_calls", "application/json", []byte(req.ToolCalls))
 		if err != nil {
 			return fmt.Errorf("benchsvc.IngestRun: store tool_calls: %w", err)
+		}
+	}
+	if len(req.Timeline) > 0 {
+		_, err = tx.Exec(ctx, artifactQ, req.ID, "timeline", "application/json", []byte(req.Timeline))
+		if err != nil {
+			return fmt.Errorf("benchsvc.IngestRun: store timeline: %w", err)
 		}
 	}
 	if len(req.Autopsy) > 0 {
@@ -232,6 +239,11 @@ func (s *Service) IngestRunBatch(ctx context.Context, tenantID string, runs []In
 		if len(run.ToolCalls) > 0 {
 			if _, err := tx.Exec(ctx, artifactQ, run.ID, "tool_calls", "application/json", []byte(run.ToolCalls)); err != nil {
 				return 0, fmt.Errorf("benchsvc.IngestRunBatch: tool_calls for %s: %w", run.ID, err)
+			}
+		}
+		if len(run.Timeline) > 0 {
+			if _, err := tx.Exec(ctx, artifactQ, run.ID, "timeline", "application/json", []byte(run.Timeline)); err != nil {
+				return 0, fmt.Errorf("benchsvc.IngestRunBatch: timeline for %s: %w", run.ID, err)
 			}
 		}
 		if len(run.Autopsy) > 0 {

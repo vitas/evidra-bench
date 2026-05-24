@@ -112,6 +112,36 @@ func TestWriter_WritesToolCalls(t *testing.T) {
 	}
 }
 
+func TestWriter_WritesTimeline(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	w := NewWriter(dir)
+	timeline, _ := json.Marshal(map[string]any{
+		"total_steps":    2,
+		"mutation_count": 1,
+	})
+	out, err := w.Write(RunBundle{
+		ScenarioID: "test",
+		Adapter:    "cli",
+		StartTime:  time.Now(),
+		Timeline:   timeline,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(out.Path, "timeline.json"))
+	if err != nil {
+		t.Fatalf("missing timeline.json: %v", err)
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("invalid timeline.json: %v", err)
+	}
+	if parsed["total_steps"] != float64(2) {
+		t.Fatalf("total_steps = %v, want 2", parsed["total_steps"])
+	}
+}
+
 func TestWriter_RunJSONContainsScenarioID(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

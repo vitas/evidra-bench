@@ -282,6 +282,24 @@ func TestHarness_RunWritesFailureAutopsyArtifact(t *testing.T) {
 	if parsed.PrimaryFailure != "premature_success" {
 		t.Fatalf("primary_failure = %q, want premature_success", parsed.PrimaryFailure)
 	}
+
+	timelineData, err := os.ReadFile(filepath.Join(result.ArtifactDir, "timeline.json"))
+	if err != nil {
+		t.Fatalf("read timeline.json: %v", err)
+	}
+	var timeline struct {
+		TotalSteps    int `json:"total_steps"`
+		MutationCount int `json:"mutation_count"`
+	}
+	if err := json.Unmarshal(timelineData, &timeline); err != nil {
+		t.Fatalf("parse timeline.json: %v", err)
+	}
+	if timeline.TotalSteps == 0 {
+		t.Fatal("timeline total_steps = 0, want recorded tool calls")
+	}
+	if timeline.MutationCount == 0 {
+		t.Fatal("timeline mutation_count = 0, want recorded mutation")
+	}
 }
 
 func TestBuildFailureAutopsyJSONUsesScenarioHints(t *testing.T) {
