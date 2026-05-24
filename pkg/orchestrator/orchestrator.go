@@ -15,8 +15,8 @@ import (
 	"github.com/vitas/evidra-bench/pkg/environment"
 	"github.com/vitas/evidra-bench/pkg/harness"
 	"github.com/vitas/evidra-bench/pkg/jobqueue"
+	"github.com/vitas/evidra-bench/pkg/localstore"
 	"github.com/vitas/evidra-bench/pkg/scenario"
-	"github.com/vitas/evidra-bench/pkg/store"
 	"github.com/vitas/evidra-bench/pkg/workspace"
 )
 
@@ -27,7 +27,7 @@ import (
 // sharedStore persists results beyond workspace cleanup.
 // provider is the cluster lifecycle (nil when using external kubeconfig).
 type RunFunc func(ctx context.Context, cfg config.Config, scenarioPath, targetNS, kubeconfigPath string,
-	sharedStore *store.Store, provider environment.ClusterLifecycle) error
+	sharedStore *localstore.Store, provider environment.ClusterLifecycle) error
 
 // ScenarioEvent describes a scenario lifecycle transition for external reporting.
 type ScenarioEvent struct {
@@ -184,7 +184,7 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 	}
 
 	// Open shared results store.
-	sharedStore, err := store.Open(runCfg.RunsDir)
+	sharedStore, err := localstore.Open(runCfg.RunsDir)
 	if err != nil {
 		log.Printf("[orchestrator] warning: could not open shared store: %v", err)
 	}

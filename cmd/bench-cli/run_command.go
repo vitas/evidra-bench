@@ -14,9 +14,9 @@ import (
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/environment"
 	"github.com/vitas/evidra-bench/pkg/harness"
+	"github.com/vitas/evidra-bench/pkg/localstore"
 	"github.com/vitas/evidra-bench/pkg/report"
 	"github.com/vitas/evidra-bench/pkg/scenario"
-	"github.com/vitas/evidra-bench/pkg/store"
 )
 
 func newRunCommand(cfg *config.Config) *cobra.Command {
@@ -189,7 +189,7 @@ func runScenarioOnceWithLease(ctx context.Context, cfg config.Config, s *scenari
 		EvidencePath: filepath.Join(cfg.RunsDir, "evidence"),
 	})
 
-	resultsStore, err := store.Open(cfg.RunsDir)
+	resultsStore, err := localstore.Open(cfg.RunsDir)
 	if err != nil {
 		log.Printf("[harness] warning: could not open results store: %v", err)
 	}
@@ -248,15 +248,15 @@ func newK3dProvider(cfg config.Config) *environment.K3dProvider {
 
 // ParallelRunOpts configures a parallel worker run.
 type ParallelRunOpts struct {
-	TargetNamespace string       // Worker namespace (e.g. "bench-w0")
-	KubeconfigPath  string       // Pre-provisioned cluster kubeconfig
-	SharedStore     *store.Store // Shared results store (survives workspace cleanup)
+	TargetNamespace string            // Worker namespace (e.g. "bench-w0")
+	KubeconfigPath  string            // Pre-provisioned cluster kubeconfig
+	SharedStore     *localstore.Store // Shared results store (survives workspace cleanup)
 }
 
 // runScenarioOnceWithNamespace runs a scenario with a specific target namespace.
 // Used by parallel workers where each worker has its own namespace and pre-provisioned cluster.
 func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *scenario.Scenario,
-	targetNS, kubeconfigPath string, sharedStore *store.Store,
+	targetNS, kubeconfigPath string, sharedStore *localstore.Store,
 	provider environment.ClusterLifecycle) (*harness.RunResult, error) {
 	if err := s.ProviderCompatibilityError(cfg.EnvironmentProvider); err != nil {
 		return nil, err
@@ -282,12 +282,12 @@ func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *sce
 	})
 
 	// Use shared store if provided (parallel mode), otherwise open workspace-local.
-	var resultsStore *store.Store
+	var resultsStore *localstore.Store
 	if sharedStore != nil {
 		resultsStore = sharedStore
 	} else {
 		var storeErr error
-		resultsStore, storeErr = store.Open(cfg.RunsDir)
+		resultsStore, storeErr = localstore.Open(cfg.RunsDir)
 		if storeErr != nil {
 			log.Printf("[harness] warning: could not open results store: %v", storeErr)
 		}

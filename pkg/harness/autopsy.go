@@ -7,11 +7,11 @@ import (
 
 	"github.com/vitas/evidra-bench/pkg/autopsy"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
+	"github.com/vitas/evidra-bench/pkg/localstore"
 	"github.com/vitas/evidra-bench/pkg/scenario"
-	"github.com/vitas/evidra-bench/pkg/store"
 )
 
-func buildFailureAutopsyJSON(rec store.RunRecord, toolCallsJSON json.RawMessage, transcript string, checksJSON json.RawMessage, hints scenario.AutopsyHints) json.RawMessage {
+func buildFailureAutopsyJSON(rec localstore.RunRecord, toolCallsJSON json.RawMessage, transcript string, checksJSON json.RawMessage, hints scenario.AutopsyHints) json.RawMessage {
 	var calls []bench.ToolCall
 	if len(toolCallsJSON) > 0 {
 		if err := json.Unmarshal(toolCallsJSON, &calls); err != nil {
@@ -34,7 +34,7 @@ func buildFailureAutopsyJSON(rec store.RunRecord, toolCallsJSON json.RawMessage,
 	return data
 }
 
-func buildRunErrorAutopsyJSON(rec store.RunRecord, runErr runErrorArtifact) json.RawMessage {
+func buildRunErrorAutopsyJSON(rec localstore.RunRecord, runErr runErrorArtifact) json.RawMessage {
 	report := autopsy.Report{
 		Version:        autopsy.ReportVersion,
 		Outcome:        "fail",

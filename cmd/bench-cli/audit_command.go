@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vitas/evidra-bench/pkg/artifactaudit"
+	"github.com/vitas/evidra-bench/pkg/localstore"
 	"github.com/vitas/evidra-bench/pkg/signalaudit"
-	"github.com/vitas/evidra-bench/pkg/store"
 )
 
 func newAuditCommand(defaultRunsDir string) *cobra.Command {
@@ -104,7 +104,7 @@ func executeArtifactCoverageAudit(cmd *cobra.Command, runsDir, scenarioFilter, m
 		outputPath = filepath.Join(runsDir, "artifact-coverage.json")
 	}
 
-	resultsStore, err := store.Open(runsDir)
+	resultsStore, err := localstore.Open(runsDir)
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func executeArtifactCoverageAudit(cmd *cobra.Command, runsDir, scenarioFilter, m
 		}
 	}()
 
-	runs, err := resultsStore.Query(store.QueryFilters{
+	runs, err := resultsStore.Query(localstore.QueryFilters{
 		ScenarioID: scenarioFilter,
 		Model:      modelFilter,
 		Provider:   providerFilter,

@@ -170,8 +170,13 @@ Bench has two storage layers:
 
 | Layer | Package | Purpose |
 |---|---|---|
-| Local SQLite plus JSONL backup | `pkg/store` | Local runs, rebuildable history, CLI workflows |
+| Local SQLite plus JSONL backup | `pkg/localstore` | Local runner cache/index, rebuildable history, offline CLI workflows |
 | PostgreSQL control-plane DB | `internal/benchdb`, `internal/benchsvc` | Hosted API, runners, analytics, leaderboard, trigger jobs |
+
+These layers are intentionally not peers behind one generic database interface.
+Local artifacts plus `pkg/localstore` are the local runner boundary. PostgreSQL
+is the hosted/control-plane boundary. The synchronization point between them is
+the Bench ingest API, not direct shared storage ownership.
 
 The current PostgreSQL schema lives in
 `internal/benchdb/migrations/001_init.up.sql`.
@@ -258,8 +263,8 @@ pkg/signalaudit
 pkg/skilldelta
   Paired with/without skill benchmark aggregation
 
-pkg/store
-  Local SQLite store and JSONL import/export
+pkg/localstore
+  Local SQLite cache/index and JSONL import/export
 
 pkg/tui
   Bubble Tea local lab UI

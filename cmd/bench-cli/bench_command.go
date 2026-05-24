@@ -18,10 +18,10 @@ import (
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/environment"
 	"github.com/vitas/evidra-bench/pkg/harness"
+	"github.com/vitas/evidra-bench/pkg/localstore"
 	"github.com/vitas/evidra-bench/pkg/orchestrator"
 	"github.com/vitas/evidra-bench/pkg/scenario"
 	"github.com/vitas/evidra-bench/pkg/signalaudit"
-	"github.com/vitas/evidra-bench/pkg/store"
 )
 
 func newBenchCommand() *cobra.Command {
@@ -457,7 +457,7 @@ func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*sce
 // This is the core run logic shared across all execution modes.
 func makeScenarioRunFunc() orchestrator.RunFunc {
 	return func(ctx context.Context, cfg config.Config, scenarioPath, targetNS, kubeconfigPath string,
-		sharedStore *store.Store, provider environment.ClusterLifecycle) error {
+		sharedStore *localstore.Store, provider environment.ClusterLifecycle) error {
 		s, loadErr := scenario.Load(filepath.Join(cfg.ScenariosDir, scenarioPath))
 		if loadErr != nil {
 			return fmt.Errorf("load scenario: %w", loadErr)

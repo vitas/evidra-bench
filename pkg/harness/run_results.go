@@ -11,8 +11,8 @@ import (
 	"github.com/vitas/evidra-bench/pkg/artifact"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
 	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/localstore"
 	"github.com/vitas/evidra-bench/pkg/report"
-	"github.com/vitas/evidra-bench/pkg/store"
 	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
@@ -23,7 +23,7 @@ func (h *Harness) writeRunArtifacts(req RunRequest, agentResult *adapter.RunResu
 	timelineJSON := buildTimelineJSON(toolCallsJSON)
 	runEventsJSON := recorder.EventsJSON()
 	checksPassedForAutopsy, checksTotalForAutopsy := countChecks(verifyResult)
-	autopsyJSON := buildFailureAutopsyJSON(store.RunRecord{
+	autopsyJSON := buildFailureAutopsyJSON(localstore.RunRecord{
 		ScenarioID:       s.ID,
 		Model:            req.Config.Model,
 		Provider:         req.Config.Provider,
@@ -179,7 +179,7 @@ func (h *Harness) storeRun(req RunRequest, agentResult *adapter.RunResult, verif
 	h.persistRun(req, rec, agentResult.Transcript, agentResult.ToolCalls, timelineJSON, autopsyJSON, nil, recorder.EventsJSON())
 }
 
-func buildRunRecord(req RunRequest, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, artifactDir string, startTime, endTime time.Time) store.RunRecord {
+func buildRunRecord(req RunRequest, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, artifactDir string, startTime, endTime time.Time) localstore.RunRecord {
 	runCfg := req.Config
 	toolServer, toolServerVersion := resolveToolServerIdentity(runCfg)
 	if runCfg.MCPServer != "" || toolServer != "" || toolServerVersion != "" {
@@ -212,7 +212,7 @@ func buildRunRecord(req RunRequest, agentResult *adapter.RunResult, verifyResult
 	metadataJSON, _ := json.Marshal(agentResult.Metadata)
 
 	s := req.Scenario
-	return store.RunRecord{
+	return localstore.RunRecord{
 		ID:                fmt.Sprintf("%s-%s-%s", startTime.Format("20060102-150405"), s.ID, req.Config.Adapter),
 		ScenarioID:        s.ID,
 		Model:             req.Config.Model,
@@ -241,7 +241,7 @@ func buildRunRecord(req RunRequest, agentResult *adapter.RunResult, verifyResult
 	}
 }
 
-func (h *Harness) persistRun(req RunRequest, rec store.RunRecord, transcript string, toolCalls []adapter.ToolCallRecord, timelineJSON, autopsyJSON, runErrorJSON, runEventsJSON json.RawMessage) {
+func (h *Harness) persistRun(req RunRequest, rec localstore.RunRecord, transcript string, toolCalls []adapter.ToolCallRecord, timelineJSON, autopsyJSON, runErrorJSON, runEventsJSON json.RawMessage) {
 	if h.deps.Store != nil {
 		if err := h.deps.Store.Insert(rec); err != nil {
 			log.Printf("[harness] warning: store insert failed: %v", err)

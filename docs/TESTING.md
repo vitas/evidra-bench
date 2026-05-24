@@ -37,7 +37,7 @@ make fmt           # gofmt -w .
 | `pkg/report` | 10 | Offline JSONL reporting |
 | `pkg/scenario` | 58 | YAML loading, runtime contract validation, multi-stage |
 | `pkg/skilldelta` | 15 | Paired benchmark aggregation, markdown rendering |
-| `pkg/store` | 30 | SQLite CRUD, JSONL backup/rebuild, filtering |
+| `pkg/localstore` | 30+ | Local SQLite CRUD, JSONL backup/rebuild, filtering |
 | `pkg/tui` | 35 | Lab TUI config, catalog filtering, run history |
 | `pkg/verifier` | 12 | Kubernetes checks, PollChecks retry loop |
 
@@ -134,11 +134,11 @@ go test ./pkg/harness/ -v
 - `fakeProvider` — implements `environment.Provider` without real clusters
 - `fakeAdapter` — implements `adapter.Adapter` with configurable exit codes
 
-### 5. Store (SQLite)
+### 5. Local Store (SQLite)
 
-**File:** `pkg/store/store_test.go`
+**File:** `pkg/localstore/store_test.go`
 
-Tests the results database with isolated temp databases per test.
+Tests the local runner cache/index with isolated temp databases per test.
 
 - CRUD operations on RunRecord
 - Filtering by model, provider, scenario, passed status
@@ -147,7 +147,7 @@ Tests the results database with isolated temp databases per test.
 - JSONL backup export and database rebuild from JSONL
 
 ```bash
-go test ./pkg/store/ -v
+go test ./pkg/localstore/ -v
 ```
 
 ### 6. Smoke Tests
@@ -264,7 +264,7 @@ Filesystem tests use `t.TempDir()` — automatically cleaned up:
 
 ```go
 dir := t.TempDir()
-store, _ := store.Open(filepath.Join(dir, "test.db"))
+store, _ := localstore.Open(filepath.Join(dir, "test.db"))
 ```
 
 ### No mocking libraries

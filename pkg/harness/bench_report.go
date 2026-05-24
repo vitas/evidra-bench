@@ -8,12 +8,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/vitas/evidra-bench/pkg/store"
+	"github.com/vitas/evidra-bench/pkg/localstore"
 )
 
 // benchIngestRequest extends RunRecord with optional artifacts for the bench API.
 type benchIngestRequest struct {
-	store.RunRecord
+	localstore.RunRecord
 	Transcript string          `json:"transcript,omitempty"`
 	ToolCalls  any             `json:"tool_calls,omitempty"`
 	Timeline   json.RawMessage `json:"timeline,omitempty"`
@@ -23,7 +23,7 @@ type benchIngestRequest struct {
 }
 
 // ReportToBench posts a run record with artifacts to the bench API bench ingest endpoint.
-func ReportToBench(benchURL, apiKey string, rec store.RunRecord, transcript string, toolCalls any, timeline, autopsy, runError, runEvents json.RawMessage) {
+func ReportToBench(benchURL, apiKey string, rec localstore.RunRecord, transcript string, toolCalls any, timeline, autopsy, runError, runEvents json.RawMessage) {
 	if benchURL == "" || apiKey == "" {
 		return
 	}
@@ -74,7 +74,7 @@ func ReportToBench(benchURL, apiKey string, rec store.RunRecord, transcript stri
 }
 
 // ReportBatchToBench posts multiple run records to the bench API batch endpoint.
-func ReportBatchToBench(benchURL, apiKey string, records []store.RunRecord) error {
+func ReportBatchToBench(benchURL, apiKey string, records []localstore.RunRecord) error {
 	if benchURL == "" || apiKey == "" {
 		return fmt.Errorf("bench URL and API key required")
 	}

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vitas/evidra-bench/pkg/store"
+	"github.com/vitas/evidra-bench/pkg/localstore"
 )
 
 func TestSignalAuditCommand_WritesJSON(t *testing.T) {
@@ -107,11 +107,11 @@ func TestArtifactCoverageAuditCommand_WritesJSON(t *testing.T) {
 	runDir := filepath.Join(runsDir, "run-complete")
 	writeCoverageRunArtifacts(t, runDir, 1, true)
 
-	resultsStore, err := store.Open(runsDir)
+	resultsStore, err := localstore.Open(runsDir)
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
-	if err := resultsStore.Insert(store.RunRecord{
+	if err := resultsStore.Insert(localstore.RunRecord{
 		ID:          "run-complete",
 		ScenarioID:  "broken-deployment",
 		Model:       "sonnet",
@@ -163,11 +163,11 @@ func TestArtifactCoverageAuditCommand_FailOnGaps(t *testing.T) {
 	runDir := filepath.Join(runsDir, "run-missing")
 	writeAuditJSONFixture(t, filepath.Join(runDir, "run.json"), map[string]any{"scenario_id": "broken-deployment"})
 
-	resultsStore, err := store.Open(runsDir)
+	resultsStore, err := localstore.Open(runsDir)
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
-	if err := resultsStore.Insert(store.RunRecord{
+	if err := resultsStore.Insert(localstore.RunRecord{
 		ID:          "run-missing",
 		ScenarioID:  "broken-deployment",
 		Model:       "sonnet",

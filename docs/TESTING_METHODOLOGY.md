@@ -291,13 +291,16 @@ bench-cli audit coverage --runs-dir runs
 
 Storage model:
 
-- `runs/bench.db` - SQLite, gitignored, queryable
+- `runs/bench.db` - local SQLite cache/index, gitignored, queryable
 - `runs/results.jsonl` - append-only backup
 - run artifacts - transcript, tool calls, verifier output, scorecard, timeline,
   failure autopsy, run error, and run events
 
 Records include scenario, model, provider, adapter, pass/fail, duration, turns,
 memory window, prompt tokens, completion tokens, estimated cost, and checks.
+Hosted storage is separate: PostgreSQL owns the control-plane API, runners,
+analytics, and leaderboard state. Local runs sync to hosted storage through the
+Bench ingest API.
 
 ## Batch Benchmark Pipeline
 

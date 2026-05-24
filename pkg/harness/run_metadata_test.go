@@ -12,8 +12,8 @@ import (
 
 	"github.com/vitas/evidra-bench/pkg/agent"
 	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/localstore"
 	"github.com/vitas/evidra-bench/pkg/scenario"
-	"github.com/vitas/evidra-bench/pkg/store"
 )
 
 func TestBuildRunMetadata_UsesPromptFileMetadata(t *testing.T) {
@@ -185,7 +185,7 @@ func TestHarness_StoreUsesNativeToolBaseline(t *testing.T) {
 	fp := &fakeProvider{}
 	fa := &fakeAdapter{}
 	storeDir := t.TempDir()
-	rs, err := store.Open(storeDir)
+	rs, err := localstore.Open(storeDir)
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
@@ -225,7 +225,7 @@ func TestHarness_StoreUsesNativeToolBaseline(t *testing.T) {
 	if len(lines) != 1 {
 		t.Fatalf("expected 1 stored record, got %d", len(lines))
 	}
-	var rec store.RunRecord
+	var rec localstore.RunRecord
 	if err := json.Unmarshal([]byte(lines[0]), &rec); err != nil {
 		t.Fatalf("unmarshal stored record: %v", err)
 	}
@@ -240,7 +240,7 @@ func TestHarness_StoreUsesExplicitToolServerIdentity(t *testing.T) {
 	fp := &fakeProvider{}
 	fa := &fakeAdapter{}
 	storeDir := t.TempDir()
-	rs, err := store.Open(storeDir)
+	rs, err := localstore.Open(storeDir)
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
@@ -282,7 +282,7 @@ func TestHarness_StoreUsesExplicitToolServerIdentity(t *testing.T) {
 	if len(lines) != 1 {
 		t.Fatalf("expected 1 stored record, got %d", len(lines))
 	}
-	var rec store.RunRecord
+	var rec localstore.RunRecord
 	if err := json.Unmarshal([]byte(lines[0]), &rec); err != nil {
 		t.Fatalf("unmarshal stored record: %v", err)
 	}

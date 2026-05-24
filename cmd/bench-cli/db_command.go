@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vitas/evidra-bench/pkg/config"
-	"github.com/vitas/evidra-bench/pkg/store"
+	"github.com/vitas/evidra-bench/pkg/localstore"
 )
 
 func newDBCommand(cfg *config.Config) *cobra.Command {
@@ -18,7 +18,7 @@ func newDBCommand(cfg *config.Config) *cobra.Command {
 		Use:   "stats",
 		Short: "Show aggregate run statistics",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := store.Open(cfg.RunsDir)
+			s, err := localstore.Open(cfg.RunsDir)
 			if err != nil {
 				return err
 			}
@@ -42,7 +42,7 @@ func newDBCommand(cfg *config.Config) *cobra.Command {
 		Use:   "query",
 		Short: "Query runs with filters",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := store.Open(cfg.RunsDir)
+			s, err := localstore.Open(cfg.RunsDir)
 			if err != nil {
 				return err
 			}
@@ -57,7 +57,7 @@ func newDBCommand(cfg *config.Config) *cobra.Command {
 			limit, _ := cmd.Flags().GetInt("limit")
 			passedOnly, _ := cmd.Flags().GetBool("passed")
 			failedOnly, _ := cmd.Flags().GetBool("failed")
-			runs, err := s.Query(store.QueryFilters{
+			runs, err := s.Query(localstore.QueryFilters{
 				ScenarioID: scenarioFilter,
 				Model:      modelFilter,
 				Provider:   providerFilter,
@@ -92,7 +92,7 @@ func newDBCommand(cfg *config.Config) *cobra.Command {
 		Use:   "rebuild",
 		Short: "Rebuild database from JSONL backup",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := store.Open(cfg.RunsDir)
+			s, err := localstore.Open(cfg.RunsDir)
 			if err != nil {
 				return err
 			}
@@ -114,7 +114,7 @@ func newDBCommand(cfg *config.Config) *cobra.Command {
 		Use:   "import",
 		Short: "Import run.json artifacts into the database",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := store.Open(cfg.RunsDir)
+			s, err := localstore.Open(cfg.RunsDir)
 			if err != nil {
 				return err
 			}

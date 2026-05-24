@@ -11,9 +11,9 @@ import (
 	"github.com/vitas/evidra-bench/pkg/artifact"
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/environment"
+	"github.com/vitas/evidra-bench/pkg/localstore"
 	"github.com/vitas/evidra-bench/pkg/report"
 	"github.com/vitas/evidra-bench/pkg/scenario"
-	"github.com/vitas/evidra-bench/pkg/store"
 	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
@@ -46,7 +46,7 @@ type Deps struct {
 	Adapter      adapter.Adapter
 	Writer       *artifact.Writer
 	Reporter     *report.Reporter
-	Store        *store.Store
+	Store        *localstore.Store
 }
 
 // RunRequest describes what to run.

@@ -1,4 +1,4 @@
-package store
+package localstore
 
 import (
 	"encoding/json"
@@ -89,7 +89,7 @@ func (s *Store) ImportFromArtifacts(runsDir string) (int, error) {
 		return nil
 	})
 	if err != nil {
-		return count, fmt.Errorf("store.ImportFromArtifacts: %w", err)
+		return count, fmt.Errorf("localstore.ImportFromArtifacts: %w", err)
 	}
 	return count, nil
 }

@@ -1,4 +1,4 @@
-package store
+package localstore
 
 import (
 	"encoding/json"

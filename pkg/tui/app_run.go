@@ -11,8 +11,8 @@ import (
 	"github.com/vitas/evidra-bench/pkg/artifact"
 	"github.com/vitas/evidra-bench/pkg/environment"
 	"github.com/vitas/evidra-bench/pkg/harness"
+	"github.com/vitas/evidra-bench/pkg/localstore"
 	"github.com/vitas/evidra-bench/pkg/report"
-	"github.com/vitas/evidra-bench/pkg/store"
 )
 
 func (a *App) runScenario() tea.Cmd {
@@ -73,7 +73,7 @@ func (a *App) runScenario() tea.Cmd {
 			EvidencePath: filepath.Join(cfg.RunsDir, "evidence"),
 		})
 		if deps.Store == nil {
-			resultsStore, storeErr := store.Open(cfg.RunsDir)
+			resultsStore, storeErr := localstore.Open(cfg.RunsDir)
 			if storeErr != nil {
 				log.Printf("[tui] warning: could not open results store: %v", storeErr)
 			} else {

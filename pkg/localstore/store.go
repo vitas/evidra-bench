@@ -1,5 +1,5 @@
-// Package store provides structured result storage with SQLite + JSONL backup.
-package store
+// Package localstore provides local runner result storage with SQLite + JSONL backup.
+package localstore
 
 import (
 	"database/sql"
@@ -24,18 +24,18 @@ type Store struct {
 	jsonlPath string
 }
 
-// Open opens or creates the results store.
+// Open opens or creates the local results store.
 func Open(runsDir string) (*Store, error) {
 	dbPath := filepath.Join(runsDir, "bench.db")
 	jsonlPath := filepath.Join(runsDir, "results.jsonl")
 
 	if err := os.MkdirAll(runsDir, 0755); err != nil {
-		return nil, fmt.Errorf("store.Open: mkdir: %w", err)
+		return nil, fmt.Errorf("localstore.Open: mkdir: %w", err)
 	}
 
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
-		return nil, fmt.Errorf("store.Open: %w", err)
+		return nil, fmt.Errorf("localstore.Open: %w", err)
 	}
 
 	s := &Store{db: db, dbPath: dbPath, jsonlPath: jsonlPath}
@@ -132,7 +132,7 @@ func (s *Store) Insert(r RunRecord) error {
 		r.ChecksPassed, r.ChecksTotal, r.ChecksJSON, r.MetadataJSON, r.ArtifactDir, r.CreatedAt,
 	)
 	if err != nil {
-		return fmt.Errorf("store.Insert: %w", err)
+		return fmt.Errorf("localstore.Insert: %w", err)
 	}
 	return s.appendJSONL(r)
 }
@@ -194,7 +194,7 @@ func (s *Store) Query(filters QueryFilters) ([]RunRecord, error) {
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("store.Query: %w", err)
+		return nil, fmt.Errorf("localstore.Query: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
@@ -202,7 +202,7 @@ func (s *Store) Query(filters QueryFilters) ([]RunRecord, error) {
 	for rows.Next() {
 		var r RunRecord
 		if err := rows.Scan(&r.ID, &r.ScenarioID, &r.Model, &r.Provider, &r.Adapter, &r.ToolServer, &r.ToolServerVersion, &r.SkillID, &r.SkillVersion, &r.SkillSource, &r.SkillSHA256, &r.Passed, &r.Duration, &r.ExitCode, &r.Turns, &r.MemoryWindow, &r.PromptTokens, &r.CompletionTokens, &r.EstimatedCost, &r.ChecksPassed, &r.ChecksTotal, &r.ChecksJSON, &r.MetadataJSON, &r.ArtifactDir, &r.CreatedAt); err != nil {
-			return nil, fmt.Errorf("store.Query: scan: %w", err)
+			return nil, fmt.Errorf("localstore.Query: scan: %w", err)
 		}
 		records = append(records, r)
 	}
@@ -263,7 +263,7 @@ type ScenarioStat struct {
 func (s *Store) Rebuild() (int, error) {
 	data, err := os.ReadFile(s.jsonlPath)
 	if err != nil {
-		return 0, fmt.Errorf("store.Rebuild: read jsonl: %w", err)
+		return 0, fmt.Errorf("localstore.Rebuild: read jsonl: %w", err)
 	}
 	// Drop and recreate
 	if _, err := s.db.Exec("DELETE FROM runs"); err != nil {

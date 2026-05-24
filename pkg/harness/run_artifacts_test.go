@@ -14,8 +14,8 @@ import (
 	"github.com/vitas/evidra-bench/pkg/artifact"
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/environment"
+	"github.com/vitas/evidra-bench/pkg/localstore"
 	"github.com/vitas/evidra-bench/pkg/scenario"
-	"github.com/vitas/evidra-bench/pkg/store"
 )
 
 func TestHarness_RunWritesFailureArtifactsWhenAdapterErrors(t *testing.T) {
@@ -180,7 +180,7 @@ func TestHarness_RunPreservesToolCallsWhenVerifierErrors(t *testing.T) {
 func TestHarness_RunStoresFailedRecordWhenAdapterErrors(t *testing.T) {
 	t.Parallel()
 
-	resultsStore, err := store.Open(filepath.Join(t.TempDir(), "store"))
+	resultsStore, err := localstore.Open(filepath.Join(t.TempDir(), "store"))
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestHarness_RunStoresFailedRecordWhenAdapterErrors(t *testing.T) {
 		t.Fatal("expected adapter error")
 	}
 
-	records, err := resultsStore.Query(store.QueryFilters{ScenarioID: "adapter-error-store"})
+	records, err := resultsStore.Query(localstore.QueryFilters{ScenarioID: "adapter-error-store"})
 	if err != nil {
 		t.Fatalf("query store: %v", err)
 	}
@@ -529,7 +529,7 @@ func TestBuildFailureAutopsyJSONUsesScenarioHints(t *testing.T) {
 		},
 	}
 
-	data := buildFailureAutopsyJSON(store.RunRecord{Passed: false}, toolCallsJSON, "", nil, hints)
+	data := buildFailureAutopsyJSON(localstore.RunRecord{Passed: false}, toolCallsJSON, "", nil, hints)
 	if len(data) == 0 {
 		t.Fatal("autopsy JSON is empty")
 	}
