@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vitas/evidra-bench/pkg/artifact"
 	"github.com/vitas/evidra-bench/pkg/localstore"
 	"github.com/vitas/evidra-bench/pkg/signalaudit"
 )
@@ -17,7 +18,7 @@ func loadAuditRuns(runsDir, scenarioFilter, modelFilter, providerFilter string) 
 		if err != nil {
 			return err
 		}
-		if d.IsDir() || d.Name() != "run.json" {
+		if d.IsDir() || d.Name() != artifact.RunJSON {
 			return nil
 		}
 

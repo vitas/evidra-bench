@@ -20,7 +20,7 @@ func registerBenchAPIRoutes(mux *http.ServeMux, svc *benchsvc.Service, apiKey st
 func handleBenchInfo() http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
-			"readonly": true,
+			"readonly": false,
 			"version":  buildVersionString(),
 		})
 	}

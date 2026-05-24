@@ -3,7 +3,6 @@ package benchsvc
 import (
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/vitas/evidra-bench/internal/apiutil"
 	"github.com/vitas/evidra-bench/internal/auth"
@@ -39,11 +38,8 @@ func handleCompareModels(svc *Service) http.HandlerFunc {
 		// Support both ?models=X,Y,Z (multi-model matrix) and legacy ?a=X&b=Y (pairwise).
 		modelsStr := q.Get("models")
 		if modelsStr != "" {
-			models := strings.Split(modelsStr, ",")
-			var scenarios []string
-			if scenariosStr := q.Get("scenarios"); scenariosStr != "" {
-				scenarios = strings.Split(scenariosStr, ",")
-			}
+			models := parseCSVQuery(modelsStr)
+			scenarios := parseCSVQuery(q.Get("scenarios"))
 			matrix, err := svc.ModelMatrix(r.Context(), tenantID, models, scenarios)
 			if err != nil {
 				apiutil.WriteError(w, http.StatusInternalServerError, err.Error())

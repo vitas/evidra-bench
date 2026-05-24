@@ -18,17 +18,9 @@ import {
   normalizeRunSelection,
 } from "../../lib/runOptions.mts";
 import { benchRunPath, benchRunsPagePath, benchScenarioPath } from "../../lib/routes.mts";
+import type { BenchScenarioSummary } from "../../lib/benchTypes.mts";
 
-interface Scenario {
-  id: string;
-  title: string;
-  description?: string;
-  category: string;
-  track?: string;
-  level?: string;
-  tags: string[];
-  chaos: boolean;
-}
+type Scenario = BenchScenarioSummary;
 
 interface ScenariosResponse {
   items: Scenario[];

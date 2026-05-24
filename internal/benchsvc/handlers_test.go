@@ -69,6 +69,7 @@ type handlerRepo struct {
 	lastTenant       string
 	lastFilter       bench.RunFilters
 	lastScenarios    []string
+	lastModels       []string
 	lastModelID      string
 	lastProviderCfg  TenantProviderConfig
 	lastGlobalCfg    GlobalModelConfig
@@ -205,7 +206,10 @@ func (r *handlerRepo) GetArtifact(_ context.Context, tenant, runID, artType stri
 func (r *handlerRepo) CompareModels(_ context.Context, _, _, _ string) ([]ScenarioModelComparison, error) {
 	return nil, nil
 }
-func (r *handlerRepo) ModelMatrix(_ context.Context, _ string, _, _ []string) (*bench.ModelMatrix, error) {
+func (r *handlerRepo) ModelMatrix(_ context.Context, tenant string, models, scenarios []string) (*bench.ModelMatrix, error) {
+	r.lastTenant = tenant
+	r.lastModels = models
+	r.lastScenarios = scenarios
 	return r.matrix, r.matrixErr
 }
 func (r *handlerRepo) SignalSummary(_ context.Context, tenant string, f bench.RunFilters) (*bench.SignalAggregation, error) {
@@ -281,6 +285,29 @@ func rejectingAuth(http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "auth required", http.StatusUnauthorized)
 	})
+}
+
+func TestRegisterRoutes_ReadEndpointsUseAuthenticatedTenantWhenAuthorized(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		runs: []bench.RunRecord{{ID: "r1", ScenarioID: "s1", Model: "sonnet"}},
+	}
+	svc := NewService(repo, ServiceConfig{PublicTenant: "bench-public"})
+	mux := http.NewServeMux()
+	RegisterRoutes(mux, svc, passthroughAuth("tenant-a"))
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/v1/bench/runs", nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if repo.lastTenant != "tenant-a" {
+		t.Fatalf("tenant = %q, want tenant-a", repo.lastTenant)
+	}
 }
 
 func TestRegisterRoutes_PublicReadEndpointsUsePublicTenantWithoutAuth(t *testing.T) {

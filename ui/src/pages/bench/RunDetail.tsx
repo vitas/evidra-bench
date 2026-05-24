@@ -2,33 +2,10 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
-import { buildBenchApiURL } from "../../lib/apiBase.mts";
 import type { AutopsyReport } from "../../lib/autopsyView.mts";
 import { normalizeAutopsyReport } from "../../lib/autopsyView.mts";
-
-const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
-
-function fetchApi(path: string): Promise<Response> {
-  return fetch(buildBenchApiURL(API_BASE, path));
-}
-
-interface RunRecord {
-  id: string;
-  scenario_id: string;
-  model: string;
-  provider: string;
-  passed: boolean;
-  duration_seconds: number;
-  turns: number;
-  prompt_tokens: number;
-  completion_tokens: number;
-  estimated_cost_usd: number;
-  exit_code: number;
-  checks_passed: number;
-  checks_total: number;
-  checks_json: string;
-  created_at: string;
-}
+import { formatCompactTokens, formatDuration } from "../../lib/benchFormatters.mts";
+import type { BenchRunRecord } from "../../lib/benchTypes.mts";
 
 interface Check {
   name: string;
@@ -100,19 +77,6 @@ function parseTab(value: string | null): Tab {
   return "summary";
 }
 
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return `${m}m ${s}s`;
-}
-
-function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
-  return String(n);
-}
-
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
   return s.slice(0, max) + "\u2026";
@@ -149,10 +113,10 @@ function highlightTranscript(text: string): (React.ReactElement | string)[] {
 export function RunDetail() {
   const { id } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { request } = useApi();
+  const { request, fetchResponse } = useApi();
   usePageTitle(id ? `Run ${id}` : "Run Detail");
 
-  const [run, setRun] = useState<RunRecord | null>(null);
+  const [run, setRun] = useState<BenchRunRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>(() => parseTab(searchParams.get("tab")));
@@ -196,7 +160,7 @@ export function RunDetail() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    request<RunRecord>(`/v1/bench/runs/${id}`)
+    request<BenchRunRecord>(`/v1/bench/runs/${id}`)
       .then(setRun)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -206,7 +170,7 @@ export function RunDetail() {
   useEffect(() => {
     if (activeTab !== "transcript" || transcript !== null || transcriptLoading || !id) return;
     setTranscriptLoading(true);
-    fetchApi(`/v1/bench/runs/${id}/transcript`)
+    fetchResponse(`/v1/bench/runs/${id}/transcript`)
       .then((res) => {
         if (!res.ok) throw new Error(res.statusText);
         return res.text();
@@ -214,13 +178,13 @@ export function RunDetail() {
       .then(setTranscript)
       .catch((err) => setTranscriptError(err.message))
       .finally(() => setTranscriptLoading(false));
-  }, [activeTab, transcript, transcriptLoading, id]);
+  }, [activeTab, transcript, transcriptLoading, id, fetchResponse]);
 
   // Fetch tool calls on tab switch
   useEffect(() => {
     if (activeTab !== "tool-calls" || toolCalls !== null || toolCallsLoading || !id) return;
     setToolCallsLoading(true);
-    fetchApi(`/v1/bench/runs/${id}/tool-calls`)
+    fetchResponse(`/v1/bench/runs/${id}/tool-calls`)
       .then((res) => {
         if (!res.ok) {
           if (res.status === 404) return null;
@@ -242,13 +206,13 @@ export function RunDetail() {
       })
       .catch((err) => setToolCallsError(err.message))
       .finally(() => setToolCallsLoading(false));
-  }, [activeTab, toolCalls, toolCallsLoading, id]);
+  }, [activeTab, toolCalls, toolCallsLoading, id, fetchResponse]);
 
   // Fetch scorecard on tab switch
   useEffect(() => {
     if (activeTab !== "scorecard" || scorecard !== null || scorecardError !== null || scorecardLoading || !id) return;
     setScorecardLoading(true);
-    fetchApi(`/v1/bench/runs/${id}/scorecard`)
+    fetchResponse(`/v1/bench/runs/${id}/scorecard`)
       .then((res) => {
         if (res.status === 404) {
           setScorecardError("not-found");
@@ -262,13 +226,13 @@ export function RunDetail() {
       })
       .catch((err) => setScorecardError(err.message))
       .finally(() => setScorecardLoading(false));
-  }, [activeTab, scorecard, scorecardError, scorecardLoading, id]);
+  }, [activeTab, scorecard, scorecardError, scorecardLoading, id, fetchResponse]);
 
   // Fetch timeline on tab switch
   useEffect(() => {
     if (activeTab !== "timeline" || timeline !== null || timelineError !== null || timelineLoading || !id) return;
     setTimelineLoading(true);
-    fetchApi(`/v1/bench/runs/${id}/timeline`)
+    fetchResponse(`/v1/bench/runs/${id}/timeline`)
       .then((res) => {
         if (res.status === 404) {
           setTimelineError("not-found");
@@ -282,13 +246,13 @@ export function RunDetail() {
       })
       .catch((err) => setTimelineError(err.message))
       .finally(() => setTimelineLoading(false));
-  }, [activeTab, timeline, timelineError, timelineLoading, id]);
+  }, [activeTab, timeline, timelineError, timelineLoading, id, fetchResponse]);
 
   // Fetch failure autopsy on tab switch
   useEffect(() => {
     if (activeTab !== "autopsy" || autopsy !== null || autopsyError !== null || autopsyLoading || !id) return;
     setAutopsyLoading(true);
-    fetchApi(`/v1/bench/runs/${id}/autopsy`)
+    fetchResponse(`/v1/bench/runs/${id}/autopsy`)
       .then((res) => {
         if (res.status === 404) {
           setAutopsyError("not-found");
@@ -302,7 +266,7 @@ export function RunDetail() {
       })
       .catch((err) => setAutopsyError(err.message))
       .finally(() => setAutopsyLoading(false));
-  }, [activeTab, autopsy, autopsyError, autopsyLoading, id]);
+  }, [activeTab, autopsy, autopsyError, autopsyLoading, id, fetchResponse]);
 
   if (loading) {
     return (
@@ -361,7 +325,7 @@ export function RunDetail() {
         <MetaItem label="Turns" value={String(run.turns)} />
         <MetaItem
           label="Tokens"
-          value={`${formatTokens(run.prompt_tokens)} / ${formatTokens(run.completion_tokens)}`}
+          value={`${formatCompactTokens(run.prompt_tokens)} / ${formatCompactTokens(run.completion_tokens)}`}
         />
         <MetaItem
           label="Cost"
@@ -669,7 +633,7 @@ function AutopsyTab({
             wasted turns {view.waste.turns}
           </span>
           <span className="font-mono text-fg-muted bg-bg-alt/80 rounded-md px-2.5 py-1">
-            wasted tokens {formatTokens(view.waste.tokens)}
+            wasted tokens {formatCompactTokens(view.waste.tokens)}
           </span>
           {view.waste.basis && (
             <span className="font-mono text-fg-muted bg-bg-alt/80 rounded-md px-2.5 py-1">
@@ -681,13 +645,13 @@ function AutopsyTab({
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <AutopsyMetric label="Turns" value={String(metrics.turns)} />
-        <AutopsyMetric label="Tokens" value={formatTokens(metrics.total_tokens)} />
+        <AutopsyMetric label="Tokens" value={formatCompactTokens(metrics.total_tokens)} />
         <AutopsyMetric label="Checks" value={`${metrics.checks_passed}/${metrics.checks_total}`} />
         <AutopsyMetric label="Cost" value={`$${metrics.estimated_cost_usd.toFixed(4)}`} />
         <AutopsyMetric label="Steps" value={String(metrics.total_steps)} />
         <AutopsyMetric label="Mutations" value={String(metrics.mutation_count)} />
         <AutopsyMetric label="Diagnosis" value={String(metrics.diagnosis_depth)} />
-        <AutopsyMetric label="Prompt / Completion" value={`${formatTokens(metrics.prompt_tokens)} / ${formatTokens(metrics.completion_tokens)}`} />
+        <AutopsyMetric label="Prompt / Completion" value={`${formatCompactTokens(metrics.prompt_tokens)} / ${formatCompactTokens(metrics.completion_tokens)}`} />
       </div>
 
       <div>

@@ -3,7 +3,6 @@ package benchsvc
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -151,23 +150,14 @@ func TestServiceListRuns_UsesProvidedTenant(t *testing.T) {
 	}
 }
 
-func TestServiceLeaderboard_UsesPublicTenant(t *testing.T) {
+func TestServiceLeaderboard_UsesProvidedTenant(t *testing.T) {
 	t.Parallel()
 
-	// When PublicTenant is empty, Leaderboard must return ErrPublicTenantUnavailable.
-	svc := NewService(&fakeRepo{}, ServiceConfig{})
-	_, err := svc.Leaderboard(context.Background(), 3, nil)
-	if !errors.Is(err, ErrPublicTenantUnavailable) {
-		t.Fatalf("Leaderboard err = %v, want ErrPublicTenantUnavailable", err)
-	}
-
-	// When PublicTenant is set, the repo's Leaderboard should be called
-	// with the configured public tenant.
 	repo := &fakeRepo{}
-	svc2 := NewService(repo, ServiceConfig{PublicTenant: "bench-public"})
-	_, _ = svc2.Leaderboard(context.Background(), 3, nil)
-	if repo.leaderboardTenant != "bench-public" {
-		t.Fatalf("leaderboardTenant = %q, want bench-public", repo.leaderboardTenant)
+	svc := NewService(repo, ServiceConfig{PublicTenant: "bench-public"})
+	_, _ = svc.Leaderboard(context.Background(), "tenant-a", 3, nil)
+	if repo.leaderboardTenant != "tenant-a" {
+		t.Fatalf("leaderboardTenant = %q, want tenant-a", repo.leaderboardTenant)
 	}
 }
 
@@ -360,12 +350,14 @@ func TestIngestRunRequest_JSONRoundtrip(t *testing.T) {
 	timeline := json.RawMessage(`{"total_steps":2,"mutation_count":1}`)
 	runError := json.RawMessage(`{"phase":"agent_run","kind":"adapter_error"}`)
 	runEvents := json.RawMessage(`[{"phase":"run","status":"started"},{"phase":"agent_run","status":"failed"}]`)
+	scorecard := json.RawMessage(`{"score":87,"band":"pass","signals":{"retry_loop":1}}`)
 	req := IngestRunRequest{
 		RunRecord:  bench.RunRecord{ID: "r1", ScenarioID: "s1", Model: "m1"},
 		Transcript: "step 1\nstep 2",
 		ToolCalls:  json.RawMessage(`[{"tool":"kubectl","args":["get","pods"]}]`),
 		Timeline:   timeline,
 		Autopsy:    autopsy,
+		Scorecard:  scorecard,
 		RunError:   runError,
 		RunEvents:  runEvents,
 	}
@@ -395,11 +387,47 @@ func TestIngestRunRequest_JSONRoundtrip(t *testing.T) {
 	if string(decoded.Autopsy) != string(autopsy) {
 		t.Errorf("Autopsy = %s, want %s", decoded.Autopsy, autopsy)
 	}
+	if string(decoded.Scorecard) != string(scorecard) {
+		t.Errorf("Scorecard = %s, want %s", decoded.Scorecard, scorecard)
+	}
 	if string(decoded.RunError) != string(runError) {
 		t.Errorf("RunError = %s, want %s", decoded.RunError, runError)
 	}
 	if string(decoded.RunEvents) != string(runEvents) {
 		t.Errorf("RunEvents = %s, want %s", decoded.RunEvents, runEvents)
+	}
+}
+
+func TestServiceIngestRun_StoresScorecardArtifact(t *testing.T) {
+	t.Parallel()
+
+	tx := &fakeTx{}
+	repo := &fakeRepo{tx: tx}
+	svc := NewService(repo, ServiceConfig{})
+
+	scorecard := []byte(`{"score":87,"band":"pass","signals":{"retry_loop":1}}`)
+	err := svc.IngestRun(context.Background(), "tenant-a", IngestRunRequest{
+		RunRecord: bench.RunRecord{ID: "run-1", ScenarioID: "s1", Model: "m1"},
+		Scorecard: scorecard,
+	})
+	if err != nil {
+		t.Fatalf("IngestRun: %v", err)
+	}
+	if len(tx.execArgs) != 2 {
+		t.Fatalf("exec count = %d, want 2", len(tx.execArgs))
+	}
+	if got := tx.execArgs[1][1]; got != "scorecard" {
+		t.Fatalf("artifact type = %v, want scorecard", got)
+	}
+	if got := tx.execArgs[1][2]; got != "application/json" {
+		t.Fatalf("content type = %v, want application/json", got)
+	}
+	data, ok := tx.execArgs[1][3].([]byte)
+	if !ok {
+		t.Fatalf("artifact data type = %T, want []byte", tx.execArgs[1][3])
+	}
+	if string(data) != string(scorecard) {
+		t.Fatalf("artifact data = %s, want %s", data, scorecard)
 	}
 }
 

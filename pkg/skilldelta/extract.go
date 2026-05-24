@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vitas/evidra-bench/pkg/artifact"
 	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
@@ -74,7 +75,7 @@ type loadedRun struct {
 }
 
 func loadRunSnapshot(runDir string) (loadedRun, error) {
-	data, err := os.ReadFile(filepath.Join(runDir, "run.json"))
+	data, err := os.ReadFile(filepath.Join(runDir, artifact.RunJSON))
 	if err != nil {
 		return loadedRun{}, err
 	}
@@ -99,7 +100,7 @@ func loadRunSnapshot(runDir string) (loadedRun, error) {
 
 	evidenceDir := strings.TrimSpace(meta["evidence_dir"])
 	if evidenceDir == "" {
-		if fallback := filepath.Join(runDir, "evidence"); hasSegments(fallback) {
+		if fallback := filepath.Join(runDir, artifact.EvidenceDir); hasSegments(fallback) {
 			evidenceDir = fallback
 		}
 	}
@@ -148,7 +149,7 @@ func loadRunSnapshot(runDir string) (loadedRun, error) {
 		Provider:       strings.TrimSpace(meta["provider"]),
 		EvidenceDir:    evidenceDir,
 		ScorecardPath:  scorecardPath,
-		TranscriptPath: filepath.Join(runDir, "transcript.txt"),
+		TranscriptPath: filepath.Join(runDir, artifact.TranscriptFile),
 		Snapshot:       snapshot,
 	}, nil
 }
@@ -291,8 +292,8 @@ func parseEvidenceSummary(evidenceDir string) (evidenceSummary, error) {
 
 func loadScorecard(runDir string) (ScorecardMetrics, string, error) {
 	for _, candidate := range []string{
-		filepath.Join(runDir, "scorecard.json"),
-		filepath.Join(runDir, "evidence", "scorecard.json"),
+		filepath.Join(runDir, artifact.ScorecardFile),
+		filepath.Join(runDir, artifact.EvidenceDir, artifact.ScorecardFile),
 	} {
 		if _, err := os.Stat(candidate); err != nil {
 			continue

@@ -1,47 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
-import { buildBenchApiURL } from "../../lib/apiBase.mts";
 import { usePageTitle } from "../../hooks/usePageTitle";
-
-const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
+import { formatCurrency, formatDateTime, formatDuration } from "../../lib/benchFormatters.mts";
+import type { BenchRunRecord, BenchRunsResponse, BenchScenarioSummary, BenchScenariosResponse } from "../../lib/benchTypes.mts";
 
 /* ── Types ── */
 
-interface Run {
-  id: string;
-  scenario_id: string;
-  model: string;
-  provider: string;
-  passed: boolean;
-  duration_seconds: number;
-  turns: number;
-  prompt_tokens: number;
-  completion_tokens: number;
-  estimated_cost_usd: number;
-  checks_passed: number;
-  checks_total: number;
-  created_at: string;
-}
-
-interface RunsResponse {
-  runs: Run[];
-  total: number;
-}
-
-interface Scenario {
-  id: string;
-  title: string;
-  description?: string;
-  autopsy_description?: string;
-  category: string;
-  tags: string[];
-  chaos: boolean;
-}
-
-interface ScenariosResponse {
-  scenarios: Scenario[];
-}
+type Run = BenchRunRecord;
+type RunsResponse = BenchRunsResponse;
+type Scenario = BenchScenarioSummary;
+type ScenariosResponse = BenchScenariosResponse;
 
 interface ModelGroup {
   model: string;
@@ -55,27 +24,6 @@ interface ModelGroup {
 }
 
 /* ── Helpers ── */
-
-function formatDuration(s: number): string {
-  if (s < 60) return `${s.toFixed(1)}s`;
-  return `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
-}
-
-function formatCost(usd: number): string {
-  if (usd === 0) return "$0.00";
-  if (usd < 0.01) return `$${usd.toFixed(3)}`;
-  return `$${usd.toFixed(2)}`;
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  const day = d.getDate();
-  const mon = d.toLocaleString("en-US", { month: "short" });
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${day} ${mon} ${hh}:${mm}`;
-}
 
 function rateColor(rate: number): string {
   if (rate >= 80) return "text-accent";
@@ -95,7 +43,7 @@ function rateBg(rate: number): string {
 export function ScenarioDetail() {
   const { id } = useParams<{ id: string }>();
   usePageTitle(id ? `Scenario: ${id}` : "Scenario");
-  const { request } = useApi();
+  const { request, fetchResponse } = useApi();
 
   const [runs, setRuns] = useState<Run[]>([]);
   const [scenario, setScenario] = useState<Scenario | null>(null);
@@ -113,7 +61,8 @@ export function ScenarioDetail() {
     ])
       .then(([runsRes, scenariosRes]) => {
         setRuns(runsRes.runs ?? []);
-        const sc = scenariosRes.scenarios?.find((s) => s.id === id) ?? null;
+        const scenarioItems = scenariosRes.scenarios ?? scenariosRes.items ?? [];
+        const sc = scenarioItems.find((s) => s.id === id) ?? null;
         setScenario(sc);
       })
       .catch(() => {})
@@ -124,12 +73,12 @@ export function ScenarioDetail() {
   useEffect(() => {
     if (!expandedRun || transcripts[expandedRun] !== undefined) return;
     setTranscriptLoading(expandedRun);
-    fetch(buildBenchApiURL(API_BASE, `/v1/bench/runs/${expandedRun}/transcript`))
+    fetchResponse(`/v1/bench/runs/${expandedRun}/transcript`)
       .then((res) => (res.ok ? res.text() : Promise.resolve("")))
       .then((text) => setTranscripts((prev) => ({ ...prev, [expandedRun]: text })))
       .catch(() => setTranscripts((prev) => ({ ...prev, [expandedRun]: "" })))
       .finally(() => setTranscriptLoading(null));
-  }, [expandedRun, transcripts]);
+  }, [expandedRun, transcripts, fetchResponse]);
 
   const modelGroups = useMemo(() => {
     const map = new Map<string, Run[]>();
@@ -279,7 +228,7 @@ export function ScenarioDetail() {
                   <strong className="text-fg">{group.passed}</strong>/{group.runs.length} passed
                 </span>
                 <span>{formatDuration(group.avgDuration)} avg</span>
-                <span>{formatCost(group.avgCost)}/run</span>
+                <span>{formatCurrency(group.avgCost)}/run</span>
               </div>
             </div>
 
@@ -338,13 +287,13 @@ export function ScenarioDetail() {
                           {((run.prompt_tokens + run.completion_tokens) / 1000).toFixed(1)}k
                         </td>
                         <td className="px-4 py-2 font-mono text-fg-muted text-[0.76rem]">
-                          {formatCost(run.estimated_cost_usd)}
+                          {formatCurrency(run.estimated_cost_usd)}
                         </td>
                         <td className="px-4 py-2 font-mono text-fg-muted text-[0.76rem]">
                           {run.checks_passed}/{run.checks_total}
                         </td>
                         <td className="px-4 py-2 text-fg-muted text-[0.76rem] whitespace-nowrap">
-                          {formatDate(run.created_at)}
+                          {formatDateTime(run.created_at)}
                         </td>
                         <td className="px-4 py-2">
                           <Link

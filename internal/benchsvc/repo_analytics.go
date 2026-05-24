@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vitas/evidra-bench/pkg/artifact"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
@@ -18,9 +19,9 @@ func (s *PgStore) SignalSummary(ctx context.Context, tenantID string, f bench.Ru
 	// bench_runs is not aliased so that buildWhere's bench_runs.created_at qualifier resolves
 	// without ambiguity against bench_artifacts.created_at.
 	query := `SELECT bench_runs.id, sc.data, fa.data
-		FROM bench_runs
-		LEFT JOIN bench_artifacts sc ON sc.run_id = bench_runs.id AND sc.artifact_type = 'scorecard'
-		LEFT JOIN bench_artifacts fa ON fa.run_id = bench_runs.id AND fa.artifact_type = 'failure_autopsy'` +
+			FROM bench_runs
+			LEFT JOIN bench_artifacts sc ON sc.run_id = bench_runs.id AND sc.artifact_type = '` + artifact.HostedScorecard + `'
+			LEFT JOIN bench_artifacts fa ON fa.run_id = bench_runs.id AND fa.artifact_type = '` + artifact.HostedFailureAutopsy + `'` +
 		where +
 		` ORDER BY bench_runs.created_at DESC LIMIT 1000`
 

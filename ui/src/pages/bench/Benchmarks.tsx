@@ -4,6 +4,8 @@ import { Link } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { resolveRunsLimit } from "../../lib/benchmarkData.mts";
 import { LANDING_PUBLIC_REPORTS } from "../../lib/publicReports.mts";
+import { formatCurrency, formatDateLabel, formatDuration } from "../../lib/benchFormatters.mts";
+import type { BenchRunRecord, BenchRunsResponse } from "../../lib/benchTypes.mts";
 
 /* ── Types ── */
 
@@ -22,21 +24,8 @@ interface Stats {
   by_scenario: ScenarioStat[];
 }
 
-interface Run {
-  id: string;
-  scenario_id: string;
-  model: string;
-  provider: string;
-  passed: boolean;
-  duration_seconds: number;
-  estimated_cost_usd: number;
-  created_at: string;
-}
-
-interface RunsResponse {
-  runs: Run[];
-  total: number;
-}
+type Run = BenchRunRecord;
+type RunsResponse = BenchRunsResponse;
 
 interface DayGroup {
   date: string;
@@ -91,25 +80,6 @@ function toDateKey(iso: string): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
-}
-
-function formatDateLabel(dateKey: string): string {
-  if (!dateKey || dateKey === "unknown") return dateKey;
-  const d = new Date(dateKey + "T12:00:00");
-  if (isNaN(d.getTime())) return dateKey;
-  const day = d.getDate();
-  const mon = d.toLocaleString("en-US", { month: "short" });
-  const year = d.getFullYear();
-  return `${day} ${mon} ${year}`;
-}
-
-function formatCost(usd: number): string {
-  if (usd < 0.001) return "$0.00";
-  return `$${usd.toFixed(3)}`;
-}
-
-function formatDuration(s: number): string {
-  return `${s.toFixed(1)}s`;
 }
 
 function extractCategory(scenarioId: string): string {
@@ -376,7 +346,7 @@ export function Benchmarks() {
                 >
                   {/* Date */}
                   <span className="font-mono text-[0.78rem] text-fg-muted whitespace-nowrap shrink-0 w-28">
-                    {formatDateLabel(day.date)}
+                    {formatDateLabel(day.date, { year: true })}
                   </span>
 
                   {/* Stacked bar */}
@@ -407,7 +377,7 @@ export function Benchmarks() {
                       {day.models.join(", ")}
                     </span>
                     <span className="font-mono text-[0.72rem] text-fg-muted whitespace-nowrap">
-                      {formatCost(day.totalCost)}
+                      {formatCurrency(day.totalCost, { precision: 3, smallPrecision: 3 })}
                     </span>
                   </div>
                 </div>
@@ -488,10 +458,10 @@ export function Benchmarks() {
                         {row.passRate.toFixed(1)}%
                       </td>
                       <td className="px-5 py-3 font-mono text-fg-muted">
-                        {formatDuration(row.avgDuration)}
+                        {formatDuration(row.avgDuration, { compact: true })}
                       </td>
                       <td className="px-5 py-3 font-mono text-fg-muted">
-                        {formatCost(row.avgCost)}
+                        {formatCurrency(row.avgCost, { precision: 3, smallPrecision: 3 })}
                       </td>
                     </tr>
                   ))}

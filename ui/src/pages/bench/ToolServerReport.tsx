@@ -19,6 +19,14 @@ import {
   buildToolServerComparePath,
   toolServerRunsPagePath,
 } from "../../lib/toolServerCompare.mts";
+import {
+  formatCompactTokens,
+  formatCurrency,
+  formatDuration,
+  formatPercent,
+  formatSignedNumber,
+  formatSignedPercent,
+} from "../../lib/benchFormatters.mts";
 
 interface ToolServerAggregate {
   runs: number;
@@ -63,38 +71,9 @@ interface ScenariosResponse {
   items?: ScenarioCategoryRecord[];
 }
 
-function formatPercent(value: number): string {
-  return `${value.toFixed(1)}%`;
-}
-
-function formatSignedPercent(value: number): string {
-  const sign = value > 0 ? "+" : "";
-  return `${sign}${value.toFixed(1)}pp`;
-}
-
-function formatSignedNumber(value: number, digits = 1): string {
-  const sign = value > 0 ? "+" : "";
-  return `${sign}${value.toFixed(digits)}`;
-}
-
-function formatTokens(value: number): string {
-  if (Math.abs(value) >= 1000) {
-    return `${(value / 1000).toFixed(1)}k`;
-  }
-  return value.toFixed(0);
-}
-
-function formatCost(value: number): string {
-  return Math.abs(value) < 0.01 ? `$${value.toFixed(4)}` : `$${value.toFixed(2)}`;
-}
-
 function formatSignedCost(value: number): string {
   const sign = value > 0 ? "+" : value < 0 ? "-" : "";
-  return `${sign}${formatCost(Math.abs(value))}`;
-}
-
-function formatDuration(value: number): string {
-  return `${value.toFixed(1)}s`;
+  return `${sign}${formatCurrency(Math.abs(value), { smallPrecision: 4 })}`;
 }
 
 function deltaClass(value: number, lowerIsBetter = false): string {
@@ -150,9 +129,9 @@ function aggregateDetail(aggregate: ToolServerAggregate) {
   return (
     <>
       {metricLine("Turns", aggregate.avg_turns.toFixed(1))}
-      {metricLine("Tokens", formatTokens(aggregate.avg_tokens))}
-      {metricLine("Duration", formatDuration(aggregate.avg_duration_seconds))}
-      {metricLine("Cost", formatCost(aggregate.avg_cost_usd))}
+      {metricLine("Tokens", formatCompactTokens(aggregate.avg_tokens))}
+      {metricLine("Duration", formatDuration(aggregate.avg_duration_seconds, { compact: true }))}
+      {metricLine("Cost", formatCurrency(aggregate.avg_cost_usd, { smallPrecision: 4 }))}
     </>
   );
 }

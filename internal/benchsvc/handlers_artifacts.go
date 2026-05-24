@@ -7,6 +7,7 @@ import (
 
 	"github.com/vitas/evidra-bench/internal/apiutil"
 	"github.com/vitas/evidra-bench/internal/auth"
+	"github.com/vitas/evidra-bench/pkg/artifact"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
@@ -14,7 +15,7 @@ func handleGetTranscript(svc *Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tenantID := auth.TenantID(r.Context())
 		id := r.PathValue("id")
-		data, contentType, err := svc.GetArtifact(r.Context(), tenantID, id, "transcript")
+		data, contentType, err := svc.GetArtifact(r.Context(), tenantID, id, artifact.HostedTranscript)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				apiutil.WriteError(w, http.StatusNotFound, "transcript not found")
@@ -33,7 +34,7 @@ func handleGetToolCalls(svc *Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tenantID := auth.TenantID(r.Context())
 		id := r.PathValue("id")
-		data, contentType, err := svc.GetArtifact(r.Context(), tenantID, id, "tool_calls")
+		data, contentType, err := svc.GetArtifact(r.Context(), tenantID, id, artifact.HostedToolCalls)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				apiutil.WriteError(w, http.StatusNotFound, "tool calls not found")
@@ -53,7 +54,7 @@ func handleGetTimeline(svc *Service) http.HandlerFunc {
 		tenantID := auth.TenantID(r.Context())
 		id := r.PathValue("id")
 
-		if data, contentType, err := svc.GetArtifact(r.Context(), tenantID, id, "timeline"); err == nil {
+		if data, contentType, err := svc.GetArtifact(r.Context(), tenantID, id, artifact.HostedTimeline); err == nil {
 			w.Header().Set("Content-Type", contentType)
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(data)
@@ -63,7 +64,7 @@ func handleGetTimeline(svc *Service) http.HandlerFunc {
 			return
 		}
 
-		data, _, err := svc.GetArtifact(r.Context(), tenantID, id, "tool_calls")
+		data, _, err := svc.GetArtifact(r.Context(), tenantID, id, artifact.HostedToolCalls)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				apiutil.WriteError(w, http.StatusNotFound, "tool calls not found (needed for timeline)")
@@ -88,7 +89,7 @@ func handleGetScorecard(svc *Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tenantID := auth.TenantID(r.Context())
 		id := r.PathValue("id")
-		data, contentType, err := svc.GetArtifact(r.Context(), tenantID, id, "scorecard")
+		data, contentType, err := svc.GetArtifact(r.Context(), tenantID, id, artifact.HostedScorecard)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				apiutil.WriteError(w, http.StatusNotFound, "scorecard not found")
@@ -107,7 +108,7 @@ func handleGetAutopsy(svc *Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tenantID := auth.TenantID(r.Context())
 		id := r.PathValue("id")
-		data, contentType, err := svc.GetArtifact(r.Context(), tenantID, id, "failure_autopsy")
+		data, contentType, err := svc.GetArtifact(r.Context(), tenantID, id, artifact.HostedFailureAutopsy)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				apiutil.WriteError(w, http.StatusNotFound, "failure autopsy not found")
@@ -123,11 +124,11 @@ func handleGetAutopsy(svc *Service) http.HandlerFunc {
 }
 
 func handleGetRunError(svc *Service) http.HandlerFunc {
-	return handleGetJSONArtifact(svc, "run_error", "run error not found")
+	return handleGetJSONArtifact(svc, artifact.HostedRunError, "run error not found")
 }
 
 func handleGetRunEvents(svc *Service) http.HandlerFunc {
-	return handleGetJSONArtifact(svc, "run_events", "run events not found")
+	return handleGetJSONArtifact(svc, artifact.HostedRunEvents, "run events not found")
 }
 
 func handleGetJSONArtifact(svc *Service, artifactType, notFoundMessage string) http.HandlerFunc {

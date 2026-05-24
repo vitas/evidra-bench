@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { formatCompactTokens, formatCurrency, formatDuration } from "../../lib/benchFormatters.mts";
+import type { BenchScenarioSummary, BenchScenariosResponse } from "../../lib/benchTypes.mts";
 
 interface FailureInsights {
   scenario_id: string;
@@ -19,13 +21,10 @@ interface FailureInsights {
   };
 }
 
-interface Scenario { id: string; title: string }
-interface ScenariosResponse { scenarios: Scenario[] }
+type Scenario = Pick<BenchScenarioSummary, "id" | "title">;
+type ScenariosResponse = BenchScenariosResponse;
 
 function fmt(n: number): string { return n.toFixed(1); }
-function fmtDur(s: number): string { return s < 60 ? `${s.toFixed(1)}s` : `${Math.floor(s/60)}m ${Math.round(s%60)}s`; }
-function fmtCost(n: number): string { return n < 0.01 ? `$${n.toFixed(3)}` : `$${n.toFixed(2)}`; }
-function fmtTokens(n: number): string { return n >= 1000 ? `${(n/1000).toFixed(1)}k` : String(Math.round(n)); }
 
 export function Insights() {
   usePageTitle("Failure Analysis");
@@ -219,9 +218,9 @@ export function Insights() {
               </thead>
               <tbody>
                 <BehaviorRow label="Turns" pass={fmt(insights.behavior_metrics.pass_avg_turns)} fail={fmt(insights.behavior_metrics.fail_avg_turns)} diff={insights.behavior_metrics.fail_avg_turns - insights.behavior_metrics.pass_avg_turns} unit="" moreIsBad />
-                <BehaviorRow label="Duration" pass={fmtDur(insights.behavior_metrics.pass_avg_duration)} fail={fmtDur(insights.behavior_metrics.fail_avg_duration)} diff={insights.behavior_metrics.fail_avg_duration - insights.behavior_metrics.pass_avg_duration} unit="s" moreIsBad />
-                <BehaviorRow label="Tokens" pass={fmtTokens(insights.behavior_metrics.pass_avg_tokens)} fail={fmtTokens(insights.behavior_metrics.fail_avg_tokens)} diff={insights.behavior_metrics.fail_avg_tokens - insights.behavior_metrics.pass_avg_tokens} unit="" moreIsBad />
-                <BehaviorRow label="Cost" pass={fmtCost(insights.behavior_metrics.pass_avg_cost)} fail={fmtCost(insights.behavior_metrics.fail_avg_cost)} diff={insights.behavior_metrics.fail_avg_cost - insights.behavior_metrics.pass_avg_cost} unit="" moreIsBad />
+                <BehaviorRow label="Duration" pass={formatDuration(insights.behavior_metrics.pass_avg_duration)} fail={formatDuration(insights.behavior_metrics.fail_avg_duration)} diff={insights.behavior_metrics.fail_avg_duration - insights.behavior_metrics.pass_avg_duration} unit="s" moreIsBad />
+                <BehaviorRow label="Tokens" pass={formatCompactTokens(insights.behavior_metrics.pass_avg_tokens)} fail={formatCompactTokens(insights.behavior_metrics.fail_avg_tokens)} diff={insights.behavior_metrics.fail_avg_tokens - insights.behavior_metrics.pass_avg_tokens} unit="" moreIsBad />
+                <BehaviorRow label="Cost" pass={formatCurrency(insights.behavior_metrics.pass_avg_cost)} fail={formatCurrency(insights.behavior_metrics.fail_avg_cost)} diff={insights.behavior_metrics.fail_avg_cost - insights.behavior_metrics.pass_avg_cost} unit="" moreIsBad />
               </tbody>
             </table>
           </div>

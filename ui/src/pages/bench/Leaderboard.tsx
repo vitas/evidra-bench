@@ -11,6 +11,7 @@ import {
   type ExamPackScenario,
 } from "../../lib/examPacks.mts";
 import { benchRunsPagePath } from "../../lib/routes.mts";
+import { formatCurrency, formatDuration } from "../../lib/benchFormatters.mts";
 
 /* ── Types ── */
 
@@ -46,18 +47,6 @@ const SORT_OPTIONS: { key: SortKey; label: string; desc: boolean; tip?: string }
   { key: "avg_cost", label: "Avg Cost", desc: false, tip: "Average API cost per run in USD (lower is better)" },
   { key: "runs", label: "Runs", desc: true, tip: "Total number of benchmark runs for this model" },
 ];
-
-function formatDuration(s: number): string {
-  if (s < 60) return `${s.toFixed(1)}s`;
-  return `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
-}
-
-function formatCost(usd: number): string {
-  if (usd === 0) return "$0.00";
-  if (usd < 0.001) return `$${usd.toFixed(4)}`;
-  if (usd < 0.01) return `$${usd.toFixed(3)}`;
-  return `$${usd.toFixed(2)}`;
-}
 
 function rateColor(rate: number): string {
   if (rate >= 70) return "text-accent";
@@ -336,7 +325,7 @@ export function Leaderboard() {
 
                 {/* Avg Cost */}
                 <td className="px-4 py-3 text-right font-mono text-[0.78rem] text-fg-muted">
-                  {formatCost(m.avg_cost)}
+                  {formatCurrency(m.avg_cost, { smallPrecision: m.avg_cost < 0.001 ? 4 : 3 })}
                 </td>
 
                 {/* Total Runs */}

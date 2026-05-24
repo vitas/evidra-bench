@@ -51,8 +51,8 @@ func TestRegisterBenchAPIRoutes_InfoIsPublicJSON(t *testing.T) {
 	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 		t.Fatalf("decode info response: %v", err)
 	}
-	if !body.Readonly {
-		t.Fatal("readonly = false, want true")
+	if body.Readonly {
+		t.Fatal("readonly = true, want false")
 	}
 	if body.Version == "" {
 		t.Fatal("version is empty")

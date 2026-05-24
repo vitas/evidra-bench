@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vitas/evidra-bench/pkg/artifact"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
@@ -44,16 +45,16 @@ type RunArtifacts struct {
 
 func LoadRunArtifacts(dir string) RunArtifacts {
 	artifacts := RunArtifacts{Dir: dir}
-	artifacts.Transcript = readArtifactText(dir, "transcript.txt")
-	artifacts.ToolCallsRaw = readArtifactText(dir, "tool-calls.json")
+	artifacts.Transcript = readArtifactText(dir, artifact.TranscriptFile)
+	artifacts.ToolCallsRaw = readArtifactText(dir, artifact.ToolCallsFile)
 	if artifacts.ToolCallsRaw != "" {
 		_ = json.Unmarshal([]byte(artifacts.ToolCallsRaw), &artifacts.ToolCalls)
 		if len(artifacts.ToolCalls) > 0 {
 			artifacts.Timeline = bench.Parse(artifacts.ToolCalls)
 		}
 	}
-	artifacts.AutopsyRaw = readArtifactText(dir, "failure-autopsy.json")
-	artifacts.ScorecardRaw = readArtifactText(dir, "scorecard.json")
+	artifacts.AutopsyRaw = readArtifactText(dir, artifact.FailureAutopsyFile)
+	artifacts.ScorecardRaw = readArtifactText(dir, artifact.ScorecardFile)
 	return artifacts
 }
 

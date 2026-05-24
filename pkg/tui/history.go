@@ -33,7 +33,7 @@ func (r RunRecord) Duration() time.Duration {
 func LoadHistory(runsDir string) []RunRecord {
 	var records []RunRecord
 	_ = filepath.WalkDir(runsDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() || d.Name() != "run.json" {
+		if err != nil || d.IsDir() || d.Name() != artifact.RunJSON {
 			return nil
 		}
 		data, readErr := os.ReadFile(path)
@@ -105,7 +105,7 @@ func ComputeStats(records []RunRecord) ScenarioStats {
 
 // loadScorecard reads scorecard.json if present and populates signal data.
 func loadScorecard(rec *RunRecord) {
-	scPath := filepath.Join(rec.Dir, "scorecard.json")
+	scPath := filepath.Join(rec.Dir, artifact.ScorecardFile)
 	data, err := os.ReadFile(scPath)
 	if err != nil {
 		return

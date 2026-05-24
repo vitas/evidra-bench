@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vitas/evidra-bench/pkg/artifact"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
@@ -299,7 +300,7 @@ func (s *Service) loadReportAutopsy(ctx context.Context, tenantID string, run be
 	if run.ID == "" {
 		return reportAutopsyArtifact{}, false
 	}
-	data, _, err := s.repo.GetArtifact(ctx, tenantID, run.ID, "failure_autopsy")
+	data, _, err := s.repo.GetArtifact(ctx, tenantID, run.ID, artifact.HostedFailureAutopsy)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return reportAutopsyArtifact{}, false

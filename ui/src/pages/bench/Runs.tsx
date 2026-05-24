@@ -25,38 +25,10 @@ import {
   type RunsStatus,
 } from "../../lib/runFilters.mts";
 import { benchRunPath } from "../../lib/routes.mts";
+import { formatCurrency, formatDateTime, formatDuration, formatIntegerTokens } from "../../lib/benchFormatters.mts";
+import type { BenchRunsResponse } from "../../lib/benchTypes.mts";
 
-interface RunRecord {
-  id: string;
-  scenario_id: string;
-  model: string;
-  provider: string;
-  adapter: string;
-  tool_server: string;
-  tool_server_version: string;
-  skill_id: string;
-  skill_version: string;
-  skill_source: string;
-  skill_sha256: string;
-  passed: boolean;
-  duration_seconds: number;
-  exit_code: number;
-  turns: number;
-  memory_window: number;
-  prompt_tokens: number;
-  completion_tokens: number;
-  estimated_cost_usd: number;
-  checks_passed: number;
-  checks_total: number;
-  created_at: string;
-}
-
-interface RunsResponse {
-  runs: RunRecord[];
-  total: number;
-  limit: number;
-  offset: number;
-}
+type RunsResponse = Required<Pick<BenchRunsResponse, "limit" | "offset">> & BenchRunsResponse;
 
 interface ScenariosResponse {
   scenarios?: ExamPackScenario[];
@@ -79,29 +51,6 @@ type SortDir = "asc" | "desc";
 
 const STATUSES = ["All", "Passed", "Failed"] as const;
 const PAGE_SIZE = 25;
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const day = String(d.getDate()).padStart(2, "0");
-  const mon = months[d.getMonth()];
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${day} ${mon} ${hh}:${mm}`;
-}
-
-function formatCost(usd: number): string {
-  if (usd < 0.001) return "$0.000";
-  return `$${usd.toFixed(3)}`;
-}
-
-function formatDuration(s: number): string {
-  return `${s.toFixed(1)}s`;
-}
-
-function formatTokens(n: number): string {
-  return n.toLocaleString("en-US");
-}
 
 function SortArrow({ field, sort }: { field: SortField; sort: { field: SortField; dir: SortDir } }) {
   if (sort.field !== field) return <span className="text-fg-muted/30 ml-0.5">{"\u2195"}</span>;
@@ -629,22 +578,22 @@ export function Runs() {
                       )}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-muted">
-                      {formatDuration(run.duration_seconds)}
+                      {formatDuration(run.duration_seconds, { compact: true })}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-muted text-center">
                       {run.turns}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-muted">
-                      {formatTokens(run.prompt_tokens + run.completion_tokens)}
+                      {formatIntegerTokens(run.prompt_tokens + run.completion_tokens)}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-muted">
-                      {formatCost(run.estimated_cost_usd)}
+                      {formatCurrency(run.estimated_cost_usd, { precision: 3, smallPrecision: 3 })}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-muted">
                       {run.checks_passed}/{run.checks_total}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-muted whitespace-nowrap">
-                      {formatDate(run.created_at)}
+                      {formatDateTime(run.created_at)}
                     </td>
                   </tr>
                 ))}

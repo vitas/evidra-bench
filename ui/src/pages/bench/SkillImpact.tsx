@@ -1,29 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { formatCurrency, formatDuration, formatPercent } from "../../lib/benchFormatters.mts";
+import type { BenchRunRecord, BenchRunsResponse } from "../../lib/benchTypes.mts";
 
 /* ── Types ── */
 
-interface Run {
-  id: string;
-  scenario_id: string;
-  model: string;
-  passed: boolean;
-  duration_seconds: number;
-  prompt_tokens: number;
-  completion_tokens: number;
-  estimated_cost_usd: number;
-  checks_passed: number;
-  checks_total: number;
-  skill_id?: string;
-  skill_version?: string;
-  metadata_json: string;
-}
-
-interface RunsResponse {
-  runs: Run[];
-  total: number;
-}
+type Run = BenchRunRecord;
+type RunsResponse = BenchRunsResponse;
 
 interface SkillGroup {
   model: string;
@@ -45,21 +29,6 @@ function hasSkill(run: Run): boolean {
   if ((run.skill_id ?? "").trim() !== "") return true;
   const metadataJson = run.metadata_json ?? "";
   return metadataJson.includes('"skill_id"') || metadataJson.includes('"skill_version"');
-}
-
-function formatPct(n: number): string {
-  return `${n.toFixed(1)}%`;
-}
-
-function formatCost(usd: number): string {
-  if (usd === 0) return "$0.00";
-  if (usd < 0.01) return `$${usd.toFixed(3)}`;
-  return `$${usd.toFixed(2)}`;
-}
-
-function formatDuration(s: number): string {
-  if (s < 60) return `${s.toFixed(1)}s`;
-  return `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
 }
 
 function deltaColor(delta: number): string {
@@ -240,7 +209,7 @@ export function SkillImpact() {
         />
         <MiniCard
           label="Without Skill"
-          value={formatPct(
+          value={formatPercent(
             (() => {
               const without = runs.filter((r) => !hasSkill(r));
               return without.length > 0
@@ -252,7 +221,7 @@ export function SkillImpact() {
         />
         <MiniCard
           label="With Skill"
-          value={formatPct(
+          value={formatPercent(
             (() => {
               const withS = runs.filter((r) => hasSkill(r));
               return withS.length > 0
@@ -310,7 +279,7 @@ export function SkillImpact() {
                   {g.without.runs > 0 ? (
                     <div>
                       <span className="font-mono text-[0.82rem] font-semibold text-fg">
-                        {formatPct(g.without.rate)}
+                        {formatPercent(g.without.rate)}
                       </span>
                       <br />
                       <span className="text-[0.68rem] text-fg-muted">
@@ -325,7 +294,7 @@ export function SkillImpact() {
                   {g.with.runs > 0 ? (
                     <div>
                       <span className="font-mono text-[0.82rem] font-semibold text-fg">
-                        {formatPct(g.with.rate)}
+                        {formatPercent(g.with.rate)}
                       </span>
                       <br />
                       <span className="text-[0.68rem] text-fg-muted">
@@ -347,7 +316,7 @@ export function SkillImpact() {
                 </td>
                 <td className="px-4 py-3 text-center font-mono text-[0.76rem] text-fg-muted">
                   {g.without.runs > 0 && g.with.runs > 0
-                    ? `${formatCost(g.without.avgCost)} → ${formatCost(g.with.avgCost)}`
+                    ? `${formatCurrency(g.without.avgCost)} → ${formatCurrency(g.with.avgCost)}`
                     : "\u2014"}
                 </td>
               </tr>

@@ -6,11 +6,11 @@ export interface BenchApiRequestConfig {
   fetchImpl?: typeof fetch;
 }
 
-export async function requestBenchApi<T = unknown>(
+export async function fetchBenchApi(
   path: string,
   options: RequestInit = {},
   config: BenchApiRequestConfig = {},
-): Promise<T> {
+): Promise<Response> {
   const method = (options.method || "GET").toUpperCase();
   const headers = new Headers(options.headers);
   const authToken = (config.authToken ?? "").trim();
@@ -24,11 +24,19 @@ export async function requestBenchApi<T = unknown>(
   }
 
   const fetchImpl = config.fetchImpl ?? fetch;
-  const res = await fetchImpl(buildBenchApiURL(config.apiBase, path), {
+  return fetchImpl(buildBenchApiURL(config.apiBase, path), {
     ...options,
     method,
     headers,
   });
+}
+
+export async function requestBenchApi<T = unknown>(
+  path: string,
+  options: RequestInit = {},
+  config: BenchApiRequestConfig = {},
+): Promise<T> {
+  const res = await fetchBenchApi(path, options, config);
 
   if (!res.ok) {
     throw new Error(await responseErrorMessage(res));

@@ -25,6 +25,7 @@ type RunBundle struct {
 	Timeline       json.RawMessage   `json:"timeline,omitempty"`
 	Checks         json.RawMessage   `json:"checks,omitempty"`
 	Autopsy        json.RawMessage   `json:"autopsy,omitempty"`
+	Scorecard      json.RawMessage   `json:"scorecard,omitempty"`
 	RunError       json.RawMessage   `json:"run_error,omitempty"`
 	RunEvents      json.RawMessage   `json:"run_events,omitempty"`
 	ChaosEnabled   bool              `json:"chaos_enabled,omitempty"`
@@ -64,7 +65,7 @@ func (w *Writer) Write(bundle RunBundle) (*WriteOutput, error) {
 	}
 
 	// Create evidence subdirectory for optional local evidence output.
-	if err := os.MkdirAll(filepath.Join(runDir, "evidence"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(runDir, EvidenceDir), 0755); err != nil {
 		return nil, fmt.Errorf("artifact.Writer.Write: mkdir evidence: %w", err)
 	}
 
@@ -73,17 +74,17 @@ func (w *Writer) Write(bundle RunBundle) (*WriteOutput, error) {
 	if err != nil {
 		return nil, fmt.Errorf("artifact.Writer.Write: marshal run.json: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(runDir, "run.json"), runJSON, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(runDir, RunJSON), runJSON, 0644); err != nil {
 		return nil, fmt.Errorf("artifact.Writer.Write: write run.json: %w", err)
 	}
 
 	// Write text artifacts.
 	textFiles := map[string]string{
-		"prompt.txt":     bundle.Prompt,
-		"transcript.txt": bundle.Transcript,
-		"stdout.txt":     bundle.Stdout,
-		"stderr.txt":     bundle.Stderr,
-		"chaos.log":      bundle.ChaosLog,
+		PromptFile:     bundle.Prompt,
+		TranscriptFile: bundle.Transcript,
+		StdoutFile:     bundle.Stdout,
+		StderrFile:     bundle.Stderr,
+		ChaosLogFile:   bundle.ChaosLog,
 	}
 	for name, content := range textFiles {
 		if content == "" {
@@ -96,49 +97,56 @@ func (w *Writer) Write(bundle RunBundle) (*WriteOutput, error) {
 
 	// Write tool-calls.json if present.
 	if len(bundle.ToolCalls) > 0 {
-		if err := os.WriteFile(filepath.Join(runDir, "tool-calls.json"), bundle.ToolCalls, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(runDir, ToolCallsFile), bundle.ToolCalls, 0644); err != nil {
 			return nil, fmt.Errorf("artifact.Writer.Write: write tool-calls.json: %w", err)
 		}
 	}
 
 	// Write timeline.json if present.
 	if len(bundle.Timeline) > 0 {
-		if err := os.WriteFile(filepath.Join(runDir, "timeline.json"), bundle.Timeline, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(runDir, TimelineFile), bundle.Timeline, 0644); err != nil {
 			return nil, fmt.Errorf("artifact.Writer.Write: write timeline.json: %w", err)
 		}
 	}
 
 	// Write verifier.json if present.
 	if len(bundle.Checks) > 0 {
-		if err := os.WriteFile(filepath.Join(runDir, "verifier.json"), bundle.Checks, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(runDir, VerifierFile), bundle.Checks, 0644); err != nil {
 			return nil, fmt.Errorf("artifact.Writer.Write: write verifier.json: %w", err)
 		}
 	}
 
 	// Write failure-autopsy.json if present.
 	if len(bundle.Autopsy) > 0 {
-		if err := os.WriteFile(filepath.Join(runDir, "failure-autopsy.json"), bundle.Autopsy, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(runDir, FailureAutopsyFile), bundle.Autopsy, 0644); err != nil {
 			return nil, fmt.Errorf("artifact.Writer.Write: write failure-autopsy.json: %w", err)
+		}
+	}
+
+	// Write scorecard.json if present.
+	if len(bundle.Scorecard) > 0 {
+		if err := os.WriteFile(filepath.Join(runDir, ScorecardFile), bundle.Scorecard, 0644); err != nil {
+			return nil, fmt.Errorf("artifact.Writer.Write: write scorecard.json: %w", err)
 		}
 	}
 
 	// Write run-error.json if present.
 	if len(bundle.RunError) > 0 {
-		if err := os.WriteFile(filepath.Join(runDir, "run-error.json"), bundle.RunError, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(runDir, RunErrorFile), bundle.RunError, 0644); err != nil {
 			return nil, fmt.Errorf("artifact.Writer.Write: write run-error.json: %w", err)
 		}
 	}
 
 	// Write run-events.json if present.
 	if len(bundle.RunEvents) > 0 {
-		if err := os.WriteFile(filepath.Join(runDir, "run-events.json"), bundle.RunEvents, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(runDir, RunEventsFile), bundle.RunEvents, 0644); err != nil {
 			return nil, fmt.Errorf("artifact.Writer.Write: write run-events.json: %w", err)
 		}
 	}
 
 	// Write chaos.json if present.
 	if len(bundle.ChaosTimeline) > 0 {
-		if err := os.WriteFile(filepath.Join(runDir, "chaos.json"), bundle.ChaosTimeline, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(runDir, ChaosFile), bundle.ChaosTimeline, 0644); err != nil {
 			return nil, fmt.Errorf("artifact.Writer.Write: write chaos.json: %w", err)
 		}
 	}

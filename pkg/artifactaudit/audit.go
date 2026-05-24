@@ -9,17 +9,18 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/vitas/evidra-bench/pkg/artifact"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
 const (
 	ArtifactDir        = "artifact_dir"
-	RunJSON            = "run.json"
-	ToolCallsJSON      = "tool-calls.json"
-	TimelineJSON       = "timeline.json"
-	RunEventsJSON      = "run-events.json"
-	FailureAutopsyJSON = "failure-autopsy.json"
-	RunErrorJSON       = "run-error.json"
+	RunJSON            = artifact.RunJSON
+	ToolCallsJSON      = artifact.ToolCallsFile
+	TimelineJSON       = artifact.TimelineFile
+	RunEventsJSON      = artifact.RunEventsFile
+	FailureAutopsyJSON = artifact.FailureAutopsyFile
+	RunErrorJSON       = artifact.RunErrorFile
 )
 
 // Result is the machine-readable artifact coverage audit report.

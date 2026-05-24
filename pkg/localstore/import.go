@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vitas/evidra-bench/pkg/artifact"
 )
 
 // runJSON matches the run.json artifact format.
@@ -31,7 +33,7 @@ func (s *Store) ImportFromArtifacts(runsDir string) (int, error) {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() || d.Name() != "run.json" {
+		if d.IsDir() || d.Name() != artifact.RunJSON {
 			return nil
 		}
 

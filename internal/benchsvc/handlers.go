@@ -2,6 +2,7 @@ package benchsvc
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/vitas/evidra-bench/internal/apiutil"
@@ -9,34 +10,34 @@ import (
 )
 
 // RegisterRoutes adds bench intelligence routes to the given mux.
-// Public read routes use the configured public tenant. Mutating,
-// configuration, trigger, and runner routes go through authMw and extract the
-// authenticated tenant.
+// Read routes resolve a tenant at the backend boundary: authenticated requests
+// use authMw, while unauthenticated reads fall back to the configured public
+// tenant. Mutating, configuration, trigger, and runner routes require authMw.
 func RegisterRoutes(mux *http.ServeMux, svc *Service, authMw func(http.Handler) http.Handler) {
-	publicReadMw := publicTenantMiddleware(svc)
+	readMw := readTenantMiddleware(svc, authMw)
 
-	// Public — no auth.
-	mux.HandleFunc("GET /v1/bench/leaderboard", handleLeaderboard(svc))
-	mux.Handle("GET /v1/bench/scenarios", publicReadMw(http.HandlerFunc(handleListScenarios(svc))))
-	mux.Handle("GET /v1/bench/runs", publicReadMw(http.HandlerFunc(handleListRuns(svc))))
-	mux.Handle("GET /v1/bench/runs/{id}", publicReadMw(http.HandlerFunc(handleGetRun(svc))))
-	mux.Handle("GET /v1/bench/runs/{id}/transcript", publicReadMw(http.HandlerFunc(handleGetTranscript(svc))))
-	mux.Handle("GET /v1/bench/runs/{id}/tool-calls", publicReadMw(http.HandlerFunc(handleGetToolCalls(svc))))
-	mux.Handle("GET /v1/bench/runs/{id}/timeline", publicReadMw(http.HandlerFunc(handleGetTimeline(svc))))
-	mux.Handle("GET /v1/bench/runs/{id}/scorecard", publicReadMw(http.HandlerFunc(handleGetScorecard(svc))))
-	mux.Handle("GET /v1/bench/runs/{id}/autopsy", publicReadMw(http.HandlerFunc(handleGetAutopsy(svc))))
-	mux.Handle("GET /v1/bench/runs/{id}/run-error", publicReadMw(http.HandlerFunc(handleGetRunError(svc))))
-	mux.Handle("GET /v1/bench/runs/{id}/run-events", publicReadMw(http.HandlerFunc(handleGetRunEvents(svc))))
-	mux.Handle("GET /v1/bench/stats", publicReadMw(http.HandlerFunc(handleStats(svc))))
-	mux.Handle("GET /v1/bench/catalog", publicReadMw(http.HandlerFunc(handleCatalog(svc))))
-	mux.Handle("GET /v1/bench/compare/runs", publicReadMw(http.HandlerFunc(handleCompareRuns(svc))))
-	mux.Handle("GET /v1/bench/compare/models", publicReadMw(http.HandlerFunc(handleCompareModels(svc))))
-	mux.Handle("GET /v1/bench/compare/tool-server", publicReadMw(http.HandlerFunc(handleCompareToolServer(svc))))
-	mux.Handle("GET /v1/bench/reports/tool-server", publicReadMw(http.HandlerFunc(handleToolServerReport(svc))))
-	mux.Handle("GET /v1/bench/reports/tool-server-matrix", publicReadMw(http.HandlerFunc(handleToolServerMatrixReport(svc))))
-	mux.Handle("GET /v1/bench/signals", publicReadMw(http.HandlerFunc(handleSignals(svc))))
-	mux.Handle("GET /v1/bench/regressions", publicReadMw(http.HandlerFunc(handleRegressions(svc))))
-	mux.Handle("GET /v1/bench/insights", publicReadMw(http.HandlerFunc(handleFailureAnalysis(svc))))
+	// Read endpoints.
+	mux.Handle("GET /v1/bench/leaderboard", readMw(http.HandlerFunc(handleLeaderboard(svc))))
+	mux.Handle("GET /v1/bench/scenarios", readMw(http.HandlerFunc(handleListScenarios(svc))))
+	mux.Handle("GET /v1/bench/runs", readMw(http.HandlerFunc(handleListRuns(svc))))
+	mux.Handle("GET /v1/bench/runs/{id}", readMw(http.HandlerFunc(handleGetRun(svc))))
+	mux.Handle("GET /v1/bench/runs/{id}/transcript", readMw(http.HandlerFunc(handleGetTranscript(svc))))
+	mux.Handle("GET /v1/bench/runs/{id}/tool-calls", readMw(http.HandlerFunc(handleGetToolCalls(svc))))
+	mux.Handle("GET /v1/bench/runs/{id}/timeline", readMw(http.HandlerFunc(handleGetTimeline(svc))))
+	mux.Handle("GET /v1/bench/runs/{id}/scorecard", readMw(http.HandlerFunc(handleGetScorecard(svc))))
+	mux.Handle("GET /v1/bench/runs/{id}/autopsy", readMw(http.HandlerFunc(handleGetAutopsy(svc))))
+	mux.Handle("GET /v1/bench/runs/{id}/run-error", readMw(http.HandlerFunc(handleGetRunError(svc))))
+	mux.Handle("GET /v1/bench/runs/{id}/run-events", readMw(http.HandlerFunc(handleGetRunEvents(svc))))
+	mux.Handle("GET /v1/bench/stats", readMw(http.HandlerFunc(handleStats(svc))))
+	mux.Handle("GET /v1/bench/catalog", readMw(http.HandlerFunc(handleCatalog(svc))))
+	mux.Handle("GET /v1/bench/compare/runs", readMw(http.HandlerFunc(handleCompareRuns(svc))))
+	mux.Handle("GET /v1/bench/compare/models", readMw(http.HandlerFunc(handleCompareModels(svc))))
+	mux.Handle("GET /v1/bench/compare/tool-server", readMw(http.HandlerFunc(handleCompareToolServer(svc))))
+	mux.Handle("GET /v1/bench/reports/tool-server", readMw(http.HandlerFunc(handleToolServerReport(svc))))
+	mux.Handle("GET /v1/bench/reports/tool-server-matrix", readMw(http.HandlerFunc(handleToolServerMatrixReport(svc))))
+	mux.Handle("GET /v1/bench/signals", readMw(http.HandlerFunc(handleSignals(svc))))
+	mux.Handle("GET /v1/bench/regressions", readMw(http.HandlerFunc(handleRegressions(svc))))
+	mux.Handle("GET /v1/bench/insights", readMw(http.HandlerFunc(handleFailureAnalysis(svc))))
 
 	// Authenticated — ingest.
 	mux.Handle("POST /v1/bench/runs", authMw(http.HandlerFunc(handleIngestRun(svc))))
@@ -69,9 +70,13 @@ func RegisterRoutes(mux *http.ServeMux, svc *Service, authMw func(http.Handler) 
 	mux.Handle("POST /v1/runners/jobs/{id}/complete", authMw(http.HandlerFunc(handleCompleteJob(svc))))
 }
 
-func publicTenantMiddleware(svc *Service) func(http.Handler) http.Handler {
+func readTenantMiddleware(svc *Service, authMw func(http.Handler) http.Handler) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.TrimSpace(r.Header.Get("Authorization")) != "" {
+				authMw(next).ServeHTTP(w, r)
+				return
+			}
 			if svc.cfg.PublicTenant == "" {
 				apiutil.WriteError(w, http.StatusServiceUnavailable, ErrPublicTenantUnavailable.Error())
 				return

@@ -142,6 +142,35 @@ func TestWriter_WritesTimeline(t *testing.T) {
 	}
 }
 
+func TestWriter_WritesScorecard(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	w := NewWriter(dir)
+	scorecard := json.RawMessage(`{"score":91,"band":"strong","signals":{"retry_loop":1}}`)
+
+	out, err := w.Write(RunBundle{
+		ScenarioID: "test",
+		Adapter:    "cli",
+		StartTime:  time.Now(),
+		Scorecard:  scorecard,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(out.Path, "scorecard.json"))
+	if err != nil {
+		t.Fatalf("missing scorecard.json: %v", err)
+	}
+	if !json.Valid(data) {
+		t.Fatalf("scorecard.json is not valid JSON: %s", data)
+	}
+	if string(data) != string(scorecard) {
+		t.Fatalf("scorecard = %s, want %s", data, scorecard)
+	}
+}
+
 func TestWriter_WritesRunErrorAndEvents(t *testing.T) {
 	t.Parallel()
 

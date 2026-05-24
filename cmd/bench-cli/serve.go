@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vitas/evidra-bench/internal/auth"
 	"github.com/vitas/evidra-bench/internal/benchdb"
 	"github.com/vitas/evidra-bench/internal/benchsvc"
 	"github.com/vitas/evidra-bench/pkg/config"
@@ -173,12 +174,7 @@ func handleCertifyDisabled() http.HandlerFunc {
 // authMiddleware checks for a valid Bearer token.
 func authMiddleware(token string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		auth := r.Header.Get("Authorization")
-		if auth != "Bearer "+token {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-			return
-		}
-		next(w, r)
+		auth.StaticKeyMiddleware(token, "")(next).ServeHTTP(w, r)
 	}
 }
 

@@ -7,6 +7,8 @@ import {
   scenarioIdsForCategory,
   type ScenarioCategoryRecord,
 } from "../../lib/compareData.mts";
+import { formatCurrency, formatDuration } from "../../lib/benchFormatters.mts";
+import type { BenchRunRecord } from "../../lib/benchTypes.mts";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -27,20 +29,7 @@ interface ModelMatrixResponse {
   cells: Record<string, Record<string, CellData>>;
 }
 
-interface RunRecord {
-  id: string;
-  scenario_id: string;
-  model: string;
-  provider: string;
-  passed: boolean;
-  duration_seconds: number;
-  turns: number;
-  prompt_tokens: number;
-  completion_tokens: number;
-  estimated_cost_usd: number;
-  checks_passed: number;
-  checks_total: number;
-}
+type RunRecord = BenchRunRecord;
 
 interface CheckDiff {
   name: string;
@@ -90,14 +79,6 @@ function verdictBadge(verdict: string) {
       {verdict}
     </span>
   );
-}
-
-function formatCost(v: number): string {
-  return v < 0.01 ? `$${v.toFixed(4)}` : `$${v.toFixed(2)}`;
-}
-
-function formatDuration(s: number): string {
-  return `${s.toFixed(1)}s`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -275,7 +256,7 @@ function ModelMatrix() {
                         </span>
                         <br />
                         <span className="text-[0.68rem] text-fg-muted">
-                          {cell.runs} runs &middot; {formatCost(cell.avg_cost)}
+                          {cell.runs} runs &middot; {formatCurrency(cell.avg_cost, { smallPrecision: 4 })}
                         </span>
                       </td>
                     );
@@ -427,8 +408,8 @@ function RunDiff() {
                   {statRow("Model", diff.run_a.model, diff.run_b.model)}
                   {statRow(
                     "Duration",
-                    formatDuration(diff.run_a.duration_seconds),
-                    formatDuration(diff.run_b.duration_seconds),
+                    formatDuration(diff.run_a.duration_seconds, { compact: true }),
+                    formatDuration(diff.run_b.duration_seconds, { compact: true }),
                     false,
                   )}
                   {statRow("Turns", diff.run_a.turns, diff.run_b.turns, false)}
@@ -440,8 +421,8 @@ function RunDiff() {
                   )}
                   {statRow(
                     "Cost",
-                    formatCost(diff.run_a.estimated_cost_usd),
-                    formatCost(diff.run_b.estimated_cost_usd),
+                    formatCurrency(diff.run_a.estimated_cost_usd, { smallPrecision: 4 }),
+                    formatCurrency(diff.run_b.estimated_cost_usd, { smallPrecision: 4 }),
                     false,
                   )}
                   {statRow(

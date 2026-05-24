@@ -1,16 +1,17 @@
 package benchsvc
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/vitas/evidra-bench/internal/apiutil"
+	"github.com/vitas/evidra-bench/internal/auth"
 )
 
 func handleLeaderboard(svc *Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		tenantID := auth.TenantID(r.Context())
 		k := 3
 		if kStr := r.URL.Query().Get("k"); kStr != "" {
 			if kVal, err := strconv.Atoi(kStr); err == nil && kVal >= 1 && kVal <= 10 {
@@ -18,12 +19,8 @@ func handleLeaderboard(svc *Service) http.HandlerFunc {
 			}
 		}
 		scenarios := parseCSVQuery(r.URL.Query().Get("scenarios"))
-		entries, err := svc.Leaderboard(r.Context(), k, scenarios)
+		entries, err := svc.Leaderboard(r.Context(), tenantID, k, scenarios)
 		if err != nil {
-			if errors.Is(err, ErrPublicTenantUnavailable) {
-				apiutil.WriteError(w, http.StatusServiceUnavailable, err.Error())
-				return
-			}
 			apiutil.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}

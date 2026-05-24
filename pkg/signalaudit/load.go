@@ -8,12 +8,14 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/vitas/evidra-bench/pkg/artifact"
 )
 
 // LoadRun reads a run artifact directory and extracts the signal data needed
 // for auditing.
 func LoadRun(runDir string) (Run, error) {
-	data, err := os.ReadFile(filepath.Join(runDir, "run.json"))
+	data, err := os.ReadFile(filepath.Join(runDir, artifact.RunJSON))
 	if err != nil {
 		return Run{}, fmt.Errorf("read run.json: %w", err)
 	}
@@ -69,8 +71,8 @@ func loadSignalCounts(runDir string, metadata map[string]string) (map[string]int
 
 func loadScorecardSignals(runDir string) (map[string]int, bool, error) {
 	for _, path := range []string{
-		filepath.Join(runDir, "scorecard.json"),
-		filepath.Join(runDir, "evidence", "scorecard.json"),
+		filepath.Join(runDir, artifact.ScorecardFile),
+		filepath.Join(runDir, artifact.EvidenceDir, artifact.ScorecardFile),
 	} {
 		if _, err := os.Stat(path); err != nil {
 			continue

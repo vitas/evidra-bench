@@ -4,6 +4,8 @@ import { Link } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import { buildRunsPath } from "../../lib/catalogData.mts";
 import { benchRunPath } from "../../lib/routes.mts";
+import { formatCompactTokens, formatCurrency, formatDateShort, formatDateTime, formatDuration } from "../../lib/benchFormatters.mts";
+import type { BenchRunRecord, BenchRunsResponse } from "../../lib/benchTypes.mts";
 
 /* ── Types ── */
 
@@ -22,23 +24,8 @@ interface Stats {
   by_scenario: ScenarioStat[];
 }
 
-interface Run {
-  id: string;
-  scenario_id: string;
-  model: string;
-  provider: string;
-  passed: boolean;
-  duration_seconds: number;
-  estimated_cost_usd: number;
-  prompt_tokens: number;
-  completion_tokens: number;
-  created_at: string;
-}
-
-interface RunsResponse {
-  runs: Run[];
-  total: number;
-}
+type Run = BenchRunRecord;
+type RunsResponse = BenchRunsResponse;
 
 interface SignalCount {
   total: number;
@@ -79,36 +66,6 @@ const PERIOD_MS: Record<Exclude<Period, "all">, number> = {
 function periodToSince(p: Period): string | undefined {
   if (p === "all") return undefined;
   return new Date(Date.now() - PERIOD_MS[p]).toISOString();
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  const day = String(d.getDate()).padStart(2, "0");
-  const mon = d.toLocaleString("en-US", { month: "short" });
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${day} ${mon} ${hh}:${mm}`;
-}
-
-function formatDateShort(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "";
-  return `${d.getDate()} ${d.toLocaleString("en-US", { month: "short" })}`;
-}
-
-function formatDuration(s: number): string {
-  return `${s.toFixed(1)}s`;
-}
-
-function formatCost(usd: number): string {
-  if (usd < 0.001) return "$0.00";
-  return `$${usd.toFixed(3)}`;
-}
-
-function formatTokens(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return String(n);
 }
 
 /* ── Skeleton pulse ── */
@@ -337,7 +294,7 @@ export function Dashboard() {
             <StatCard
               label="Total Cost"
               value={`$${totalCost.toFixed(2)}`}
-              detail={`${formatTokens(totalTokens)} tokens`}
+              detail={`${formatCompactTokens(totalTokens)} tokens`}
               borderColor="border-l-warning"
             />
             <StatCard
@@ -425,13 +382,13 @@ export function Dashboard() {
                         {run.model}
                       </td>
                       <td className="py-2.5 px-4 font-mono text-fg-muted text-[0.78rem]">
-                        {formatDuration(run.duration_seconds)}
+                        {formatDuration(run.duration_seconds, { compact: true })}
                       </td>
                       <td className="py-2.5 px-4 font-mono text-fg-muted text-[0.78rem]">
-                        {formatCost(run.estimated_cost_usd)}
+                        {formatCurrency(run.estimated_cost_usd, { precision: 3, smallPrecision: 3 })}
                       </td>
                       <td className="py-2.5 px-4 text-fg-muted whitespace-nowrap text-[0.78rem]">
-                        {formatDate(run.created_at)}
+                        {formatDateTime(run.created_at)}
                       </td>
                     </tr>
                   ))}
@@ -467,7 +424,7 @@ export function Dashboard() {
                         {model}
                       </span>
                       <span className="font-mono text-[0.72rem] text-fg-muted">
-                        {passed}/{total} &middot; {formatCost(cost)}
+                        {passed}/{total} &middot; {formatCurrency(cost, { precision: 3, smallPrecision: 3 })}
                       </span>
                     </div>
                     <div className="h-2 rounded-full bg-bg-alt/80 overflow-hidden">

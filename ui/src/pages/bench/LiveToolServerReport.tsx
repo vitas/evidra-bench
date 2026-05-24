@@ -8,6 +8,7 @@ import {
   BENCH_SCENARIOS_PATH,
 } from "../../lib/routes.mts";
 import { buildToolServerReportApiPath } from "../../lib/toolServerCompare.mts";
+import { formatCompactTokens, formatCurrency, formatDuration, formatPercent } from "../../lib/benchFormatters.mts";
 
 const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
 
@@ -112,23 +113,6 @@ interface ToolServerReportResponse {
   findings: string[];
   recommendations: string[];
   evidence_links: ReportEvidenceLink[];
-}
-
-function formatPercent(value: number): string {
-  return `${value.toFixed(1)}%`;
-}
-
-function formatTokens(value: number): string {
-  if (Math.abs(value) >= 1000) return `${(value / 1000).toFixed(1)}k`;
-  return value.toFixed(0);
-}
-
-function formatCost(value: number): string {
-  return Math.abs(value) < 0.01 ? `$${value.toFixed(4)}` : `$${value.toFixed(2)}`;
-}
-
-function formatDuration(value: number): string {
-  return `${value.toFixed(1)}s`;
 }
 
 function classificationLabel(value: string): string {
@@ -374,8 +358,8 @@ export function LiveToolServerReport() {
                 `${report.comparison?.baseline?.passed ?? 0}/${report.comparison?.baseline?.runs ?? 0} passed`,
                 <>
                   {metricLine("Turns", (report.comparison?.baseline?.avg_turns ?? 0).toFixed(1))}
-                  {metricLine("Tokens", formatTokens(report.comparison?.baseline?.avg_tokens ?? 0))}
-                  {metricLine("Cost", formatCost(report.comparison?.baseline?.avg_cost_usd ?? 0))}
+                  {metricLine("Tokens", formatCompactTokens(report.comparison?.baseline?.avg_tokens ?? 0))}
+                  {metricLine("Cost", formatCurrency(report.comparison?.baseline?.avg_cost_usd ?? 0, { smallPrecision: 4 }))}
                 </>,
               )}
               {summaryCard(
@@ -384,8 +368,8 @@ export function LiveToolServerReport() {
                 `${report.comparison?.candidate?.passed ?? 0}/${report.comparison?.candidate?.runs ?? 0} passed`,
                 <>
                   {metricLine("Turns", (report.comparison?.candidate?.avg_turns ?? 0).toFixed(1))}
-                  {metricLine("Tokens", formatTokens(report.comparison?.candidate?.avg_tokens ?? 0))}
-                  {metricLine("Cost", formatCost(report.comparison?.candidate?.avg_cost_usd ?? 0))}
+                  {metricLine("Tokens", formatCompactTokens(report.comparison?.candidate?.avg_tokens ?? 0))}
+                  {metricLine("Cost", formatCurrency(report.comparison?.candidate?.avg_cost_usd ?? 0, { smallPrecision: 4 }))}
                 </>,
               )}
               {summaryCard(
@@ -458,9 +442,9 @@ export function LiveToolServerReport() {
                     </span>
                   </td>
                   <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-body">{row.candidate.avg_turns.toFixed(1)}</td>
-                  <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-body">{formatTokens(row.candidate.avg_tokens)}</td>
-                  <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-body">{formatDuration(row.candidate.avg_duration_seconds)}</td>
-                  <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-body">{formatCost(row.candidate.avg_cost_usd)}</td>
+                  <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-body">{formatCompactTokens(row.candidate.avg_tokens)}</td>
+                  <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-body">{formatDuration(row.candidate.avg_duration_seconds, { compact: true })}</td>
+                  <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-body">{formatCurrency(row.candidate.avg_cost_usd, { smallPrecision: 4 })}</td>
                   <td className={`px-4 py-3 font-mono text-[0.8rem] font-semibold ${deltaClass(row.delta.pass_rate_delta)}`}>
                     {row.delta.pass_rate_delta > 0 ? "+" : ""}{row.delta.pass_rate_delta.toFixed(1)}pp
                   </td>
@@ -532,9 +516,9 @@ export function LiveToolServerReport() {
                   </td>
                   <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-body">{row.scenarios}</td>
                   <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-body">{row.avg_turns.toFixed(1)}</td>
-                  <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-body">{formatTokens(row.avg_tokens)}</td>
-                  <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-body">{formatDuration(row.avg_duration_seconds)}</td>
-                  <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-body">{formatCost(row.avg_cost_usd)}</td>
+                  <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-body">{formatCompactTokens(row.avg_tokens)}</td>
+                  <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-body">{formatDuration(row.avg_duration_seconds, { compact: true })}</td>
+                  <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-body">{formatCurrency(row.avg_cost_usd, { smallPrecision: 4 })}</td>
                 </tr>
               ))}
             </DataTable>

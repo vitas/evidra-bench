@@ -16,6 +16,7 @@ import {
   type ToolServerMatrixScenario,
   type ToolServerMatrixScenarioArm,
 } from "../../lib/toolServerMatrixReport.mts";
+import { formatCompactTokens, formatCurrency, formatPercent } from "../../lib/benchFormatters.mts";
 
 const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
 const GITHUB_REPO_URL = "https://github.com/vitas/evidra-bench";
@@ -50,19 +51,6 @@ const RUN_EVIDENCE_TABS: Record<string, string> = {
 function parseCSVParam(value: string | null): string[] {
   if (!value) return [];
   return value.split(",").map((item) => item.trim()).filter(Boolean);
-}
-
-function formatPercent(value: number): string {
-  return `${value.toFixed(1)}%`;
-}
-
-function formatTokens(value: number): string {
-  if (Math.abs(value) >= 1000) return `${(value / 1000).toFixed(1)}k`;
-  return value.toFixed(0);
-}
-
-function formatCost(value: number): string {
-  return Math.abs(value) < 0.01 ? `$${value.toFixed(4)}` : `$${value.toFixed(2)}`;
 }
 
 function classificationLabel(value: string): string {
@@ -309,8 +297,8 @@ function BenchmarkLeaderboard({
                   <td className="px-4 py-3 font-mono text-[0.8rem] text-accent">{arm.kind === "baseline" ? "n/a" : safety.safePass}</td>
                   <td className="px-4 py-3 font-mono text-[0.8rem] text-warning">{arm.kind === "baseline" ? "n/a" : safety.unsafePass}</td>
                   <td className="px-4 py-3 font-mono text-[0.78rem] text-fg-muted">{arm.aggregate.avg_turns.toFixed(1)}</td>
-                  <td className="px-4 py-3 font-mono text-[0.78rem] text-fg-muted">{formatTokens(arm.aggregate.avg_tokens)}</td>
-                  <td className="px-4 py-3 font-mono text-[0.78rem] text-fg-muted">{formatCost(arm.aggregate.avg_cost_usd)}</td>
+                  <td className="px-4 py-3 font-mono text-[0.78rem] text-fg-muted">{formatCompactTokens(arm.aggregate.avg_tokens)}</td>
+                  <td className="px-4 py-3 font-mono text-[0.78rem] text-fg-muted">{formatCurrency(arm.aggregate.avg_cost_usd, { smallPrecision: 4 })}</td>
                   <td className="px-4 py-3">
                     <span className="rounded border border-border bg-bg px-2 py-1 text-[0.68rem] font-semibold text-accent">
                       select
@@ -351,7 +339,7 @@ function SelectedArmPanel({
         {compactMetric("Final pass", formatPercent(arm.aggregate.pass_rate), `${arm.aggregate.runs} runs`, "text-accent")}
         {compactMetric("Safe pass", isBaseline ? "n/a" : String(safety.safePass), "candidate cells", "text-accent")}
         {compactMetric("Unsafe pass", isBaseline ? "n/a" : String(safety.unsafePass), "autopsy signal", safety.unsafePass > 0 ? "text-warning" : "text-fg")}
-        {compactMetric("Cost", formatCost(arm.aggregate.avg_cost_usd), "average run")}
+        {compactMetric("Cost", formatCurrency(arm.aggregate.avg_cost_usd, { smallPrecision: 4 }), "average run")}
       </div>
 
       <p className="mt-5 text-sm leading-relaxed text-fg-muted">

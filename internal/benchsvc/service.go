@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/vitas/evidra-bench/pkg/artifact"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
 )
 
@@ -90,6 +91,7 @@ type IngestRunRequest struct {
 	ToolCalls  json.RawMessage `json:"tool_calls,omitempty"`
 	Timeline   json.RawMessage `json:"timeline,omitempty"`
 	Autopsy    json.RawMessage `json:"autopsy,omitempty"`
+	Scorecard  json.RawMessage `json:"scorecard,omitempty"`
 	RunError   json.RawMessage `json:"run_error,omitempty"`
 	RunEvents  json.RawMessage `json:"run_events,omitempty"`
 }
@@ -103,22 +105,25 @@ type ingestArtifact struct {
 func ingestArtifacts(req IngestRunRequest) []ingestArtifact {
 	var artifacts []ingestArtifact
 	if req.Transcript != "" {
-		artifacts = append(artifacts, ingestArtifact{"transcript", "text/plain", []byte(req.Transcript)})
+		artifacts = append(artifacts, ingestArtifact{artifact.HostedTranscript, artifact.ContentTypeText, []byte(req.Transcript)})
 	}
 	if len(req.ToolCalls) > 0 {
-		artifacts = append(artifacts, ingestArtifact{"tool_calls", "application/json", []byte(req.ToolCalls)})
+		artifacts = append(artifacts, ingestArtifact{artifact.HostedToolCalls, artifact.ContentTypeJSON, []byte(req.ToolCalls)})
 	}
 	if len(req.Timeline) > 0 {
-		artifacts = append(artifacts, ingestArtifact{"timeline", "application/json", []byte(req.Timeline)})
+		artifacts = append(artifacts, ingestArtifact{artifact.HostedTimeline, artifact.ContentTypeJSON, []byte(req.Timeline)})
 	}
 	if len(req.Autopsy) > 0 {
-		artifacts = append(artifacts, ingestArtifact{"failure_autopsy", "application/json", []byte(req.Autopsy)})
+		artifacts = append(artifacts, ingestArtifact{artifact.HostedFailureAutopsy, artifact.ContentTypeJSON, []byte(req.Autopsy)})
+	}
+	if len(req.Scorecard) > 0 {
+		artifacts = append(artifacts, ingestArtifact{artifact.HostedScorecard, artifact.ContentTypeJSON, []byte(req.Scorecard)})
 	}
 	if len(req.RunError) > 0 {
-		artifacts = append(artifacts, ingestArtifact{"run_error", "application/json", []byte(req.RunError)})
+		artifacts = append(artifacts, ingestArtifact{artifact.HostedRunError, artifact.ContentTypeJSON, []byte(req.RunError)})
 	}
 	if len(req.RunEvents) > 0 {
-		artifacts = append(artifacts, ingestArtifact{"run_events", "application/json", []byte(req.RunEvents)})
+		artifacts = append(artifacts, ingestArtifact{artifact.HostedRunEvents, artifact.ContentTypeJSON, []byte(req.RunEvents)})
 	}
 	return artifacts
 }
@@ -342,15 +347,10 @@ func (s *Service) ArchiveRuns(ctx context.Context, tenantID string, req ArchiveR
 	return s.repo.ArchiveRuns(ctx, tenantID, req)
 }
 
-// --- Public methods (use configured PublicTenant) ---
-
-// Leaderboard returns the public leaderboard using the configured public tenant.
+// Leaderboard returns the leaderboard scoped to the resolved request tenant.
 // k controls the pass^k reliability metric (minimum 1, default 3).
-func (s *Service) Leaderboard(ctx context.Context, k int, scenarios []string) ([]bench.LeaderboardEntry, error) {
-	if s.cfg.PublicTenant == "" {
-		return nil, ErrPublicTenantUnavailable
-	}
-	return s.repo.Leaderboard(ctx, s.cfg.PublicTenant, k, scenarios)
+func (s *Service) Leaderboard(ctx context.Context, tenantID string, k int, scenarios []string) ([]bench.LeaderboardEntry, error) {
+	return s.repo.Leaderboard(ctx, tenantID, k, scenarios)
 }
 
 // ListScenarios returns the global scenario catalog.

@@ -1,0 +1,28 @@
+package artifact
+
+const (
+	RunJSON              = "run.json"
+	PromptFile           = "prompt.txt"
+	TranscriptFile       = "transcript.txt"
+	StdoutFile           = "stdout.txt"
+	StderrFile           = "stderr.txt"
+	ToolCallsFile        = "tool-calls.json"
+	TimelineFile         = "timeline.json"
+	VerifierFile         = "verifier.json"
+	FailureAutopsyFile   = "failure-autopsy.json"
+	RunErrorFile         = "run-error.json"
+	RunEventsFile        = "run-events.json"
+	ScorecardFile        = "scorecard.json"
+	ChaosFile            = "chaos.json"
+	ChaosLogFile         = "chaos.log"
+	EvidenceDir          = "evidence"
+	HostedTranscript     = "transcript"
+	HostedToolCalls      = "tool_calls"
+	HostedTimeline       = "timeline"
+	HostedFailureAutopsy = "failure_autopsy"
+	HostedRunError       = "run_error"
+	HostedRunEvents      = "run_events"
+	HostedScorecard      = "scorecard"
+	ContentTypeJSON      = "application/json"
+	ContentTypeText      = "text/plain"
+)

@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { requestBenchApi } from "../lib/benchApi.mts";
+import { fetchBenchApi, requestBenchApi } from "../lib/benchApi.mts";
 
 const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
 
@@ -17,5 +17,12 @@ export function useBenchApi(options: UseBenchApiOptions = {}) {
     [authToken],
   );
 
-  return { request };
+  const fetchResponse = useCallback(
+    async (path: string, requestOptions: RequestInit = {}): Promise<Response> => {
+      return fetchBenchApi(path, requestOptions, { apiBase: API_BASE, authToken });
+    },
+    [authToken],
+  );
+
+  return { request, fetchResponse };
 }
