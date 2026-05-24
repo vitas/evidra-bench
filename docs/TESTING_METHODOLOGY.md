@@ -286,6 +286,7 @@ bench-cli db stats
 bench-cli db query --scenario broken-deployment
 bench-cli db query --model haiku --failed
 bench-cli db rebuild
+bench-cli audit coverage --runs-dir runs
 ```
 
 Storage model:
@@ -307,6 +308,7 @@ run scenarios
   -> write artifacts
   -> derive timeline and scorecard when available
   -> preserve run error and lifecycle events for failed attempts
+  -> audit artifact coverage across stored runs when needed
   -> audit expected signals
   -> store local and optional API results
 ```
@@ -337,6 +339,24 @@ runs/bench/<timestamp>/
 
 Scenarios with `skip: true` are excluded from benchmark runs with a reason
 printed to stdout.
+
+## Artifact Coverage Audit
+
+Artifact coverage audit checks whether stored runs have enough local artifacts
+to support deterministic failure analysis. It reads `runs/bench.db`, inspects
+each run's `artifact_dir`, validates required JSON artifacts, and writes
+`artifact-coverage.json`.
+
+```bash
+bench-cli audit coverage --runs-dir runs
+bench-cli audit coverage --runs-dir runs --fail-on-gaps
+```
+
+The audit expects every stored run to have `run.json`, `tool-calls.json`,
+`timeline.json`, and `run-events.json`. Failed runs must also have
+`failure-autopsy.json`; error runs with negative exit codes must have
+`run-error.json`. It also checks that `timeline.total_steps` matches the
+number of tool calls.
 
 ## Signal Audit
 

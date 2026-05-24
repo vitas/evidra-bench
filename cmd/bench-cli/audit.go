@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/vitas/evidra-bench/pkg/signalaudit"
+	"github.com/vitas/evidra-bench/pkg/store"
 )
 
 func loadAuditRuns(runsDir, scenarioFilter, modelFilter, providerFilter string) ([]signalaudit.Run, error) {
@@ -49,6 +50,19 @@ func matchesAuditFilters(run signalaudit.Run, scenarioFilter, modelFilter, provi
 		return false
 	}
 	return true
+}
+
+func filterCoverageRunsByAdapter(runs []store.RunRecord, adapterFilter string) []store.RunRecord {
+	if strings.TrimSpace(adapterFilter) == "" {
+		return runs
+	}
+	filtered := make([]store.RunRecord, 0, len(runs))
+	for _, run := range runs {
+		if strings.EqualFold(run.Adapter, adapterFilter) {
+			filtered = append(filtered, run)
+		}
+	}
+	return filtered
 }
 
 func resolveAuditManifestPath(path string) string {

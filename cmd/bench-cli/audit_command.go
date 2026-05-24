@@ -7,7 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/vitas/evidra-bench/pkg/artifactaudit"
 	"github.com/vitas/evidra-bench/pkg/signalaudit"
+	"github.com/vitas/evidra-bench/pkg/store"
 )
 
 func newAuditCommand(defaultRunsDir string) *cobra.Command {
@@ -17,6 +19,13 @@ func newAuditCommand(defaultRunsDir string) *cobra.Command {
 	modelFilter := ""
 	providerFilter := ""
 	outputPath := ""
+	coverageRunsDir := defaultRunsDir
+	coverageScenarioFilter := ""
+	coverageModelFilter := ""
+	coverageProviderFilter := ""
+	coverageAdapterFilter := ""
+	coverageOutputPath := ""
+	failOnGaps := false
 
 	cmd := &cobra.Command{
 		Use:   "audit",
@@ -36,7 +45,24 @@ func newAuditCommand(defaultRunsDir string) *cobra.Command {
 	f.StringVar(&modelFilter, "model", "", "filter by model")
 	f.StringVar(&providerFilter, "provider", "", "filter by provider")
 	f.StringVar(&outputPath, "output", "", "output path (default: <runs-dir>/signal-audit.json)")
-	cmd.AddCommand(signalsCmd)
+
+	coverageCmd := &cobra.Command{
+		Use:   "coverage",
+		Short: "Audit run artifact coverage from the local results store",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return executeArtifactCoverageAudit(cmd, coverageRunsDir, coverageScenarioFilter, coverageModelFilter, coverageProviderFilter, coverageAdapterFilter, coverageOutputPath, failOnGaps)
+		},
+	}
+	cf := coverageCmd.Flags()
+	cf.StringVar(&coverageRunsDir, "runs-dir", coverageRunsDir, "runs directory containing bench.db and run artifacts")
+	cf.StringVar(&coverageScenarioFilter, "scenario", "", "filter by scenario ID")
+	cf.StringVar(&coverageModelFilter, "model", "", "filter by model")
+	cf.StringVar(&coverageProviderFilter, "provider", "", "filter by provider")
+	cf.StringVar(&coverageAdapterFilter, "adapter", "", "filter by adapter")
+	cf.StringVar(&coverageOutputPath, "output", "", "output path (default: <runs-dir>/artifact-coverage.json)")
+	cf.BoolVar(&failOnGaps, "fail-on-gaps", false, "exit non-zero when coverage gaps are found")
+
+	cmd.AddCommand(signalsCmd, coverageCmd)
 	return cmd
 }
 
@@ -67,5 +93,46 @@ func executeSignalAudit(cmd *cobra.Command, runsDir, manifestPath, scenarioFilte
 
 	writef(cmd.OutOrStdout(), "%s", signalaudit.FormatSummary(result))
 	writef(cmd.OutOrStdout(), "json: %s\n", outputPath)
+	return nil
+}
+
+func executeArtifactCoverageAudit(cmd *cobra.Command, runsDir, scenarioFilter, modelFilter, providerFilter, adapterFilter, outputPath string, failOnGaps bool) error {
+	if strings.TrimSpace(runsDir) == "" {
+		return fmt.Errorf("audit coverage: --runs-dir is required")
+	}
+	if outputPath == "" {
+		outputPath = filepath.Join(runsDir, "artifact-coverage.json")
+	}
+
+	resultsStore, err := store.Open(runsDir)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := resultsStore.Close(); closeErr != nil {
+			writef(cmd.ErrOrStderr(), "[audit] warning: close store: %v\n", closeErr)
+		}
+	}()
+
+	runs, err := resultsStore.Query(store.QueryFilters{
+		ScenarioID: scenarioFilter,
+		Model:      modelFilter,
+		Provider:   providerFilter,
+	})
+	if err != nil {
+		return err
+	}
+	runs = filterCoverageRunsByAdapter(runs, adapterFilter)
+
+	result := artifactaudit.Analyze(runs)
+	if err := artifactaudit.WriteJSON(outputPath, result); err != nil {
+		return err
+	}
+
+	writef(cmd.OutOrStdout(), "%s", artifactaudit.FormatSummary(result))
+	writef(cmd.OutOrStdout(), "json: %s\n", outputPath)
+	if failOnGaps && result.IncompleteRuns > 0 {
+		return fmt.Errorf("audit coverage: %d runs have artifact coverage gaps", result.IncompleteRuns)
+	}
 	return nil
 }

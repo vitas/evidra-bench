@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vitas/evidra-bench/pkg/store"
 )
 
 func TestSignalAuditCommand_WritesJSON(t *testing.T) {
@@ -100,6 +102,105 @@ networkpolicy-blocking:
 	}
 }
 
+func TestArtifactCoverageAuditCommand_WritesJSON(t *testing.T) {
+	runsDir := t.TempDir()
+	runDir := filepath.Join(runsDir, "run-complete")
+	writeCoverageRunArtifacts(t, runDir, 1, true)
+
+	resultsStore, err := store.Open(runsDir)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	if err := resultsStore.Insert(store.RunRecord{
+		ID:          "run-complete",
+		ScenarioID:  "broken-deployment",
+		Model:       "sonnet",
+		Provider:    "claude",
+		Adapter:     "cli",
+		Passed:      true,
+		ExitCode:    0,
+		ArtifactDir: runDir,
+		CreatedAt:   time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("insert run: %v", err)
+	}
+	if err := resultsStore.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	var buf strings.Builder
+	cmd := newRootCommand()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"audit", "coverage", "--runs-dir", runsDir})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("audit coverage failed: %v", err)
+	}
+
+	outputPath := filepath.Join(runsDir, "artifact-coverage.json")
+	data, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("artifact-coverage.json missing: %v", err)
+	}
+	var report struct {
+		TotalRuns       int     `json:"total_runs"`
+		CompleteRuns    int     `json:"complete_runs"`
+		CoveragePercent float64 `json:"coverage_percent"`
+	}
+	if err := json.Unmarshal(data, &report); err != nil {
+		t.Fatalf("decode artifact coverage: %v", err)
+	}
+	if report.TotalRuns != 1 || report.CompleteRuns != 1 || report.CoveragePercent != 100 {
+		t.Fatalf("report = %+v, want one complete run", report)
+	}
+	if !strings.Contains(buf.String(), "artifact coverage: 1/1 complete (100.0%)") {
+		t.Fatalf("summary missing coverage line: %s", buf.String())
+	}
+}
+
+func TestArtifactCoverageAuditCommand_FailOnGaps(t *testing.T) {
+	runsDir := t.TempDir()
+	runDir := filepath.Join(runsDir, "run-missing")
+	writeAuditJSONFixture(t, filepath.Join(runDir, "run.json"), map[string]any{"scenario_id": "broken-deployment"})
+
+	resultsStore, err := store.Open(runsDir)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	if err := resultsStore.Insert(store.RunRecord{
+		ID:          "run-missing",
+		ScenarioID:  "broken-deployment",
+		Model:       "sonnet",
+		Provider:    "claude",
+		Adapter:     "cli",
+		Passed:      false,
+		ExitCode:    -1,
+		ArtifactDir: runDir,
+		CreatedAt:   time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("insert run: %v", err)
+	}
+	if err := resultsStore.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	var buf strings.Builder
+	cmd := newRootCommand()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"audit", "coverage", "--runs-dir", runsDir, "--fail-on-gaps"})
+	err = cmd.Execute()
+	if err == nil {
+		t.Fatal("expected fail-on-gaps error")
+	}
+	if !strings.Contains(err.Error(), "artifact coverage gaps") {
+		t.Fatalf("error = %v, want coverage gaps", err)
+	}
+	if !strings.Contains(buf.String(), "missing by artifact:") {
+		t.Fatalf("summary missing gaps: %s", buf.String())
+	}
+}
+
 func writeAuditManifestFixture(t *testing.T, dir, body string) string {
 	t.Helper()
 
@@ -132,6 +233,31 @@ func writeAuditedRunFixture(t *testing.T, runDir, scenarioID, model, provider st
 		"band":           "good",
 		"signal_summary": signalSummary,
 	})
+}
+
+func writeCoverageRunArtifacts(t *testing.T, runDir string, totalSteps int, passed bool) {
+	t.Helper()
+	writeAuditJSONFixture(t, filepath.Join(runDir, "run.json"), map[string]any{
+		"scenario_id": "broken-deployment",
+		"passed":      passed,
+	})
+	toolCalls := make([]map[string]any, 0, totalSteps)
+	for i := 0; i < totalSteps; i++ {
+		toolCalls = append(toolCalls, map[string]any{"tool": "run_command"})
+	}
+	writeAuditJSONFixture(t, filepath.Join(runDir, "tool-calls.json"), toolCalls)
+	writeAuditJSONFixture(t, filepath.Join(runDir, "timeline.json"), map[string]any{
+		"total_steps": totalSteps,
+	})
+	writeAuditJSONFixture(t, filepath.Join(runDir, "run-events.json"), []map[string]any{
+		{"phase": "run", "status": "started"},
+		{"phase": "run", "status": "completed"},
+	})
+	if !passed {
+		writeAuditJSONFixture(t, filepath.Join(runDir, "failure-autopsy.json"), map[string]any{
+			"outcome": "fail",
+		})
+	}
 }
 
 func writeAuditJSONFixture(t *testing.T, path string, value any) {
