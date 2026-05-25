@@ -24,6 +24,23 @@ the leaderboard are the marketing surface. Private regression history,
 scheduled runs, customer incident suites, and failure reports are the product
 surface.
 
+## Killer Features
+
+| Feature | Why it matters |
+|---|---|
+| Live infrastructure exams | Runs real Kubernetes, Helm, Argo CD, Terraform, and AWS/LocalStack scenarios instead of synthetic chat prompts. |
+| Path-aware scoring | Measures not only whether the final state passed, but whether the agent diagnosed first, looped, skipped evidence, or used unsafe shortcuts. |
+| Artifact-backed evidence | Stores transcripts, tool calls, timelines, scorecards, run events, errors, and failure autopsies so every result can be inspected. |
+| Agent failure autopsy | Turns raw traces into behavior findings such as missed diagnostics, retry loops, premature success, and unsafe actions. |
+| MCP server readiness testing | Compares native-tools baselines against selected MCP servers on the same scenario slice, with reportable evidence links. |
+| Adapter-neutral agent testing | Tests built-in model loops, MCP servers, A2A agents, CLI agents, and skill prompts through one scenario harness. |
+| Model, prompt, and skill regression history | Shows whether a model upgrade, prompt change, tool server, or skill improved L3/L4 behavior or only helped easy tasks. |
+| Public reports and leaderboard | Publishes shareable benchmark results with evidence, not just a score badge. |
+| Private and self-hosted deployments | Uses the same product and API for public reports, private incident suites, team regression history, and customer readiness reports. |
+| Remote runner control plane | Lets hosted Bench queue jobs while remote runners execute scenarios in controlled infrastructure. |
+| Local CLI and TUI workflow | Supports fast local scenario development, dry runs, artifact browsing, and repeatable lab workflows. |
+| Scenario Studio human review | Planned review layer for turning human labels, notes, and evidence snippets into reusable scenario rules. |
+
 ## Why
 
 Agent quality is not a single pass/fail number. The same prompt or tool server
