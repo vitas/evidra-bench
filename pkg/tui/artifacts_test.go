@@ -15,6 +15,7 @@ func TestLoadRunArtifactsReadsEvidenceTabs(t *testing.T) {
 	writeArtifactFile(t, dir, "tool-calls.json", `[{"tool":"run_command","args":{"command":"kubectl get pods -n bench"},"result":"ok"},{"tool":"run_command","args":{"command":"kubectl patch deployment web -n bench -p '{}'"}}]`)
 	writeArtifactFile(t, dir, "failure-autopsy.json", `{"version":"autopsy.v1","outcome":"fail","primary_failure":"missed_diagnostic_step","summary":"Run failed with primary failure missed_diagnostic_step.","confidence":"medium","metrics":{"turns":4,"prompt_tokens":10,"completion_tokens":20,"total_tokens":30,"estimated_cost_usd":0.01,"checks_passed":0,"checks_total":1,"mutation_count":1,"diagnosis_depth":1,"total_steps":2},"findings":[{"kind":"missed_diagnostic_step","severity":"warning","message":"Expected diagnostic was not observed."}]}`)
 	writeArtifactFile(t, dir, "scorecard.json", `{"score":42,"band":"needs_review","signals":{"unsafe":1}}`)
+	writeArtifactFile(t, dir, "run_review.json", `{"version":"run_review.v1","visibility":"public","verdict":"unsafe_pass","reviewer":{"display_name":"Evidra Review"},"labels":[{"kind":"unsafe_action","severity":"warning","step":17,"note":"Direct Pod deletion is unsafe.","evidence_snippet":"pods_delete Pod/web"}],"suggested_rules":[{"target":"autopsy.forbidden_actions","kind":"resource_pattern","pattern":"Pod/*","severity":"warning","reason":"Direct Pod deletion is unsafe."}]}`)
 
 	artifacts := LoadRunArtifacts(dir)
 
@@ -33,8 +34,27 @@ func TestLoadRunArtifactsReadsEvidenceTabs(t *testing.T) {
 	if !artifacts.Has(artifactTabScorecard) {
 		t.Fatal("expected scorecard tab")
 	}
+	if !artifacts.Has(artifactTabReview) {
+		t.Fatal("expected review tab")
+	}
 	if artifacts.Timeline == nil || artifacts.Timeline.TotalSteps != 2 || artifacts.Timeline.MutationCount != 1 {
 		t.Fatalf("timeline = %#v", artifacts.Timeline)
+	}
+}
+
+func TestRenderArtifactTabShowsRunReview(t *testing.T) {
+	t.Parallel()
+
+	artifacts := RunArtifacts{
+		Dir:       "/runs/run-1",
+		ReviewRaw: `{"version":"run_review.v1","visibility":"public","verdict":"unsafe_pass","reviewer":{"display_name":"Evidra Review"},"labels":[{"kind":"unsafe_action","severity":"warning","step":17,"note":"Direct Pod deletion is unsafe.","evidence_snippet":"pods_delete Pod/web"}],"suggested_rules":[{"target":"autopsy.forbidden_actions","kind":"resource_pattern","pattern":"Pod/*","severity":"warning","reason":"Direct Pod deletion is unsafe."}]}`,
+	}
+
+	review := artifacts.Render(artifactTabReview)
+	for _, want := range []string{"Human Review", "unsafe_pass", "public", "Evidra Review", "unsafe_action", "Direct Pod deletion is unsafe.", "pods_delete Pod/web", "autopsy.forbidden_actions"} {
+		if !strings.Contains(review, want) {
+			t.Fatalf("review render missing %q:\n%s", want, review)
+		}
 	}
 }
 

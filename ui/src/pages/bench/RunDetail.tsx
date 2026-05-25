@@ -6,6 +6,8 @@ import type { AutopsyReport } from "../../lib/autopsyView.mts";
 import { normalizeAutopsyReport } from "../../lib/autopsyView.mts";
 import { formatCompactTokens, formatDuration } from "../../lib/benchFormatters.mts";
 import type { BenchRunRecord } from "../../lib/benchTypes.mts";
+import type { RunReview } from "../../lib/runReview.mts";
+import { normalizeRunReviewView } from "../../lib/runReview.mts";
 
 interface Check {
   name: string;
@@ -61,10 +63,11 @@ const PHASE_STYLES: Record<string, string> = {
 
 const PHASE_ORDER = ["discover", "diagnose", "decide", "act", "verify", "explain"];
 
-type Tab = "summary" | "autopsy" | "timeline" | "transcript" | "tool-calls" | "scorecard";
+type Tab = "summary" | "review" | "autopsy" | "timeline" | "transcript" | "tool-calls" | "scorecard";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "summary", label: "Summary" },
+  { key: "review", label: "Review" },
   { key: "autopsy", label: "Autopsy" },
   { key: "timeline", label: "Timeline" },
   { key: "transcript", label: "Transcript" },
@@ -140,6 +143,10 @@ export function RunDetail() {
   const [autopsy, setAutopsy] = useState<AutopsyReport | null>(null);
   const [autopsyLoading, setAutopsyLoading] = useState(false);
   const [autopsyError, setAutopsyError] = useState<string | null>(null);
+
+  const [review, setReview] = useState<RunReview | null>(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   useEffect(() => {
     setActiveTab(parseTab(searchParams.get("tab")));
@@ -268,6 +275,26 @@ export function RunDetail() {
       .finally(() => setAutopsyLoading(false));
   }, [activeTab, autopsy, autopsyError, autopsyLoading, id, fetchResponse]);
 
+  // Fetch human review on tab switch
+  useEffect(() => {
+    if (activeTab !== "review" || review !== null || reviewError !== null || reviewLoading || !id) return;
+    setReviewLoading(true);
+    fetchResponse(`/v1/bench/runs/${id}/review`)
+      .then((res) => {
+        if (res.status === 404) {
+          setReviewError("not-found");
+          return;
+        }
+        if (!res.ok) throw new Error(res.statusText);
+        return res.json();
+      })
+      .then((data) => {
+        if (data) setReview(data as RunReview);
+      })
+      .catch((err) => setReviewError(err.message))
+      .finally(() => setReviewLoading(false));
+  }, [activeTab, review, reviewError, reviewLoading, id, fetchResponse]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-fg-muted text-[0.85rem]">
@@ -357,6 +384,13 @@ export function RunDetail() {
 
       {/* Tab content */}
       {activeTab === "summary" && <SummaryTab checks={checks} scorecard={scorecard} />}
+      {activeTab === "review" && (
+        <ReviewTab
+          review={review}
+          loading={reviewLoading}
+          error={reviewError}
+        />
+      )}
       {activeTab === "autopsy" && (
         <AutopsyTab
           autopsy={autopsy}
@@ -481,6 +515,122 @@ function SummaryTab({
         ) : (
           <p className="text-fg-muted text-[0.82rem]">
             No scorecard available. Run with scoring enabled to see signal data.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ReviewTab({
+  review,
+  loading,
+  error,
+}: {
+  review: RunReview | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  if (loading) {
+    return <p className="text-fg-muted text-[0.82rem] py-6">Loading human review...</p>;
+  }
+  if (error === "not-found" || (!review && !loading && !error)) {
+    return (
+      <div className="rounded-lg border border-border-subtle bg-bg-alt/60 p-4">
+        <h3 className="text-[0.9rem] font-semibold text-fg mb-1">No human review yet</h3>
+        <p className="text-fg-muted text-[0.82rem]">
+          This run has no saved review artifact. Reviews add a human verdict,
+          notes, evidence snippets, and candidate scenario rules.
+        </p>
+      </div>
+    );
+  }
+  if (error) {
+    return <p className="text-danger text-[0.82rem] py-6">Failed to load human review: {error}</p>;
+  }
+  if (!review) {
+    return <p className="text-fg-muted text-[0.82rem] py-6">No human review yet.</p>;
+  }
+
+  const view = normalizeRunReviewView(review);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-block px-2 py-0.5 rounded bg-accent-tint text-accent text-[0.7rem] font-semibold uppercase tracking-wide">
+              {view.verdictLabel}
+            </span>
+            <span className="inline-block px-2 py-0.5 rounded bg-bg-alt/80 text-fg-muted text-[0.7rem] font-semibold uppercase tracking-wide">
+              {view.visibilityLabel}
+            </span>
+            {review.primary_label && (
+              <span className="inline-block px-2 py-0.5 rounded bg-warning/15 text-warning text-[0.7rem] font-mono">
+                {review.primary_label}
+              </span>
+            )}
+          </div>
+          <p className="text-fg-muted text-[0.82rem] mt-2">
+            Reviewed by {view.reviewerLabel}
+          </p>
+        </div>
+        <span className="font-mono text-fg-muted text-[0.72rem]">
+          {review.version || "run_review.v1"}
+        </span>
+      </div>
+
+      <div>
+        <h3 className="text-[0.9rem] font-semibold text-fg mb-3">Labels</h3>
+        {view.labels.length > 0 ? (
+          <div className="space-y-2">
+            {view.labels.map((label, i) => (
+              <div key={i} className="rounded-md bg-bg-alt/80 px-3 py-2.5 text-[0.8rem]">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`inline-block px-2 py-0.5 rounded text-[0.7rem] font-semibold uppercase tracking-wide ${severityStyle(label.severityLabel.toLowerCase())}`}>
+                    {label.severityLabel}
+                  </span>
+                  <span className="font-mono text-fg">{label.kindLabel}</span>
+                  {label.stepLabel && (
+                    <span className="font-mono text-fg-muted text-[0.72rem]">
+                      {label.stepLabel}
+                    </span>
+                  )}
+                  {label.evidenceRefLabel && (
+                    <span className="font-mono text-fg-muted text-[0.72rem]">
+                      {label.evidenceRefLabel}
+                    </span>
+                  )}
+                </div>
+                {label.note && (
+                  <p className="text-fg-muted mt-2 leading-relaxed">{label.note}</p>
+                )}
+                {label.evidenceSnippet && (
+                  <pre className="mt-2 rounded bg-code-bg border border-border-subtle px-3 py-2 font-mono text-[0.72rem] text-fg-muted whitespace-pre-wrap break-words">
+                    {label.evidenceSnippet}
+                  </pre>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-fg-muted text-[0.82rem]">No labels saved.</p>
+        )}
+      </div>
+
+      <div>
+        <h3 className="text-[0.9rem] font-semibold text-fg mb-3">Suggested Rules</h3>
+        {view.suggestedRules.length > 0 ? (
+          <div className="space-y-1.5">
+            {view.suggestedRules.map((rule, i) => (
+              <div key={i} className="rounded-md bg-bg-alt/80 px-3 py-2 font-mono text-[0.76rem] text-fg-muted break-words">
+                {rule}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-fg-muted text-[0.82rem]">
+            No scenario-rule suggestions saved with this review.
           </p>
         )}
       </div>

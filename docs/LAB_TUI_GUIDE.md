@@ -89,7 +89,7 @@ Shows local run evidence for the latest selected run, or for the just-completed 
 
 ```
 Run Artifacts  runs/20260518-120000-broken-deployment-cli
-[summary] [autopsy] [timeline] [transcript] [tool-calls] [scorecard*]
+[summary] [review*] [autopsy] [timeline] [transcript] [tool-calls] [scorecard*]
 
 Autopsy
   outcome: fail
@@ -103,11 +103,16 @@ left/right:tab  esc/q:back  * missing artifact
 
 Tabs:
 - `summary` — which artifact files are available
+- `review` — parsed `run_review.json` human review when present
 - `autopsy` — parsed `failure-autopsy.json`
 - `timeline` — decision timeline derived from `tool-calls.json`
 - `transcript` — raw `transcript.txt`
 - `tool-calls` — formatted `tool-calls.json`
 - `scorecard` — formatted `scorecard.json`
+
+The review tab uses the same `run_review.v1` schema as the hosted API. It
+shows verdict, visibility, reviewer, labels, notes, evidence snippets, and
+suggested scenario rules. See [Human Review](guides/human-review.md).
 
 Failed checks show details:
 

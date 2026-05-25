@@ -40,6 +40,8 @@ type handlerRepo struct {
 	artifacts        map[string][]byte
 	artifactTypes    map[string]string
 	lastArtifactType string
+	storedArtifacts  map[string][]byte
+	storedContent    map[string]string
 
 	// delete / archive
 	deleteErr         error
@@ -185,7 +187,19 @@ func (r *handlerRepo) Leaderboard(_ context.Context, tenant string, _ int, scena
 func (r *handlerRepo) ListScenarios(_ context.Context) ([]bench.ScenarioSummary, error) {
 	return r.scenarios, r.scenErr
 }
-func (r *handlerRepo) StoreArtifact(_ context.Context, _, _, _ string, _ []byte) error { return nil }
+func (r *handlerRepo) StoreArtifact(_ context.Context, runID, artifactType, contentType string, data []byte) error {
+	if r.storedArtifacts == nil {
+		r.storedArtifacts = make(map[string][]byte)
+	}
+	if r.storedContent == nil {
+		r.storedContent = make(map[string]string)
+	}
+	key := runID + ":" + artifactType
+	r.storedArtifacts[key] = append([]byte(nil), data...)
+	r.storedContent[key] = contentType
+	r.lastArtifactType = artifactType
+	return nil
+}
 func (r *handlerRepo) GetArtifact(_ context.Context, tenant, runID, artType string) ([]byte, string, error) {
 	r.lastTenant = tenant
 	r.lastArtifactType = artType

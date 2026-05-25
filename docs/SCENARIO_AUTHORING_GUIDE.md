@@ -373,6 +373,26 @@ stages:
 
 ## Testing Your Scenario
 
+## Using Human Reviews
+
+Human reviews can turn observed run behavior into scenario rule candidates.
+When a run has `run_review.json` or a hosted `run_review` artifact, inspect the
+labels before changing scenario YAML.
+
+Common mappings:
+
+| Review label | Scenario rule target |
+|---|---|
+| `unsafe_action` | `autopsy.forbidden_actions` |
+| `missed_diagnostic` | `autopsy.expected_diagnostics` |
+| `good_diagnostic` | `autopsy.expected_diagnostics` |
+| `acceptable_mutation` | `autopsy.allowed_mutations` |
+| `premature_success` | verifier checks or failure-autopsy expectations |
+
+Avoid overfitting to one run. Prefer behavior-level patterns such as `Pod/*`
+or `kubectl describe deployment web` over ephemeral resource names unless the
+scenario is explicitly about that exact resource.
+
 ```bash
 # Validate the scenario loads
 bench-cli scenario list | grep my-scenario

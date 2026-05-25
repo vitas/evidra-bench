@@ -39,6 +39,8 @@ Obsidian map of content and the GitHub documentation index.
 - [Lab TUI Guide](LAB_TUI_GUIDE.md) - terminal UI usage.
 - [Private Report Pack](PRIVATE_REPORT_PACK.md) - baseline versus MCP
   tool-server report workflow.
+- [Human Review](guides/human-review.md) - reviewing runs, public review
+  visibility, and review artifacts.
 - [Reproducibility](REPRODUCIBILITY.md) - what public and private reports
   should record.
 
@@ -71,6 +73,8 @@ Obsidian map of content and the GitHub documentation index.
 - [Executor Contract](contracts/EXECUTOR_CONTRACT_V1.md) - direct executor API.
 - [Runner Control Plane Contract](contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md)
   - poll-based remote runner API.
+- [Run Review Contract v1](contracts/RUN_REVIEW_V1.md) - human review artifact
+  schema.
 
 ## Architecture And Governance
 

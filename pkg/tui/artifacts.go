@@ -10,12 +10,14 @@ import (
 
 	"github.com/vitas/evidra-bench/pkg/artifact"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
+	"github.com/vitas/evidra-bench/pkg/runreview"
 )
 
 type artifactTab string
 
 const (
 	artifactTabSummary    artifactTab = "summary"
+	artifactTabReview     artifactTab = "review"
 	artifactTabAutopsy    artifactTab = "autopsy"
 	artifactTabTimeline   artifactTab = "timeline"
 	artifactTabTranscript artifactTab = "transcript"
@@ -25,6 +27,7 @@ const (
 
 var artifactTabs = []artifactTab{
 	artifactTabSummary,
+	artifactTabReview,
 	artifactTabAutopsy,
 	artifactTabTimeline,
 	artifactTabTranscript,
@@ -39,6 +42,7 @@ type RunArtifacts struct {
 	ToolCallsRaw string
 	ToolCalls    []bench.ToolCall
 	Timeline     *bench.Timeline
+	ReviewRaw    string
 	AutopsyRaw   string
 	ScorecardRaw string
 }
@@ -53,6 +57,7 @@ func LoadRunArtifacts(dir string) RunArtifacts {
 			artifacts.Timeline = bench.Parse(artifacts.ToolCalls)
 		}
 	}
+	artifacts.ReviewRaw = readArtifactText(dir, artifact.RunReviewFile)
 	artifacts.AutopsyRaw = readArtifactText(dir, artifact.FailureAutopsyFile)
 	artifacts.ScorecardRaw = readArtifactText(dir, artifact.ScorecardFile)
 	return artifacts
@@ -95,6 +100,8 @@ func (a RunArtifacts) Has(tab artifactTab) bool {
 	switch tab {
 	case artifactTabSummary:
 		return a.Dir != ""
+	case artifactTabReview:
+		return a.ReviewRaw != ""
 	case artifactTabAutopsy:
 		return a.AutopsyRaw != ""
 	case artifactTabTimeline:
@@ -114,6 +121,8 @@ func (a RunArtifacts) Render(tab artifactTab) string {
 	switch tab {
 	case artifactTabSummary:
 		return a.renderSummary()
+	case artifactTabReview:
+		return a.renderReview()
 	case artifactTabAutopsy:
 		return a.renderAutopsy()
 	case artifactTabTimeline:
@@ -138,6 +147,65 @@ func (a RunArtifacts) renderSummary() string {
 			state = "available"
 		}
 		fmt.Fprintf(&b, "  %-11s %s\n", tab, state)
+	}
+	return b.String()
+}
+
+func (a RunArtifacts) renderReview() string {
+	if a.ReviewRaw == "" {
+		return "Human Review unavailable"
+	}
+	review, err := runreview.Decode([]byte(a.ReviewRaw))
+	if err != nil {
+		return renderTextArtifact("Human Review", prettyJSON(a.ReviewRaw))
+	}
+	var b strings.Builder
+	b.WriteString("Human Review\n")
+	fmt.Fprintf(&b, "  verdict: %s\n", valueOrDefault(review.Verdict, runreview.VerdictNeedsReview))
+	fmt.Fprintf(&b, "  visibility: %s\n", valueOrDefault(review.Visibility, runreview.VisibilityPrivate))
+	if review.Reviewer.DisplayName != "" {
+		fmt.Fprintf(&b, "  reviewer: %s\n", review.Reviewer.DisplayName)
+	} else if review.Reviewer.Type != "" {
+		fmt.Fprintf(&b, "  reviewer: %s\n", review.Reviewer.Type)
+	}
+	if review.PrimaryLabel != "" {
+		fmt.Fprintf(&b, "  primary_label: %s\n", review.PrimaryLabel)
+	}
+	if len(review.Labels) > 0 {
+		b.WriteString("\nLabels\n")
+		for _, label := range review.Labels {
+			fmt.Fprintf(&b, "  [%s] %s", valueOrDefault(label.Severity, runreview.SeverityInfo), label.Kind)
+			if label.Step != nil {
+				fmt.Fprintf(&b, " step %d", *label.Step+1)
+			}
+			b.WriteString("\n")
+			if label.Note != "" {
+				fmt.Fprintf(&b, "    note: %s\n", label.Note)
+			}
+			if label.EvidenceSnippet != "" {
+				fmt.Fprintf(&b, "    evidence: %s\n", label.EvidenceSnippet)
+			}
+			if label.EvidenceRef.Artifact != "" {
+				ref := label.EvidenceRef.Artifact
+				if label.EvidenceRef.Step != nil {
+					ref = fmt.Sprintf("%s step %d", ref, *label.EvidenceRef.Step+1)
+				}
+				fmt.Fprintf(&b, "    ref: %s\n", ref)
+			}
+		}
+	}
+	if len(review.SuggestedRules) > 0 {
+		b.WriteString("\nSuggested Rules\n")
+		for _, rule := range review.SuggestedRules {
+			fmt.Fprintf(&b, "  %s: %s %s", rule.Target, rule.Kind, rule.Pattern)
+			if rule.Severity != "" {
+				fmt.Fprintf(&b, " (%s)", rule.Severity)
+			}
+			if rule.Reason != "" {
+				fmt.Fprintf(&b, " - %s", rule.Reason)
+			}
+			b.WriteString("\n")
+		}
 	}
 	return b.String()
 }

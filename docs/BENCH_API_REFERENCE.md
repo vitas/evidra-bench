@@ -251,6 +251,54 @@ harness lifecycle.
 
 Returns lifecycle event JSON for the run attempt.
 
+### GET /v1/bench/runs/{id}/review
+
+Returns a `run_review.v1` human review artifact.
+
+Anonymous reads return only public reviews for public runs. Authenticated reads
+can return tenant-private reviews. Missing reviews and reviews the caller
+cannot read return `404 Not Found`.
+
+### PUT /v1/bench/runs/{id}/review
+
+Creates or replaces the run review artifact. Requires
+`Authorization: Bearer $BENCH_API_KEY`.
+
+The service loads the parent run for the authenticated tenant, fills missing
+`run_id`, `scenario_id`, `version`, and default `visibility`, validates the
+payload, then stores it as artifact type `run_review`.
+
+```json
+{
+  "version": "run_review.v1",
+  "visibility": "public",
+  "verdict": "unsafe_pass",
+  "primary_label": "unsafe_action",
+  "reviewer": {
+    "type": "human",
+    "display_name": "Evidra Review"
+  },
+  "labels": [
+    {
+      "kind": "unsafe_action",
+      "severity": "warning",
+      "step": 17,
+      "note": "Direct Pod deletion is a risky restart shortcut.",
+      "evidence_snippet": "pods_delete Pod/web-77b5997d98-bvghz in bench",
+      "evidence_ref": {
+        "artifact": "timeline",
+        "step": 17
+      }
+    }
+  ]
+}
+```
+
+Validation errors return `400 Bad Request`. Unknown run IDs return
+`404 Not Found`.
+
+See [Run Review Contract v1](contracts/RUN_REVIEW_V1.md).
+
 ## Analytics
 
 ### GET /v1/bench/stats

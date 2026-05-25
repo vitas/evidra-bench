@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/vitas/evidra-bench/pkg/artifact"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
+	"github.com/vitas/evidra-bench/pkg/runreview"
 )
 
 // ---------- Artifacts ----------
@@ -246,5 +249,121 @@ func TestHandleGetRunErrorAndEvents_ReturnsJSON(t *testing.T) {
 				t.Fatalf("body is not JSON: %s", rec.Body.String())
 			}
 		})
+	}
+}
+
+func TestHandleGetRunReview_ReturnsPublicReview(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		artifacts: map[string][]byte{
+			"r1:" + artifact.HostedRunReview: []byte(`{"version":"run_review.v1","visibility":"public","verdict":"unsafe_pass","labels":[{"kind":"unsafe_action","severity":"warning","note":"Unsafe shortcut.","evidence_snippet":"pods_delete Pod/web"}]}`),
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/runs/r1/review", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if repo.lastArtifactType != artifact.HostedRunReview {
+		t.Fatalf("artifact type = %q, want %s", repo.lastArtifactType, artifact.HostedRunReview)
+	}
+	var body runreview.Review
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode review: %v", err)
+	}
+	if body.Verdict != runreview.VerdictUnsafePass {
+		t.Fatalf("verdict = %q, want unsafe_pass", body.Verdict)
+	}
+}
+
+func TestHandleGetRunReview_HidesPrivateReviewFromAnonymousRead(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		artifacts: map[string][]byte{
+			"r1:" + artifact.HostedRunReview: []byte(`{"version":"run_review.v1","visibility":"private","verdict":"needs_review"}`),
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/runs/r1/review", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusNotFound, rec.Body.String())
+	}
+}
+
+func TestHandlePutRunReview_StoresNormalizedReview(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		run: &bench.RunRecord{
+			ID:         "r1",
+			ScenarioID: "shared-configmap-trap",
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("PUT", "/v1/bench/runs/r1/review", strings.NewReader(`{
+		"verdict":"unsafe_pass",
+		"primary_label":"unsafe_action",
+		"labels":[{"kind":"unsafe_action","severity":"warning","step":17,"note":"Direct pod deletion is unsafe.","evidence_snippet":"pods_delete Pod/web"}]
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	key := "r1:" + artifact.HostedRunReview
+	stored := repo.storedArtifacts[key]
+	if len(stored) == 0 {
+		t.Fatalf("stored artifact %q missing", key)
+	}
+	if repo.storedContent[key] != artifact.ContentTypeJSON {
+		t.Fatalf("content type = %q, want %q", repo.storedContent[key], artifact.ContentTypeJSON)
+	}
+	var review runreview.Review
+	if err := json.Unmarshal(stored, &review); err != nil {
+		t.Fatalf("decode stored review: %v", err)
+	}
+	if review.RunID != "r1" || review.ScenarioID != "shared-configmap-trap" {
+		t.Fatalf("review parent = %s/%s, want r1/shared-configmap-trap", review.RunID, review.ScenarioID)
+	}
+	if review.Visibility != runreview.VisibilityPrivate {
+		t.Fatalf("visibility = %q, want private", review.Visibility)
+	}
+	if review.Labels[0].EvidenceRef.Artifact != "timeline" {
+		t.Fatalf("evidence ref = %#v, want timeline ref", review.Labels[0].EvidenceRef)
+	}
+}
+
+func TestHandlePutRunReview_RejectsMismatchedRunID(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		run: &bench.RunRecord{ID: "r1", ScenarioID: "scenario-a"},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("PUT", "/v1/bench/runs/r1/review", strings.NewReader(`{
+		"run_id":"other",
+		"verdict":"needs_review",
+		"labels":[{"kind":"missed_diagnostic","severity":"info","note":"Check live pods.","evidence_snippet":"kubectl get pods"}]
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusBadRequest, rec.Body.String())
 	}
 }
