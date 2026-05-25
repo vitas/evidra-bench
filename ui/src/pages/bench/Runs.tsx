@@ -24,7 +24,7 @@ import {
   type RunsFilterState,
   type RunsStatus,
 } from "../../lib/runFilters.mts";
-import { benchRunPath } from "../../lib/routes.mts";
+import { BENCH_RUNS_PATH, benchRunPath } from "../../lib/routes.mts";
 import { formatCurrency, formatDateTime, formatDuration, formatIntegerTokens } from "../../lib/benchFormatters.mts";
 import type { BenchRunsResponse } from "../../lib/benchTypes.mts";
 
@@ -58,7 +58,7 @@ function SortArrow({ field, sort }: { field: SortField; sort: { field: SortField
 }
 
 export function Runs() {
-  usePageTitle("Runs");
+  usePageTitle("Runs", { canonicalPath: BENCH_RUNS_PATH });
   const { request } = useApi();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
