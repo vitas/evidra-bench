@@ -3,6 +3,8 @@ import test from "node:test";
 
 import { fetchBenchApi, requestBenchApi } from "./benchApi.mts";
 
+const browserAuthHeader = "authorization";
+
 test("requestBenchApi allows public GET requests without auth", async () => {
   const calls: Request[] = [];
   const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -18,7 +20,7 @@ test("requestBenchApi allows public GET requests without auth", async () => {
   assert.deepEqual(result, { ok: true });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, "https://api.evidra.cc/v1/bench/runs");
-  assert.equal(calls[0].headers.has("Authorization"), false);
+  assert.equal(calls[0].headers.has(browserAuthHeader), false);
 });
 
 test("requestBenchApi sends unauthenticated writes to the backend", async () => {
@@ -39,10 +41,10 @@ test("requestBenchApi sends unauthenticated writes to the backend", async () => 
   assert.deepEqual(result, { ok: true });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].method, "PUT");
-  assert.equal(calls[0].headers.has("Authorization"), false);
+  assert.equal(calls[0].headers.has(browserAuthHeader), false);
 });
 
-test("requestBenchApi sends bearer token for authenticated writes", async () => {
+test("requestBenchApi strips caller auth headers from browser requests", async () => {
   const calls: Request[] = [];
   const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {
     calls.push(new Request(input, init));
@@ -51,18 +53,18 @@ test("requestBenchApi sends bearer token for authenticated writes", async () => 
 
   const result = await requestBenchApi<{ id: string }>("/v1/bench/trigger", {
     method: "POST",
+    headers: { [browserAuthHeader]: "Bearer fixture-token" },
     body: JSON.stringify({ model: "sonnet" }),
   }, {
     apiBase: "https://api.evidra.cc",
-    authToken: "secret-token",
     fetchImpl,
   });
 
   assert.deepEqual(result, { id: "job-1" });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].method, "POST");
-  assert.equal(calls[0].headers.get("Authorization"), "Bearer secret-token");
-	assert.equal(calls[0].headers.get("Content-Type"), "application/json");
+  assert.equal(calls[0].headers.has(browserAuthHeader), false);
+  assert.equal(calls[0].headers.get("Content-Type"), "application/json");
 });
 
 test("fetchBenchApi centralizes artifact requests without parsing the response", async () => {
@@ -76,12 +78,11 @@ test("fetchBenchApi centralizes artifact requests without parsing the response",
 
   const res = await fetchBenchApi("/v1/bench/runs/run-1/transcript", {}, {
     apiBase: "https://api.evidra.cc",
-    authToken: "secret-token",
     fetchImpl,
   });
 
   assert.equal(await res.text(), "transcript text");
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, "https://api.evidra.cc/v1/bench/runs/run-1/transcript");
-  assert.equal(calls[0].headers.get("Authorization"), "Bearer secret-token");
+  assert.equal(calls[0].headers.has(browserAuthHeader), false);
 });

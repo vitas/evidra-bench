@@ -2,7 +2,6 @@ import { buildBenchApiURL } from "./apiBase.mts";
 
 export interface BenchApiRequestConfig {
   apiBase?: string;
-  authToken?: string;
   fetchImpl?: typeof fetch;
 }
 
@@ -13,11 +12,7 @@ export async function fetchBenchApi(
 ): Promise<Response> {
   const method = (options.method || "GET").toUpperCase();
   const headers = new Headers(options.headers);
-  const authToken = (config.authToken ?? "").trim();
-
-  if (authToken !== "" && !headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${authToken}`);
-  }
+  headers.delete("authorization");
 
   if (options.body != null && !headers.has("Content-Type") && !isFormDataBody(options.body)) {
     headers.set("Content-Type", "application/json");
