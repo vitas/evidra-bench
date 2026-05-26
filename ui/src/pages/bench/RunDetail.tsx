@@ -8,6 +8,7 @@ import { formatCompactTokens, formatDuration } from "../../lib/benchFormatters.m
 import type { BenchRunRecord } from "../../lib/benchTypes.mts";
 import type { RunReview } from "../../lib/runReview.mts";
 import { normalizeRunReviewView } from "../../lib/runReview.mts";
+import { RunReviewEditor } from "./RunReviewEditor";
 
 interface Check {
   name: string;
@@ -147,6 +148,9 @@ export function RunDetail() {
   const [review, setReview] = useState<RunReview | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewSaveError, setReviewSaveError] = useState<string | null>(null);
+  const [reviewSaved, setReviewSaved] = useState(false);
 
   useEffect(() => {
     setActiveTab(parseTab(searchParams.get("tab")));
@@ -161,6 +165,33 @@ export function RunDetail() {
       next.set("tab", tab);
     }
     setSearchParams(next, { replace: true });
+  }
+
+  async function saveReview(payload: RunReview) {
+    if (!id) return;
+    setReviewSaving(true);
+    setReviewSaveError(null);
+    setReviewSaved(false);
+    try {
+      const saved = await request<RunReview>(`/v1/bench/runs/${id}/review`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      setReview(saved);
+      setReviewError(null);
+      setReviewSaved(true);
+      try {
+        const refreshedRun = await request<BenchRunRecord>(`/v1/bench/runs/${id}`);
+        setRun(refreshedRun);
+      } catch (refreshErr) {
+        setReviewSaveError(refreshErr instanceof Error ? `Saved review, but failed to refresh run summary: ${refreshErr.message}` : "Saved review, but failed to refresh run summary");
+      }
+    } catch (err) {
+      setReviewSaveError(err instanceof Error ? err.message : "Failed to save human review");
+      throw err;
+    } finally {
+      setReviewSaving(false);
+    }
   }
 
   // Fetch run record
@@ -235,9 +266,10 @@ export function RunDetail() {
       .finally(() => setScorecardLoading(false));
   }, [activeTab, scorecard, scorecardError, scorecardLoading, id, fetchResponse]);
 
-  // Fetch timeline on tab switch
+  // Fetch timeline on tab switch. The Review editor also uses timeline steps
+  // for evidence prefill.
   useEffect(() => {
-    if (activeTab !== "timeline" || timeline !== null || timelineError !== null || timelineLoading || !id) return;
+    if ((activeTab !== "timeline" && activeTab !== "review") || timeline !== null || timelineError !== null || timelineLoading || !id) return;
     setTimelineLoading(true);
     fetchResponse(`/v1/bench/runs/${id}/timeline`)
       .then((res) => {
@@ -386,9 +418,15 @@ export function RunDetail() {
       {activeTab === "summary" && <SummaryTab checks={checks} scorecard={scorecard} />}
       {activeTab === "review" && (
         <ReviewTab
+          run={run}
           review={review}
+          timeline={timeline}
           loading={reviewLoading}
           error={reviewError}
+          saving={reviewSaving}
+          saveError={reviewSaveError}
+          saved={reviewSaved}
+          onSave={saveReview}
         />
       )}
       {activeTab === "autopsy" && (
@@ -523,25 +561,47 @@ function SummaryTab({
 }
 
 function ReviewTab({
+  run,
   review,
+  timeline,
   loading,
   error,
+  saving,
+  saveError,
+  saved,
+  onSave,
 }: {
+  run: BenchRunRecord;
   review: RunReview | null;
+  timeline: TimelineData | null;
   loading: boolean;
   error: string | null;
+  saving: boolean;
+  saveError: string | null;
+  saved: boolean;
+  onSave: (payload: RunReview) => Promise<void>;
 }) {
   if (loading) {
     return <p className="text-fg-muted text-[0.82rem] py-6">Loading human review...</p>;
   }
   if (error === "not-found" || (!review && !loading && !error)) {
     return (
-      <div className="rounded-lg border border-border-subtle bg-bg-alt/60 p-4">
-        <h3 className="text-[0.9rem] font-semibold text-fg mb-1">No human review yet</h3>
-        <p className="text-fg-muted text-[0.82rem]">
-          This run has no saved review artifact. Reviews add a human verdict,
-          notes, evidence snippets, and candidate scenario rules.
-        </p>
+      <div className="space-y-5">
+        <div className="rounded-lg border border-border-subtle bg-bg-alt/60 p-4">
+          <h3 className="text-[0.9rem] font-semibold text-fg mb-1">No human review yet</h3>
+          <p className="text-fg-muted text-[0.82rem]">
+            This run has no saved review artifact.
+          </p>
+        </div>
+        <RunReviewEditor
+          run={run}
+          review={review}
+          timeline={timeline}
+          saving={saving}
+          saveError={saveError}
+          saved={saved}
+          onSave={onSave}
+        />
       </div>
     );
   }
@@ -634,6 +694,16 @@ function ReviewTab({
           </p>
         )}
       </div>
+
+      <RunReviewEditor
+        run={run}
+        review={review}
+        timeline={timeline}
+        saving={saving}
+        saveError={saveError}
+        saved={saved}
+        onSave={onSave}
+      />
     </div>
   );
 }

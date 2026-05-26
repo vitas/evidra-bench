@@ -37,9 +37,14 @@ public review text as publishable evidence.
 4. Select the `Review` tab.
 5. Read the saved verdict, labels, notes, evidence snippets, and suggested
    rules.
+6. Use the review editor to set the verdict, visibility, primary label,
+   severity, reviewer note, evidence snippet, and optional suggested rule.
+7. Save the review to replace the current `run_review.v1` artifact.
 
-The first browser slice is read-focused. Review writes use the backend API and
-require backend authentication. The browser does not embed static API keys.
+Browser review writes use the existing `PUT /v1/bench/runs/{id}/review`
+backend API and require backend authentication. The browser does not embed
+static API keys; deployments that allow browser writes should provide
+authenticated backend access at the deployment boundary.
 Run list and run detail responses include a compact `review_summary` when a
 saved review is readable. Anonymous public reads only show summaries for public
 reviews; authenticated deployments can show private review summaries for the
