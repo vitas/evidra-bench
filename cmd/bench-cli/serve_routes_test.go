@@ -25,6 +25,7 @@ func TestRegisterBenchAPIRoutes_ProtectsWriteEndpoint(t *testing.T) {
 	}{
 		{method: http.MethodPost, path: "/v1/bench/runs"},
 		{method: http.MethodPost, path: "/v1/bench/runs/run-1/review-draft"},
+		{method: http.MethodPost, path: "/v1/bench/runs/run-1/scenario-patch-preview"},
 		{method: http.MethodPut, path: "/v1/bench/runs/run-1/review"},
 	}
 

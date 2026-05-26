@@ -67,6 +67,27 @@ test("requestBenchApi posts review drafts through the same browser session path"
   assert.equal(calls[0].credentials, "include");
 });
 
+test("requestBenchApi posts scenario patch previews through the same browser session path", async () => {
+  const calls: Request[] = [];
+  const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {
+    calls.push(new Request(input, init));
+    return Response.json({ version: "scenario_patch_preview.v1", changed: true });
+  };
+
+  const result = await requestBenchApi<{ changed: boolean }>("/v1/bench/runs/run-1/scenario-patch-preview", {
+    method: "POST",
+  }, {
+    apiBase: "https://api.evidra.cc",
+    fetchImpl,
+  });
+
+  assert.deepEqual(result, { version: "scenario_patch_preview.v1", changed: true });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, "POST");
+  assert.equal(calls[0].headers.has(browserAuthHeader), false);
+  assert.equal(calls[0].credentials, "include");
+});
+
 test("requestBenchApi strips caller auth headers from browser requests", async () => {
   const calls: Request[] = [];
   const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {

@@ -90,6 +90,7 @@ func serveAPI(cfg config.Config, addr string, optList ...serveOptions) error {
 	defaultTenant, publicTenant := resolveServeTenants()
 	benchService := benchsvc.NewService(benchRepo, benchsvc.ServiceConfig{
 		PublicTenant: publicTenant,
+		ScenariosDir: cfg.ScenariosDir,
 		TriggerStore: triggerStore,
 		Dispatcher:   &benchsvc.PoolDispatcher{},
 	})

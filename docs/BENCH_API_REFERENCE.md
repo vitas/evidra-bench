@@ -338,6 +338,40 @@ suggested scenario rule. The draft is not stored and does not create a separate
 review state. Human review is final only after the caller edits and saves with
 `PUT /v1/bench/runs/{id}/review`.
 
+### POST /v1/bench/runs/{id}/scenario-patch-preview
+
+Builds a scenario YAML diff from the saved `run_review.v1` suggested rules.
+Requires `Authorization: Bearer $BENCH_API_KEY` or a browser session cookie
+from `POST /v1/bench/session`.
+
+The service loads the parent run, the saved review artifact, and the matching
+local scenario YAML from the configured scenario catalog. The response is a
+read-only preview; it does not edit `scenario.yaml`, store a patch artifact, or
+change the review.
+
+```json
+{
+  "version": "scenario_patch_preview.v1",
+  "run_id": "run-123",
+  "scenario_id": "shared-configmap-trap",
+  "scenario_path": "kubernetes/shared-configmap-trap/scenario.yaml",
+  "changed": true,
+  "diff": "--- kubernetes/shared-configmap-trap/scenario.yaml\n+++ kubernetes/shared-configmap-trap/scenario.yaml (review preview)\n...",
+  "added_rules": [
+    {
+      "target": "autopsy.expected_diagnostics",
+      "section": "expected_diagnostics",
+      "kind": "command_pattern",
+      "pattern": "kubectl get configmap app-config -n bench"
+    }
+  ],
+  "skipped_rules": []
+}
+```
+
+Missing runs or reviews return `404 Not Found`. Deployments without a local
+scenario catalog return `503 Service Unavailable`.
+
 ### PUT /v1/bench/runs/{id}/review
 
 Creates or replaces the run review artifact. Requires

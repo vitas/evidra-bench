@@ -21,17 +21,17 @@ type Result struct {
 }
 
 type RuleChange struct {
-	Target  string
-	Section string
-	Kind    string
-	Pattern string
+	Target  string `json:"target"`
+	Section string `json:"section"`
+	Kind    string `json:"kind"`
+	Pattern string `json:"pattern"`
 }
 
 type RuleSkip struct {
-	Target  string
-	Kind    string
-	Pattern string
-	Reason  string
+	Target  string `json:"target"`
+	Kind    string `json:"kind"`
+	Pattern string `json:"pattern"`
+	Reason  string `json:"reason"`
 }
 
 func Preview(scenarioYAML []byte, review runreview.Review, scenarioPath string) (Result, error) {

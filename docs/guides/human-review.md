@@ -43,6 +43,8 @@ public review text as publishable evidence.
 7. Use the review editor to set the verdict, visibility, primary label,
    severity, reviewer note, evidence snippet, and optional suggested rule.
 8. Save the review to replace the current `run_review.v1` artifact.
+9. If the saved review contains suggested rules, select `Preview scenario
+   patch` to inspect the exact scenario YAML diff before changing the scenario.
 
 Browser review writes use the existing `PUT /v1/bench/runs/{id}/review`
 backend API and require backend authentication. The browser does not embed
@@ -98,6 +100,13 @@ curl -X POST "$BENCH_API_URL/v1/bench/runs/$RUN_ID/review-draft" \
   -H "Authorization: Bearer $BENCH_API_KEY"
 ```
 
+Preview a scenario patch from the saved review:
+
+```bash
+curl -X POST "$BENCH_API_URL/v1/bench/runs/$RUN_ID/scenario-patch-preview" \
+  -H "Authorization: Bearer $BENCH_API_KEY"
+```
+
 Read a public review:
 
 ```bash
@@ -121,6 +130,10 @@ scenario YAML change before editing or committing it.
 
 Keep rules behavior-level where possible. Prefer `Pod/*` over exact ephemeral
 Pod names when the problem is direct Pod deletion.
+
+In the browser, save the review and then select `Preview scenario patch` from
+the saved review's suggested-rules section. Hosted preview uses the same patch
+builder as the CLI and returns a diff only; it never applies the patch.
 
 Preview a scenario patch from a saved local review:
 

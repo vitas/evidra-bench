@@ -39,7 +39,7 @@ surface.
 | Private and self-hosted deployments | Uses the same product and API for public reports, private incident suites, team regression history, and customer readiness reports. |
 | Remote runner control plane | Lets hosted Bench queue jobs while remote runners execute scenarios in controlled infrastructure. |
 | Local CLI and TUI workflow | Supports fast local scenario development, dry runs, artifact browsing, and repeatable lab workflows. |
-| Scenario review loop | Turns artifact-derived drafts and human review evidence into scenario-rule patch previews. |
+| Scenario review loop | Turns artifact-derived drafts and human review evidence into browser and CLI scenario-rule patch previews. |
 
 ## Why
 

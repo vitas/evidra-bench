@@ -8,6 +8,8 @@ import { formatCompactTokens, formatDuration } from "../../lib/benchFormatters.m
 import type { BenchRunRecord } from "../../lib/benchTypes.mts";
 import type { RunReview } from "../../lib/runReview.mts";
 import { normalizeRunReviewView } from "../../lib/runReview.mts";
+import type { ScenarioPatchPreview } from "../../lib/scenarioPatchPreview.mts";
+import { scenarioPatchPreviewStatus } from "../../lib/scenarioPatchPreview.mts";
 import { RunReviewEditor } from "./RunReviewEditor";
 
 interface Check {
@@ -153,10 +155,18 @@ export function RunDetail() {
   const [reviewSaved, setReviewSaved] = useState(false);
   const [reviewDrafting, setReviewDrafting] = useState(false);
   const [reviewDraftError, setReviewDraftError] = useState<string | null>(null);
+  const [scenarioPatchPreview, setScenarioPatchPreview] = useState<ScenarioPatchPreview | null>(null);
+  const [scenarioPatchPreviewLoading, setScenarioPatchPreviewLoading] = useState(false);
+  const [scenarioPatchPreviewError, setScenarioPatchPreviewError] = useState<string | null>(null);
 
   useEffect(() => {
     setActiveTab(parseTab(searchParams.get("tab")));
   }, [searchParams]);
+
+  useEffect(() => {
+    setScenarioPatchPreview(null);
+    setScenarioPatchPreviewError(null);
+  }, [id]);
 
   function selectTab(tab: Tab) {
     setActiveTab(tab);
@@ -174,6 +184,8 @@ export function RunDetail() {
     setReviewSaving(true);
     setReviewSaveError(null);
     setReviewDraftError(null);
+    setScenarioPatchPreview(null);
+    setScenarioPatchPreviewError(null);
     setReviewSaved(false);
     try {
       const saved = await request<RunReview>(`/v1/bench/runs/${id}/review`, {
@@ -202,6 +214,8 @@ export function RunDetail() {
     setReviewDrafting(true);
     setReviewDraftError(null);
     setReviewSaveError(null);
+    setScenarioPatchPreview(null);
+    setScenarioPatchPreviewError(null);
     setReviewSaved(false);
     try {
       return await request<RunReview>(`/v1/bench/runs/${id}/review-draft`, {
@@ -212,6 +226,22 @@ export function RunDetail() {
       throw err;
     } finally {
       setReviewDrafting(false);
+    }
+  }
+
+  async function previewScenarioPatch() {
+    if (!id) return;
+    setScenarioPatchPreviewLoading(true);
+    setScenarioPatchPreviewError(null);
+    try {
+      const preview = await request<ScenarioPatchPreview>(`/v1/bench/runs/${id}/scenario-patch-preview`, {
+        method: "POST",
+      });
+      setScenarioPatchPreview(preview);
+    } catch (err) {
+      setScenarioPatchPreviewError(err instanceof Error ? err.message : "Failed to preview scenario patch");
+    } finally {
+      setScenarioPatchPreviewLoading(false);
     }
   }
 
@@ -449,7 +479,11 @@ export function RunDetail() {
           saved={reviewSaved}
           drafting={reviewDrafting}
           draftError={reviewDraftError}
+          scenarioPatchPreview={scenarioPatchPreview}
+          scenarioPatchPreviewLoading={scenarioPatchPreviewLoading}
+          scenarioPatchPreviewError={scenarioPatchPreviewError}
           onDraft={draftReview}
+          onPreviewScenarioPatch={previewScenarioPatch}
           onSave={saveReview}
         />
       )}
@@ -595,7 +629,11 @@ function ReviewTab({
   saved,
   drafting,
   draftError,
+  scenarioPatchPreview,
+  scenarioPatchPreviewLoading,
+  scenarioPatchPreviewError,
   onDraft,
+  onPreviewScenarioPatch,
   onSave,
 }: {
   run: BenchRunRecord;
@@ -608,7 +646,11 @@ function ReviewTab({
   saved: boolean;
   drafting: boolean;
   draftError: string | null;
+  scenarioPatchPreview: ScenarioPatchPreview | null;
+  scenarioPatchPreviewLoading: boolean;
+  scenarioPatchPreviewError: string | null;
   onDraft: () => Promise<RunReview>;
+  onPreviewScenarioPatch: () => Promise<void>;
   onSave: (payload: RunReview) => Promise<void>;
 }) {
   if (loading) {
@@ -646,6 +688,7 @@ function ReviewTab({
   }
 
   const view = normalizeRunReviewView(review);
+  const canPreviewScenarioPatch = (review.suggested_rules?.length ?? 0) > 0;
 
   return (
     <div className="space-y-6">
@@ -712,7 +755,19 @@ function ReviewTab({
       </div>
 
       <div>
-        <h3 className="text-[0.9rem] font-semibold text-fg mb-3">Suggested Rules</h3>
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="text-[0.9rem] font-semibold text-fg">Suggested Rules</h3>
+          {canPreviewScenarioPatch && (
+            <button
+              type="button"
+              onClick={onPreviewScenarioPatch}
+              disabled={scenarioPatchPreviewLoading}
+              className="rounded-md border border-border bg-bg-alt px-3 py-1.5 text-[0.78rem] font-semibold text-fg transition-colors hover:border-accent disabled:cursor-default disabled:opacity-50"
+            >
+              {scenarioPatchPreviewLoading ? "Previewing..." : "Preview scenario patch"}
+            </button>
+          )}
+        </div>
         {view.suggestedRules.length > 0 ? (
           <div className="space-y-1.5">
             {view.suggestedRules.map((rule, i) => (
@@ -726,6 +781,11 @@ function ReviewTab({
             No scenario-rule suggestions saved with this review.
           </p>
         )}
+        <ScenarioPatchPreviewPanel
+          preview={scenarioPatchPreview}
+          loading={scenarioPatchPreviewLoading}
+          error={scenarioPatchPreviewError}
+        />
       </div>
 
       <RunReviewEditor
@@ -740,6 +800,59 @@ function ReviewTab({
         onDraft={onDraft}
         onSave={onSave}
       />
+    </div>
+  );
+}
+
+function ScenarioPatchPreviewPanel({
+  preview,
+  loading,
+  error,
+}: {
+  preview: ScenarioPatchPreview | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  if (loading) {
+    return (
+      <div className="mt-3 rounded-md border border-border-subtle bg-bg-alt/50 px-3 py-2 text-[0.8rem] text-fg-muted">
+        Building scenario patch preview...
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="mt-3 rounded-md bg-[var(--color-danger-badge-bg)] px-3 py-2 text-[0.8rem] text-[var(--color-danger-badge-fg)]">
+        {error}
+      </div>
+    );
+  }
+  if (!preview) return null;
+
+  return (
+    <div className="mt-3 rounded-md border border-border-subtle bg-bg-alt/50 p-3">
+      <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-[0.8rem] font-semibold text-fg">{scenarioPatchPreviewStatus(preview)}</span>
+        {preview.scenario_path && (
+          <span className="font-mono text-[0.72rem] text-fg-muted break-all">{preview.scenario_path}</span>
+        )}
+      </div>
+      {preview.diff ? (
+        <pre className="max-h-[360px] overflow-auto rounded border border-border-subtle bg-code-bg px-3 py-2 font-mono text-[0.72rem] leading-relaxed text-fg-muted whitespace-pre">
+          {preview.diff}
+        </pre>
+      ) : (
+        <p className="text-[0.8rem] text-fg-muted">No scenario YAML changes were produced.</p>
+      )}
+      {(preview.skipped_rules?.length ?? 0) > 0 && (
+        <div className="mt-2 space-y-1">
+          {preview.skipped_rules?.map((rule, index) => (
+            <div key={index} className="font-mono text-[0.72rem] text-fg-muted break-words">
+              skipped {rule.target || "rule"} {rule.pattern || ""}: {rule.reason || "not applied"}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

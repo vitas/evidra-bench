@@ -136,6 +136,11 @@ bench-cli scenario push \
   --bench-api-key "$BENCH_API_KEY"
 ```
 
+Human-review scenario patch previews also need the API process to see the local
+scenario YAML catalog. By default `bench-cli serve` uses `scenarios`; hosted
+or container deployments can set `INFRA_BENCH_SCENARIOS_DIR` to the mounted
+catalog path.
+
 ## Trigger a Run
 
 With a healthy runner registered:
