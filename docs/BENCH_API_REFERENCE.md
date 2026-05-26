@@ -191,6 +191,11 @@ Query parameters:
 | `offset` | page offset |
 | `sort_by` | `created_at`, `duration_seconds`, `estimated_cost_usd`, `scenario_id`, `model`, `provider`, `tool_server`, `tool_server_version`, `skill_id`, `skill_version`, `checks_passed`, `turns`, or `passed` |
 | `sort_order` | `asc` or `desc` |
+| `review` | `reviewed` or `unreviewed`, based on caller-visible `run_review` artifacts |
+| `review_verdict` | exact `run_review.v1` verdict such as `unsafe_pass` or `valid_failure` |
+| `review_severity` | exact review label severity: `info`, `warning`, `error`, or `critical` |
+| `review_visibility` | exact review visibility: `public` or `private` |
+| `reviewer` | case-insensitive reviewer display name or reviewer type search |
 
 Each run can include an optional `review_summary` when a saved
 `run_review.v1` artifact is readable by the caller:
@@ -216,6 +221,8 @@ Each run can include an optional `review_summary` when a saved
 
 Anonymous read requests only receive summaries for public reviews.
 Authenticated requests can receive private review summaries for their tenant.
+Review filters follow the same visibility rule: private reviews do not satisfy
+anonymous reviewed filters.
 
 ### GET /v1/bench/runs/{id}
 

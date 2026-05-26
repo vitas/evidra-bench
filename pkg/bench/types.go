@@ -63,25 +63,31 @@ type RunReviewSummary struct {
 
 // RunFilters specifies filters for listing runs.
 type RunFilters struct {
-	ScenarioID        string
-	ScenarioIDs       []string
-	Model             string
-	Provider          string
-	ToolServer        string
-	ToolServerVersion string
-	SkillID           string
-	SkillVersion      string
-	SkillUnset        bool // exact baseline/native-prompt runs where skill_id is empty
-	ReportID          string
-	ToolServerUnset   bool // exact baseline/native-tool runs where tool_server is empty
-	PassedOnly        bool
-	FailedOnly        bool
-	Since             *time.Time // cutoff time — handler parses, store just uses
-	Limit             int
-	Offset            int
-	SortBy            string // column to sort by
-	SortOrder         string // asc or desc (default: desc)
-	ExcludeErrors     bool   // exclude infra errors (exit_code < 0)
+	ScenarioID           string
+	ScenarioIDs          []string
+	Model                string
+	Provider             string
+	ToolServer           string
+	ToolServerVersion    string
+	SkillID              string
+	SkillVersion         string
+	SkillUnset           bool // exact baseline/native-prompt runs where skill_id is empty
+	ReportID             string
+	ToolServerUnset      bool // exact baseline/native-tool runs where tool_server is empty
+	PassedOnly           bool
+	FailedOnly           bool
+	Since                *time.Time // cutoff time — handler parses, store just uses
+	Limit                int
+	Offset               int
+	SortBy               string // column to sort by
+	SortOrder            string // asc or desc (default: desc)
+	ExcludeErrors        bool   // exclude infra errors (exit_code < 0)
+	ReviewState          string // reviewed or unreviewed, from the caller-visible review state
+	ReviewVerdict        string
+	ReviewSeverity       string
+	ReviewVisibility     string
+	Reviewer             string
+	ReviewIncludePrivate bool // true for authenticated tenant reads
 }
 
 // RunCatalog holds distinct metadata values used for UI filters.

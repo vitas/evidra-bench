@@ -1,19 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useBenchApi } from "../../hooks/useBenchApi";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { formatDateTime } from "../../lib/benchFormatters.mts";
-import type { BenchRunRecord, BenchRunsResponse, BenchRunReviewSummary } from "../../lib/benchTypes.mts";
-import { buildReviewQueue, reviewSeverityTone, reviewSummaryText } from "../../lib/reviewQueue.mts";
+import type { BenchRunsResponse, BenchRunReviewSummary } from "../../lib/benchTypes.mts";
+import { reviewQueueApiPath, reviewSeverityTone, reviewSummaryText } from "../../lib/reviewQueue.mts";
 import { benchRunPath, BENCH_REVIEWS_PATH } from "../../lib/routes.mts";
 
-const QUEUE_LIMIT = 200;
+const QUEUE_LIMIT = 25;
+
+interface ReviewQueueState {
+  needsReview: BenchRunsResponse;
+  unsafePasses: BenchRunsResponse;
+  reviewedFailures: BenchRunsResponse;
+}
 
 export function Reviews() {
   usePageTitle("Reviews", { canonicalPath: BENCH_REVIEWS_PATH });
   const { request } = useBenchApi();
   const navigate = useNavigate();
-  const [runs, setRuns] = useState<BenchRunRecord[]>([]);
+  const [queue, setQueue] = useState<ReviewQueueState>(() => emptyReviewQueueState());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,9 +27,19 @@ export function Reviews() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    request<BenchRunsResponse>(`/v1/bench/runs?limit=${QUEUE_LIMIT}`)
-      .then((res) => {
-        if (!cancelled) setRuns(res.runs ?? []);
+    Promise.all([
+      request<BenchRunsResponse>(reviewQueueApiPath("needsReview", QUEUE_LIMIT)),
+      request<BenchRunsResponse>(reviewQueueApiPath("unsafePasses", QUEUE_LIMIT)),
+      request<BenchRunsResponse>(reviewQueueApiPath("reviewedFailures", QUEUE_LIMIT)),
+    ])
+      .then(([needsReview, unsafePasses, reviewedFailures]) => {
+        if (!cancelled) {
+          setQueue({
+            needsReview: normalizeRunsResponse(needsReview),
+            unsafePasses: normalizeRunsResponse(unsafePasses),
+            reviewedFailures: normalizeRunsResponse(reviewedFailures),
+          });
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load review queue");
@@ -36,14 +52,12 @@ export function Reviews() {
     };
   }, [request]);
 
-  const queue = useMemo(() => buildReviewQueue(runs), [runs]);
-
   return (
     <div>
       <div className="mb-5">
         <h1 className="text-[1.35rem] font-bold text-fg tracking-tight">Reviews</h1>
         <p className="text-[0.82rem] text-fg-muted mt-0.5">
-          Triage recent runs by human review state and evidence verdict.
+          Triage runs by human review state and evidence verdict.
         </p>
       </div>
 
@@ -61,20 +75,20 @@ export function Reviews() {
         <div className="space-y-5">
           <QueueSection
             title="Needs Review"
-            description="Recent runs without a saved human review."
-            runs={queue.needsReview}
+            description="Runs without a caller-visible human review."
+            response={queue.needsReview}
             navigate={navigate}
           />
           <QueueSection
             title="Unsafe Passes"
             description="Passed runs where human review marked unsafe behavior."
-            runs={queue.unsafePasses}
+            response={queue.unsafePasses}
             navigate={navigate}
           />
           <QueueSection
             title="Reviewed Failures"
             description="Failed runs that already have human review evidence."
-            runs={queue.reviewedFailures}
+            response={queue.reviewedFailures}
             navigate={navigate}
           />
         </div>
@@ -86,14 +100,17 @@ export function Reviews() {
 function QueueSection({
   title,
   description,
-  runs,
+  response,
   navigate,
 }: {
   title: string;
   description: string;
-  runs: BenchRunRecord[];
+  response: BenchRunsResponse;
   navigate: (path: string) => void;
 }) {
+  const runs = response.runs ?? [];
+  const total = response.total ?? runs.length;
+
   return (
     <section className="border border-border rounded-lg overflow-hidden bg-bg-elevated">
       <div className="flex items-start justify-between gap-4 px-4 py-3 border-b border-border-subtle bg-bg-alt/50">
@@ -101,7 +118,7 @@ function QueueSection({
           <h2 className="text-[0.95rem] font-semibold text-fg">{title}</h2>
           <p className="text-[0.76rem] text-fg-muted mt-0.5">{description}</p>
         </div>
-        <span className="font-mono text-[0.78rem] text-fg-muted">{runs.length}</span>
+        <span className="font-mono text-[0.78rem] text-fg-muted">{total}</span>
       </div>
       {runs.length === 0 ? (
         <div className="px-4 py-6 text-[0.82rem] text-fg-muted">No runs in this queue.</div>
@@ -118,7 +135,7 @@ function QueueSection({
               </tr>
             </thead>
             <tbody>
-              {runs.slice(0, 12).map((run) => (
+              {runs.map((run) => (
                 <tr
                   key={run.id}
                   onClick={() => navigate(benchRunPath(run.id))}
@@ -141,15 +158,38 @@ function QueueSection({
               ))}
             </tbody>
           </table>
-          {runs.length > 12 && (
+          {total > runs.length && (
             <div className="px-4 py-2 text-[0.76rem] text-fg-muted border-t border-border-subtle">
-              Showing first 12 of {runs.length}.
+              Showing first {runs.length} of {total}.
             </div>
           )}
         </div>
       )}
     </section>
   );
+}
+
+function emptyReviewQueueState(): ReviewQueueState {
+  return {
+    needsReview: emptyRunsResponse(),
+    unsafePasses: emptyRunsResponse(),
+    reviewedFailures: emptyRunsResponse(),
+  };
+}
+
+function emptyRunsResponse(): BenchRunsResponse {
+  return { runs: [], total: 0, limit: QUEUE_LIMIT, offset: 0 };
+}
+
+function normalizeRunsResponse(response: BenchRunsResponse): BenchRunsResponse {
+  const runs = response.runs ?? [];
+  return {
+    ...response,
+    runs,
+    total: response.total ?? runs.length,
+    limit: response.limit ?? QUEUE_LIMIT,
+    offset: response.offset ?? 0,
+  };
 }
 
 function RunStatus({ passed }: { passed: boolean }) {

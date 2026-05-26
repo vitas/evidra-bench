@@ -188,6 +188,41 @@ func TestHandleListRuns_ParsesFilters(t *testing.T) {
 	}
 }
 
+func TestHandleListRuns_ParsesReviewFilters(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{runsTotal: 0}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-b")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/runs?review=reviewed&review_verdict=unsafe_pass&review_severity=critical&review_visibility=private&reviewer=Evidra", nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	f := repo.lastFilter
+	if f.ReviewState != "reviewed" {
+		t.Errorf("ReviewState = %q, want reviewed", f.ReviewState)
+	}
+	if f.ReviewVerdict != runreview.VerdictUnsafePass {
+		t.Errorf("ReviewVerdict = %q, want unsafe_pass", f.ReviewVerdict)
+	}
+	if f.ReviewSeverity != runreview.SeverityCritical {
+		t.Errorf("ReviewSeverity = %q, want critical", f.ReviewSeverity)
+	}
+	if f.ReviewVisibility != runreview.VisibilityPrivate {
+		t.Errorf("ReviewVisibility = %q, want private", f.ReviewVisibility)
+	}
+	if f.Reviewer != "Evidra" {
+		t.Errorf("Reviewer = %q, want Evidra", f.Reviewer)
+	}
+	if !f.ReviewIncludePrivate {
+		t.Error("ReviewIncludePrivate = false, want true for authenticated read")
+	}
+}
+
 func TestHandleListRuns_ToolServerUnsetFiltersItems(t *testing.T) {
 	t.Parallel()
 

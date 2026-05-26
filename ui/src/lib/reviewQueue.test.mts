@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { BenchRunRecord } from "./benchTypes.mts";
-import { buildReviewQueue, reviewSummaryText } from "./reviewQueue.mts";
+import { buildReviewQueue, reviewQueueApiPath, reviewSummaryText } from "./reviewQueue.mts";
 
 function run(partial: Partial<BenchRunRecord>): BenchRunRecord {
   return {
@@ -78,5 +78,17 @@ test("reviewSummaryText formats compact review verdicts", () => {
       max_severity: "warning",
     }),
     "Unsafe pass / unsafe action",
+  );
+});
+
+test("reviewQueueApiPath builds backend-filtered queue requests", () => {
+  assert.equal(reviewQueueApiPath("needsReview", 25), "/v1/bench/runs?limit=25&review=unreviewed");
+  assert.equal(
+    reviewQueueApiPath("unsafePasses", 25),
+    "/v1/bench/runs?limit=25&passed=true&review_verdict=unsafe_pass",
+  );
+  assert.equal(
+    reviewQueueApiPath("reviewedFailures", 25),
+    "/v1/bench/runs?limit=25&passed=false&review=reviewed",
   );
 });

@@ -321,6 +321,54 @@ func TestBuildWhere_TenantAlwaysFirst(t *testing.T) {
 			wantArgs: 2,
 			wantSQL:  "metadata_json->>'report_id' = $2",
 		},
+		{
+			name:   "anonymous reviewed runs require public review artifact",
+			tenant: "t7",
+			filters: bench.RunFilters{
+				ReviewState: "reviewed",
+			},
+			wantArgs: 3,
+			wantSQL:  "review_artifact.artifact_type = $2",
+		},
+		{
+			name:   "anonymous unreviewed runs exclude only public review artifacts",
+			tenant: "t7",
+			filters: bench.RunFilters{
+				ReviewState: "unreviewed",
+			},
+			wantArgs: 3,
+			wantSQL:  "NOT EXISTS",
+		},
+		{
+			name:   "review verdict filter matches run review JSON",
+			tenant: "t8",
+			filters: bench.RunFilters{
+				ReviewVerdict:        "unsafe_pass",
+				ReviewIncludePrivate: true,
+			},
+			wantArgs: 3,
+			wantSQL:  "->>'verdict' = $3",
+		},
+		{
+			name:   "review severity filter matches label severity",
+			tenant: "t8",
+			filters: bench.RunFilters{
+				ReviewSeverity:       "critical",
+				ReviewIncludePrivate: true,
+			},
+			wantArgs: 3,
+			wantSQL:  "jsonb_array_elements",
+		},
+		{
+			name:   "reviewer filter searches display name or type",
+			tenant: "t9",
+			filters: bench.RunFilters{
+				Reviewer:             "Evidra",
+				ReviewIncludePrivate: true,
+			},
+			wantArgs: 3,
+			wantSQL:  "ILIKE '%' || $3 || '%'",
+		},
 	}
 
 	for _, tt := range tests {

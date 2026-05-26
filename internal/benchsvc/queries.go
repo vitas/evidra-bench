@@ -9,7 +9,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/vitas/evidra-bench/pkg/artifact"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
+	"github.com/vitas/evidra-bench/pkg/runreview"
 )
 
 // ErrNotFound is returned when a query matches zero rows.
@@ -204,8 +206,66 @@ func buildWhere(tenantID string, f bench.RunFilters) (string, []any) {
 	if f.ExcludeErrors {
 		clauses = append(clauses, "exit_code >= 0")
 	}
+	clauses, args = appendReviewFilters(clauses, args, f)
 
 	return " WHERE " + strings.Join(clauses, " AND "), args
+}
+
+func appendReviewFilters(clauses []string, args []any, f bench.RunFilters) ([]string, []any) {
+	reviewState := strings.ToLower(strings.TrimSpace(f.ReviewState))
+	hasReviewContentFilter := f.ReviewVerdict != "" || f.ReviewSeverity != "" || f.ReviewVisibility != "" || f.Reviewer != ""
+	if reviewState == "" && !hasReviewContentFilter {
+		return clauses, args
+	}
+
+	if reviewState == "unreviewed" {
+		if hasReviewContentFilter {
+			clauses = append(clauses, "FALSE")
+			return clauses, args
+		}
+		var exists string
+		exists, args = reviewArtifactExistsClause(args, f, false)
+		clauses = append(clauses, "NOT "+exists)
+		return clauses, args
+	}
+
+	var exists string
+	exists, args = reviewArtifactExistsClause(args, f, true)
+	clauses = append(clauses, exists)
+	return clauses, args
+}
+
+func reviewArtifactExistsClause(args []any, f bench.RunFilters, includeContentFilters bool) (string, []any) {
+	reviewJSON := "convert_from(review_artifact.data, 'UTF8')::jsonb"
+	conditions := []string{"review_artifact.run_id = bench_runs.id"}
+
+	args = append(args, artifact.HostedRunReview)
+	conditions = append(conditions, fmt.Sprintf("review_artifact.artifact_type = $%d", len(args)))
+
+	if !f.ReviewIncludePrivate {
+		args = append(args, runreview.VisibilityPublic)
+		conditions = append(conditions, fmt.Sprintf("%s->>'visibility' = $%d", reviewJSON, len(args)))
+	}
+	if includeContentFilters {
+		if f.ReviewVerdict != "" {
+			args = append(args, f.ReviewVerdict)
+			conditions = append(conditions, fmt.Sprintf("%s->>'verdict' = $%d", reviewJSON, len(args)))
+		}
+		if f.ReviewSeverity != "" {
+			args = append(args, f.ReviewSeverity)
+			conditions = append(conditions, fmt.Sprintf("EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(%s->'labels', '[]'::jsonb)) review_label WHERE review_label->>'severity' = $%d)", reviewJSON, len(args)))
+		}
+		if f.ReviewVisibility != "" {
+			args = append(args, f.ReviewVisibility)
+			conditions = append(conditions, fmt.Sprintf("%s->>'visibility' = $%d", reviewJSON, len(args)))
+		}
+		if f.Reviewer != "" {
+			args = append(args, f.Reviewer)
+			conditions = append(conditions, fmt.Sprintf("(%s->'reviewer'->>'display_name' ILIKE '%%' || $%d || '%%' OR %s->'reviewer'->>'type' ILIKE '%%' || $%d || '%%')", reviewJSON, len(args), reviewJSON, len(args)))
+		}
+	}
+
+	return "EXISTS (SELECT 1 FROM bench_artifacts review_artifact WHERE " + strings.Join(conditions, " AND ") + ")", args
 }
 
 // nullableJSONB returns nil for empty strings (maps to SQL NULL for JSONB columns),

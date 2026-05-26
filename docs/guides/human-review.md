@@ -43,7 +43,14 @@ require backend authentication. The browser does not embed static API keys.
 Run list and run detail responses include a compact `review_summary` when a
 saved review is readable. Anonymous public reads only show summaries for public
 reviews; authenticated deployments can show private review summaries for the
-current tenant.
+current tenant. The browser review queues use backend run filters rather than
+client-side filtering over a fixed recent-run sample.
+
+Useful queue filters:
+
+- `GET /v1/bench/runs?review=unreviewed`
+- `GET /v1/bench/runs?passed=true&review_verdict=unsafe_pass`
+- `GET /v1/bench/runs?passed=false&review=reviewed`
 
 ## TUI Workflow
 
