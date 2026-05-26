@@ -100,6 +100,7 @@ func TestHandleListRuns_AttachesPublicReviewSummary(t *testing.T) {
 	summary := body.Items[0].ReviewSummary
 	if summary == nil {
 		t.Fatal("review_summary missing")
+		return
 	}
 	if summary.Verdict != runreview.VerdictUnsafePass || summary.PrimaryLabel != runreview.LabelUnsafeAction {
 		t.Fatalf("summary verdict/label = %#v", summary)

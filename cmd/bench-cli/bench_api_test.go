@@ -27,6 +27,7 @@ func TestBenchSessionLoginStatusAndLogout(t *testing.T) {
 	sessionCookie := findCookie(loginRec.Result().Cookies(), auth.SessionCookieName)
 	if sessionCookie == nil {
 		t.Fatalf("login did not set %s cookie", auth.SessionCookieName)
+		return
 	}
 	if !sessionCookie.HttpOnly {
 		t.Fatal("session cookie must be HttpOnly")

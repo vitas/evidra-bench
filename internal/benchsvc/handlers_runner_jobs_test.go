@@ -46,6 +46,7 @@ func TestHandleCompleteJob_UpdatesTriggerStoreSnapshot(t *testing.T) {
 	got := store.Get("job-complete-1")
 	if got == nil {
 		t.Fatal("expected trigger job snapshot")
+		return
 	}
 	if got.Status != "completed" {
 		t.Fatalf("trigger status = %q, want completed", got.Status)
