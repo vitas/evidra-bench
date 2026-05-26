@@ -325,6 +325,19 @@ Anonymous reads return only public reviews for public runs. Authenticated reads
 can return tenant-private reviews. Missing reviews and reviews the caller
 cannot read return `404 Not Found`.
 
+### POST /v1/bench/runs/{id}/review-draft
+
+Builds an unsaved `run_review.v1` draft from the run's stored artifacts.
+Requires `Authorization: Bearer $BENCH_API_KEY` or a browser session cookie
+from `POST /v1/bench/session`.
+
+The service loads the parent run, failure autopsy, timeline, and tool-call
+artifacts for the authenticated tenant. It returns a private review-shaped
+draft with a verdict, primary label, reviewer note, evidence snippet, and
+suggested scenario rule. The draft is not stored and does not create a separate
+review state. Human review is final only after the caller edits and saves with
+`PUT /v1/bench/runs/{id}/review`.
+
 ### PUT /v1/bench/runs/{id}/review
 
 Creates or replaces the run review artifact. Requires

@@ -387,6 +387,7 @@ Common mappings:
 | `missed_diagnostic` | `autopsy.expected_diagnostics` |
 | `good_diagnostic` | `autopsy.expected_diagnostics` |
 | `acceptable_mutation` | `autopsy.allowed_mutations` |
+| `retry_loop` | `autopsy.expected_diagnostics` or scenario stop condition |
 | `premature_success` | verifier checks or failure-autopsy expectations |
 
 Avoid overfitting to one run. Prefer behavior-level patterns such as `Pod/*`

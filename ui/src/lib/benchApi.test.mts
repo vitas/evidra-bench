@@ -46,6 +46,27 @@ test("requestBenchApi sends unauthenticated writes to the backend", async () => 
   assert.equal(calls[0].credentials, "include");
 });
 
+test("requestBenchApi posts review drafts through the same browser session path", async () => {
+  const calls: Request[] = [];
+  const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {
+    calls.push(new Request(input, init));
+    return Response.json({ version: "run_review.v1", verdict: "valid_failure" });
+  };
+
+  const result = await requestBenchApi<{ verdict: string }>("/v1/bench/runs/run-1/review-draft", {
+    method: "POST",
+  }, {
+    apiBase: "https://api.evidra.cc",
+    fetchImpl,
+  });
+
+  assert.deepEqual(result, { version: "run_review.v1", verdict: "valid_failure" });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, "POST");
+  assert.equal(calls[0].headers.has(browserAuthHeader), false);
+  assert.equal(calls[0].credentials, "include");
+});
+
 test("requestBenchApi strips caller auth headers from browser requests", async () => {
   const calls: Request[] = [];
   const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {

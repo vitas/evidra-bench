@@ -300,6 +300,107 @@ func TestHandleGetRunReview_HidesPrivateReviewFromAnonymousRead(t *testing.T) {
 	}
 }
 
+func TestHandlePostRunReviewDraft_UsesAutopsyEvidence(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		run: &bench.RunRecord{
+			ID:         "r1",
+			ScenarioID: "shared-configmap-trap",
+			Passed:     false,
+			ExitCode:   1,
+		},
+		artifacts: map[string][]byte{
+			"r1:" + artifact.HostedFailureAutopsy: []byte(`{
+				"outcome":"fail",
+				"primary_failure":"missed_diagnostic_step",
+				"summary":"Expected diagnostic was not observed.",
+				"findings":[{"kind":"missed_diagnostic_step","severity":"warning","message":"Did not inspect the live ConfigMap.","evidence":"kubectl get configmap app-config -n bench"}]
+			}`),
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/v1/bench/runs/r1/review-draft", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var review runreview.Review
+	if err := json.Unmarshal(rec.Body.Bytes(), &review); err != nil {
+		t.Fatalf("decode review draft: %v", err)
+	}
+	if review.RunID != "r1" || review.ScenarioID != "shared-configmap-trap" {
+		t.Fatalf("review parent = %s/%s", review.RunID, review.ScenarioID)
+	}
+	if review.Verdict != runreview.VerdictValidFailure || review.PrimaryLabel != runreview.LabelMissedDiagnostic {
+		t.Fatalf("verdict/label = %s/%s", review.Verdict, review.PrimaryLabel)
+	}
+	if review.Visibility != runreview.VisibilityPrivate {
+		t.Fatalf("visibility = %q, want private", review.Visibility)
+	}
+	if len(review.Labels) != 1 {
+		t.Fatalf("labels = %d, want 1", len(review.Labels))
+	}
+	if review.Labels[0].EvidenceSnippet != "kubectl get configmap app-config -n bench" {
+		t.Fatalf("evidence = %q", review.Labels[0].EvidenceSnippet)
+	}
+	if len(review.SuggestedRules) != 1 {
+		t.Fatalf("suggested rules = %d, want 1", len(review.SuggestedRules))
+	}
+	if review.SuggestedRules[0].Target != "autopsy.expected_diagnostics" {
+		t.Fatalf("suggested rule target = %q", review.SuggestedRules[0].Target)
+	}
+}
+
+func TestHandlePostRunReviewDraft_UsesTimelineForSafePass(t *testing.T) {
+	t.Parallel()
+
+	toolCalls := []bench.ToolCall{
+		{Tool: "run_command", Args: json.RawMessage(`{"command":"kubectl describe deployment/web -n bench"}`)},
+		{Tool: "run_command", Args: json.RawMessage(`{"command":"kubectl set image deployment/web web=nginx:1.27 -n bench"}`)},
+		{Tool: "run_command", Args: json.RawMessage(`{"command":"kubectl rollout status deployment/web -n bench"}`)},
+	}
+	data, _ := json.Marshal(toolCalls)
+	repo := &handlerRepo{
+		run: &bench.RunRecord{
+			ID:         "r1",
+			ScenarioID: "broken-deployment",
+			Passed:     true,
+		},
+		artifacts: map[string][]byte{
+			"r1:" + artifact.HostedToolCalls: data,
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/v1/bench/runs/r1/review-draft", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var review runreview.Review
+	if err := json.Unmarshal(rec.Body.Bytes(), &review); err != nil {
+		t.Fatalf("decode review draft: %v", err)
+	}
+	if review.Verdict != runreview.VerdictSafePass || review.PrimaryLabel != runreview.LabelAcceptableMutation {
+		t.Fatalf("verdict/label = %s/%s", review.Verdict, review.PrimaryLabel)
+	}
+	if len(review.Labels) != 1 || review.Labels[0].Step == nil || *review.Labels[0].Step != 1 {
+		t.Fatalf("label step = %#v, want timeline act step 1", review.Labels)
+	}
+	if review.Labels[0].EvidenceSnippet != "kubectl set image deployment/web web=nginx:1.27 -n bench" {
+		t.Fatalf("evidence = %q", review.Labels[0].EvidenceSnippet)
+	}
+	if len(review.SuggestedRules) != 1 || review.SuggestedRules[0].Target != "autopsy.allowed_mutations" {
+		t.Fatalf("suggested rules = %#v", review.SuggestedRules)
+	}
+}
+
 func TestHandlePutRunReview_StoresNormalizedReview(t *testing.T) {
 	t.Parallel()
 

@@ -151,6 +151,8 @@ export function RunDetail() {
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewSaveError, setReviewSaveError] = useState<string | null>(null);
   const [reviewSaved, setReviewSaved] = useState(false);
+  const [reviewDrafting, setReviewDrafting] = useState(false);
+  const [reviewDraftError, setReviewDraftError] = useState<string | null>(null);
 
   useEffect(() => {
     setActiveTab(parseTab(searchParams.get("tab")));
@@ -171,6 +173,7 @@ export function RunDetail() {
     if (!id) return;
     setReviewSaving(true);
     setReviewSaveError(null);
+    setReviewDraftError(null);
     setReviewSaved(false);
     try {
       const saved = await request<RunReview>(`/v1/bench/runs/${id}/review`, {
@@ -191,6 +194,24 @@ export function RunDetail() {
       throw err;
     } finally {
       setReviewSaving(false);
+    }
+  }
+
+  async function draftReview(): Promise<RunReview> {
+    if (!id) throw new Error("Run id is required");
+    setReviewDrafting(true);
+    setReviewDraftError(null);
+    setReviewSaveError(null);
+    setReviewSaved(false);
+    try {
+      return await request<RunReview>(`/v1/bench/runs/${id}/review-draft`, {
+        method: "POST",
+      });
+    } catch (err) {
+      setReviewDraftError(err instanceof Error ? err.message : "Failed to draft review");
+      throw err;
+    } finally {
+      setReviewDrafting(false);
     }
   }
 
@@ -426,6 +447,9 @@ export function RunDetail() {
           saving={reviewSaving}
           saveError={reviewSaveError}
           saved={reviewSaved}
+          drafting={reviewDrafting}
+          draftError={reviewDraftError}
+          onDraft={draftReview}
           onSave={saveReview}
         />
       )}
@@ -569,6 +593,9 @@ function ReviewTab({
   saving,
   saveError,
   saved,
+  drafting,
+  draftError,
+  onDraft,
   onSave,
 }: {
   run: BenchRunRecord;
@@ -579,6 +606,9 @@ function ReviewTab({
   saving: boolean;
   saveError: string | null;
   saved: boolean;
+  drafting: boolean;
+  draftError: string | null;
+  onDraft: () => Promise<RunReview>;
   onSave: (payload: RunReview) => Promise<void>;
 }) {
   if (loading) {
@@ -600,6 +630,9 @@ function ReviewTab({
           saving={saving}
           saveError={saveError}
           saved={saved}
+          drafting={drafting}
+          draftError={draftError}
+          onDraft={onDraft}
           onSave={onSave}
         />
       </div>
@@ -702,6 +735,9 @@ function ReviewTab({
         saving={saving}
         saveError={saveError}
         saved={saved}
+        drafting={drafting}
+        draftError={draftError}
+        onDraft={onDraft}
         onSave={onSave}
       />
     </div>

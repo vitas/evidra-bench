@@ -44,6 +44,7 @@ func RegisterRoutes(mux *http.ServeMux, svc *Service, authMw func(http.Handler) 
 	mux.Handle("POST /v1/bench/runs", authMw(http.HandlerFunc(handleIngestRun(svc))))
 	mux.Handle("POST /v1/bench/runs/batch", authMw(http.HandlerFunc(handleIngestBatch(svc))))
 	mux.Handle("POST /v1/bench/scenarios/sync", authMw(http.HandlerFunc(handleSyncScenarios(svc))))
+	mux.Handle("POST /v1/bench/runs/{id}/review-draft", authMw(http.HandlerFunc(handlePostRunReviewDraft(svc))))
 	mux.Handle("PUT /v1/bench/runs/{id}/review", authMw(http.HandlerFunc(handlePutRunReview(svc))))
 
 	// Authenticated — delete / archive.

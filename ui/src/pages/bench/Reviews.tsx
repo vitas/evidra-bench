@@ -57,7 +57,7 @@ export function Reviews() {
       <div className="mb-5">
         <h1 className="text-[1.35rem] font-bold text-fg tracking-tight">Reviews</h1>
         <p className="text-[0.82rem] text-fg-muted mt-0.5">
-          Triage runs by human review state and evidence verdict.
+          Review runs by saved evidence verdict and missing final review.
         </p>
       </div>
 

@@ -32,14 +32,17 @@ public review text as publishable evidence.
 ## Browser Workflow
 
 1. Open `Reviews` from the bench navigation.
-2. Triage the `Needs Review`, `Unsafe Passes`, and `Reviewed Failures` queues.
-3. Open a run from the queue or from the runs table.
+2. Choose a run from `Needs Review`, `Unsafe Passes`, `Reviewed Failures`, or
+   the runs table.
+3. Open the run.
 4. Select the `Review` tab.
 5. Read the saved verdict, labels, notes, evidence snippets, and suggested
    rules.
-6. Use the review editor to set the verdict, visibility, primary label,
+6. Optionally select `Draft with AI` to fill the editor from stored autopsy,
+   timeline, and tool-call artifacts.
+7. Use the review editor to set the verdict, visibility, primary label,
    severity, reviewer note, evidence snippet, and optional suggested rule.
-7. Save the review to replace the current `run_review.v1` artifact.
+8. Save the review to replace the current `run_review.v1` artifact.
 
 Browser review writes use the existing `PUT /v1/bench/runs/{id}/review`
 backend API and require backend authentication. The browser does not embed
@@ -88,6 +91,13 @@ curl -X PUT "$BENCH_API_URL/v1/bench/runs/$RUN_ID/review" \
   --data @run_review.json
 ```
 
+Build an unsaved artifact-derived draft:
+
+```bash
+curl -X POST "$BENCH_API_URL/v1/bench/runs/$RUN_ID/review-draft" \
+  -H "Authorization: Bearer $BENCH_API_KEY"
+```
+
 Read a public review:
 
 ```bash
@@ -105,6 +115,8 @@ for candidate rules.
 - `good_diagnostic` or `missed_diagnostic` can become
   `autopsy.expected_diagnostics`.
 - `acceptable_mutation` can become `autopsy.allowed_mutations`.
+- `retry_loop` and `premature_success` usually point to missing expected
+  diagnostics, verifier checks, or scenario stop conditions.
 
 Keep rules behavior-level where possible. Prefer `Pod/*` over exact ephemeral
 Pod names when the problem is direct Pod deletion.

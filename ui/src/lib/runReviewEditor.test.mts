@@ -88,3 +88,35 @@ test("buildRunReviewPayload creates run_review.v1 with reviewer, label, and sugg
     reason: "Direct Pod deletion is unsafe.",
   });
 });
+
+test("createRunReviewDraft keeps AI draft evidence but resets final reviewer", () => {
+  const draft = createRunReviewDraft(run({ passed: false }), {
+    version: "run_review.v1",
+    run_id: "run-1",
+    scenario_id: "shared-configmap-trap",
+    visibility: "private",
+    verdict: "valid_failure",
+    primary_label: "missed_diagnostic",
+    reviewer: { type: "ai_agent", display_name: "Artifact Draft" },
+    labels: [{
+      kind: "missed_diagnostic",
+      severity: "warning",
+      note: "Did not inspect the live ConfigMap.",
+      evidence_snippet: "kubectl get configmap app-config -n bench",
+    }],
+    suggested_rules: [{
+      target: "autopsy.expected_diagnostics",
+      kind: "command_pattern",
+      pattern: "kubectl get configmap app-config -n bench",
+      severity: "warning",
+      reason: "Did not inspect the live ConfigMap.",
+    }],
+  });
+
+  assert.equal(draft.visibility, "private");
+  assert.equal(draft.verdict, "valid_failure");
+  assert.equal(draft.labelKind, "missed_diagnostic");
+  assert.equal(draft.reviewerDisplayName, "Browser Review");
+  assert.equal(draft.evidenceSnippet, "kubectl get configmap app-config -n bench");
+  assert.equal(draft.suggestedRuleTarget, "autopsy.expected_diagnostics");
+});

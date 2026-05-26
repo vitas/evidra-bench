@@ -19,13 +19,24 @@ func TestRegisterBenchAPIRoutes_ProtectsWriteEndpoint(t *testing.T) {
 	svc := benchsvc.NewService(nil, benchsvc.ServiceConfig{})
 	registerBenchAPIRoutes(mux, svc, "secret")
 
-	req := httptest.NewRequest(http.MethodPost, "/v1/bench/runs", nil)
-	rec := httptest.NewRecorder()
+	tests := []struct {
+		method string
+		path   string
+	}{
+		{method: http.MethodPost, path: "/v1/bench/runs"},
+		{method: http.MethodPost, path: "/v1/bench/runs/run-1/review-draft"},
+		{method: http.MethodPut, path: "/v1/bench/runs/run-1/review"},
+	}
 
-	mux.ServeHTTP(rec, req)
+	for _, tt := range tests {
+		req := httptest.NewRequest(tt.method, tt.path, nil)
+		rec := httptest.NewRecorder()
 
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("status = %d, want 401; body = %s", rec.Code, rec.Body.String())
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("%s %s status = %d, want 401; body = %s", tt.method, tt.path, rec.Code, rec.Body.String())
+		}
 	}
 }
 

@@ -94,3 +94,15 @@ Severity values are `info`, `warning`, `error`, and `critical`.
 
 There is no draft state. Saving a review replaces the current review for that
 run.
+
+## Artifact-Derived Drafts
+
+Hosted deployments can generate an unsaved review-shaped draft with
+`POST /v1/bench/runs/{id}/review-draft`. The draft uses the same
+`run_review.v1` schema so the browser and API clients can load it directly into
+the human review editor.
+
+Draft generation does not store `run_review`, does not change `review_summary`,
+and does not introduce a separate lifecycle state. A human reviewer still owns
+the final artifact by saving the edited payload with
+`PUT /v1/bench/runs/{id}/review`.

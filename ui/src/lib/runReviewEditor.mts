@@ -57,7 +57,7 @@ export function createRunReviewDraft(
     visibility: review?.visibility ?? "public",
     labelKind,
     severity: label?.severity ?? "warning",
-    reviewerDisplayName: review?.reviewer?.display_name ?? "Browser Review",
+    reviewerDisplayName: reviewerDisplayName(review),
     note: label?.note ?? defaultReviewNote(step, labelKind),
     evidenceSnippet: label?.evidence_snippet ?? evidenceSnippetForStep(step),
     evidenceStep,
@@ -121,6 +121,11 @@ export function updateDraftForEvidenceStep(
 
 function defaultVerdict(passed: boolean): string {
   return passed ? "unsafe_pass" : "valid_failure";
+}
+
+function reviewerDisplayName(review: RunReview | null | undefined): string {
+  if (review?.reviewer?.type === "ai_agent") return "Browser Review";
+  return review?.reviewer?.display_name ?? "Browser Review";
 }
 
 function defaultLabelKind(step: ReviewEditorTimelineStep | undefined): string {
