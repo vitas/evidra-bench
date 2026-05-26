@@ -24,7 +24,7 @@ the leaderboard are the marketing surface. Private regression history,
 scheduled runs, customer incident suites, and failure reports are the product
 surface.
 
-## Killer Features
+## Main Features
 
 | Feature | Why it matters |
 |---|---|
