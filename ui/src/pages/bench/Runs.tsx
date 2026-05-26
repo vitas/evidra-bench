@@ -27,6 +27,7 @@ import {
 import { BENCH_RUNS_PATH, benchRunPath } from "../../lib/routes.mts";
 import { formatCurrency, formatDateTime, formatDuration, formatIntegerTokens } from "../../lib/benchFormatters.mts";
 import type { BenchRunsResponse } from "../../lib/benchTypes.mts";
+import { reviewSeverityTone, reviewSummaryText } from "../../lib/reviewQueue.mts";
 
 type RunsResponse = Required<Pick<BenchRunsResponse, "limit" | "offset">> & BenchRunsResponse;
 
@@ -518,6 +519,9 @@ export function Runs() {
                     Model <SortArrow field="model" sort={sort} />
                   </th>
                   <th className={thClass}>
+                    Review
+                  </th>
+                  <th className={thClass}>
                     Tool
                   </th>
                   <th className={thClass}>
@@ -565,6 +569,9 @@ export function Runs() {
                       {run.scenario_id}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-body">{run.model}</td>
+                    <td className="px-3 py-2.5">
+                      <ReviewSummaryChip summary={run.review_summary} />
+                    </td>
                     <td className="px-3 py-2.5 font-mono text-[0.78rem] text-fg-muted">
                       <span className="block">{run.tool_server || "baseline"}</span>
                       {run.tool_server_version && (
@@ -641,5 +648,22 @@ export function Runs() {
         </div>
       )}
     </div>
+  );
+}
+
+function ReviewSummaryChip({ summary }: { summary: BenchRunsResponse["runs"][number]["review_summary"] }) {
+  const tone = reviewSeverityTone(summary);
+  const toneClass = {
+    none: "bg-bg-alt text-fg-muted border-border-subtle",
+    info: "bg-accent-subtle text-fg-muted border-border-subtle",
+    warning: "bg-warning-tint text-warning border-warning",
+    error: "bg-[var(--color-danger-badge-bg)] text-[var(--color-danger-badge-fg)] border-[var(--color-danger-badge-fg)]/30",
+    critical: "bg-[var(--color-danger-badge-bg)] text-[var(--color-danger-badge-fg)] border-[var(--color-danger-badge-fg)]/40",
+  }[tone];
+
+  return (
+    <span className={`inline-flex max-w-[13rem] items-center truncate rounded border px-2 py-0.5 text-[0.72rem] font-medium ${toneClass}`}>
+      {reviewSummaryText(summary)}
+    </span>
   );
 }

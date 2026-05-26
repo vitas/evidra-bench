@@ -2,6 +2,7 @@ export const BENCH_ARTICLE_PASS_FAIL_PATH = "/bench/articles/kubernetes-mcp-serv
 export const BENCH_LEADERBOARD_PATH = "/bench/leaderboard";
 export const BENCH_MCP_READINESS_PATH = "/bench/mcp-readiness";
 export const BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH = "/bench/reports/kubernetes-mcp-readiness-2026-05";
+export const BENCH_REVIEWS_PATH = "/bench/reviews";
 export const BENCH_RUNS_PATH = "/bench/runs";
 export const BENCH_SAMPLE_REPORT_PATH = "/bench/sample-report";
 export const BENCH_SCENARIOS_PATH = "/bench/scenarios";

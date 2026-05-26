@@ -6,6 +6,7 @@ import {
   BENCH_LEADERBOARD_PATH,
   BENCH_MCP_READINESS_PATH,
   BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH,
+  BENCH_REVIEWS_PATH,
   BENCH_RUNS_PATH,
   BENCH_SAMPLE_REPORT_PATH,
   BENCH_SCENARIOS_PATH,
@@ -28,6 +29,7 @@ test("bench route constants use canonical bench paths", () => {
   assert.equal(BENCH_LEADERBOARD_PATH, "/bench/leaderboard");
   assert.equal(BENCH_MCP_READINESS_PATH, "/bench/mcp-readiness");
   assert.equal(BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH, "/bench/reports/kubernetes-mcp-readiness-2026-05");
+  assert.equal(BENCH_REVIEWS_PATH, "/bench/reviews");
   assert.equal(BENCH_RUNS_PATH, "/bench/runs");
   assert.equal(BENCH_SAMPLE_REPORT_PATH, "/bench/sample-report");
   assert.equal(BENCH_SCENARIOS_PATH, "/bench/scenarios");

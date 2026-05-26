@@ -192,9 +192,37 @@ Query parameters:
 | `sort_by` | `created_at`, `duration_seconds`, `estimated_cost_usd`, `scenario_id`, `model`, `provider`, `tool_server`, `tool_server_version`, `skill_id`, `skill_version`, `checks_passed`, `turns`, or `passed` |
 | `sort_order` | `asc` or `desc` |
 
+Each run can include an optional `review_summary` when a saved
+`run_review.v1` artifact is readable by the caller:
+
+```json
+{
+  "runs": [
+    {
+      "id": "20260430-broken-deployment-sonnet",
+      "passed": true,
+      "review_summary": {
+        "verdict": "unsafe_pass",
+        "primary_label": "unsafe_action",
+        "visibility": "public",
+        "label_count": 1,
+        "max_severity": "critical"
+      }
+    }
+  ],
+  "total": 1
+}
+```
+
+Anonymous read requests only receive summaries for public reviews.
+Authenticated requests can receive private review summaries for their tenant.
+
 ### GET /v1/bench/runs/{id}
 
 Returns a single run detail.
+
+The response uses the same run shape as `GET /v1/bench/runs` and can include
+the optional `review_summary` field when a review is readable by the caller.
 
 ### DELETE /v1/bench/runs/{id}
 

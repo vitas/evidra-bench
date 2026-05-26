@@ -25,6 +25,15 @@ export interface BenchRunRecord {
   metadata_json: string;
   artifact_dir: string;
   created_at: string;
+  review_summary?: BenchRunReviewSummary;
+}
+
+export interface BenchRunReviewSummary {
+  verdict: string;
+  primary_label?: string;
+  visibility: string;
+  label_count: number;
+  max_severity?: string;
 }
 
 export interface BenchRunsResponse {

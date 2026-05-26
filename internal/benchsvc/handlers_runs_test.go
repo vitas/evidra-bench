@@ -8,7 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vitas/evidra-bench/pkg/artifact"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
+	"github.com/vitas/evidra-bench/pkg/runreview"
 )
 
 // ---------- List Runs ----------
@@ -53,6 +55,87 @@ func TestHandleListRuns_ReturnsItems(t *testing.T) {
 	}
 	if repo.lastTenant != "pub" {
 		t.Fatalf("tenant = %q, want pub", repo.lastTenant)
+	}
+}
+
+func TestHandleListRuns_AttachesPublicReviewSummary(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		runs: []bench.RunRecord{
+			{ID: "r1", ScenarioID: "shared-configmap-trap", Model: "sonnet", Passed: true},
+		},
+		artifacts: map[string][]byte{
+			"r1:" + artifact.HostedRunReview: []byte(`{
+				"version":"run_review.v1",
+				"visibility":"public",
+				"verdict":"unsafe_pass",
+				"primary_label":"unsafe_action",
+				"labels":[
+					{"kind":"unsafe_action","severity":"warning","note":"unsafe","evidence_snippet":"pods_delete Pod/web"},
+					{"kind":"wrong_scope","severity":"error","note":"wrong namespace","evidence_snippet":"namespace prod"}
+				]
+			}`),
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/runs", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Items []bench.RunRecord `json:"runs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(body.Items) != 1 {
+		t.Fatalf("items = %d, want 1", len(body.Items))
+	}
+	summary := body.Items[0].ReviewSummary
+	if summary == nil {
+		t.Fatal("review_summary missing")
+	}
+	if summary.Verdict != runreview.VerdictUnsafePass || summary.PrimaryLabel != runreview.LabelUnsafeAction {
+		t.Fatalf("summary verdict/label = %#v", summary)
+	}
+	if summary.Visibility != runreview.VisibilityPublic || summary.LabelCount != 2 || summary.MaxSeverity != runreview.SeverityError {
+		t.Fatalf("summary metadata = %#v", summary)
+	}
+}
+
+func TestHandleListRuns_HidesPrivateReviewSummaryFromAnonymousRead(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		runs: []bench.RunRecord{
+			{ID: "r1", ScenarioID: "shared-configmap-trap", Model: "sonnet", Passed: true},
+		},
+		artifacts: map[string][]byte{
+			"r1:" + artifact.HostedRunReview: []byte(`{"version":"run_review.v1","visibility":"private","verdict":"needs_review"}`),
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/runs", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Items []bench.RunRecord `json:"runs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Items[0].ReviewSummary != nil {
+		t.Fatalf("review_summary = %#v, want hidden", body.Items[0].ReviewSummary)
 	}
 }
 
@@ -197,6 +280,37 @@ func TestHandleGetRun_ReturnsRecord(t *testing.T) {
 	}
 	if run.ID != "run-42" {
 		t.Fatalf("ID = %q, want run-42", run.ID)
+	}
+}
+
+func TestHandleGetRun_AttachesPrivateReviewSummaryForAuthenticatedRead(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		run: &bench.RunRecord{ID: "run-42", ScenarioID: "s1", Model: "sonnet", Passed: false},
+		artifacts: map[string][]byte{
+			"run-42:" + artifact.HostedRunReview: []byte(`{"version":"run_review.v1","visibility":"private","verdict":"valid_failure","labels":[{"kind":"missed_diagnostic","severity":"critical","note":"missed","evidence_snippet":"no describe"}]}`),
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/runs/run-42", nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var run bench.RunRecord
+	if err := json.Unmarshal(rec.Body.Bytes(), &run); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if run.ReviewSummary == nil {
+		t.Fatal("review_summary missing")
+	}
+	if run.ReviewSummary.Verdict != runreview.VerdictValidFailure || run.ReviewSummary.MaxSeverity != runreview.SeverityCritical {
+		t.Fatalf("summary = %#v", run.ReviewSummary)
 	}
 }
 

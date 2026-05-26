@@ -31,13 +31,19 @@ public review text as publishable evidence.
 
 ## Browser Workflow
 
-1. Open a run detail page.
-2. Select the `Review` tab.
-3. Read the saved verdict, labels, notes, evidence snippets, and suggested
+1. Open `Reviews` from the bench navigation.
+2. Triage the `Needs Review`, `Unsafe Passes`, and `Reviewed Failures` queues.
+3. Open a run from the queue or from the runs table.
+4. Select the `Review` tab.
+5. Read the saved verdict, labels, notes, evidence snippets, and suggested
    rules.
 
 The first browser slice is read-focused. Review writes use the backend API and
 require backend authentication. The browser does not embed static API keys.
+Run list and run detail responses include a compact `review_summary` when a
+saved review is readable. Anonymous public reads only show summaries for public
+reviews; authenticated deployments can show private review summaries for the
+current tenant.
 
 ## TUI Workflow
 

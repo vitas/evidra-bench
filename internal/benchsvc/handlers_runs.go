@@ -4,10 +4,13 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/vitas/evidra-bench/internal/apiutil"
 	"github.com/vitas/evidra-bench/internal/auth"
+	"github.com/vitas/evidra-bench/pkg/artifact"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
+	"github.com/vitas/evidra-bench/pkg/runreview"
 )
 
 func handleListRuns(svc *Service) http.HandlerFunc {
@@ -56,6 +59,10 @@ func handleListRuns(svc *Service) http.HandlerFunc {
 		if runs == nil {
 			runs = []bench.RunRecord{}
 		}
+		if err := attachReviewSummaries(r, svc, tenantID, runs); err != nil {
+			apiutil.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 		apiutil.WriteJSON(w, http.StatusOK, map[string]any{
 			"runs":   runs,
 			"total":  total,
@@ -78,6 +85,94 @@ func handleGetRun(svc *Service) http.HandlerFunc {
 			}
 			return
 		}
+		if err := attachReviewSummary(r, svc, tenantID, run); err != nil {
+			apiutil.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 		apiutil.WriteJSON(w, http.StatusOK, run)
+	}
+}
+
+func attachReviewSummaries(r *http.Request, svc *Service, tenantID string, runs []bench.RunRecord) error {
+	for i := range runs {
+		if err := attachReviewSummary(r, svc, tenantID, &runs[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func attachReviewSummary(r *http.Request, svc *Service, tenantID string, run *bench.RunRecord) error {
+	if run == nil || strings.TrimSpace(run.ID) == "" {
+		return nil
+	}
+	data, _, err := svc.GetArtifact(r.Context(), tenantID, run.ID, artifact.HostedRunReview)
+	if errors.Is(err, ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(string(data)) == "" {
+		return nil
+	}
+	review, err := runreview.Decode(data)
+	if err != nil {
+		return err
+	}
+	if isAnonymousRead(r) && !runreview.IsPublic(review) {
+		return nil
+	}
+	summary := summarizeRunReview(review)
+	run.ReviewSummary = &summary
+	return nil
+}
+
+func isAnonymousRead(r *http.Request) bool {
+	return strings.TrimSpace(r.Header.Get("Authorization")) == ""
+}
+
+func summarizeRunReview(review runreview.Review) bench.RunReviewSummary {
+	primaryLabel := review.PrimaryLabel
+	if primaryLabel == "" && len(review.Labels) > 0 {
+		primaryLabel = review.Labels[0].Kind
+	}
+	return bench.RunReviewSummary{
+		Verdict:      review.Verdict,
+		PrimaryLabel: primaryLabel,
+		Visibility:   review.Visibility,
+		LabelCount:   len(review.Labels),
+		MaxSeverity:  maxReviewSeverity(review.Labels),
+	}
+}
+
+func maxReviewSeverity(labels []runreview.Label) string {
+	maxSeverity := ""
+	maxRank := -1
+	for _, label := range labels {
+		severity := label.Severity
+		if severity == "" {
+			severity = runreview.SeverityInfo
+		}
+		if rank := reviewSeverityRank(severity); rank > maxRank {
+			maxRank = rank
+			maxSeverity = severity
+		}
+	}
+	return maxSeverity
+}
+
+func reviewSeverityRank(severity string) int {
+	switch severity {
+	case runreview.SeverityCritical:
+		return 4
+	case runreview.SeverityError:
+		return 3
+	case runreview.SeverityWarning:
+		return 2
+	case runreview.SeverityInfo:
+		return 1
+	default:
+		return 0
 	}
 }
