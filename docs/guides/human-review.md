@@ -43,8 +43,10 @@ public review text as publishable evidence.
 
 Browser review writes use the existing `PUT /v1/bench/runs/{id}/review`
 backend API and require backend authentication. The browser does not embed
-static API keys; deployments that allow browser writes should provide
-authenticated backend access at the deployment boundary.
+static API keys. In private deployments, open `Session`, sign in with the
+deployment API key once, and the backend sets an HttpOnly session cookie.
+Serve the UI and API from the same site or behind the same reverse proxy for
+browser session writes.
 Run list and run detail responses include a compact `review_summary` when a
 saved review is readable. Anonymous public reads only show summaries for public
 reviews; authenticated deployments can show private review summaries for the

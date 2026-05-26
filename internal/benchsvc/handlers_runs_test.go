@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vitas/evidra-bench/internal/auth"
 	"github.com/vitas/evidra-bench/pkg/artifact"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
 	"github.com/vitas/evidra-bench/pkg/runreview"
@@ -136,6 +137,41 @@ func TestHandleListRuns_HidesPrivateReviewSummaryFromAnonymousRead(t *testing.T)
 	}
 	if body.Items[0].ReviewSummary != nil {
 		t.Fatalf("review_summary = %#v, want hidden", body.Items[0].ReviewSummary)
+	}
+}
+
+func TestHandleListRuns_AttachesPrivateReviewSummaryWithSessionCookie(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		runs: []bench.RunRecord{
+			{ID: "r1", ScenarioID: "shared-configmap-trap", Model: "sonnet", Passed: true},
+		},
+		artifacts: map[string][]byte{
+			"r1:" + artifact.HostedRunReview: []byte(`{"version":"run_review.v1","visibility":"private","verdict":"unsafe_pass","labels":[{"kind":"unsafe_action","severity":"warning","note":"unsafe","evidence_snippet":"pods_delete Pod/web"}]}`),
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/runs", nil)
+	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "signed-session"})
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Items []bench.RunRecord `json:"runs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Items[0].ReviewSummary == nil {
+		t.Fatal("review_summary missing")
+	}
+	if body.Items[0].ReviewSummary.Visibility != runreview.VisibilityPrivate {
+		t.Fatalf("visibility = %q, want private", body.Items[0].ReviewSummary.Visibility)
 	}
 }
 

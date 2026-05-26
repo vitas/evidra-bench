@@ -324,6 +324,29 @@ func TestRegisterRoutes_ReadEndpointsUseAuthenticatedTenantWhenAuthorized(t *tes
 	}
 }
 
+func TestRegisterRoutes_ReadEndpointsUseAuthenticatedTenantWithSessionCookie(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		runs: []bench.RunRecord{{ID: "r1", ScenarioID: "s1", Model: "sonnet"}},
+	}
+	svc := NewService(repo, ServiceConfig{PublicTenant: "bench-public"})
+	mux := http.NewServeMux()
+	RegisterRoutes(mux, svc, passthroughAuth("tenant-a"))
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/runs", nil)
+	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "signed-session"})
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if repo.lastTenant != "tenant-a" {
+		t.Fatalf("tenant = %q, want tenant-a", repo.lastTenant)
+	}
+}
+
 func TestRegisterRoutes_PublicReadEndpointsUsePublicTenantWithoutAuth(t *testing.T) {
 	t.Parallel()
 

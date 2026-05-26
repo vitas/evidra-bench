@@ -135,7 +135,7 @@ func attachReviewSummary(r *http.Request, svc *Service, tenantID string, run *be
 }
 
 func isAnonymousRead(r *http.Request) bool {
-	return strings.TrimSpace(r.Header.Get("Authorization")) == ""
+	return strings.TrimSpace(r.Header.Get("Authorization")) == "" && !hasSessionCookie(r)
 }
 
 func summarizeRunReview(review runreview.Review) bench.RunReviewSummary {

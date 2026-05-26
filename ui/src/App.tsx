@@ -12,6 +12,7 @@ import {
   BENCH_RUNS_PATH,
   BENCH_SAMPLE_REPORT_PATH,
   BENCH_SCENARIOS_PATH,
+  BENCH_SESSION_PATH,
   BENCH_TOOL_SERVER_REPORT_PATH,
   benchRunPath,
   benchScenarioPath,
@@ -23,6 +24,7 @@ import { Leaderboard } from "./pages/bench/Leaderboard";
 import { Dashboard } from "./pages/bench/Dashboard";
 import { Runs } from "./pages/bench/Runs";
 import { Reviews } from "./pages/bench/Reviews";
+import { Session } from "./pages/bench/Session";
 import { RunDetail } from "./pages/bench/RunDetail";
 import { Scenarios as BenchScenarios } from "./pages/bench/Scenarios";
 import { ScenarioDetail } from "./pages/bench/ScenarioDetail";
@@ -64,6 +66,7 @@ export function App() {
         <Route path="/bench/insights" element={<BenchLayout><Insights /></BenchLayout>} />
         <Route path="/bench/benchmarks" element={<BenchLayout><Benchmarks /></BenchLayout>} />
         <Route path={BENCH_REVIEWS_PATH} element={<BenchLayout><Reviews /></BenchLayout>} />
+        <Route path={BENCH_SESSION_PATH} element={<BenchLayout><Session /></BenchLayout>} />
 
         {/* Lab routes (scenario catalog, designer, run configurator) */}
         <Route path="/scenarios" element={<RedirectWithSearch to={BENCH_SCENARIOS_PATH} />} />

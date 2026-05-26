@@ -23,6 +23,7 @@ export async function fetchBenchApi(
     ...options,
     method,
     headers,
+    credentials: options.credentials ?? "include",
   });
 }
 

@@ -10,6 +10,7 @@ const navItems = [
   { to: "/bench/regressions", label: "Regressions" },
   { to: "/bench/insights", label: "Insights" },
   { to: "/bench/reviews", label: "Reviews" },
+  { to: "/bench/session", label: "Session" },
   { to: "/bench/runs", label: "Runs" },
   { to: "/bench/scenarios", label: "Scenarios" },
   { to: "/bench/compare", label: "Compare" },

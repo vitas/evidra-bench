@@ -27,11 +27,13 @@ For hosted control-plane deployments backed by remote runners, start with
 service does not provision a local executor cluster and `POST /v1/certify`
 returns `501 Not Implemented`.
 
-Authentication uses `Authorization: Bearer $BENCH_API_KEY` for mutating routes,
-trigger routes, runner routes, and model-provider configuration. Read-only
-benchmark result, catalog, artifact, analytics, and comparison routes are
-public and read from `BENCH_PUBLIC_TENANT`. If `BENCH_PUBLIC_TENANT` is omitted,
-`bench-cli serve` uses the authenticated tenant, which defaults to `default`.
+Authentication uses `Authorization: Bearer $BENCH_API_KEY` for CLI, runner,
+and automation access. Browser clients can create an HttpOnly session cookie
+with `POST /v1/bench/session`; mutating routes accept either Bearer auth or
+the signed session cookie. Read-only benchmark result, catalog, artifact,
+analytics, and comparison routes are public and read from
+`BENCH_PUBLIC_TENANT`. If `BENCH_PUBLIC_TENANT` is omitted, `bench-cli serve`
+uses the authenticated tenant, which defaults to `default`.
 
 Static-key auth maps authenticated requests to `BENCH_DEFAULT_TENANT` in this
 phase. `GET /healthz` is always public.
@@ -41,6 +43,35 @@ phase. `GET /healthz` is always public.
 ### GET /healthz
 
 Returns `200 OK` with `{"status":"ok"}` when the HTTP process is running.
+
+## Browser Session
+
+### GET /v1/bench/session
+
+Returns browser authentication status. Anonymous requests return
+`{"authenticated":false}`. Authenticated requests return the tenant:
+
+```json
+{ "authenticated": true, "tenant_id": "default" }
+```
+
+### POST /v1/bench/session
+
+Authenticates once with the deployment API key and sets an HttpOnly
+`bench_session` cookie.
+
+```json
+{ "api_key": "dev-secret" }
+```
+
+Invalid keys return `401 Unauthorized`. The API key is not returned in the
+response body or stored by the browser client. Browser session auth is intended
+for same-origin private deployments or a reverse proxy that serves the UI and
+API from the same site.
+
+### DELETE /v1/bench/session
+
+Clears the browser session cookie and returns `204 No Content`.
 
 ## Filters
 
@@ -297,7 +328,8 @@ cannot read return `404 Not Found`.
 ### PUT /v1/bench/runs/{id}/review
 
 Creates or replaces the run review artifact. Requires
-`Authorization: Bearer $BENCH_API_KEY`.
+`Authorization: Bearer $BENCH_API_KEY` or a browser session cookie from
+`POST /v1/bench/session`.
 
 The service loads the parent run for the authenticated tenant, fills missing
 `run_id`, `scenario_id`, `version`, and default `visibility`, validates the

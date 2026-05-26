@@ -6,6 +6,7 @@ export const BENCH_REVIEWS_PATH = "/bench/reviews";
 export const BENCH_RUNS_PATH = "/bench/runs";
 export const BENCH_SAMPLE_REPORT_PATH = "/bench/sample-report";
 export const BENCH_SCENARIOS_PATH = "/bench/scenarios";
+export const BENCH_SESSION_PATH = "/bench/session";
 export const BENCH_TOOL_SERVER_REPORT_PATH = "/bench/reports/tool-server";
 
 export function benchRunPath(id: string) {

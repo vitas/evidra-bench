@@ -75,7 +75,7 @@ func RegisterRoutes(mux *http.ServeMux, svc *Service, authMw func(http.Handler) 
 func readTenantMiddleware(svc *Service, authMw func(http.Handler) http.Handler) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.TrimSpace(r.Header.Get("Authorization")) != "" {
+			if strings.TrimSpace(r.Header.Get("Authorization")) != "" || hasSessionCookie(r) {
 				authMw(next).ServeHTTP(w, r)
 				return
 			}
@@ -87,6 +87,11 @@ func readTenantMiddleware(svc *Service, authMw func(http.Handler) http.Handler) 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+func hasSessionCookie(r *http.Request) bool {
+	cookie, err := r.Cookie(auth.SessionCookieName)
+	return err == nil && strings.TrimSpace(cookie.Value) != ""
 }
 
 // parseSince parses a "since" query parameter as RFC3339 or date string.

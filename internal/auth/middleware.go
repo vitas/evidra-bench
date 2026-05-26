@@ -18,15 +18,47 @@ const bearerPrefix = "bearer "
 func StaticKeyMiddleware(apiKey, defaultTenant string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token := ParseBearerToken(r.Header.Get("Authorization"))
-			if token == "" || subtle.ConstantTimeCompare([]byte(token), []byte(apiKey)) != 1 {
+			tenantID, ok := AuthenticateStaticRequest(r, apiKey, defaultTenant)
+			if !ok {
 				authFail(w)
 				return
 			}
-			ctx := WithTenantID(r.Context(), defaultTenant)
+			ctx := WithTenantID(r.Context(), tenantID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// AuthenticateStaticRequest validates either a Bearer API key or a signed
+// browser session cookie and returns the authenticated tenant.
+func AuthenticateStaticRequest(r *http.Request, apiKey, defaultTenant string) (string, bool) {
+	token := ParseBearerToken(r.Header.Get("Authorization"))
+	if StaticKeyMatches(apiKey, token) {
+		return defaultTenant, true
+	}
+	if strings.TrimSpace(apiKey) == "" {
+		return "", false
+	}
+	cookie, err := r.Cookie(SessionCookieName)
+	if err != nil {
+		return "", false
+	}
+	tenantID, ok := verifySessionCookieValue(apiKey, cookie.Value, time.Now())
+	if !ok {
+		return "", false
+	}
+	if defaultTenant != "" && tenantID != defaultTenant {
+		return "", false
+	}
+	return tenantID, true
+}
+
+// StaticKeyMatches compares a candidate API key against the configured key.
+func StaticKeyMatches(apiKey, candidate string) bool {
+	if strings.TrimSpace(apiKey) == "" || candidate == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(candidate), []byte(apiKey)) == 1
 }
 
 func extractBearerToken(header string) string {

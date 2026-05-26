@@ -21,6 +21,7 @@ test("requestBenchApi allows public GET requests without auth", async () => {
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, "https://api.evidra.cc/v1/bench/runs");
   assert.equal(calls[0].headers.has(browserAuthHeader), false);
+  assert.equal(calls[0].credentials, "include");
 });
 
 test("requestBenchApi sends unauthenticated writes to the backend", async () => {
@@ -42,6 +43,7 @@ test("requestBenchApi sends unauthenticated writes to the backend", async () => 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].method, "PUT");
   assert.equal(calls[0].headers.has(browserAuthHeader), false);
+  assert.equal(calls[0].credentials, "include");
 });
 
 test("requestBenchApi strips caller auth headers from browser requests", async () => {
@@ -65,6 +67,7 @@ test("requestBenchApi strips caller auth headers from browser requests", async (
   assert.equal(calls[0].method, "POST");
   assert.equal(calls[0].headers.has(browserAuthHeader), false);
   assert.equal(calls[0].headers.get("Content-Type"), "application/json");
+  assert.equal(calls[0].credentials, "include");
 });
 
 test("fetchBenchApi centralizes artifact requests without parsing the response", async () => {
@@ -85,4 +88,5 @@ test("fetchBenchApi centralizes artifact requests without parsing the response",
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, "https://api.evidra.cc/v1/bench/runs/run-1/transcript");
   assert.equal(calls[0].headers.has(browserAuthHeader), false);
+  assert.equal(calls[0].credentials, "include");
 });

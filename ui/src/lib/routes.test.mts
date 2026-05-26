@@ -10,6 +10,7 @@ import {
   BENCH_RUNS_PATH,
   BENCH_SAMPLE_REPORT_PATH,
   BENCH_SCENARIOS_PATH,
+  BENCH_SESSION_PATH,
   BENCH_TOOL_SERVER_REPORT_PATH,
   benchPassFailArticlePagePath,
   benchPublicKubernetesMCPReportPagePath,
@@ -33,6 +34,7 @@ test("bench route constants use canonical bench paths", () => {
   assert.equal(BENCH_RUNS_PATH, "/bench/runs");
   assert.equal(BENCH_SAMPLE_REPORT_PATH, "/bench/sample-report");
   assert.equal(BENCH_SCENARIOS_PATH, "/bench/scenarios");
+  assert.equal(BENCH_SESSION_PATH, "/bench/session");
   assert.equal(BENCH_TOOL_SERVER_REPORT_PATH, "/bench/reports/tool-server");
 });
 

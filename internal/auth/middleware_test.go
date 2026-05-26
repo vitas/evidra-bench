@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestExtractBearerToken(t *testing.T) {
@@ -119,5 +120,95 @@ func TestStaticKeyMiddleware_WrongKey(t *testing.T) {
 
 	if rec.Code != 401 {
 		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+}
+
+func TestStaticKeyMiddleware_ValidSessionCookie(t *testing.T) {
+	t.Parallel()
+	handler := StaticKeyMiddleware("test-key", "tenant-browser")(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(TenantID(r.Context())))
+		}),
+	)
+
+	loginReq := httptest.NewRequest("POST", "https://bench.example/v1/bench/session", nil)
+	cookie, err := NewSessionCookie(loginReq, "test-key", "tenant-browser", time.Hour)
+	if err != nil {
+		t.Fatalf("NewSessionCookie: %v", err)
+	}
+	if !cookie.HttpOnly {
+		t.Fatal("session cookie must be HttpOnly")
+	}
+	if !cookie.Secure {
+		t.Fatal("session cookie must be Secure on HTTPS")
+	}
+
+	req := httptest.NewRequest("PUT", "https://bench.example/v1/bench/runs/r1/review", nil)
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	if rec.Body.String() != "tenant-browser" {
+		t.Fatalf("tenant = %q, want tenant-browser", rec.Body.String())
+	}
+}
+
+func TestStaticKeyMiddleware_ExpiredSessionCookie(t *testing.T) {
+	t.Parallel()
+	handler := StaticKeyMiddleware("test-key", "tenant-browser")(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}),
+	)
+
+	value, err := newSessionCookieValue("test-key", "tenant-browser", time.Now().Add(-time.Minute))
+	if err != nil {
+		t.Fatalf("newSessionCookieValue: %v", err)
+	}
+	req := httptest.NewRequest("PUT", "https://bench.example/v1/bench/runs/r1/review", nil)
+	req.AddCookie(&http.Cookie{Name: SessionCookieName, Value: value})
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
+	}
+}
+
+func TestStaticKeyMiddleware_RejectsSessionCookieWhenAPIKeyDisabled(t *testing.T) {
+	t.Parallel()
+	handler := StaticKeyMiddleware("", "tenant-browser")(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}),
+	)
+
+	value := signSessionPayload("", "payload")
+	req := httptest.NewRequest("PUT", "https://bench.example/v1/bench/runs/r1/review", nil)
+	req.AddCookie(&http.Cookie{Name: SessionCookieName, Value: "payload." + value})
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
+	}
+}
+
+func TestStaticKeyMiddleware_RejectsSessionCookieForAnotherTenant(t *testing.T) {
+	t.Parallel()
+	handler := StaticKeyMiddleware("test-key", "tenant-browser")(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}),
+	)
+
+	value, err := newSessionCookieValue("test-key", "tenant-other", time.Now().Add(time.Hour))
+	if err != nil {
+		t.Fatalf("newSessionCookieValue: %v", err)
+	}
+	req := httptest.NewRequest("PUT", "https://bench.example/v1/bench/runs/r1/review", nil)
+	req.AddCookie(&http.Cookie{Name: SessionCookieName, Value: value})
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
 	}
 }
