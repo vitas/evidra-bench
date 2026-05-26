@@ -40,6 +40,11 @@ grep -q -- 'bash tests/test_ui_secret_hygiene.sh' .github/workflows/ci.yml \
 grep -q -- 'bash tests/test_ui_secret_hygiene.sh' .github/workflows/release.yml \
   || fail "release should run UI secret hygiene checks"
 
+grep -q -- 'bash tests/smoke/test_private_review_smoke.sh' .github/workflows/ci.yml \
+  || fail "CI should run private review smoke script self-test"
+grep -q -- 'bash tests/smoke/test_private_review_smoke.sh' .github/workflows/release.yml \
+  || fail "release should run private review smoke script self-test"
+
 grep -q -- 'bash tests/test_dco_signoff.sh' .github/workflows/ci.yml \
   || fail "CI should run DCO sign-off checks"
 grep -q -- 'bash tests/test_dco_signoff.sh' .github/workflows/release.yml \

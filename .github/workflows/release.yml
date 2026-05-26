@@ -90,6 +90,10 @@ jobs:
         working-directory: bench
         run: bash tests/test_seo_assets.sh
 
+      - name: Test private review smoke script
+        working-directory: bench
+        run: bash tests/smoke/test_private_review_smoke.sh
+
       - name: Install UI deps
         working-directory: bench/ui
         run: npm ci

@@ -360,6 +360,8 @@ make fmt            # gofmt
 make lint           # golangci-lint
 make vuln           # govulncheck
 make smoke          # dry-run all scenarios
+make public-smoke   # live public API smoke, requires BENCH_API_URL
+make private-review-smoke # live private review write smoke
 make ui-dev         # Vite dev server for local UI
 make ui-build       # production UI build
 ```

@@ -19,6 +19,7 @@ make test          # all unit tests (go test ./... -v -count=1)
 make test-race     # with race detector (CI-required)
 make smoke         # dry-run all scenarios (build + validate)
 make public-smoke  # live API public-surface smoke, requires BENCH_API_URL
+make private-review-smoke  # live private review smoke, requires API key and run id
 make lint          # golangci-lint
 make fmt           # gofmt -w .
 ```
@@ -50,8 +51,8 @@ The suite covers the CLI plus the core runtime packages listed above.
 1. **Format check** — `gofmt -l .` fails if any file is unformatted
 2. **Lint** — `golangci-lint run`
 3. **Dependency guard** — no core Evidra dependency returns to Bench
-4. **Public API smoke script self-test** — fake API validates the post-deploy
-   smoke script
+4. **Smoke script self-tests** — fake APIs validate the public API smoke and
+   private review smoke scripts
 5. **UI checks** — command builder tests and production build
 6. **Unit tests** — `go test ./... -count=1`
 7. **Race detector** — `go test -race ./... -count=1`
@@ -188,6 +189,36 @@ The script self-test uses a local fake API and runs in CI:
 
 ```bash
 make public-smoke-test
+```
+
+### 8. Private Review Smoke Tests
+
+**File:** `tests/smoke/run_private_review_smoke.sh`
+
+Post-deploy validation for same-origin private browser review writes:
+
+```bash
+BENCH_API_URL=https://bench.example.com \
+BENCH_API_KEY="$BENCH_API_KEY" \
+BENCH_REVIEW_SMOKE_RUN_ID=<dedicated-run-id> \
+make private-review-smoke
+```
+
+Validates:
+- anonymous `/v1/bench/session` returns unauthenticated
+- unauthenticated `PUT /v1/bench/runs/{id}/review` returns `401`
+- `POST /v1/bench/session` sets a browser session cookie
+- cookie-authenticated review writes and reads succeed
+- `DELETE /v1/bench/session` clears the session
+- anonymous reads cannot fetch the private review
+
+The smoke replaces the selected run's review with a private
+`run_review.v1` artifact. Use a dedicated smoke run id.
+
+The script self-test uses a local fake API and runs in CI:
+
+```bash
+make private-review-smoke-test
 ```
 
 ## Adding a New Scenario

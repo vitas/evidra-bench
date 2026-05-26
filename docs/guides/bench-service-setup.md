@@ -209,6 +209,69 @@ npm run dev
 Canonical UI routes are under `/bench/*`. Legacy `/scenarios`, `/runs`, and
 `/results` redirect to the bench routes.
 
+## Same-Origin Private UI
+
+Browser review writes use an HttpOnly `bench_session` cookie. Deploy the UI
+and API on the same site so the browser can send that cookie to
+`/v1/bench/*`. For a private deployment, do not set `VITE_BENCH_API_URL` in the
+production UI build; the browser will call relative API paths.
+
+One common layout is:
+
+| Public path | Upstream |
+|---|---|
+| `/bench/*`, `/assets/*`, `/` | static UI build |
+| `/v1/bench/*`, `/v1/runners/*`, `/healthz` | `bench-cli serve` |
+
+Caddy example:
+
+```caddy
+bench.example.com {
+  reverse_proxy /v1/* 127.0.0.1:8090
+  reverse_proxy /healthz 127.0.0.1:8090
+  root * /srv/evidra-bench-ui
+  try_files {path} /index.html
+  file_server
+}
+```
+
+Nginx example:
+
+```nginx
+server {
+  listen 443 ssl;
+  server_name bench.example.com;
+
+  location /v1/ {
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_pass http://127.0.0.1:8090;
+  }
+
+  location = /healthz {
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_pass http://127.0.0.1:8090;
+  }
+
+  root /srv/evidra-bench-ui;
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+}
+```
+
+After deploying, run the private review smoke against a dedicated smoke run.
+The smoke replaces that run's review with a private `run_review.v1` artifact,
+so do not point it at a production review you need to preserve.
+
+```bash
+BENCH_API_URL=https://bench.example.com \
+BENCH_API_KEY="$BENCH_API_KEY" \
+BENCH_REVIEW_SMOKE_RUN_ID=<dedicated-run-id> \
+make private-review-smoke
+```
+
 ## Operational Notes
 
 - Read-only benchmark result, catalog, artifact, analytics, and comparison

@@ -47,6 +47,8 @@ static API keys. In private deployments, open `Session`, sign in with the
 deployment API key once, and the backend sets an HttpOnly session cookie.
 Serve the UI and API from the same site or behind the same reverse proxy for
 browser session writes.
+After deployment, validate the path with `make private-review-smoke` against a
+dedicated smoke run.
 Run list and run detail responses include a compact `review_summary` when a
 saved review is readable. Anonymous public reads only show summaries for public
 reviews; authenticated deployments can show private review summaries for the
