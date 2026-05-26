@@ -394,6 +394,18 @@ Avoid overfitting to one run. Prefer behavior-level patterns such as `Pod/*`
 or `kubectl describe deployment web` over ephemeral resource names unless the
 scenario is explicitly about that exact resource.
 
+Preview a local scenario patch from a saved review artifact:
+
+```bash
+bench-cli scenario patch-preview \
+  --scenario kubernetes/shared-configmap-trap \
+  --review-file runs/<run-id>/run_review.json
+```
+
+`patch-preview` only prints a diff. It currently maps supported
+`suggested_rules` targets into `autopsy.expected_diagnostics`,
+`autopsy.allowed_mutations`, and `autopsy.forbidden_actions`.
+
 ```bash
 # Validate the scenario loads
 bench-cli scenario list | grep my-scenario

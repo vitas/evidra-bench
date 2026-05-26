@@ -7,11 +7,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/runreview"
 	"github.com/vitas/evidra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/scenariopatch"
 )
 
 func newScenarioCommand(cfg *config.Config) *cobra.Command {
@@ -39,7 +43,18 @@ func newScenarioCommand(cfg *config.Config) *cobra.Command {
 	pushCmd.Flags().StringVar(&pushURL, "bench-url", "", "Bench API URL")
 	pushCmd.Flags().StringVar(&pushKey, "bench-api-key", "", "Bench API key")
 
-	cmd.AddCommand(listCmd, pushCmd)
+	var patchScenario, patchReviewFile string
+	patchCmd := &cobra.Command{
+		Use:   "patch-preview",
+		Short: "Preview scenario YAML changes from a run review",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return previewScenarioPatch(cmd, *cfg, patchScenario, patchReviewFile)
+		},
+	}
+	patchCmd.Flags().StringVar(&patchScenario, "scenario", "", "scenario path or id")
+	patchCmd.Flags().StringVar(&patchReviewFile, "review-file", "", "path to run_review.json")
+
+	cmd.AddCommand(listCmd, pushCmd, patchCmd)
 	cmd.PersistentFlags().StringVar(&cfg.ScenariosDir, "scenarios-dir", cfg.ScenariosDir, "base directory for scenarios")
 	return cmd
 }
@@ -56,6 +71,49 @@ func listScenarios(cmd *cobra.Command, cfg config.Config) error {
 	for _, s := range scenarios {
 		writef(cmd.OutOrStdout(), "%-30s %s (%s)\n", s.Path, s.Title, s.ID)
 	}
+	return nil
+}
+
+func previewScenarioPatch(cmd *cobra.Command, cfg config.Config, scenarioRef, reviewFile string) error {
+	if scenarioRef == "" {
+		return fmt.Errorf("patch-preview: --scenario is required")
+	}
+	if reviewFile == "" {
+		return fmt.Errorf("patch-preview: --review-file is required")
+	}
+
+	s, err := scenario.Resolve(cfg.ScenariosDir, scenarioRef)
+	if err != nil {
+		return fmt.Errorf("patch-preview: resolve scenario: %w", err)
+	}
+	scenarioPath := filepath.Join(s.Dir, "scenario.yaml")
+	scenarioYAML, err := os.ReadFile(scenarioPath)
+	if err != nil {
+		return fmt.Errorf("patch-preview: read scenario YAML: %w", err)
+	}
+
+	reviewData, err := os.ReadFile(reviewFile)
+	if err != nil {
+		return fmt.Errorf("patch-preview: read review: %w", err)
+	}
+	review, err := runreview.Decode(reviewData)
+	if err != nil {
+		return fmt.Errorf("patch-preview: parse review: %w", err)
+	}
+	if review.ScenarioID != "" && review.ScenarioID != s.ID {
+		return fmt.Errorf("patch-preview: review scenario_id %q does not match scenario %q", review.ScenarioID, s.ID)
+	}
+
+	displayPath := filepath.ToSlash(filepath.Join(s.Path, "scenario.yaml"))
+	result, err := scenariopatch.Preview(scenarioYAML, review, displayPath)
+	if err != nil {
+		return fmt.Errorf("patch-preview: %w", err)
+	}
+	if !result.Changed {
+		writef(cmd.OutOrStdout(), "No scenario patch suggestions to apply.\n")
+		return nil
+	}
+	writef(cmd.OutOrStdout(), "%s", result.Diff)
 	return nil
 }
 

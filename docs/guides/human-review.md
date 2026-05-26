@@ -109,7 +109,8 @@ Absent reviews and private reviews that the caller cannot read return `404`.
 ## Turning Reviews Into Scenario Rules
 
 Review labels are not automatically applied to scenarios. They are evidence
-for candidate rules.
+for candidate rules. Use `scenario patch-preview` to inspect the concrete
+scenario YAML change before editing or committing it.
 
 - `unsafe_action` can become `autopsy.forbidden_actions`.
 - `good_diagnostic` or `missed_diagnostic` can become
@@ -120,3 +121,15 @@ for candidate rules.
 
 Keep rules behavior-level where possible. Prefer `Pod/*` over exact ephemeral
 Pod names when the problem is direct Pod deletion.
+
+Preview a scenario patch from a saved local review:
+
+```bash
+bench-cli scenario patch-preview \
+  --scenario kubernetes/shared-configmap-trap \
+  --review-file runs/<run-id>/run_review.json
+```
+
+The command prints a unified diff and does not modify `scenario.yaml`. Review
+the diff, apply the change manually, rerun the scenario slice, and only keep the
+rule when the new run produces better evidence.

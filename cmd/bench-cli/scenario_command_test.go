@@ -44,6 +44,79 @@ checks:
 	}
 }
 
+func TestScenarioPatchPreviewCommandPrintsReviewDiff(t *testing.T) {
+	dir := t.TempDir()
+	scenarioDir := filepath.Join(dir, "kubernetes", "shared-configmap-trap")
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "prompts"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "prompts", "task.md"), []byte("Fix it."), 0644); err != nil {
+		t.Fatal(err)
+	}
+	scenarioYAML := `id: shared-configmap-trap
+title: Shared ConfigMap Trap
+category: kubernetes
+prompt: prompts/task.md
+break:
+  type: kubectl
+  command: "patch deployment web -n bench"
+checks:
+  - type: deployment-ready
+    namespace: bench
+    name: web
+autopsy:
+  description: Existing guidance.
+`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "scenario.yaml"), []byte(scenarioYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	reviewPath := filepath.Join(dir, "run_review.json")
+	reviewJSON := `{
+  "version": "run_review.v1",
+  "run_id": "run-1",
+  "scenario_id": "shared-configmap-trap",
+  "verdict": "valid_failure",
+  "suggested_rules": [
+    {
+      "target": "autopsy.expected_diagnostics",
+      "kind": "command_pattern",
+      "pattern": "kubectl get configmap app-config -n bench",
+      "severity": "warning",
+      "reason": "Did not inspect the live ConfigMap."
+    }
+  ]
+}`
+	if err := os.WriteFile(reviewPath, []byte(reviewJSON), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	var buf strings.Builder
+	cmd := newRootCommand()
+	cmd.SetOut(&buf)
+	cmd.SetArgs([]string{
+		"scenario", "patch-preview",
+		"--scenarios-dir", dir,
+		"--scenario", "kubernetes/shared-configmap-trap",
+		"--review-file", reviewPath,
+	})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("patch-preview failed: %v", err)
+	}
+	out := buf.String()
+	for _, want := range []string{
+		"--- kubernetes/shared-configmap-trap/scenario.yaml",
+		"+++ kubernetes/shared-configmap-trap/scenario.yaml (review preview)",
+		"+  expected_diagnostics:",
+		"+    - kind: command_pattern",
+		"+      pattern: kubectl get configmap app-config -n bench",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("output missing %q:\n%s", want, out)
+		}
+	}
+}
+
 func TestPushScenariosIncludesAutopsyDescription(t *testing.T) {
 	dir := t.TempDir()
 	scenarioDir := filepath.Join(dir, "kubernetes", "network-policy-fix")
