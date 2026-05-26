@@ -98,7 +98,7 @@ Autopsy
 
 Run failed with primary failure missed_diagnostic_step.
 
-left/right:tab  esc/q:back  * missing artifact
+left/right:tab  r:review  esc/q:back  * missing artifact
 ```
 
 Tabs:
@@ -113,6 +113,23 @@ Tabs:
 The review tab uses the same `run_review.v1` schema as the hosted API. It
 shows verdict, visibility, reviewer, labels, notes, evidence snippets, and
 suggested scenario rules. See [Human Review](guides/human-review.md).
+
+Press `r` from the artifact view to create or replace `run_review.json` for
+the loaded run. The editor selects the first mutation step by default, fills an
+evidence snippet from the timeline step, and creates a reviewer note so
+warning-or-higher labels are valid by default.
+
+Review editor keys:
+
+- `j`/`k` — choose the timeline step used as evidence
+- `v` — cycle run verdict
+- `l` — cycle label kind
+- `s` — cycle severity
+- `p` — cycle review visibility
+- `n` — edit the reviewer note
+- `w` — save local `run_review.json`
+- `u` — save locally and upload with `BENCH_API_URL`/`BENCH_API_KEY` or the
+  lab config `bench_url`/`bench_api_key`
 
 Failed checks show details:
 

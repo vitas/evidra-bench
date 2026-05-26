@@ -19,6 +19,7 @@ const (
 	viewHelp
 	viewHistory
 	viewArtifact
+	viewReviewEditor
 )
 
 // RunFinishedMsg is sent when a scenario run completes.
@@ -29,29 +30,31 @@ type RunFinishedMsg struct {
 
 // App is the top-level Bubble Tea model.
 type App struct {
-	allItems     []CatalogItem
-	filtered     []CatalogItem
-	cursor       int
-	query        string
-	filtering    bool
-	categoryIdx  int
-	cfg          LabConfig
-	cfgPath      string
-	scenariosDir string
-	view         int
-	width        int
-	height       int
-	runOutput    string
-	runResult    *harness.RunResult
-	runErr       error
-	harnessDeps  harness.Deps
-	runsDir      string
-	history      []RunRecord
-	statsMap     map[string]ScenarioStats
-	dbTotal      int
-	dbPassRate   string
-	artifacts    *RunArtifacts
-	artifactTab  int
+	allItems       []CatalogItem
+	filtered       []CatalogItem
+	cursor         int
+	query          string
+	filtering      bool
+	categoryIdx    int
+	cfg            LabConfig
+	cfgPath        string
+	scenariosDir   string
+	view           int
+	width          int
+	height         int
+	runOutput      string
+	runResult      *harness.RunResult
+	runErr         error
+	harnessDeps    harness.Deps
+	runsDir        string
+	history        []RunRecord
+	statsMap       map[string]ScenarioStats
+	dbTotal        int
+	dbPassRate     string
+	artifacts      *RunArtifacts
+	artifactTab    int
+	artifactStatus string
+	reviewEditor   reviewEditorState
 }
 
 // NewApp creates a new TUI app.

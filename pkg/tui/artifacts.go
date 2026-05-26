@@ -38,6 +38,9 @@ var artifactTabs = []artifactTab{
 // RunArtifacts is the local artifact bundle rendered by the TUI artifact view.
 type RunArtifacts struct {
 	Dir          string
+	RunID        string
+	ScenarioID   string
+	Passed       bool
 	Transcript   string
 	ToolCallsRaw string
 	ToolCalls    []bench.ToolCall
@@ -48,7 +51,20 @@ type RunArtifacts struct {
 }
 
 func LoadRunArtifacts(dir string) RunArtifacts {
-	artifacts := RunArtifacts{Dir: dir}
+	artifacts := RunArtifacts{
+		Dir:   dir,
+		RunID: filepath.Base(dir),
+	}
+	if runRaw := readArtifactText(dir, artifact.RunJSON); runRaw != "" {
+		var run struct {
+			ScenarioID string `json:"scenario_id"`
+			Passed     bool   `json:"passed"`
+		}
+		if json.Unmarshal([]byte(runRaw), &run) == nil {
+			artifacts.ScenarioID = strings.TrimSpace(run.ScenarioID)
+			artifacts.Passed = run.Passed
+		}
+	}
 	artifacts.Transcript = readArtifactText(dir, artifact.TranscriptFile)
 	artifacts.ToolCallsRaw = readArtifactText(dir, artifact.ToolCallsFile)
 	if artifacts.ToolCallsRaw != "" {

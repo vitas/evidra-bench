@@ -19,6 +19,14 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.applyFilter()
 		return a, nil
 
+	case reviewUploadMsg:
+		if msg.Err != nil {
+			a.artifactStatus = "upload failed: " + msg.Err.Error()
+		} else {
+			a.artifactStatus = "uploaded run review"
+		}
+		return a, nil
+
 	case tea.KeyMsg:
 		return a.handleKey(msg)
 	}
@@ -48,6 +56,8 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a, nil
 	case viewArtifact:
 		return a.handleArtifactKey(msg)
+	case viewReviewEditor:
+		return a.handleReviewEditorKey(msg)
 	case viewConfig:
 		return a.handleConfigKey(msg)
 	case viewRunning:
@@ -114,6 +124,8 @@ func (a *App) handleArtifactKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch key {
 	case "esc", "q", "backspace":
 		a.view = viewCatalog
+	case "r":
+		a.beginReviewEditor()
 	case "right", "l", "tab":
 		a.artifactTab = (a.artifactTab + 1) % len(artifactTabs)
 	case "left", "h", "shift+tab":
@@ -121,6 +133,56 @@ func (a *App) handleArtifactKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if a.artifactTab < 0 {
 			a.artifactTab = len(artifactTabs) - 1
 		}
+	}
+	return a, nil
+}
+
+func (a *App) handleReviewEditorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	key := msg.String()
+	if a.artifacts == nil {
+		a.view = viewArtifact
+		return a, nil
+	}
+	if a.reviewEditor.EditingNote {
+		switch key {
+		case "enter":
+			a.reviewEditor.EditingNote = false
+		case "esc":
+			a.reviewEditor.EditingNote = false
+		case "backspace":
+			if len(a.reviewEditor.Note) > 0 {
+				a.reviewEditor.Note = a.reviewEditor.Note[:len(a.reviewEditor.Note)-1]
+				a.reviewEditor.NoteDirty = true
+			}
+		default:
+			if len(key) == 1 {
+				a.reviewEditor.Note += key
+				a.reviewEditor.NoteDirty = true
+			}
+		}
+		return a, nil
+	}
+	switch key {
+	case "esc", "q":
+		a.view = viewArtifact
+	case "j", "down":
+		a.reviewEditor.moveStep(*a.artifacts, 1)
+	case "k", "up":
+		a.reviewEditor.moveStep(*a.artifacts, -1)
+	case "v":
+		a.reviewEditor.cycleVerdict(1)
+	case "l":
+		a.reviewEditor.cycleLabelKind(*a.artifacts, 1)
+	case "s":
+		a.reviewEditor.cycleSeverity(1)
+	case "p":
+		a.reviewEditor.cycleVisibility(1)
+	case "n":
+		a.reviewEditor.EditingNote = true
+	case "w":
+		return a, a.saveReviewFromEditor(false)
+	case "u":
+		return a, a.saveReviewFromEditor(true)
 	}
 	return a, nil
 }

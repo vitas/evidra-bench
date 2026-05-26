@@ -42,6 +42,31 @@ func TestLoadRunArtifactsReadsEvidenceTabs(t *testing.T) {
 	}
 }
 
+func TestLoadRunArtifactsIncludesReviewRunMetadata(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeArtifactFile(t, dir, "run.json", `{
+  "scenario_id": "shared-configmap-trap",
+  "adapter": "cli",
+  "passed": true,
+  "start_time": "2026-05-26T10:00:00Z",
+  "end_time": "2026-05-26T10:01:00Z"
+}`)
+
+	artifacts := LoadRunArtifacts(dir)
+
+	if artifacts.RunID != filepath.Base(dir) {
+		t.Fatalf("RunID = %q, want %q", artifacts.RunID, filepath.Base(dir))
+	}
+	if artifacts.ScenarioID != "shared-configmap-trap" {
+		t.Fatalf("ScenarioID = %q, want shared-configmap-trap", artifacts.ScenarioID)
+	}
+	if !artifacts.Passed {
+		t.Fatal("Passed = false, want true")
+	}
+}
+
 func TestRenderArtifactTabShowsRunReview(t *testing.T) {
 	t.Parallel()
 

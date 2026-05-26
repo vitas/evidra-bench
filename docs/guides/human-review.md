@@ -42,12 +42,18 @@ require backend authentication. The browser does not embed static API keys.
 ## TUI Workflow
 
 1. Run a scenario or open the latest local run artifacts with `a`.
-2. Select the `review` tab.
-3. Inspect `run_review.json` if it exists beside the run artifacts.
+2. Press `r` from the artifact view to open the review editor.
+3. Choose the evidence step, verdict, label kind, severity, visibility, and
+   reviewer note.
+4. Save local `run_review.json` with `w`.
+5. Use `u` to save and upload when the deployment provides authenticated write
+   access.
 
-The TUI reads local `run_review.json` using the same schema as the hosted API.
-Hosted upload uses `PUT /v1/bench/runs/{id}/review` when a deployment provides
-authenticated write access.
+The editor uses the same `run_review.v1` schema as the hosted API. It selects
+the first mutation step by default, fills the evidence snippet from timeline
+evidence, and creates a reviewer note by default. Hosted upload uses
+`PUT /v1/bench/runs/{id}/review` with `BENCH_API_URL`/`BENCH_API_KEY` or the
+TUI lab config `bench_url`/`bench_api_key`.
 
 ## API Workflow
 

@@ -22,6 +22,8 @@ func (a *App) View() string {
 		return a.renderHistory()
 	case viewArtifact:
 		return a.renderArtifact()
+	case viewReviewEditor:
+		return a.renderReviewEditor()
 	default:
 		return a.renderCatalog()
 	}
@@ -304,6 +306,7 @@ func (a *App) renderHelp() string {
 	b.WriteString("  m             Cycle model (sonnet/haiku/opus/default)\n")
 	b.WriteString("  h             Show run history for selected scenario\n")
 	b.WriteString("  a             Show latest run artifacts for selected scenario\n")
+	b.WriteString("  r             Review the loaded run from artifact view\n")
 	b.WriteString("  d             Toggle dry-run mode\n")
 	b.WriteString("  e             Review/edit run configuration toggles\n")
 	b.WriteString("  ?             Show this help\n")
@@ -349,7 +352,59 @@ func (a *App) renderArtifact() string {
 	b.WriteString("\n\n")
 	b.WriteString(a.artifacts.Render(active))
 	b.WriteString("\n")
-	b.WriteString(dimStyle.Render("\nleft/right:tab  esc/q:back  * missing artifact"))
+	if a.artifactStatus != "" {
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Render("\n" + a.artifactStatus))
+		b.WriteString("\n")
+	}
+	b.WriteString(dimStyle.Render("\nleft/right:tab  r:review  esc/q:back  * missing artifact"))
+	return b.String()
+}
+
+func (a *App) renderReviewEditor() string {
+	if a.artifacts == nil {
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render("No artifacts loaded\n\nesc: back")
+	}
+	var b strings.Builder
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("99"))
+	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+	b.WriteString(headerStyle.Render("Run Review Editor"))
+	b.WriteString(dimStyle.Render(fmt.Sprintf("  %s", a.artifacts.Dir)))
+	b.WriteString("\n\n")
+	fmt.Fprintf(&b, "  run:        %s\n", valueOrDefault(a.artifacts.RunID, "(unknown)"))
+	fmt.Fprintf(&b, "  scenario:   %s\n", valueOrDefault(a.artifacts.ScenarioID, "(unknown)"))
+	fmt.Fprintf(&b, "  verdict:    %s\n", a.reviewEditor.verdict())
+	fmt.Fprintf(&b, "  label:      %s\n", a.reviewEditor.labelKind())
+	fmt.Fprintf(&b, "  severity:   %s\n", a.reviewEditor.severity())
+	fmt.Fprintf(&b, "  visibility: %s\n", a.reviewEditor.visibility())
+
+	if step, ok := selectedReviewStep(*a.artifacts, a.reviewEditor); ok {
+		fmt.Fprintf(&b, "\nStep %d", step.Index+1)
+		if step.Phase != "" {
+			fmt.Fprintf(&b, "  %s", step.Phase)
+		}
+		b.WriteString("\n")
+		fmt.Fprintf(&b, "  evidence: %s\n", evidenceSnippetForStep(step))
+		if step.Command != "" && step.Command != evidenceSnippetForStep(step) {
+			fmt.Fprintf(&b, "  command:  %s\n", step.Command)
+		}
+	} else {
+		b.WriteString("\nNo timeline steps available for review.\n")
+	}
+
+	notePrompt := "note"
+	if a.reviewEditor.EditingNote {
+		notePrompt = "note (editing)"
+	}
+	fmt.Fprintf(&b, "\n  %s: %s", notePrompt, a.reviewEditor.Note)
+	if a.reviewEditor.EditingNote {
+		b.WriteString("_")
+	}
+	b.WriteString("\n")
+	if a.reviewEditor.Status != "" {
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Render("\n" + a.reviewEditor.Status))
+		b.WriteString("\n")
+	}
+	b.WriteString(dimStyle.Render("\nj/k:step  v:verdict  l:label  s:severity  p:visibility  n:note  w:save  u:save+upload  esc:back"))
 	return b.String()
 }
 
