@@ -73,6 +73,7 @@ func TestHandleTrigger_DefaultsExecutionMode(t *testing.T) {
 	stored := store.Get(resp["id"].(string))
 	if stored == nil {
 		t.Fatal("stored trigger job missing")
+		return
 	}
 	if stored.ExecutionMode != "provider" {
 		t.Fatalf("stored execution mode = %q, want provider", stored.ExecutionMode)

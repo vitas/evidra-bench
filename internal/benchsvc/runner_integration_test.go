@@ -90,6 +90,7 @@ func TestPgStore_EnqueueAndClaimJob(t *testing.T) {
 	}
 	if claimed == nil {
 		t.Fatal("expected a job, got nil")
+		return
 	}
 	if claimed.Status != "claimed" {
 		t.Fatalf("status = %q, want claimed", claimed.Status)
@@ -135,6 +136,7 @@ func TestPgStore_EnqueueAndClaimJob_PreservesScenarios(t *testing.T) {
 	}
 	if claimed == nil {
 		t.Fatal("expected a job, got nil")
+		return
 	}
 
 	var cfg JobConfig
@@ -168,6 +170,7 @@ func TestPgStore_EnqueueAndClaimJob_PreservesExecutionMode(t *testing.T) {
 	}
 	if claimed == nil {
 		t.Fatal("expected a job, got nil")
+		return
 	}
 
 	var cfg JobConfig

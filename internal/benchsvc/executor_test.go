@@ -55,9 +55,11 @@ func TestNewRemoteExecutorUsesDedicatedTransport(t *testing.T) {
 
 	if exec.HTTPClient == nil {
 		t.Fatal("HTTPClient is nil")
+		return
 	}
 	if exec.HTTPClient.Transport == nil {
 		t.Fatal("HTTPClient.Transport is nil; expected dedicated transport")
+		return
 	}
 	if exec.HTTPClient.Transport == http.DefaultTransport {
 		t.Fatal("HTTPClient.Transport uses http.DefaultTransport")

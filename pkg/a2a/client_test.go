@@ -16,6 +16,7 @@ func TestNewClient_DefaultHTTPClientHasNoTimeout(t *testing.T) {
 	client := NewClient("https://agent.example", nil)
 	if client.HTTPClient == nil {
 		t.Fatal("HTTPClient = nil")
+		return
 	}
 	if client.HTTPClient.Timeout != 0 {
 		t.Fatalf("HTTPClient.Timeout = %v, want 0 to rely on request context", client.HTTPClient.Timeout)

@@ -87,6 +87,7 @@ func TestPrepareServeRunner_ControlPlaneOnlySkipsProvision(t *testing.T) {
 	}
 	if teardown == nil {
 		t.Fatal("expected no-op teardown")
+		return
 	}
 	teardown(context.Background())
 	if fake.provisionCalls != 0 {

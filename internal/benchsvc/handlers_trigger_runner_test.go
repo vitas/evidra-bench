@@ -84,6 +84,7 @@ func TestHandleTrigger_WithRunner_QueuesJob(t *testing.T) {
 	stored := store.Get("job-q-1")
 	if stored == nil {
 		t.Fatal("stored runner trigger job missing")
+		return
 	}
 	if stored.ExecutionMode != "a2a" {
 		t.Fatalf("stored execution mode = %q, want a2a", stored.ExecutionMode)
@@ -136,6 +137,7 @@ func TestHandleTrigger_WithRunner_AllowsProviderSuppliedModelAlias(t *testing.T)
 	stored := store.Get("job-alias-1")
 	if stored == nil {
 		t.Fatal("stored runner trigger job missing")
+		return
 	}
 	if stored.Provider != "claude" {
 		t.Fatalf("stored provider = %q, want claude", stored.Provider)

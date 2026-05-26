@@ -51,12 +51,14 @@ func TestHandleTrigger_ValidRequest_Returns202(t *testing.T) {
 	stored := store.Get(resp["id"].(string))
 	if stored == nil {
 		t.Fatal("stored trigger job missing")
+		return
 	}
 	if stored.ExecutionMode != "provider" {
 		t.Fatalf("stored execution mode = %q, want provider", stored.ExecutionMode)
 	}
 	if spy.job == nil {
 		t.Fatal("executor job missing")
+		return
 	}
 	if spy.job.ExecutionMode != "provider" {
 		t.Fatalf("job execution mode = %q, want provider", spy.job.ExecutionMode)
@@ -102,6 +104,7 @@ func TestHandleTrigger_ValidRequest_Returns202_WithDefaultExecutionMode(t *testi
 	stored := store.Get(resp["id"].(string))
 	if stored == nil {
 		t.Fatal("stored trigger job missing")
+		return
 	}
 	if stored.ExecutionMode != "provider" {
 		t.Fatalf("stored execution mode = %q, want provider", stored.ExecutionMode)
@@ -147,6 +150,7 @@ func TestHandleTrigger_StoresToolServerIdentity(t *testing.T) {
 	stored := store.Get(resp["id"].(string))
 	if stored == nil {
 		t.Fatal("stored trigger job missing")
+		return
 	}
 	if stored.ToolServer != "kubernetes-mcp" {
 		t.Fatalf("stored tool server = %q, want kubernetes-mcp", stored.ToolServer)
@@ -195,6 +199,7 @@ func TestHandleTrigger_StoresSkillIdentity(t *testing.T) {
 	stored := store.Get(resp["id"].(string))
 	if stored == nil {
 		t.Fatal("stored trigger job missing")
+		return
 	}
 	if stored.SkillID != "k8s-admin" {
 		t.Fatalf("stored skill id = %q, want k8s-admin", stored.SkillID)
@@ -241,6 +246,7 @@ func TestHandleTrigger_ValidRequest_Returns202_WithExecutionModeA2A(t *testing.T
 	stored := store.Get(resp["id"].(string))
 	if stored == nil {
 		t.Fatal("stored trigger job missing")
+		return
 	}
 	if stored.ExecutionMode != "a2a" {
 		t.Fatalf("stored execution mode = %q, want a2a", stored.ExecutionMode)
@@ -252,6 +258,7 @@ func TestHandleTrigger_ValidRequest_Returns202_WithExecutionModeA2A(t *testing.T
 	}
 	if spy.job == nil {
 		t.Fatal("executor job missing")
+		return
 	}
 	if spy.job.ExecutionMode != "a2a" {
 		t.Fatalf("job execution mode = %q, want a2a", spy.job.ExecutionMode)

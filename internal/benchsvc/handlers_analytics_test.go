@@ -450,6 +450,7 @@ func TestHandleSignals_SinceFilterParsed(t *testing.T) {
 	}
 	if repo.lastFilter.Since == nil {
 		t.Fatal("Since filter not propagated: parseSince returned nil for fractional-second timestamp")
+		return
 	}
 	want := "2026-04-06 09:56:11.778 +0000 UTC"
 	if got := repo.lastFilter.Since.String(); got != want {

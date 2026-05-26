@@ -170,6 +170,7 @@ func TestHandleListRuns_AttachesPrivateReviewSummaryWithSessionCookie(t *testing
 	}
 	if body.Items[0].ReviewSummary == nil {
 		t.Fatal("review_summary missing")
+		return
 	}
 	if body.Items[0].ReviewSummary.Visibility != runreview.VisibilityPrivate {
 		t.Fatalf("visibility = %q, want private", body.Items[0].ReviewSummary.Visibility)
@@ -380,6 +381,7 @@ func TestHandleGetRun_AttachesPrivateReviewSummaryForAuthenticatedRead(t *testin
 	}
 	if run.ReviewSummary == nil {
 		t.Fatal("review_summary missing")
+		return
 	}
 	if run.ReviewSummary.Verdict != runreview.VerdictValidFailure || run.ReviewSummary.MaxSeverity != runreview.SeverityCritical {
 		t.Fatalf("summary = %#v", run.ReviewSummary)
