@@ -22,34 +22,35 @@ type LeaderboardEntry struct {
 
 // RunRecord represents a single benchmark run stored in bench_runs.
 type RunRecord struct {
-	ID                string            `json:"id"`
-	TenantID          string            `json:"tenant_id"`
-	ScenarioID        string            `json:"scenario_id"`
-	Model             string            `json:"model"`
-	Provider          string            `json:"provider"`
-	Adapter           string            `json:"adapter"`
-	ToolServer        string            `json:"tool_server"`         // MCP server used (empty = baseline/direct exec)
-	ToolServerVersion string            `json:"tool_server_version"` // version of MCP server binary
-	SkillID           string            `json:"skill_id"`            // skill prompt identity (empty = no skill)
-	SkillVersion      string            `json:"skill_version"`       // skill prompt version
-	SkillSource       string            `json:"skill_source"`        // local-file, local-temp, registry, etc.
-	SkillSHA256       string            `json:"skill_sha256"`        // skill prompt content digest
-	ScenarioVersion   string            `json:"scenario_version"`    // version/hash of scenario definition
-	Passed            bool              `json:"passed"`
-	Duration          float64           `json:"duration_seconds"`
-	ExitCode          int               `json:"exit_code"`
-	Turns             int               `json:"turns"`
-	MemoryWindow      int               `json:"memory_window"`
-	PromptTokens      int               `json:"prompt_tokens"`
-	CompletionTokens  int               `json:"completion_tokens"`
-	EstimatedCost     float64           `json:"estimated_cost_usd"`
-	ChecksPassed      int               `json:"checks_passed"`
-	ChecksTotal       int               `json:"checks_total"`
-	ChecksJSON        string            `json:"checks_json,omitempty"`
-	MetadataJSON      string            `json:"metadata_json,omitempty"`
-	ArtifactDir       string            `json:"artifact_dir,omitempty"` // local filesystem path (bench runner only)
-	CreatedAt         time.Time         `json:"created_at"`
-	ReviewSummary     *RunReviewSummary `json:"review_summary,omitempty"`
+	ID                   string            `json:"id"`
+	TenantID             string            `json:"tenant_id"`
+	ScenarioID           string            `json:"scenario_id"`
+	Model                string            `json:"model"`
+	Provider             string            `json:"provider"`
+	Adapter              string            `json:"adapter"`
+	ToolServer           string            `json:"tool_server"`         // MCP server used (empty = baseline/direct exec)
+	ToolServerVersion    string            `json:"tool_server_version"` // version of MCP server binary
+	SkillID              string            `json:"skill_id"`            // skill prompt identity (empty = no skill)
+	SkillVersion         string            `json:"skill_version"`       // skill prompt version
+	SkillSource          string            `json:"skill_source"`        // local-file, local-temp, registry, etc.
+	SkillSHA256          string            `json:"skill_sha256"`        // skill prompt content digest
+	ScenarioVersion      string            `json:"scenario_version"`    // version/hash of scenario definition
+	Passed               bool              `json:"passed"`
+	Duration             float64           `json:"duration_seconds"`
+	ExitCode             int               `json:"exit_code"`
+	Turns                int               `json:"turns"`
+	MemoryWindow         int               `json:"memory_window"`
+	PromptTokens         int               `json:"prompt_tokens"`
+	CompletionTokens     int               `json:"completion_tokens"`
+	EstimatedCost        float64           `json:"estimated_cost_usd"`
+	ChecksPassed         int               `json:"checks_passed"`
+	ChecksTotal          int               `json:"checks_total"`
+	ChecksJSON           string            `json:"checks_json,omitempty"`
+	MetadataJSON         string            `json:"metadata_json,omitempty"`
+	ArtifactDir          string            `json:"artifact_dir,omitempty"` // local filesystem path (bench runner only)
+	CreatedAt            time.Time         `json:"created_at"`
+	ReviewSummary        *RunReviewSummary `json:"review_summary,omitempty"`
+	ReviewDraftAvailable *bool             `json:"review_draft_available,omitempty"`
 }
 
 // RunReviewSummary is a compact view of a run_review artifact for list/detail surfaces.
@@ -120,7 +121,7 @@ type ReviewCandidate struct {
 	ArtifactCoverage ReviewCandidateArtifactCoverage `json:"artifact_coverage"`
 	RunURL           string                          `json:"run_url"`
 	ReviewURL        string                          `json:"review_url"`
-	DraftURL         string                          `json:"draft_url"`
+	DraftURL         string                          `json:"draft_url,omitempty"`
 }
 
 // ReviewCandidatesResponse is the list response for review candidates.

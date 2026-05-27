@@ -39,7 +39,7 @@ public review text as publishable evidence.
 5. Read the saved verdict, labels, notes, evidence snippets, and suggested
    rules.
 6. Optionally select `Draft with AI` to fill the editor from stored autopsy,
-   timeline, and tool-call artifacts.
+   timeline, and tool-call artifacts when artifact-derived drafts are enabled.
 7. Use the review editor to set the verdict, visibility, primary label,
    severity, reviewer note, evidence snippet, and optional suggested rule.
 8. Save the review to replace the current `run_review.v1` artifact.
@@ -113,6 +113,11 @@ Build an unsaved artifact-derived draft:
 curl -X POST "$BENCH_API_URL/v1/bench/runs/$RUN_ID/review-draft" \
   -H "Authorization: Bearer $BENCH_API_KEY"
 ```
+
+Human-only deployments can disable artifact-derived drafts with
+`BENCH_REVIEW_DRAFT_MODE=human`. In that mode the browser hides `Draft with AI`,
+`?draft=1` does not auto-fill the editor, and draft endpoints return
+`403 Forbidden`.
 
 Build the same draft from the review-candidates namespace:
 

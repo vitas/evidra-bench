@@ -400,6 +400,36 @@ func TestHandleGetRun_AttachesPrivateReviewSummaryForAuthenticatedRead(t *testin
 	}
 }
 
+func TestHandleGetRun_ExposesReviewDraftAvailability(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		run: &bench.RunRecord{ID: "run-42", ScenarioID: "s1", Model: "sonnet", Passed: false},
+	}
+	mux := setupMux(repo, ServiceConfig{
+		PublicTenant:    "pub",
+		ReviewDraftMode: ReviewDraftModeHuman,
+	}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/runs/run-42", nil)
+	req.Header.Set("Authorization", "Bearer test")
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var run struct {
+		ReviewDraftAvailable bool `json:"review_draft_available"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &run); err != nil {
+		t.Fatalf("decode run: %v", err)
+	}
+	if run.ReviewDraftAvailable {
+		t.Fatal("review_draft_available = true, want false")
+	}
+}
+
 func TestHandleGetRun_404ForMissing(t *testing.T) {
 	t.Parallel()
 

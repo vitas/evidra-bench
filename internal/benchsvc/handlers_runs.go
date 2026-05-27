@@ -101,8 +101,17 @@ func handleGetRun(svc *Service) http.HandlerFunc {
 			apiutil.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+		attachRunCapabilities(svc, run)
 		apiutil.WriteJSON(w, http.StatusOK, run)
 	}
+}
+
+func attachRunCapabilities(svc *Service, run *bench.RunRecord) {
+	if run == nil {
+		return
+	}
+	reviewDraftAvailable := svc.reviewDraftsEnabled()
+	run.ReviewDraftAvailable = &reviewDraftAvailable
 }
 
 func attachReviewSummaries(r *http.Request, svc *Service, tenantID string, runs []bench.RunRecord) error {

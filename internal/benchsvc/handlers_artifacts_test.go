@@ -355,6 +355,38 @@ func TestHandlePostRunReviewDraft_UsesAutopsyEvidence(t *testing.T) {
 	}
 }
 
+func TestHandlePostRunReviewDraft_ReturnsForbiddenInHumanMode(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		run: &bench.RunRecord{
+			ID:         "r1",
+			ScenarioID: "shared-configmap-trap",
+			Passed:     false,
+			ExitCode:   1,
+		},
+		artifacts: map[string][]byte{
+			"r1:" + artifact.HostedFailureAutopsy: []byte(`{
+				"outcome":"fail",
+				"primary_failure":"missed_diagnostic_step",
+				"findings":[{"kind":"missed_diagnostic_step","severity":"warning","message":"Did not inspect the live ConfigMap.","evidence":"kubectl get configmap app-config -n bench"}]
+			}`),
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{
+		PublicTenant:    "pub",
+		ReviewDraftMode: ReviewDraftModeHuman,
+	}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/v1/bench/runs/r1/review-draft", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+}
+
 func TestHandlePostRunReviewDraft_UsesTimelineForSafePass(t *testing.T) {
 	t.Parallel()
 

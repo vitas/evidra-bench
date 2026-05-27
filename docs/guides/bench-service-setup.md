@@ -285,6 +285,10 @@ make private-review-smoke
   routes require Bearer auth or a browser session cookie. Do not put
   `BENCH_API_KEY` into frontend configuration; use the UI `Session` page for
   same-origin private browser writes or `bench-cli` for automation.
+- Set `BENCH_REVIEW_DRAFT_MODE=human` for human-only review deployments. This
+  keeps review candidates and manual review saving available, but disables
+  artifact-derived review drafts at the API boundary and hides the browser
+  `Draft with AI` action.
 - `POST /v1/bench/trigger` tries the runner queue before direct executor model
   validation, so runner-local aliases can work without a control-plane API key.
 - If no eligible runner exists and no direct executor is configured, trigger

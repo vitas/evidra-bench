@@ -123,6 +123,49 @@ func TestHandleListReviewCandidates_ReturnsRankedUnreviewedArtifactBackedRuns(t 
 	}
 }
 
+func TestHandleListReviewCandidates_OmitsDraftURLInHumanMode(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		runs: []bench.RunRecord{
+			{ID: "r1", ScenarioID: "broken-deployment", Model: "sonnet", Provider: "anthropic", Passed: false},
+		},
+		artifacts: map[string][]byte{
+			"r1:" + artifact.HostedFailureAutopsy: []byte(`{
+				"version":"autopsy.v1",
+				"outcome":"fail",
+				"primary_failure":"missed_diagnostic_step"
+			}`),
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{
+		PublicTenant:    "pub",
+		ReviewDraftMode: ReviewDraftModeHuman,
+	}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/bench/review-candidates?limit=25", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Candidates []struct {
+			DraftURL string `json:"draft_url,omitempty"`
+		} `json:"candidates"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(body.Candidates) != 1 {
+		t.Fatalf("len(candidates) = %d, want 1", len(body.Candidates))
+	}
+	if body.Candidates[0].DraftURL != "" {
+		t.Fatalf("draft_url = %q, want empty", body.Candidates[0].DraftURL)
+	}
+}
+
 func TestHandlePostReviewCandidateDraft_AliasesRunReviewDraft(t *testing.T) {
 	t.Parallel()
 
@@ -158,5 +201,28 @@ func TestHandlePostReviewCandidateDraft_AliasesRunReviewDraft(t *testing.T) {
 	}
 	if len(review.Labels) != 1 || review.Labels[0].EvidenceSnippet != "kubectl get configmap app-config -n bench" {
 		t.Fatalf("labels = %#v", review.Labels)
+	}
+}
+
+func TestHandlePostReviewCandidateDraft_ReturnsForbiddenInHumanMode(t *testing.T) {
+	t.Parallel()
+
+	repo := &handlerRepo{
+		run: &bench.RunRecord{ID: "r1", ScenarioID: "shared-configmap-trap", Passed: false, ExitCode: 1},
+		artifacts: map[string][]byte{
+			"r1:" + artifact.HostedFailureAutopsy: []byte(`{"outcome":"fail","primary_failure":"missed_diagnostic_step"}`),
+		},
+	}
+	mux := setupMux(repo, ServiceConfig{
+		PublicTenant:    "pub",
+		ReviewDraftMode: ReviewDraftModeHuman,
+	}, "tenant-a")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/v1/bench/review-candidates/r1/draft", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusForbidden, rec.Body.String())
 	}
 }

@@ -26,6 +26,7 @@ type parallelRunner interface {
 
 type serveOptions struct {
 	ControlPlaneOnly bool
+	ReviewDraftMode  string
 }
 
 type serveOrchestrator interface {
@@ -89,10 +90,11 @@ func serveAPI(cfg config.Config, addr string, optList ...serveOptions) error {
 	triggerStore := benchsvc.NewTriggerStore()
 	defaultTenant, publicTenant := resolveServeTenants()
 	benchService := benchsvc.NewService(benchRepo, benchsvc.ServiceConfig{
-		PublicTenant: publicTenant,
-		ScenariosDir: cfg.ScenariosDir,
-		TriggerStore: triggerStore,
-		Dispatcher:   &benchsvc.PoolDispatcher{},
+		PublicTenant:    publicTenant,
+		ScenariosDir:    cfg.ScenariosDir,
+		ReviewDraftMode: opts.ReviewDraftMode,
+		TriggerStore:    triggerStore,
+		Dispatcher:      &benchsvc.PoolDispatcher{},
 	})
 
 	ctx := context.Background()

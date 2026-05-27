@@ -15,8 +15,17 @@ import (
 	"github.com/vitas/evidra-bench/pkg/runreview"
 )
 
+const (
+	ReviewDraftModeArtifact = "artifact"
+	ReviewDraftModeHuman    = "human"
+)
+
 func handlePostRunReviewDraft(svc *Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !svc.reviewDraftsEnabled() {
+			apiutil.WriteError(w, http.StatusForbidden, "review drafts disabled")
+			return
+		}
 		tenantID := auth.TenantID(r.Context())
 		id := r.PathValue("id")
 		run, err := svc.GetRun(r.Context(), tenantID, id)
@@ -51,6 +60,21 @@ func handlePostRunReviewDraft(svc *Service) http.HandlerFunc {
 			return
 		}
 		apiutil.WriteJSON(w, http.StatusOK, normalized)
+	}
+}
+
+func (s *Service) reviewDraftsEnabled() bool {
+	return normalizeReviewDraftMode(s.cfg.ReviewDraftMode) != ReviewDraftModeHuman
+}
+
+func normalizeReviewDraftMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", ReviewDraftModeArtifact:
+		return ReviewDraftModeArtifact
+	case ReviewDraftModeHuman, "disabled", "off", "false":
+		return ReviewDraftModeHuman
+	default:
+		return ReviewDraftModeArtifact
 	}
 }
 

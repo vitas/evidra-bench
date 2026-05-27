@@ -75,5 +75,11 @@ func applyServeEnvOptions(opts serveOptions) serveOptions {
 	if isTruthyEnv("BENCH_CONTROL_PLANE_ONLY") {
 		opts.ControlPlaneOnly = true
 	}
+	if mode := strings.ToLower(strings.TrimSpace(os.Getenv("BENCH_REVIEW_DRAFT_MODE"))); mode != "" {
+		opts.ReviewDraftMode = mode
+	}
+	if isTruthyEnv("BENCH_DISABLE_REVIEW_DRAFTS") {
+		opts.ReviewDraftMode = "human"
+	}
 	return opts
 }

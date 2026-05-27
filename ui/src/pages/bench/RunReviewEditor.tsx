@@ -5,6 +5,7 @@ import { verdictLabel } from "../../lib/runReview.mts";
 import {
   buildRunReviewPayload,
   createRunReviewDraft,
+  reviewDraftAvailable,
   reviewLabelKindOptions,
   reviewSeverityOptions,
   reviewVerdictOptions,
@@ -24,6 +25,7 @@ interface RunReviewEditorProps {
   drafting?: boolean;
   draftError?: string | null;
   draftSeed?: RunReview | null;
+  humanOnly?: boolean;
   onDraft?: () => Promise<RunReview>;
   onSave: (payload: RunReview) => Promise<void>;
 }
@@ -41,26 +43,27 @@ export function RunReviewEditor({
   drafting = false,
   draftError = null,
   draftSeed = null,
+  humanOnly = !reviewDraftAvailable(run),
   onDraft,
   onSave,
 }: RunReviewEditorProps) {
-  const [draft, setDraft] = useState<RunReviewDraft>(() => createRunReviewDraft(run, review, timeline));
+  const [draft, setDraft] = useState<RunReviewDraft>(() => createRunReviewDraft(run, review, timeline, { humanOnly }));
   const [dirty, setDirty] = useState(false);
   const timelineSteps = timeline?.steps ?? [];
   const hasSelectedTimelineStep = draft.evidenceStep === "" || timelineSteps.some((step) => String(step.index) === draft.evidenceStep);
 
   useEffect(() => {
     if (!dirty) {
-      setDraft(createRunReviewDraft(run, review, timeline));
+      setDraft(createRunReviewDraft(run, review, timeline, { humanOnly }));
     }
-  }, [dirty, run, review, timeline]);
+  }, [dirty, run, review, timeline, humanOnly]);
 
   useEffect(() => {
     if (draftSeed && !dirty) {
-      setDraft(createRunReviewDraft(run, draftSeed, timeline));
+      setDraft(createRunReviewDraft(run, draftSeed, timeline, { humanOnly }));
       setDirty(true);
     }
-  }, [draftSeed, dirty, run, timeline]);
+  }, [draftSeed, dirty, run, timeline, humanOnly]);
 
   function patchDraft(patch: Partial<RunReviewDraft>) {
     setDirty(true);
@@ -86,7 +89,7 @@ export function RunReviewEditor({
     if (!onDraft) return;
     try {
       const generated = await onDraft();
-      setDraft(createRunReviewDraft(run, generated, timeline));
+      setDraft(createRunReviewDraft(run, generated, timeline, { humanOnly }));
       setDirty(true);
     } catch {
       // The parent surfaces the backend error in draftError.

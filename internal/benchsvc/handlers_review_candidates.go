@@ -69,6 +69,10 @@ func reviewCandidateForRun(r *http.Request, svc *Service, tenantID string, run b
 	priority := reviewCandidatePriority(run, coverage, signals)
 	reason := reviewCandidateReason(run, coverage, signals)
 	runURL := "/v1/bench/runs/" + run.ID
+	draftURL := ""
+	if svc.reviewDraftsEnabled() {
+		draftURL = "/v1/bench/review-candidates/" + run.ID + "/draft"
+	}
 	return bench.ReviewCandidate{
 		RunID:            run.ID,
 		ScenarioID:       run.ScenarioID,
@@ -82,7 +86,7 @@ func reviewCandidateForRun(r *http.Request, svc *Service, tenantID string, run b
 		ArtifactCoverage: coverage,
 		RunURL:           runURL,
 		ReviewURL:        runURL + "/review",
-		DraftURL:         "/v1/bench/review-candidates/" + run.ID + "/draft",
+		DraftURL:         draftURL,
 	}, nil
 }
 

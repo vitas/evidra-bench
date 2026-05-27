@@ -38,6 +38,11 @@ uses the authenticated tenant, which defaults to `default`.
 Static-key auth maps authenticated requests to `BENCH_DEFAULT_TENANT` in this
 phase. `GET /healthz` is always public.
 
+Set `BENCH_REVIEW_DRAFT_MODE=human` to disable artifact-derived review drafts
+for human-only deployments. In that mode the draft endpoints return `403`, run
+detail responses expose `"review_draft_available": false`, and review
+candidate items omit `draft_url`.
+
 ## Health
 
 ### GET /healthz
@@ -312,6 +317,8 @@ review state.
 The browser `Needs Review` queue uses this endpoint and opens candidates in the
 review editor with an artifact-derived draft preloaded. Draft generation is
 stateless; only `PUT /v1/bench/runs/{id}/review` stores the final review.
+When `BENCH_REVIEW_DRAFT_MODE=human`, candidates still appear but `draft_url`
+is omitted.
 
 ### GET /v1/bench/scenario-improvements
 
@@ -381,6 +388,8 @@ Returns a single run detail.
 
 The response uses the same run shape as `GET /v1/bench/runs` and can include
 the optional `review_summary` field when a review is readable by the caller.
+Run detail also includes `review_draft_available`; it is `false` when the
+deployment is in human-only review mode.
 
 ### DELETE /v1/bench/runs/{id}
 
@@ -451,6 +460,9 @@ Builds an unsaved `run_review.v1` draft from the run's stored artifacts.
 Requires `Authorization: Bearer $BENCH_API_KEY` or a browser session cookie
 from `POST /v1/bench/session`.
 
+Deployments with `BENCH_REVIEW_DRAFT_MODE=human` return `403 Forbidden` from
+this endpoint and require reviewers to write the final review manually.
+
 The service loads the parent run, failure autopsy, timeline, and tool-call
 artifacts for the authenticated tenant. It returns a private review-shaped
 draft with a verdict, primary label, reviewer note, evidence snippet, and
@@ -464,6 +476,7 @@ Builds the same unsaved review draft as
 `POST /v1/bench/runs/{id}/review-draft`, but under the review-candidates
 namespace used by queue clients. It does not save a review and does not create a
 separate draft lifecycle state.
+Deployments with `BENCH_REVIEW_DRAFT_MODE=human` return `403 Forbidden`.
 
 ### GET /v1/bench/runs/{id}/scenario-patch-preview
 

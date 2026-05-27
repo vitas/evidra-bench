@@ -41,16 +41,26 @@ export interface RunReviewDraft {
   suggestedRulePattern: string;
 }
 
+export interface RunReviewDraftOptions {
+  humanOnly?: boolean;
+}
+
+export function reviewDraftAvailable(run: Pick<BenchRunRecord, "review_draft_available">): boolean {
+  return run.review_draft_available !== false;
+}
+
 export function createRunReviewDraft(
   run: Pick<BenchRunRecord, "id" | "scenario_id" | "passed">,
   review?: RunReview | null,
   timeline?: ReviewEditorTimeline | null,
+  options: RunReviewDraftOptions = {},
 ): RunReviewDraft {
   const label = review?.labels?.[0];
   const rule = review?.suggested_rules?.[0];
-  const step = label?.step != null ? findTimelineStep(timeline, label.step) : defaultEvidenceStep(timeline);
+  const manualOnly = options.humanOnly === true && !review;
+  const step = label?.step != null ? findTimelineStep(timeline, label.step) : manualOnly ? undefined : defaultEvidenceStep(timeline);
   const labelKind = label?.kind ?? defaultLabelKind(step);
-  const evidenceStep = label?.step != null ? String(label.step) : step ? String(step.index) : "";
+  const evidenceStep = label?.step != null ? String(label.step) : manualOnly ? "" : step ? String(step.index) : "";
 
   return {
     verdict: review?.verdict ?? defaultVerdict(run.passed),
@@ -58,8 +68,8 @@ export function createRunReviewDraft(
     labelKind,
     severity: label?.severity ?? "warning",
     reviewerDisplayName: reviewerDisplayName(review),
-    note: label?.note ?? defaultReviewNote(step, labelKind),
-    evidenceSnippet: label?.evidence_snippet ?? evidenceSnippetForStep(step),
+    note: label?.note ?? (manualOnly ? "" : defaultReviewNote(step, labelKind)),
+    evidenceSnippet: label?.evidence_snippet ?? (manualOnly ? "" : evidenceSnippetForStep(step)),
     evidenceStep,
     suggestedRuleTarget: rule?.target ?? "",
     suggestedRulePattern: rule?.pattern ?? "",

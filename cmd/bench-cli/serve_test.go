@@ -31,3 +31,13 @@ func TestResolveServeTenants_AllowsSeparateAuthenticatedTenant(t *testing.T) {
 		t.Fatalf("publicTenant = %q, want tenant-public", publicTenant)
 	}
 }
+
+func TestApplyServeEnvOptions_HumanReviewDraftMode(t *testing.T) {
+	t.Setenv("BENCH_REVIEW_DRAFT_MODE", "human")
+
+	opts := applyServeEnvOptions(serveOptions{})
+
+	if opts.ReviewDraftMode != "human" {
+		t.Fatalf("ReviewDraftMode = %q, want human", opts.ReviewDraftMode)
+	}
+}

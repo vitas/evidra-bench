@@ -8,6 +8,7 @@ import { formatCompactTokens, formatDuration } from "../../lib/benchFormatters.m
 import type { BenchRunRecord } from "../../lib/benchTypes.mts";
 import type { RunReview } from "../../lib/runReview.mts";
 import { normalizeRunReviewView } from "../../lib/runReview.mts";
+import { reviewDraftAvailable } from "../../lib/runReviewEditor.mts";
 import type { ScenarioPatchPreview, ScenarioPatchValidation } from "../../lib/scenarioPatchPreview.mts";
 import {
   scenarioPatchValidationApiPath,
@@ -475,11 +476,12 @@ export function RunDetail() {
 
   useEffect(() => {
     if (activeTab !== "review" || searchParams.get("draft") !== "1" || !id) return;
+    if (!run || !reviewDraftAvailable(run)) return;
     if (review || reviewLoading || reviewDrafting || reviewDraftSeed || reviewAutoDraftedRunID === id) return;
     if (reviewError !== "not-found") return;
     setReviewAutoDraftedRunID(id);
     void draftReview();
-  }, [activeTab, searchParams, id, review, reviewLoading, reviewDrafting, reviewDraftSeed, reviewAutoDraftedRunID, reviewError]);
+  }, [activeTab, searchParams, id, run, review, reviewLoading, reviewDrafting, reviewDraftSeed, reviewAutoDraftedRunID, reviewError]);
 
   if (loading) {
     return (
@@ -774,6 +776,8 @@ function ReviewTab({
   onRefreshScenarioPatchValidation: () => Promise<void>;
   onSave: (payload: RunReview) => Promise<void>;
 }) {
+  const canDraftReview = reviewDraftAvailable(run);
+
   if (loading) {
     return <p className="text-fg-muted text-[0.82rem] py-6">Loading human review...</p>;
   }
@@ -796,7 +800,8 @@ function ReviewTab({
           drafting={drafting}
           draftError={draftError}
           draftSeed={draftSeed}
-          onDraft={onDraft}
+          humanOnly={!canDraftReview}
+          onDraft={canDraftReview ? onDraft : undefined}
           onSave={onSave}
         />
       </div>
@@ -925,7 +930,8 @@ function ReviewTab({
         drafting={drafting}
         draftError={draftError}
         draftSeed={draftSeed}
-        onDraft={onDraft}
+        humanOnly={!canDraftReview}
+        onDraft={canDraftReview ? onDraft : undefined}
         onSave={onSave}
       />
     </div>

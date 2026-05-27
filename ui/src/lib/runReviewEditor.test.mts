@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { BenchRunRecord } from "./benchTypes.mts";
-import { buildRunReviewPayload, createRunReviewDraft } from "./runReviewEditor.mts";
+import { buildRunReviewPayload, createRunReviewDraft, reviewDraftAvailable } from "./runReviewEditor.mts";
 
 function run(partial: Partial<BenchRunRecord> = {}): BenchRunRecord {
   return {
@@ -32,6 +32,7 @@ function run(partial: Partial<BenchRunRecord> = {}): BenchRunRecord {
     metadata_json: partial.metadata_json ?? "",
     artifact_dir: partial.artifact_dir ?? "",
     created_at: partial.created_at ?? "2026-05-26T00:00:00Z",
+    review_draft_available: partial.review_draft_available,
     review_summary: partial.review_summary,
   };
 }
@@ -51,6 +52,25 @@ test("createRunReviewDraft defaults browser authoring from run and timeline evid
   assert.equal(draft.evidenceStep, "1");
   assert.equal(draft.evidenceSnippet, "kubectl delete pod/web");
   assert.equal(draft.note, "Step 2 is marked as unsafe_action for scenario review.");
+});
+
+test("createRunReviewDraft keeps human-only reviews manual by default", () => {
+  const draft = createRunReviewDraft(run({ passed: true, review_draft_available: false }), undefined, {
+    steps: [
+      { index: 0, phase: "diagnose", command: "kubectl get pods" },
+      { index: 1, phase: "act", command: "kubectl delete pod/web" },
+    ],
+  }, { humanOnly: true });
+
+  assert.equal(draft.evidenceStep, "");
+  assert.equal(draft.evidenceSnippet, "");
+  assert.equal(draft.note, "");
+  assert.equal(draft.reviewerDisplayName, "Browser Review");
+});
+
+test("reviewDraftAvailable treats missing capability as enabled for older APIs", () => {
+  assert.equal(reviewDraftAvailable(run()), true);
+  assert.equal(reviewDraftAvailable(run({ review_draft_available: false })), false);
 });
 
 test("buildRunReviewPayload creates run_review.v1 with reviewer, label, and suggested rule", () => {

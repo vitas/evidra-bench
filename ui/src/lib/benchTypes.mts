@@ -26,6 +26,7 @@ export interface BenchRunRecord {
   artifact_dir: string;
   created_at: string;
   review_summary?: BenchRunReviewSummary;
+  review_draft_available?: boolean;
 }
 
 export interface BenchRunReviewSummary {
@@ -96,7 +97,7 @@ export interface BenchReviewCandidate {
   artifact_coverage: BenchReviewCandidateArtifactCoverage;
   run_url: string;
   review_url: string;
-  draft_url: string;
+  draft_url?: string;
 }
 
 export interface BenchReviewCandidatesResponse {
