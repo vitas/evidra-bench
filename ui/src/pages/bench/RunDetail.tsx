@@ -9,7 +9,11 @@ import type { BenchRunRecord } from "../../lib/benchTypes.mts";
 import type { RunReview } from "../../lib/runReview.mts";
 import { normalizeRunReviewView } from "../../lib/runReview.mts";
 import type { ScenarioPatchPreview } from "../../lib/scenarioPatchPreview.mts";
-import { scenarioPatchPreviewStatus } from "../../lib/scenarioPatchPreview.mts";
+import {
+  scenarioPatchPreviewDiffFilename,
+  scenarioPatchPreviewDownloadContent,
+  scenarioPatchPreviewStatus,
+} from "../../lib/scenarioPatchPreview.mts";
 import { RunReviewEditor } from "./RunReviewEditor";
 
 interface Check {
@@ -829,12 +833,25 @@ function ScenarioPatchPreviewPanel({
   }
   if (!preview) return null;
 
+  const diffContent = scenarioPatchPreviewDownloadContent(preview);
+
   return (
     <div className="mt-3 rounded-md border border-border-subtle bg-bg-alt/50 p-3">
-      <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-[0.8rem] font-semibold text-fg">{scenarioPatchPreviewStatus(preview)}</span>
-        {preview.scenario_path && (
-          <span className="font-mono text-[0.72rem] text-fg-muted break-all">{preview.scenario_path}</span>
+      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <span className="block text-[0.8rem] font-semibold text-fg">{scenarioPatchPreviewStatus(preview)}</span>
+          {preview.scenario_path && (
+            <span className="block font-mono text-[0.72rem] text-fg-muted break-all">{preview.scenario_path}</span>
+          )}
+        </div>
+        {diffContent && (
+          <button
+            type="button"
+            onClick={() => downloadScenarioPatchDiff(preview)}
+            className="w-fit rounded-md border border-border bg-bg-alt px-3 py-1.5 text-[0.78rem] font-semibold text-fg transition-colors hover:border-accent"
+          >
+            Download diff
+          </button>
         )}
       </div>
       {preview.diff ? (
@@ -855,6 +872,21 @@ function ScenarioPatchPreviewPanel({
       )}
     </div>
   );
+}
+
+function downloadScenarioPatchDiff(preview: ScenarioPatchPreview) {
+  const diff = scenarioPatchPreviewDownloadContent(preview);
+  if (!diff) return;
+
+  const blob = new Blob([diff], { type: "text/x-diff;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = scenarioPatchPreviewDiffFilename(preview);
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 function TranscriptTab({

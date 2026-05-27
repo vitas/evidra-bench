@@ -45,6 +45,8 @@ public review text as publishable evidence.
 8. Save the review to replace the current `run_review.v1` artifact.
 9. If the saved review contains suggested rules, select `Preview scenario
    patch` to inspect the exact scenario YAML diff before changing the scenario.
+10. When the preview produces a diff, select `Download diff` to save a clean
+    unified diff for manual review or application outside the browser.
 
 Browser review writes use the existing `PUT /v1/bench/runs/{id}/review`
 backend API and require backend authentication. The browser does not embed
@@ -133,7 +135,9 @@ Pod names when the problem is direct Pod deletion.
 
 In the browser, save the review and then select `Preview scenario patch` from
 the saved review's suggested-rules section. Hosted preview uses the same patch
-builder as the CLI and returns a diff only; it never applies the patch.
+builder as the CLI and returns a diff only; it never applies the patch. When a
+preview contains changes, `Download diff` saves the raw unified diff without
+extra metadata headers.
 
 Preview a scenario patch from a saved local review:
 

@@ -34,3 +34,19 @@ export function scenarioPatchPreviewStatus(preview: ScenarioPatchPreview): strin
   }
   return "No scenario changes";
 }
+
+export function scenarioPatchPreviewDownloadContent(preview: ScenarioPatchPreview): string | null {
+  if (!preview.changed || !preview.diff) return null;
+  return preview.diff;
+}
+
+export function scenarioPatchPreviewDiffFilename(preview: ScenarioPatchPreview): string {
+  const scenario = slugPart(preview.scenario_id || preview.scenario_path || "scenario");
+  const run = slugPart(preview.run_id || "run");
+  return `evidra-scenario-patch-${scenario}-${run}.diff`;
+}
+
+function slugPart(value: string): string {
+  const slug = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return slug || "unknown";
+}
