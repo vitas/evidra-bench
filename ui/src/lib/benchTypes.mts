@@ -34,6 +34,8 @@ export interface BenchRunReviewSummary {
   visibility: string;
   label_count: number;
   max_severity?: string;
+  suggested_rule_count?: number;
+  primary_evidence_snippet?: string;
 }
 
 export interface BenchRunsResponse {

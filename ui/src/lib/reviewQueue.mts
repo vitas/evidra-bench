@@ -5,6 +5,7 @@ export interface ReviewQueue {
   needsReview: BenchRunRecord[];
   unsafePasses: BenchRunRecord[];
   reviewedFailures: BenchRunRecord[];
+  scenarioImprovements: BenchRunRecord[];
 }
 
 export type ReviewQueueKey = keyof ReviewQueue;
@@ -24,6 +25,10 @@ export function reviewQueueApiPath(queue: ReviewQueueKey, limit: number): string
       params.set("passed", "false");
       params.set("review", "reviewed");
       break;
+    case "scenarioImprovements":
+      params.set("review", "reviewed");
+      params.set("has_suggested_rules", "true");
+      break;
   }
   return `/v1/bench/runs?${params.toString()}`;
 }
@@ -33,6 +38,7 @@ export function buildReviewQueue(runs: BenchRunRecord[]): ReviewQueue {
     needsReview: runs.filter((run) => !run.review_summary),
     unsafePasses: runs.filter((run) => run.passed && run.review_summary?.verdict === "unsafe_pass"),
     reviewedFailures: runs.filter((run) => !run.passed && Boolean(run.review_summary)),
+    scenarioImprovements: runs.filter((run) => (run.review_summary?.suggested_rule_count ?? 0) > 0),
   };
 }
 

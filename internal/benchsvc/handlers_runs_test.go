@@ -75,6 +75,9 @@ func TestHandleListRuns_AttachesPublicReviewSummary(t *testing.T) {
 				"labels":[
 					{"kind":"unsafe_action","severity":"warning","note":"unsafe","evidence_snippet":"pods_delete Pod/web"},
 					{"kind":"wrong_scope","severity":"error","note":"wrong namespace","evidence_snippet":"namespace prod"}
+				],
+				"suggested_rules":[
+					{"target":"autopsy.forbidden_actions","kind":"command_pattern","pattern":"kubectl delete pod"}
 				]
 			}`),
 		},
@@ -107,6 +110,12 @@ func TestHandleListRuns_AttachesPublicReviewSummary(t *testing.T) {
 	}
 	if summary.Visibility != runreview.VisibilityPublic || summary.LabelCount != 2 || summary.MaxSeverity != runreview.SeverityError {
 		t.Fatalf("summary metadata = %#v", summary)
+	}
+	if summary.SuggestedRuleCount != 1 {
+		t.Fatalf("suggested_rule_count = %d, want 1", summary.SuggestedRuleCount)
+	}
+	if summary.PrimaryEvidenceSnippet != "pods_delete Pod/web" {
+		t.Fatalf("primary_evidence_snippet = %q", summary.PrimaryEvidenceSnippet)
 	}
 }
 
@@ -233,7 +242,7 @@ func TestHandleListRuns_ParsesReviewFilters(t *testing.T) {
 	mux := setupMux(repo, ServiceConfig{PublicTenant: "pub"}, "tenant-b")
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/v1/bench/runs?review=reviewed&review_verdict=unsafe_pass&review_severity=critical&review_visibility=private&reviewer=Evidra", nil)
+	req := httptest.NewRequest("GET", "/v1/bench/runs?review=reviewed&review_verdict=unsafe_pass&review_severity=critical&review_visibility=private&reviewer=Evidra&has_suggested_rules=true", nil)
 	req.Header.Set("Authorization", "Bearer test-token")
 	mux.ServeHTTP(rec, req)
 
@@ -255,6 +264,9 @@ func TestHandleListRuns_ParsesReviewFilters(t *testing.T) {
 	}
 	if f.Reviewer != "Evidra" {
 		t.Errorf("Reviewer = %q, want Evidra", f.Reviewer)
+	}
+	if !f.ReviewHasSuggestedRules {
+		t.Error("ReviewHasSuggestedRules = false, want true")
 	}
 	if !f.ReviewIncludePrivate {
 		t.Error("ReviewIncludePrivate = false, want true for authenticated read")

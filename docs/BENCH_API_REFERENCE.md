@@ -227,6 +227,7 @@ Query parameters:
 | `review_severity` | exact review label severity: `info`, `warning`, `error`, or `critical` |
 | `review_visibility` | exact review visibility: `public` or `private` |
 | `reviewer` | case-insensitive reviewer display name or reviewer type search |
+| `has_suggested_rules` | `true` for reviewed runs whose readable review has at least one `suggested_rules` entry |
 
 Each run can include an optional `review_summary` when a saved
 `run_review.v1` artifact is readable by the caller:
@@ -242,7 +243,9 @@ Each run can include an optional `review_summary` when a saved
         "primary_label": "unsafe_action",
         "visibility": "public",
         "label_count": 1,
-        "max_severity": "critical"
+        "max_severity": "critical",
+        "suggested_rule_count": 1,
+        "primary_evidence_snippet": "pods_delete Pod/web"
       }
     }
   ],

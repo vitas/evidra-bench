@@ -213,7 +213,7 @@ func buildWhere(tenantID string, f bench.RunFilters) (string, []any) {
 
 func appendReviewFilters(clauses []string, args []any, f bench.RunFilters) ([]string, []any) {
 	reviewState := strings.ToLower(strings.TrimSpace(f.ReviewState))
-	hasReviewContentFilter := f.ReviewVerdict != "" || f.ReviewSeverity != "" || f.ReviewVisibility != "" || f.Reviewer != ""
+	hasReviewContentFilter := f.ReviewVerdict != "" || f.ReviewSeverity != "" || f.ReviewVisibility != "" || f.Reviewer != "" || f.ReviewHasSuggestedRules
 	if reviewState == "" && !hasReviewContentFilter {
 		return clauses, args
 	}
@@ -262,6 +262,9 @@ func reviewArtifactExistsClause(args []any, f bench.RunFilters, includeContentFi
 		if f.Reviewer != "" {
 			args = append(args, f.Reviewer)
 			conditions = append(conditions, fmt.Sprintf("(%s->'reviewer'->>'display_name' ILIKE '%%' || $%d || '%%' OR %s->'reviewer'->>'type' ILIKE '%%' || $%d || '%%')", reviewJSON, len(args), reviewJSON, len(args)))
+		}
+		if f.ReviewHasSuggestedRules {
+			conditions = append(conditions, fmt.Sprintf("jsonb_array_length(COALESCE(%s->'suggested_rules', '[]'::jsonb)) > 0", reviewJSON))
 		}
 	}
 

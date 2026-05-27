@@ -67,6 +67,11 @@ Useful queue filters:
 - `GET /v1/bench/runs?review=unreviewed`
 - `GET /v1/bench/runs?passed=true&review_verdict=unsafe_pass`
 - `GET /v1/bench/runs?passed=false&review=reviewed`
+- `GET /v1/bench/runs?review=reviewed&has_suggested_rules=true`
+
+The browser `Scenario Improvements` queue uses the suggested-rules filter. It
+shows saved reviews that can produce scenario patch previews and links directly
+to the run review tab.
 
 ## TUI Workflow
 

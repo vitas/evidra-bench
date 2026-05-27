@@ -369,6 +369,16 @@ func TestBuildWhere_TenantAlwaysFirst(t *testing.T) {
 			wantArgs: 3,
 			wantSQL:  "ILIKE '%' || $3 || '%'",
 		},
+		{
+			name:   "suggested rules filter requires non-empty review suggestions",
+			tenant: "t10",
+			filters: bench.RunFilters{
+				ReviewHasSuggestedRules: true,
+				ReviewIncludePrivate:    true,
+			},
+			wantArgs: 2,
+			wantSQL:  "jsonb_array_length(COALESCE",
+		},
 	}
 
 	for _, tt := range tests {

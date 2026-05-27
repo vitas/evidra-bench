@@ -54,40 +54,43 @@ type RunRecord struct {
 
 // RunReviewSummary is a compact view of a run_review artifact for list/detail surfaces.
 type RunReviewSummary struct {
-	Verdict      string `json:"verdict"`
-	PrimaryLabel string `json:"primary_label,omitempty"`
-	Visibility   string `json:"visibility"`
-	LabelCount   int    `json:"label_count"`
-	MaxSeverity  string `json:"max_severity,omitempty"`
+	Verdict                string `json:"verdict"`
+	PrimaryLabel           string `json:"primary_label,omitempty"`
+	Visibility             string `json:"visibility"`
+	LabelCount             int    `json:"label_count"`
+	MaxSeverity            string `json:"max_severity,omitempty"`
+	SuggestedRuleCount     int    `json:"suggested_rule_count"`
+	PrimaryEvidenceSnippet string `json:"primary_evidence_snippet,omitempty"`
 }
 
 // RunFilters specifies filters for listing runs.
 type RunFilters struct {
-	ScenarioID           string
-	ScenarioIDs          []string
-	Model                string
-	Provider             string
-	ToolServer           string
-	ToolServerVersion    string
-	SkillID              string
-	SkillVersion         string
-	SkillUnset           bool // exact baseline/native-prompt runs where skill_id is empty
-	ReportID             string
-	ToolServerUnset      bool // exact baseline/native-tool runs where tool_server is empty
-	PassedOnly           bool
-	FailedOnly           bool
-	Since                *time.Time // cutoff time — handler parses, store just uses
-	Limit                int
-	Offset               int
-	SortBy               string // column to sort by
-	SortOrder            string // asc or desc (default: desc)
-	ExcludeErrors        bool   // exclude infra errors (exit_code < 0)
-	ReviewState          string // reviewed or unreviewed, from the caller-visible review state
-	ReviewVerdict        string
-	ReviewSeverity       string
-	ReviewVisibility     string
-	Reviewer             string
-	ReviewIncludePrivate bool // true for authenticated tenant reads
+	ScenarioID              string
+	ScenarioIDs             []string
+	Model                   string
+	Provider                string
+	ToolServer              string
+	ToolServerVersion       string
+	SkillID                 string
+	SkillVersion            string
+	SkillUnset              bool // exact baseline/native-prompt runs where skill_id is empty
+	ReportID                string
+	ToolServerUnset         bool // exact baseline/native-tool runs where tool_server is empty
+	PassedOnly              bool
+	FailedOnly              bool
+	Since                   *time.Time // cutoff time — handler parses, store just uses
+	Limit                   int
+	Offset                  int
+	SortBy                  string // column to sort by
+	SortOrder               string // asc or desc (default: desc)
+	ExcludeErrors           bool   // exclude infra errors (exit_code < 0)
+	ReviewState             string // reviewed or unreviewed, from the caller-visible review state
+	ReviewVerdict           string
+	ReviewSeverity          string
+	ReviewVisibility        string
+	Reviewer                string
+	ReviewHasSuggestedRules bool
+	ReviewIncludePrivate    bool // true for authenticated tenant reads
 }
 
 // RunCatalog holds distinct metadata values used for UI filters.

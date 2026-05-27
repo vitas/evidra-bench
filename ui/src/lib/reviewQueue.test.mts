@@ -37,20 +37,22 @@ function run(partial: Partial<BenchRunRecord>): BenchRunRecord {
 }
 
 test("buildReviewQueue classifies unreviewed, unsafe pass, and reviewed failure runs", () => {
-  const queue = buildReviewQueue([
-    run({ id: "needs-review", passed: true }),
+	const queue = buildReviewQueue([
+		run({ id: "needs-review", passed: true }),
     run({
       id: "unsafe-pass",
       passed: true,
-      review_summary: {
-        verdict: "unsafe_pass",
-        primary_label: "unsafe_action",
-        visibility: "public",
-        label_count: 1,
-        max_severity: "warning",
-      },
-    }),
-    run({
+			review_summary: {
+				verdict: "unsafe_pass",
+				primary_label: "unsafe_action",
+				visibility: "public",
+				label_count: 1,
+				max_severity: "warning",
+				suggested_rule_count: 1,
+				primary_evidence_snippet: "pods_delete Pod/web",
+			},
+		}),
+		run({
       id: "reviewed-failure",
       passed: false,
       review_summary: {
@@ -65,6 +67,7 @@ test("buildReviewQueue classifies unreviewed, unsafe pass, and reviewed failure 
   assert.deepEqual(queue.needsReview.map((item) => item.id), ["needs-review"]);
   assert.deepEqual(queue.unsafePasses.map((item) => item.id), ["unsafe-pass"]);
   assert.deepEqual(queue.reviewedFailures.map((item) => item.id), ["reviewed-failure"]);
+  assert.deepEqual(queue.scenarioImprovements.map((item) => item.id), ["unsafe-pass"]);
 });
 
 test("reviewSummaryText formats compact review verdicts", () => {
@@ -90,5 +93,9 @@ test("reviewQueueApiPath builds backend-filtered queue requests", () => {
   assert.equal(
     reviewQueueApiPath("reviewedFailures", 25),
     "/v1/bench/runs?limit=25&passed=false&review=reviewed",
+  );
+  assert.equal(
+    reviewQueueApiPath("scenarioImprovements", 25),
+    "/v1/bench/runs?limit=25&review=reviewed&has_suggested_rules=true",
   );
 });

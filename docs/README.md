@@ -39,8 +39,8 @@ Obsidian map of content and the GitHub documentation index.
 - [Lab TUI Guide](LAB_TUI_GUIDE.md) - terminal UI usage.
 - [Private Report Pack](PRIVATE_REPORT_PACK.md) - baseline versus MCP
   tool-server report workflow.
-- [Human Review](guides/human-review.md) - review queue triage, public review
-  visibility, and review artifacts.
+- [Human Review](guides/human-review.md) - review queues, scenario improvement
+  handoff, public review visibility, and review artifacts.
 - [Reproducibility](REPRODUCIBILITY.md) - what public and private reports
   should record.
 

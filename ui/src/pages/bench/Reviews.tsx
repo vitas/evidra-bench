@@ -13,6 +13,7 @@ interface ReviewQueueState {
   needsReview: BenchRunsResponse;
   unsafePasses: BenchRunsResponse;
   reviewedFailures: BenchRunsResponse;
+  scenarioImprovements: BenchRunsResponse;
 }
 
 export function Reviews() {
@@ -31,13 +32,15 @@ export function Reviews() {
       request<BenchRunsResponse>(reviewQueueApiPath("needsReview", QUEUE_LIMIT)),
       request<BenchRunsResponse>(reviewQueueApiPath("unsafePasses", QUEUE_LIMIT)),
       request<BenchRunsResponse>(reviewQueueApiPath("reviewedFailures", QUEUE_LIMIT)),
+      request<BenchRunsResponse>(reviewQueueApiPath("scenarioImprovements", QUEUE_LIMIT)),
     ])
-      .then(([needsReview, unsafePasses, reviewedFailures]) => {
+      .then(([needsReview, unsafePasses, reviewedFailures, scenarioImprovements]) => {
         if (!cancelled) {
           setQueue({
             needsReview: normalizeRunsResponse(needsReview),
             unsafePasses: normalizeRunsResponse(unsafePasses),
             reviewedFailures: normalizeRunsResponse(reviewedFailures),
+            scenarioImprovements: normalizeRunsResponse(scenarioImprovements),
           });
         }
       })
@@ -74,6 +77,14 @@ export function Reviews() {
       ) : (
         <div className="space-y-5">
           <QueueSection
+            title="Scenario Improvements"
+            description="Reviewed runs with suggested scenario rules ready for patch preview."
+            response={queue.scenarioImprovements}
+            navigate={navigate}
+            openReviewTab
+            showImprovementDetails
+          />
+          <QueueSection
             title="Needs Review"
             description="Runs without a caller-visible human review."
             response={queue.needsReview}
@@ -102,11 +113,15 @@ function QueueSection({
   description,
   response,
   navigate,
+  openReviewTab,
+  showImprovementDetails,
 }: {
   title: string;
   description: string;
   response: BenchRunsResponse;
   navigate: (path: string) => void;
+  openReviewTab?: boolean;
+  showImprovementDetails?: boolean;
 }) {
   const runs = response.runs ?? [];
   const total = response.total ?? runs.length;
@@ -138,7 +153,7 @@ function QueueSection({
               {runs.map((run) => (
                 <tr
                   key={run.id}
-                  onClick={() => navigate(benchRunPath(run.id))}
+                  onClick={() => navigate(openReviewTab ? `${benchRunPath(run.id)}?tab=review` : benchRunPath(run.id))}
                   className="border-b border-border-subtle cursor-pointer hover:bg-accent-subtle transition-colors"
                 >
                   <td className="px-3 py-2.5 font-mono text-[0.76rem] text-fg-body max-w-[18rem] truncate">
@@ -149,7 +164,7 @@ function QueueSection({
                     <RunStatus passed={run.passed} />
                   </td>
                   <td className="px-3 py-2.5">
-                    <ReviewChip summary={run.review_summary} />
+                    <ReviewCell summary={run.review_summary} showImprovementDetails={showImprovementDetails} />
                   </td>
                   <td className="px-3 py-2.5 font-mono text-[0.76rem] text-fg-muted whitespace-nowrap">
                     {formatDateTime(run.created_at)}
@@ -174,6 +189,7 @@ function emptyReviewQueueState(): ReviewQueueState {
     needsReview: emptyRunsResponse(),
     unsafePasses: emptyRunsResponse(),
     reviewedFailures: emptyRunsResponse(),
+    scenarioImprovements: emptyRunsResponse(),
   };
 }
 
@@ -201,6 +217,34 @@ function RunStatus({ passed }: { passed: boolean }) {
     <span className="bg-[var(--color-danger-badge-bg)] text-[var(--color-danger-badge-fg)] font-mono text-[0.72rem] font-semibold px-2 py-0.5 rounded">
       FAIL
     </span>
+  );
+}
+
+function ReviewCell({
+  summary,
+  showImprovementDetails,
+}: {
+  summary?: BenchRunReviewSummary;
+  showImprovementDetails?: boolean;
+}) {
+  return (
+    <div className="max-w-[22rem]">
+      <ReviewChip summary={summary} />
+      {showImprovementDetails && summary && (
+        <div className="mt-1 space-y-1">
+          {(summary.suggested_rule_count ?? 0) > 0 && (
+            <div className="font-mono text-[0.68rem] text-fg-muted">
+              {summary.suggested_rule_count} suggested {summary.suggested_rule_count === 1 ? "rule" : "rules"}
+            </div>
+          )}
+          {summary.primary_evidence_snippet && (
+            <div className="font-mono text-[0.7rem] text-fg-muted truncate">
+              {summary.primary_evidence_snippet}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
