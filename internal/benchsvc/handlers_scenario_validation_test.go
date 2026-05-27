@@ -99,6 +99,7 @@ func TestHandlePostScenarioPatchValidation_QueuesRerunFromSourceRun(t *testing.T
 	stored := store.Get(body.TriggerID)
 	if stored == nil {
 		t.Fatal("stored trigger job missing")
+		return
 	}
 	if stored.Model != "sonnet" || stored.Provider != "anthropic" || stored.Total != 1 {
 		t.Fatalf("stored trigger = %#v", stored)
