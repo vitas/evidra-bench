@@ -16,13 +16,21 @@ export interface ScenarioPatchPreview {
 export interface ScenarioPatchValidation {
   version?: string;
   source_run_id: string;
+  source_run_url?: string;
   scenario_id: string;
   model: string;
   provider?: string;
   trigger_id: string;
   trigger_url: string;
+  validation_url?: string;
   status: string;
   mode?: string;
+  current_scenario?: string;
+  total?: number;
+  completed?: number;
+  passed?: number;
+  failed?: number;
+  validation_run_ids?: string[];
   patch_preview_url: string;
   patch_diff_url: string;
 }
@@ -85,6 +93,27 @@ export function scenarioPatchValidationStatus(validation: ScenarioPatchValidatio
     return `Validation rerun failed for ${scenario}`;
   }
   return `Validation rerun queued for ${scenario}`;
+}
+
+export function scenarioPatchValidationProgress(validation: ScenarioPatchValidation): string | null {
+  const total = validation.total ?? 0;
+  if (total <= 0) return null;
+  const completed = validation.completed ?? 0;
+  const passed = validation.passed ?? 0;
+  const failed = validation.failed ?? 0;
+  return `${completed}/${total} complete; ${passed} passed, ${failed} failed`;
+}
+
+export function scenarioPatchValidationRunIDs(validation: ScenarioPatchValidation): string[] {
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const id of validation.validation_run_ids ?? []) {
+    const trimmed = id.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    ids.push(trimmed);
+  }
+  return ids;
 }
 
 function slugPart(value: string): string {

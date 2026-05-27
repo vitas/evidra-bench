@@ -146,6 +146,14 @@ curl -X POST "$BENCH_API_URL/v1/bench/runs/$RUN_ID/scenario-patch-validation" \
   -H "Authorization: Bearer $BENCH_API_KEY"
 ```
 
+Read the durable validation record, including trigger status and validation
+run IDs when available:
+
+```bash
+curl "$BENCH_API_URL/v1/bench/runs/$RUN_ID/scenario-patch-validation" \
+  -H "Authorization: Bearer $BENCH_API_KEY"
+```
+
 Read a public review:
 
 ```bash
@@ -177,8 +185,9 @@ never applies the patch. When a preview contains changes, `Download diff` uses
 the backend `scenario-patch.diff` URL so the downloaded diff is the same durable
 artifact clients can fetch from the API.
 After applying the diff to the scenario catalog, `Validate rerun` queues the
-same scenario/model/tool-server slice through the trigger API so the new run can
-be compared against the reviewed source run.
+same scenario/model/tool-server slice through the trigger API and stores a
+`scenario_patch_validation.v1` record on the source run so the new run can be
+compared against the reviewed source run.
 
 Preview a scenario patch from a saved local review:
 

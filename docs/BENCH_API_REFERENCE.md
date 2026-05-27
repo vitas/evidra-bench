@@ -485,6 +485,46 @@ Anonymous reads only return diffs derived from public reviews. Authenticated
 reads can return diffs derived from tenant-private reviews. Missing previews,
 no-op previews, and previews the caller cannot read return `404 Not Found`.
 
+### GET /v1/bench/runs/{id}/scenario-patch-validation
+
+Returns the stored `scenario_patch_validation.v1` artifact for a source run.
+The artifact exists after `POST
+/v1/bench/runs/{id}/scenario-patch-validation` has queued a validation rerun.
+
+If the in-process trigger store still has the job, the response is enriched
+with current trigger status, counters, and validation run IDs, then stored back
+to the source run artifact. This makes the close-loop proof durable even after
+the browser refreshes.
+
+Anonymous reads only return validation records derived from public reviews.
+Authenticated reads can return validation records derived from tenant-private
+reviews. Missing validation records and records the caller cannot read return
+`404 Not Found`.
+
+Example after the validation run reports progress:
+
+```json
+{
+  "version": "scenario_patch_validation.v1",
+  "source_run_id": "run-123",
+  "source_run_url": "/v1/bench/runs/run-123",
+  "scenario_id": "shared-configmap-trap",
+  "model": "sonnet",
+  "provider": "anthropic",
+  "trigger_id": "01K...",
+  "trigger_url": "/v1/bench/trigger/01K...",
+  "validation_url": "/v1/bench/runs/run-123/scenario-patch-validation",
+  "status": "completed",
+  "total": 1,
+  "completed": 1,
+  "passed": 1,
+  "failed": 0,
+  "validation_run_ids": ["validation-run-456"],
+  "patch_preview_url": "/v1/bench/runs/run-123/scenario-patch-preview",
+  "patch_diff_url": "/v1/bench/runs/run-123/scenario-patch.diff"
+}
+```
+
 ### POST /v1/bench/runs/{id}/scenario-patch-preview
 
 Builds a scenario YAML diff from the saved `run_review.v1` suggested rules.
@@ -532,6 +572,10 @@ from `POST /v1/bench/session`. The endpoint does not apply the diff and does
 not mutate `scenario.yaml`; it only queues the validation rerun through the
 existing trigger runner/direct-executor path.
 
+The accepted response is stored on the source run as artifact type
+`scenario_patch_validation`, so clients can later read the same close-loop
+record with `GET /v1/bench/runs/{id}/scenario-patch-validation`.
+
 Optional request fields can provide runtime-only values not stored on the
 source run, such as `runner_id`, `execution_mode`, `mcp_server`, or
 `skill_file`. Stored identity fields such as `tool_server`,
@@ -552,13 +596,19 @@ Response:
 {
   "version": "scenario_patch_validation.v1",
   "source_run_id": "run-123",
+  "source_run_url": "/v1/bench/runs/run-123",
   "scenario_id": "shared-configmap-trap",
   "model": "sonnet",
   "provider": "anthropic",
   "trigger_id": "01K...",
   "trigger_url": "/v1/bench/trigger/01K...",
+  "validation_url": "/v1/bench/runs/run-123/scenario-patch-validation",
   "status": "pending",
   "mode": "runner",
+  "total": 1,
+  "completed": 0,
+  "passed": 0,
+  "failed": 0,
   "patch_preview_url": "/v1/bench/runs/run-123/scenario-patch-preview",
   "patch_diff_url": "/v1/bench/runs/run-123/scenario-patch.diff"
 }
@@ -572,8 +622,7 @@ Errors:
 | `404` | source run or stored patch preview is missing |
 | `501` | no eligible runner and no direct executor configured |
 
-Missing runs or reviews return `404 Not Found`. Deployments without a local
-scenario catalog return `503 Service Unavailable`.
+Missing source runs or changed patch previews return `404 Not Found`.
 
 ### PUT /v1/bench/runs/{id}/review
 

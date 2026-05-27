@@ -1,5 +1,5 @@
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router";
 import { useBenchApi as useApi } from "../../hooks/useBenchApi";
 import type { AutopsyReport } from "../../lib/autopsyView.mts";
@@ -11,11 +11,14 @@ import { normalizeRunReviewView } from "../../lib/runReview.mts";
 import type { ScenarioPatchPreview, ScenarioPatchValidation } from "../../lib/scenarioPatchPreview.mts";
 import {
   scenarioPatchValidationApiPath,
+  scenarioPatchValidationProgress,
+  scenarioPatchValidationRunIDs,
   scenarioPatchValidationStatus,
   scenarioPatchPreviewDiffFilename,
   scenarioPatchPreviewDownloadHref,
   scenarioPatchPreviewStatus,
 } from "../../lib/scenarioPatchPreview.mts";
+import { benchRunPath } from "../../lib/routes.mts";
 import { RunReviewEditor } from "./RunReviewEditor";
 
 interface Check {
@@ -95,6 +98,18 @@ function truncate(s: string, max: number): string {
   return s.slice(0, max) + "\u2026";
 }
 
+async function responseMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const body = await res.clone().json();
+    if (body && typeof body === "object") {
+      const errorBody = body as { error?: unknown; message?: unknown };
+      const message = errorBody.error ?? errorBody.message;
+      if (typeof message === "string" && message.trim() !== "") return message;
+    }
+  } catch {}
+  return res.statusText || fallback;
+}
+
 function highlightTranscript(text: string): (React.ReactElement | string)[] {
   const parts = text.split(/(\[(?:user|assistant|tool)\])/g);
   return parts.map((part, i) => {
@@ -170,6 +185,7 @@ export function RunDetail() {
   const [scenarioPatchValidation, setScenarioPatchValidation] = useState<ScenarioPatchValidation | null>(null);
   const [scenarioPatchValidationLoading, setScenarioPatchValidationLoading] = useState(false);
   const [scenarioPatchValidationError, setScenarioPatchValidationError] = useState<string | null>(null);
+  const [scenarioPatchValidationLoaded, setScenarioPatchValidationLoaded] = useState(false);
 
   useEffect(() => {
     setActiveTab(parseTab(searchParams.get("tab")));
@@ -181,6 +197,7 @@ export function RunDetail() {
     setScenarioPatchValidation(null);
     setScenarioPatchValidationLoading(false);
     setScenarioPatchValidationError(null);
+    setScenarioPatchValidationLoaded(false);
     setReviewDraftSeed(null);
     setReviewAutoDraftedRunID(null);
   }, [id]);
@@ -206,6 +223,7 @@ export function RunDetail() {
     setScenarioPatchValidation(null);
     setScenarioPatchValidationLoading(false);
     setScenarioPatchValidationError(null);
+    setScenarioPatchValidationLoaded(false);
     setReviewSaved(false);
     try {
       const saved = await request<RunReview>(`/v1/bench/runs/${id}/review`, {
@@ -239,6 +257,7 @@ export function RunDetail() {
     setScenarioPatchValidation(null);
     setScenarioPatchValidationLoading(false);
     setScenarioPatchValidationError(null);
+    setScenarioPatchValidationLoaded(false);
     setReviewSaved(false);
     try {
       const draft = await request<RunReview>(`/v1/bench/review-candidates/${id}/draft`, {
@@ -261,6 +280,7 @@ export function RunDetail() {
     setScenarioPatchValidation(null);
     setScenarioPatchValidationLoading(false);
     setScenarioPatchValidationError(null);
+    setScenarioPatchValidationLoaded(false);
     try {
       const preview = await request<ScenarioPatchPreview>(`/v1/bench/runs/${id}/scenario-patch-preview`, {
         method: "POST",
@@ -273,6 +293,31 @@ export function RunDetail() {
     }
   }
 
+  const loadScenarioPatchValidation = useCallback(async (options: { silentNotFound?: boolean } = {}) => {
+    if (!id) return;
+    setScenarioPatchValidationLoading(true);
+    setScenarioPatchValidationError(null);
+    try {
+      const res = await fetchResponse(scenarioPatchValidationApiPath(id));
+      if (res.status === 404 && options.silentNotFound) {
+        setScenarioPatchValidation(null);
+        setScenarioPatchValidationLoaded(true);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(await responseMessage(res, "Failed to load validation status"));
+      }
+      const validation = (await res.json()) as ScenarioPatchValidation;
+      setScenarioPatchValidation(validation);
+      setScenarioPatchValidationLoaded(true);
+    } catch (err) {
+      setScenarioPatchValidationError(err instanceof Error ? err.message : "Failed to load validation status");
+      setScenarioPatchValidationLoaded(true);
+    } finally {
+      setScenarioPatchValidationLoading(false);
+    }
+  }, [fetchResponse, id]);
+
   async function validateScenarioPatch() {
     if (!id) return;
     setScenarioPatchValidationLoading(true);
@@ -282,12 +327,18 @@ export function RunDetail() {
         method: "POST",
       });
       setScenarioPatchValidation(validation);
+      setScenarioPatchValidationLoaded(true);
     } catch (err) {
       setScenarioPatchValidationError(err instanceof Error ? err.message : "Failed to queue validation rerun");
     } finally {
       setScenarioPatchValidationLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (activeTab !== "review" || !id || scenarioPatchValidationLoaded || scenarioPatchValidationLoading) return;
+    void loadScenarioPatchValidation({ silentNotFound: true });
+  }, [activeTab, id, loadScenarioPatchValidation, scenarioPatchValidationLoaded, scenarioPatchValidationLoading]);
 
   // Fetch run record
   useEffect(() => {
@@ -541,6 +592,7 @@ export function RunDetail() {
           onDraft={draftReview}
           onPreviewScenarioPatch={previewScenarioPatch}
           onValidateScenarioPatch={validateScenarioPatch}
+          onRefreshScenarioPatchValidation={loadScenarioPatchValidation}
           onSave={saveReview}
         />
       )}
@@ -696,6 +748,7 @@ function ReviewTab({
   onDraft,
   onPreviewScenarioPatch,
   onValidateScenarioPatch,
+  onRefreshScenarioPatchValidation,
   onSave,
 }: {
   run: BenchRunRecord;
@@ -718,6 +771,7 @@ function ReviewTab({
   onDraft: () => Promise<RunReview>;
   onPreviewScenarioPatch: () => Promise<void>;
   onValidateScenarioPatch: () => Promise<void>;
+  onRefreshScenarioPatchValidation: () => Promise<void>;
   onSave: (payload: RunReview) => Promise<void>;
 }) {
   if (loading) {
@@ -857,6 +911,7 @@ function ReviewTab({
           validationLoading={scenarioPatchValidationLoading}
           validationError={scenarioPatchValidationError}
           onValidate={onValidateScenarioPatch}
+          onRefreshValidation={onRefreshScenarioPatchValidation}
         />
       </div>
 
@@ -885,6 +940,7 @@ function ScenarioPatchPreviewPanel({
   validationLoading,
   validationError,
   onValidate,
+  onRefreshValidation,
 }: {
   preview: ScenarioPatchPreview | null;
   loading: boolean;
@@ -893,6 +949,7 @@ function ScenarioPatchPreviewPanel({
   validationLoading: boolean;
   validationError: string | null;
   onValidate: () => Promise<void>;
+  onRefreshValidation: () => Promise<void>;
 }) {
   if (loading) {
     return (
@@ -908,7 +965,55 @@ function ScenarioPatchPreviewPanel({
       </div>
     );
   }
-  if (!preview) return null;
+
+  const validationProgress = validation ? scenarioPatchValidationProgress(validation) : null;
+  const validationRunIDs = validation ? scenarioPatchValidationRunIDs(validation) : [];
+  const validationPanel = validation ? (
+    <div className="mb-2 rounded border border-border-subtle bg-bg-elevated px-3 py-2 text-[0.76rem] text-fg-muted">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <span className="block text-fg-body">{scenarioPatchValidationStatus(validation)}</span>
+          {validationProgress && <span className="block">{validationProgress}</span>}
+          <span className="block font-mono break-all">{validation.trigger_url}</span>
+        </div>
+        <button
+          type="button"
+          onClick={onRefreshValidation}
+          disabled={validationLoading}
+          className="w-fit rounded-md border border-border bg-bg-alt px-2.5 py-1 text-[0.72rem] font-semibold text-fg transition-colors hover:border-accent disabled:cursor-default disabled:opacity-50"
+        >
+          {validationLoading ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+      {validationRunIDs.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {validationRunIDs.map((runID) => (
+            <Link
+              key={runID}
+              to={benchRunPath(runID)}
+              className="rounded border border-border-subtle bg-bg-alt px-2 py-0.5 font-mono text-[0.7rem] text-fg-muted hover:text-accent"
+            >
+              {runID}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  ) : null;
+
+  if (!preview) {
+    if (!validationPanel && !validationError) return null;
+    return (
+      <div className="mt-3 rounded-md border border-border-subtle bg-bg-alt/50 p-3">
+        {validationPanel}
+        {validationError && (
+          <div className="rounded bg-[var(--color-danger-badge-bg)] px-3 py-2 text-[0.76rem] text-[var(--color-danger-badge-fg)]">
+            {validationError}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const diffHref = scenarioPatchPreviewDownloadHref(preview, API_BASE);
 
@@ -941,12 +1046,7 @@ function ScenarioPatchPreviewPanel({
           </div>
         )}
       </div>
-      {validation && (
-        <div className="mb-2 rounded border border-border-subtle bg-bg-elevated px-3 py-2 text-[0.76rem] text-fg-muted">
-          <span className="block text-fg-body">{scenarioPatchValidationStatus(validation)}</span>
-          <span className="block font-mono break-all">{validation.trigger_url}</span>
-        </div>
-      )}
+      {validationPanel}
       {validationError && (
         <div className="mb-2 rounded bg-[var(--color-danger-badge-bg)] px-3 py-2 text-[0.76rem] text-[var(--color-danger-badge-fg)]">
           {validationError}

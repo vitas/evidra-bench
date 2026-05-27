@@ -125,5 +125,7 @@ the rule.
 After the diff is applied, `POST
 /v1/bench/runs/{id}/scenario-patch-validation` queues a validation rerun for the
 same scenario and source-run execution identity. The validation request does not
-store a new review state; it creates a normal trigger job whose resulting run
-artifacts can be reviewed and compared like any other run.
+store a new review state; it stores a `scenario_patch_validation.v1` artifact
+on the source run and creates a normal trigger job whose resulting run artifacts
+can be reviewed and compared like any other run. Clients can read the validation
+record with `GET /v1/bench/runs/{id}/scenario-patch-validation`.

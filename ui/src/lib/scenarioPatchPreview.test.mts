@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   scenarioPatchValidationApiPath,
+  scenarioPatchValidationProgress,
+  scenarioPatchValidationRunIDs,
   scenarioPatchValidationStatus,
   scenarioPatchPreviewDiffFilename,
   scenarioPatchPreviewDownloadHref,
@@ -99,12 +101,19 @@ test("scenarioPatchValidation helpers target the backend validation endpoint", (
   const validation: ScenarioPatchValidation = {
     version: "scenario_patch_validation.v1",
     source_run_id: "run-123",
+    source_run_url: "/v1/bench/runs/run-123",
     scenario_id: "shared-configmap-trap",
     model: "sonnet",
     provider: "anthropic",
     trigger_id: "job-1",
     trigger_url: "/v1/bench/trigger/job-1",
+    validation_url: "/v1/bench/runs/run-123/scenario-patch-validation",
     status: "pending",
+    total: 1,
+    completed: 0,
+    passed: 0,
+    failed: 0,
+    validation_run_ids: ["validation-run", "validation-run", " "],
     patch_preview_url: "/v1/bench/runs/run-123/scenario-patch-preview",
     patch_diff_url: "/v1/bench/runs/run-123/scenario-patch.diff",
   };
@@ -114,4 +123,6 @@ test("scenarioPatchValidation helpers target the backend validation endpoint", (
     "/v1/bench/runs/run%2F123/scenario-patch-validation",
   );
   assert.equal(scenarioPatchValidationStatus(validation), "Validation rerun queued for shared-configmap-trap");
+  assert.equal(scenarioPatchValidationProgress(validation), "0/1 complete; 0 passed, 0 failed");
+  assert.deepEqual(scenarioPatchValidationRunIDs(validation), ["validation-run"]);
 });

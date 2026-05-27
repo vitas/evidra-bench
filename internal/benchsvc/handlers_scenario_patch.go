@@ -186,10 +186,14 @@ func getStoredScenarioPatchPreview(r *http.Request, svc *Service, tenantID, id s
 }
 
 func authorizeScenarioPatchRead(w http.ResponseWriter, r *http.Request, svc *Service, tenantID, id string) bool {
+	return authorizeScenarioPatchArtifactRead(w, r, svc, tenantID, id, "scenario patch preview not found")
+}
+
+func authorizeScenarioPatchArtifactRead(w http.ResponseWriter, r *http.Request, svc *Service, tenantID, id, notFoundMessage string) bool {
 	reviewData, _, err := svc.GetArtifact(r.Context(), tenantID, id, artifact.HostedRunReview)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			apiutil.WriteError(w, http.StatusNotFound, "scenario patch preview not found")
+			apiutil.WriteError(w, http.StatusNotFound, notFoundMessage)
 			return false
 		}
 		apiutil.WriteError(w, http.StatusInternalServerError, err.Error())
@@ -201,7 +205,7 @@ func authorizeScenarioPatchRead(w http.ResponseWriter, r *http.Request, svc *Ser
 		return false
 	}
 	if isAnonymousRead(r) && !runreview.IsPublic(review) {
-		apiutil.WriteError(w, http.StatusNotFound, "scenario patch preview not found")
+		apiutil.WriteError(w, http.StatusNotFound, notFoundMessage)
 		return false
 	}
 	return true
