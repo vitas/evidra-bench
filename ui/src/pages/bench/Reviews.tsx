@@ -5,6 +5,8 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { formatDateTime } from "../../lib/benchFormatters.mts";
 import type {
   BenchRunsResponse,
+  BenchReviewCandidate,
+  BenchReviewCandidatesResponse,
   BenchRunReviewSummary,
   BenchScenarioImprovement,
   BenchScenarioImprovementsResponse,
@@ -15,7 +17,7 @@ import { benchRunPath, BENCH_REVIEWS_PATH } from "../../lib/routes.mts";
 const QUEUE_LIMIT = 25;
 
 interface ReviewQueueState {
-  needsReview: BenchRunsResponse;
+  needsReview: BenchReviewCandidatesResponse;
   unsafePasses: BenchRunsResponse;
   reviewedFailures: BenchRunsResponse;
   scenarioImprovements: BenchScenarioImprovementsResponse;
@@ -34,7 +36,7 @@ export function Reviews() {
     setLoading(true);
     setError(null);
     Promise.all([
-      request<BenchRunsResponse>(reviewQueueApiPath("needsReview", QUEUE_LIMIT)),
+      request<BenchReviewCandidatesResponse>(reviewQueueApiPath("needsReview", QUEUE_LIMIT)),
       request<BenchRunsResponse>(reviewQueueApiPath("unsafePasses", QUEUE_LIMIT)),
       request<BenchRunsResponse>(reviewQueueApiPath("reviewedFailures", QUEUE_LIMIT)),
       request<BenchScenarioImprovementsResponse>(reviewQueueApiPath("scenarioImprovements", QUEUE_LIMIT)),
@@ -42,7 +44,7 @@ export function Reviews() {
       .then(([needsReview, unsafePasses, reviewedFailures, scenarioImprovements]) => {
         if (!cancelled) {
           setQueue({
-            needsReview: normalizeRunsResponse(needsReview),
+            needsReview: normalizeReviewCandidatesResponse(needsReview),
             unsafePasses: normalizeRunsResponse(unsafePasses),
             reviewedFailures: normalizeRunsResponse(reviewedFailures),
             scenarioImprovements: normalizeScenarioImprovementsResponse(scenarioImprovements),
@@ -87,9 +89,9 @@ export function Reviews() {
             response={queue.scenarioImprovements}
             navigate={navigate}
           />
-          <QueueSection
+          <ReviewCandidateSection
             title="Needs Review"
-            description="Runs without a caller-visible human review."
+            description="Unreviewed runs ranked by artifact coverage and likely review value."
             response={queue.needsReview}
             navigate={navigate}
           />
@@ -187,6 +189,82 @@ function QueueSection({
   );
 }
 
+function ReviewCandidateSection({
+  title,
+  description,
+  response,
+  navigate,
+}: {
+  title: string;
+  description: string;
+  response: BenchReviewCandidatesResponse;
+  navigate: (path: string) => void;
+}) {
+  const candidates = response.candidates ?? [];
+  const total = response.total ?? candidates.length;
+
+  return (
+    <section className="border border-border rounded-lg overflow-hidden bg-bg-elevated">
+      <div className="flex items-start justify-between gap-4 px-4 py-3 border-b border-border-subtle bg-bg-alt/50">
+        <div>
+          <h2 className="text-[0.95rem] font-semibold text-fg">{title}</h2>
+          <p className="text-[0.76rem] text-fg-muted mt-0.5">{description}</p>
+        </div>
+        <span className="font-mono text-[0.78rem] text-fg-muted">{total}</span>
+      </div>
+      {candidates.length === 0 ? (
+        <div className="px-4 py-6 text-[0.82rem] text-fg-muted">No runs in this queue.</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b border-border-subtle">
+                <th className="text-left text-[0.68rem] font-semibold text-fg-muted uppercase px-3 py-2">Run</th>
+                <th className="text-left text-[0.68rem] font-semibold text-fg-muted uppercase px-3 py-2">Scenario</th>
+                <th className="text-left text-[0.68rem] font-semibold text-fg-muted uppercase px-3 py-2">Status</th>
+                <th className="text-left text-[0.68rem] font-semibold text-fg-muted uppercase px-3 py-2">Reason</th>
+                <th className="text-left text-[0.68rem] font-semibold text-fg-muted uppercase px-3 py-2">Artifacts</th>
+                <th className="text-left text-[0.68rem] font-semibold text-fg-muted uppercase px-3 py-2">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {candidates.map((item) => (
+                <tr
+                  key={item.run_id}
+                  onClick={() => navigate(`${benchRunPath(item.run_id)}?tab=review&draft=1`)}
+                  className="border-b border-border-subtle cursor-pointer hover:bg-accent-subtle transition-colors"
+                >
+                  <td className="px-3 py-2.5 font-mono text-[0.76rem] text-fg-body max-w-[18rem] truncate">
+                    {item.run_id}
+                  </td>
+                  <td className="px-3 py-2.5 font-mono text-[0.76rem] text-fg-body">{item.scenario_id}</td>
+                  <td className="px-3 py-2.5">
+                    <RunStatus passed={item.passed} />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <ReviewCandidateReason item={item} />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <ArtifactCoverage coverage={item.artifact_coverage} />
+                  </td>
+                  <td className="px-3 py-2.5 font-mono text-[0.76rem] text-fg-muted whitespace-nowrap">
+                    {formatDateTime(item.created_at)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {total > candidates.length && (
+            <div className="px-4 py-2 text-[0.76rem] text-fg-muted border-t border-border-subtle">
+              Showing first {candidates.length} of {total}.
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ScenarioImprovementSection({
   title,
   description,
@@ -265,7 +343,7 @@ function ScenarioImprovementSection({
 
 function emptyReviewQueueState(): ReviewQueueState {
   return {
-    needsReview: emptyRunsResponse(),
+    needsReview: emptyReviewCandidatesResponse(),
     unsafePasses: emptyRunsResponse(),
     reviewedFailures: emptyRunsResponse(),
     scenarioImprovements: emptyScenarioImprovementsResponse(),
@@ -282,6 +360,21 @@ function normalizeRunsResponse(response: BenchRunsResponse): BenchRunsResponse {
     ...response,
     runs,
     total: response.total ?? runs.length,
+    limit: response.limit ?? QUEUE_LIMIT,
+    offset: response.offset ?? 0,
+  };
+}
+
+function emptyReviewCandidatesResponse(): BenchReviewCandidatesResponse {
+  return { candidates: [], total: 0, limit: QUEUE_LIMIT, offset: 0 };
+}
+
+function normalizeReviewCandidatesResponse(response: BenchReviewCandidatesResponse): BenchReviewCandidatesResponse {
+  const candidates = response.candidates ?? [];
+  return {
+    ...response,
+    candidates,
+    total: response.total ?? candidates.length,
     limit: response.limit ?? QUEUE_LIMIT,
     offset: response.offset ?? 0,
   };
@@ -328,6 +421,47 @@ function ImprovementEvidence({ item }: { item: BenchScenarioImprovement }) {
       {!item.reviewer_note && !item.primary_evidence_snippet && (
         <div className="text-[0.76rem] text-fg-muted">No evidence note.</div>
       )}
+    </div>
+  );
+}
+
+function ReviewCandidateReason({ item }: { item: BenchReviewCandidate }) {
+  return (
+    <div className="max-w-[22rem] space-y-1">
+      <div className="text-[0.76rem] text-fg-body leading-snug">{item.reason}</div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="font-mono text-[0.68rem] text-fg-muted">p{item.priority}</span>
+        {item.signals.slice(0, 2).map((signal) => (
+          <span key={signal} className="rounded bg-bg-alt px-1.5 py-0.5 font-mono text-[0.66rem] text-fg-muted">
+            {signal}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ArtifactCoverage({ coverage }: { coverage: BenchReviewCandidate["artifact_coverage"] }) {
+  const labels = [
+    ["autopsy", coverage.failure_autopsy],
+    ["timeline", coverage.timeline],
+    ["tools", coverage.tool_calls],
+    ["error", coverage.run_error],
+    ["events", coverage.run_events],
+  ] as const;
+
+  return (
+    <div className="flex max-w-[18rem] flex-wrap gap-1">
+      {labels.map(([label, present]) => (
+        <span
+          key={label}
+          className={`rounded px-1.5 py-0.5 font-mono text-[0.66rem] ${
+            present ? "bg-accent-subtle text-fg-body" : "bg-bg-alt text-fg-muted opacity-60"
+          }`}
+        >
+          {label}
+        </span>
+      ))}
     </div>
   );
 }

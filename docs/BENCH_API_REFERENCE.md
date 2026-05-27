@@ -258,6 +258,61 @@ Authenticated requests can receive private review summaries for their tenant.
 Review filters follow the same visibility rule: private reviews do not satisfy
 anonymous reviewed filters.
 
+### GET /v1/bench/review-candidates
+
+Returns unreviewed runs ranked for final human review. Each candidate includes
+artifact coverage signals so clients can explain why a run is useful to review
+before asking the backend to build an unsaved review draft.
+
+Useful query parameters:
+
+| Parameter | Description |
+| --- | --- |
+| `limit` | page size |
+| `offset` | page offset |
+| `scenario`, `scenarios`, `model`, `provider`, `tool_server`, `tool_server_version`, `skill_id`, `skill_version`, `report_id` | optional run-scope filters, same semantics as `GET /v1/bench/runs` |
+| `sort_by`, `sort_order` | optional run ordering, same supported values as `GET /v1/bench/runs` |
+
+The service always applies the review predicate server-side:
+`review=unreviewed`. Anonymous reads use the public tenant and only treat public
+reviews as visible. Authenticated reads can see the current tenant's private
+review state.
+
+```json
+{
+  "candidates": [
+    {
+      "run_id": "run-123",
+      "scenario_id": "broken-deployment",
+      "model": "sonnet",
+      "provider": "anthropic",
+      "passed": false,
+      "created_at": "2026-05-27T09:15:00Z",
+      "priority": 123,
+      "reason": "Autopsy flagged missed_diagnostic_step",
+      "signals": ["missed_diagnostic_step", "retry_loop"],
+      "artifact_coverage": {
+        "tool_calls": true,
+        "timeline": true,
+        "failure_autopsy": true,
+        "run_error": false,
+        "run_events": false
+      },
+      "run_url": "/v1/bench/runs/run-123",
+      "review_url": "/v1/bench/runs/run-123/review",
+      "draft_url": "/v1/bench/review-candidates/run-123/draft"
+    }
+  ],
+  "total": 1,
+  "limit": 25,
+  "offset": 0
+}
+```
+
+The browser `Needs Review` queue uses this endpoint and opens candidates in the
+review editor with an artifact-derived draft preloaded. Draft generation is
+stateless; only `PUT /v1/bench/runs/{id}/review` stores the final review.
+
 ### GET /v1/bench/scenario-improvements
 
 Returns first-class scenario improvement candidates. Each candidate is derived
@@ -394,6 +449,13 @@ draft with a verdict, primary label, reviewer note, evidence snippet, and
 suggested scenario rule. The draft is not stored and does not create a separate
 review state. Human review is final only after the caller edits and saves with
 `PUT /v1/bench/runs/{id}/review`.
+
+### POST /v1/bench/review-candidates/{id}/draft
+
+Builds the same unsaved review draft as
+`POST /v1/bench/runs/{id}/review-draft`, but under the review-candidates
+namespace used by queue clients. It does not save a review and does not create a
+separate draft lifecycle state.
 
 ### POST /v1/bench/runs/{id}/scenario-patch-preview
 

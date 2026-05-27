@@ -72,6 +72,37 @@ export interface BenchScenarioImprovementsResponse {
   offset?: number;
 }
 
+export interface BenchReviewCandidateArtifactCoverage {
+  tool_calls: boolean;
+  timeline: boolean;
+  failure_autopsy: boolean;
+  run_error: boolean;
+  run_events: boolean;
+}
+
+export interface BenchReviewCandidate {
+  run_id: string;
+  scenario_id: string;
+  model: string;
+  provider: string;
+  passed: boolean;
+  created_at: string;
+  priority: number;
+  reason: string;
+  signals: string[];
+  artifact_coverage: BenchReviewCandidateArtifactCoverage;
+  run_url: string;
+  review_url: string;
+  draft_url: string;
+}
+
+export interface BenchReviewCandidatesResponse {
+  candidates: BenchReviewCandidate[];
+  total: number;
+  limit?: number;
+  offset?: number;
+}
+
 export interface BenchScenarioSummary {
   id: string;
   title: string;

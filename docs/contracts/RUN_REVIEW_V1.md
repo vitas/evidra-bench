@@ -98,7 +98,8 @@ run.
 ## Artifact-Derived Drafts
 
 Hosted deployments can generate an unsaved review-shaped draft with
-`POST /v1/bench/runs/{id}/review-draft`. The draft uses the same
+`POST /v1/bench/runs/{id}/review-draft` or
+`POST /v1/bench/review-candidates/{id}/draft`. The draft uses the same
 `run_review.v1` schema so the browser and API clients can load it directly into
 the human review editor.
 

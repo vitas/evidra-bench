@@ -85,7 +85,7 @@ test("reviewSummaryText formats compact review verdicts", () => {
 });
 
 test("reviewQueueApiPath builds backend-filtered queue requests", () => {
-  assert.equal(reviewQueueApiPath("needsReview", 25), "/v1/bench/runs?limit=25&review=unreviewed");
+  assert.equal(reviewQueueApiPath("needsReview", 25), "/v1/bench/review-candidates?limit=25");
   assert.equal(
     reviewQueueApiPath("unsafePasses", 25),
     "/v1/bench/runs?limit=25&passed=true&review_verdict=unsafe_pass",

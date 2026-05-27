@@ -64,10 +64,15 @@ client-side filtering over a fixed recent-run sample.
 
 Useful queue filters:
 
-- `GET /v1/bench/runs?review=unreviewed`
+- `GET /v1/bench/review-candidates`
 - `GET /v1/bench/runs?passed=true&review_verdict=unsafe_pass`
 - `GET /v1/bench/runs?passed=false&review=reviewed`
 - `GET /v1/bench/scenario-improvements`
+
+The browser `Needs Review` queue uses `GET /v1/bench/review-candidates`.
+That endpoint returns unreviewed runs with artifact coverage, autopsy-derived
+signals, priority, a human-readable reason, and a draft action URL. Opening a
+candidate preloads an unsaved artifact-derived draft in the review editor.
 
 The browser `Scenario Improvements` queue uses `GET
 /v1/bench/scenario-improvements`. That endpoint returns reviewed runs with
@@ -106,6 +111,13 @@ Build an unsaved artifact-derived draft:
 
 ```bash
 curl -X POST "$BENCH_API_URL/v1/bench/runs/$RUN_ID/review-draft" \
+  -H "Authorization: Bearer $BENCH_API_KEY"
+```
+
+Build the same draft from the review-candidates namespace:
+
+```bash
+curl -X POST "$BENCH_API_URL/v1/bench/review-candidates/$RUN_ID/draft" \
   -H "Authorization: Bearer $BENCH_API_KEY"
 ```
 

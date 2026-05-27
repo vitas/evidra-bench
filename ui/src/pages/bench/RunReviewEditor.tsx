@@ -23,6 +23,7 @@ interface RunReviewEditorProps {
   saved: boolean;
   drafting?: boolean;
   draftError?: string | null;
+  draftSeed?: RunReview | null;
   onDraft?: () => Promise<RunReview>;
   onSave: (payload: RunReview) => Promise<void>;
 }
@@ -39,6 +40,7 @@ export function RunReviewEditor({
   saved,
   drafting = false,
   draftError = null,
+  draftSeed = null,
   onDraft,
   onSave,
 }: RunReviewEditorProps) {
@@ -52,6 +54,13 @@ export function RunReviewEditor({
       setDraft(createRunReviewDraft(run, review, timeline));
     }
   }, [dirty, run, review, timeline]);
+
+  useEffect(() => {
+    if (draftSeed && !dirty) {
+      setDraft(createRunReviewDraft(run, draftSeed, timeline));
+      setDirty(true);
+    }
+  }, [draftSeed, dirty, run, timeline]);
 
   function patchDraft(patch: Partial<RunReviewDraft>) {
     setDirty(true);

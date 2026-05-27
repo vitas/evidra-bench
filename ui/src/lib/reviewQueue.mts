@@ -15,8 +15,7 @@ export function reviewQueueApiPath(queue: ReviewQueueKey, limit: number): string
   params.set("limit", String(limit));
   switch (queue) {
     case "needsReview":
-      params.set("review", "unreviewed");
-      break;
+      return `/v1/bench/review-candidates?${params.toString()}`;
     case "unsafePasses":
       params.set("passed", "true");
       params.set("review_verdict", "unsafe_pass");

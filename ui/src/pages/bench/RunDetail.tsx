@@ -159,6 +159,8 @@ export function RunDetail() {
   const [reviewSaved, setReviewSaved] = useState(false);
   const [reviewDrafting, setReviewDrafting] = useState(false);
   const [reviewDraftError, setReviewDraftError] = useState<string | null>(null);
+  const [reviewDraftSeed, setReviewDraftSeed] = useState<RunReview | null>(null);
+  const [reviewAutoDraftedRunID, setReviewAutoDraftedRunID] = useState<string | null>(null);
   const [scenarioPatchPreview, setScenarioPatchPreview] = useState<ScenarioPatchPreview | null>(null);
   const [scenarioPatchPreviewLoading, setScenarioPatchPreviewLoading] = useState(false);
   const [scenarioPatchPreviewError, setScenarioPatchPreviewError] = useState<string | null>(null);
@@ -170,6 +172,8 @@ export function RunDetail() {
   useEffect(() => {
     setScenarioPatchPreview(null);
     setScenarioPatchPreviewError(null);
+    setReviewDraftSeed(null);
+    setReviewAutoDraftedRunID(null);
   }, [id]);
 
   function selectTab(tab: Tab) {
@@ -222,9 +226,11 @@ export function RunDetail() {
     setScenarioPatchPreviewError(null);
     setReviewSaved(false);
     try {
-      return await request<RunReview>(`/v1/bench/runs/${id}/review-draft`, {
+      const draft = await request<RunReview>(`/v1/bench/review-candidates/${id}/draft`, {
         method: "POST",
       });
+      setReviewDraftSeed(draft);
+      return draft;
     } catch (err) {
       setReviewDraftError(err instanceof Error ? err.message : "Failed to draft review");
       throw err;
@@ -382,6 +388,14 @@ export function RunDetail() {
       .finally(() => setReviewLoading(false));
   }, [activeTab, review, reviewError, reviewLoading, id, fetchResponse]);
 
+  useEffect(() => {
+    if (activeTab !== "review" || searchParams.get("draft") !== "1" || !id) return;
+    if (review || reviewLoading || reviewDrafting || reviewDraftSeed || reviewAutoDraftedRunID === id) return;
+    if (reviewError !== "not-found") return;
+    setReviewAutoDraftedRunID(id);
+    void draftReview();
+  }, [activeTab, searchParams, id, review, reviewLoading, reviewDrafting, reviewDraftSeed, reviewAutoDraftedRunID, reviewError]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-fg-muted text-[0.85rem]">
@@ -483,6 +497,7 @@ export function RunDetail() {
           saved={reviewSaved}
           drafting={reviewDrafting}
           draftError={reviewDraftError}
+          draftSeed={reviewDraftSeed}
           scenarioPatchPreview={scenarioPatchPreview}
           scenarioPatchPreviewLoading={scenarioPatchPreviewLoading}
           scenarioPatchPreviewError={scenarioPatchPreviewError}
@@ -633,6 +648,7 @@ function ReviewTab({
   saved,
   drafting,
   draftError,
+  draftSeed,
   scenarioPatchPreview,
   scenarioPatchPreviewLoading,
   scenarioPatchPreviewError,
@@ -650,6 +666,7 @@ function ReviewTab({
   saved: boolean;
   drafting: boolean;
   draftError: string | null;
+  draftSeed: RunReview | null;
   scenarioPatchPreview: ScenarioPatchPreview | null;
   scenarioPatchPreviewLoading: boolean;
   scenarioPatchPreviewError: string | null;
@@ -678,6 +695,7 @@ function ReviewTab({
           saved={saved}
           drafting={drafting}
           draftError={draftError}
+          draftSeed={draftSeed}
           onDraft={onDraft}
           onSave={onSave}
         />
@@ -801,6 +819,7 @@ function ReviewTab({
         saved={saved}
         drafting={drafting}
         draftError={draftError}
+        draftSeed={draftSeed}
         onDraft={onDraft}
         onSave={onSave}
       />

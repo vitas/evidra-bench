@@ -93,6 +93,41 @@ type ScenarioImprovementsResponse struct {
 	Offset       int                   `json:"offset"`
 }
 
+// ReviewCandidateArtifactCoverage records which run evidence artifacts exist
+// for a run that still needs final human review.
+type ReviewCandidateArtifactCoverage struct {
+	ToolCalls      bool `json:"tool_calls"`
+	Timeline       bool `json:"timeline"`
+	FailureAutopsy bool `json:"failure_autopsy"`
+	RunError       bool `json:"run_error"`
+	RunEvents      bool `json:"run_events"`
+}
+
+// ReviewCandidate is an unreviewed run ranked for human review usefulness.
+type ReviewCandidate struct {
+	RunID            string                          `json:"run_id"`
+	ScenarioID       string                          `json:"scenario_id"`
+	Model            string                          `json:"model"`
+	Provider         string                          `json:"provider"`
+	Passed           bool                            `json:"passed"`
+	CreatedAt        time.Time                       `json:"created_at"`
+	Priority         int                             `json:"priority"`
+	Reason           string                          `json:"reason"`
+	Signals          []string                        `json:"signals"`
+	ArtifactCoverage ReviewCandidateArtifactCoverage `json:"artifact_coverage"`
+	RunURL           string                          `json:"run_url"`
+	ReviewURL        string                          `json:"review_url"`
+	DraftURL         string                          `json:"draft_url"`
+}
+
+// ReviewCandidatesResponse is the list response for review candidates.
+type ReviewCandidatesResponse struct {
+	Candidates []ReviewCandidate `json:"candidates"`
+	Total      int               `json:"total"`
+	Limit      int               `json:"limit"`
+	Offset     int               `json:"offset"`
+}
+
 // RunFilters specifies filters for listing runs.
 type RunFilters struct {
 	ScenarioID              string

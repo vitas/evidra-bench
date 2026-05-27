@@ -39,7 +39,7 @@ surface.
 | Private and self-hosted deployments | Uses the same product and API for public reports, private incident suites, team regression history, and customer readiness reports. |
 | Remote runner control plane | Lets hosted Bench queue jobs while remote runners execute scenarios in controlled infrastructure. |
 | Local CLI and TUI workflow | Supports fast local scenario development, dry runs, artifact browsing, and repeatable lab workflows. |
-| Scenario review loop | Turns artifact-derived drafts and human review evidence into scenario improvement candidates and browser/CLI scenario-rule patch previews. |
+| Scenario review loop | Ranks artifact-backed review candidates, preloads AI-assisted drafts, and turns final human review evidence into scenario improvement candidates and browser/CLI patch previews. |
 
 ## Why
 
@@ -304,7 +304,7 @@ stages:
 
 This repo owns the private bench control plane:
 
-- `/v1/bench/*` for runs, artifacts, analytics, scenario improvements, trigger jobs, and scenario sync
+- `/v1/bench/*` for runs, artifacts, analytics, review candidates, scenario improvements, trigger jobs, and scenario sync
 - `/v1/runners/*` for poll-based runner registration, job claim, and completion
 - `/v1/certify` for the direct executor contract used by `bench-cli serve`
 

@@ -360,6 +360,7 @@ func TestRegisterRoutes_PublicReadEndpointsUsePublicTenantWithoutAuth(t *testing
 	}{
 		{name: "scenarios", path: "/v1/bench/scenarios"},
 		{name: "scenario improvements", path: "/v1/bench/scenario-improvements"},
+		{name: "review candidates", path: "/v1/bench/review-candidates"},
 		{name: "runs", path: "/v1/bench/runs"},
 		{name: "stats", path: "/v1/bench/stats"},
 		{name: "catalog", path: "/v1/bench/catalog"},
