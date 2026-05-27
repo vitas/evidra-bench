@@ -19,6 +19,7 @@ func RegisterRoutes(mux *http.ServeMux, svc *Service, authMw func(http.Handler) 
 	// Read endpoints.
 	mux.Handle("GET /v1/bench/leaderboard", readMw(http.HandlerFunc(handleLeaderboard(svc))))
 	mux.Handle("GET /v1/bench/scenarios", readMw(http.HandlerFunc(handleListScenarios(svc))))
+	mux.Handle("GET /v1/bench/scenario-improvements", readMw(http.HandlerFunc(handleListScenarioImprovements(svc))))
 	mux.Handle("GET /v1/bench/runs", readMw(http.HandlerFunc(handleListRuns(svc))))
 	mux.Handle("GET /v1/bench/runs/{id}", readMw(http.HandlerFunc(handleGetRun(svc))))
 	mux.Handle("GET /v1/bench/runs/{id}/transcript", readMw(http.HandlerFunc(handleGetTranscript(svc))))

@@ -7,13 +7,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/vitas/evidra-bench/internal/auth"
+	"github.com/vitas/evidra-bench/pkg/artifact"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
+	"github.com/vitas/evidra-bench/pkg/runreview"
 )
 
 // handlerRepo is an in-memory fake implementing Repository for handler tests.
@@ -97,6 +100,7 @@ func (r *handlerRepo) ListRuns(_ context.Context, tenant string, f bench.RunFilt
 	filtered = filterRunsBySkillID(filtered, f.SkillID)
 	filtered = filterRunsBySkillVersion(filtered, f.SkillVersion)
 	filtered = filterRunsByReportID(filtered, f.ReportID)
+	filtered = filterRunsByReviewArtifacts(filtered, r.artifacts, f)
 	if f.ScenarioID != "" {
 		filtered = filterRunsByScenarioIDs(filtered, []string{f.ScenarioID})
 		return filtered, len(filtered), nil
@@ -355,6 +359,7 @@ func TestRegisterRoutes_PublicReadEndpointsUsePublicTenantWithoutAuth(t *testing
 		path string
 	}{
 		{name: "scenarios", path: "/v1/bench/scenarios"},
+		{name: "scenario improvements", path: "/v1/bench/scenario-improvements"},
 		{name: "runs", path: "/v1/bench/runs"},
 		{name: "stats", path: "/v1/bench/stats"},
 		{name: "catalog", path: "/v1/bench/catalog"},
@@ -530,6 +535,81 @@ func filterRunsByScenarioIDs(runs []bench.RunRecord, scenarios []string) []bench
 		}
 	}
 	return filtered
+}
+
+func filterRunsByReviewArtifacts(runs []bench.RunRecord, artifacts map[string][]byte, f bench.RunFilters) []bench.RunRecord {
+	reviewState := strings.ToLower(strings.TrimSpace(f.ReviewState))
+	hasReviewFilter := reviewState != "" || f.ReviewVerdict != "" || f.ReviewSeverity != "" || f.ReviewVisibility != "" || f.Reviewer != "" || f.ReviewHasSuggestedRules
+	if !hasReviewFilter {
+		return runs
+	}
+
+	filtered := make([]bench.RunRecord, 0, len(runs))
+	for _, run := range runs {
+		review, ok := reviewForRun(run.ID, artifacts)
+		if reviewState == "unreviewed" {
+			if !ok || (!f.ReviewIncludePrivate && review.Visibility != runreview.VisibilityPublic) {
+				filtered = append(filtered, run)
+			}
+			continue
+		}
+		if !ok {
+			continue
+		}
+		if !f.ReviewIncludePrivate && review.Visibility != runreview.VisibilityPublic {
+			continue
+		}
+		if f.ReviewVerdict != "" && review.Verdict != f.ReviewVerdict {
+			continue
+		}
+		if f.ReviewSeverity != "" && !reviewHasSeverity(review, f.ReviewSeverity) {
+			continue
+		}
+		if f.ReviewVisibility != "" && review.Visibility != f.ReviewVisibility {
+			continue
+		}
+		if f.Reviewer != "" && !reviewerMatches(review, f.Reviewer) {
+			continue
+		}
+		if f.ReviewHasSuggestedRules && len(review.SuggestedRules) == 0 {
+			continue
+		}
+		filtered = append(filtered, run)
+	}
+	return filtered
+}
+
+func reviewForRun(runID string, artifacts map[string][]byte) (runreview.Review, bool) {
+	if artifacts == nil {
+		return runreview.Review{}, false
+	}
+	data, ok := artifacts[runID+":"+artifact.HostedRunReview]
+	if !ok || strings.TrimSpace(string(data)) == "" {
+		return runreview.Review{}, false
+	}
+	review, err := runreview.Decode(data)
+	if err != nil {
+		return runreview.Review{}, false
+	}
+	return review, true
+}
+
+func reviewHasSeverity(review runreview.Review, severity string) bool {
+	for _, label := range review.Labels {
+		if label.Severity == severity {
+			return true
+		}
+	}
+	return false
+}
+
+func reviewerMatches(review runreview.Review, needle string) bool {
+	needle = strings.ToLower(strings.TrimSpace(needle))
+	if needle == "" {
+		return true
+	}
+	return strings.Contains(strings.ToLower(review.Reviewer.DisplayName), needle) ||
+		strings.Contains(strings.ToLower(review.Reviewer.Type), needle)
 }
 
 func equalStringSlices(a, b []string) bool {

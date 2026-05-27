@@ -96,6 +96,6 @@ test("reviewQueueApiPath builds backend-filtered queue requests", () => {
   );
   assert.equal(
     reviewQueueApiPath("scenarioImprovements", 25),
-    "/v1/bench/runs?limit=25&review=reviewed&has_suggested_rules=true",
+    "/v1/bench/scenario-improvements?limit=25",
   );
 });

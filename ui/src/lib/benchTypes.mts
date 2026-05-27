@@ -45,6 +45,33 @@ export interface BenchRunsResponse {
   offset?: number;
 }
 
+export interface BenchScenarioImprovement {
+  run_id: string;
+  scenario_id: string;
+  model: string;
+  provider: string;
+  passed: boolean;
+  created_at: string;
+  verdict: string;
+  primary_label?: string;
+  visibility: string;
+  max_severity?: string;
+  suggested_rule_count: number;
+  primary_evidence_snippet?: string;
+  reviewer_note?: string;
+  patch_preview_available: boolean;
+  run_url: string;
+  review_url: string;
+  patch_preview_url: string;
+}
+
+export interface BenchScenarioImprovementsResponse {
+  improvements: BenchScenarioImprovement[];
+  total: number;
+  limit?: number;
+  offset?: number;
+}
+
 export interface BenchScenarioSummary {
   id: string;
   title: string;

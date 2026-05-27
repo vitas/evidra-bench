@@ -16,47 +16,7 @@ import (
 func handleListRuns(svc *Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tenantID := auth.TenantID(r.Context())
-		q := r.URL.Query()
-		limit, _ := strconv.Atoi(q.Get("limit"))
-		if limit <= 0 {
-			limit = 50
-		}
-		offset, _ := strconv.Atoi(q.Get("offset"))
-
-		f := bench.RunFilters{
-			ScenarioID:              q.Get("scenario"),
-			ScenarioIDs:             parseCSVQuery(q.Get("scenarios")),
-			Model:                   q.Get("model"),
-			Provider:                q.Get("provider"),
-			ToolServer:              q.Get("tool_server"),
-			ToolServerVersion:       q.Get("tool_server_version"),
-			ReportID:                q.Get("report_id"),
-			SkillID:                 q.Get("skill_id"),
-			SkillVersion:            q.Get("skill_version"),
-			SkillUnset:              q.Get("skill_unset") == "true",
-			ToolServerUnset:         q.Get("tool_server_unset") == "true",
-			Since:                   parseSince(q.Get("since")),
-			Limit:                   limit,
-			Offset:                  offset,
-			SortBy:                  q.Get("sort_by"),
-			SortOrder:               q.Get("sort_order"),
-			ReviewState:             q.Get("review"),
-			ReviewVerdict:           q.Get("review_verdict"),
-			ReviewSeverity:          q.Get("review_severity"),
-			ReviewVisibility:        q.Get("review_visibility"),
-			Reviewer:                q.Get("reviewer"),
-			ReviewHasSuggestedRules: q.Get("has_suggested_rules") == "true",
-			ReviewIncludePrivate:    !isAnonymousRead(r),
-		}
-		if q.Get("passed") == "true" {
-			f.PassedOnly = true
-		}
-		if q.Get("passed") == "false" {
-			f.FailedOnly = true
-		}
-		if q.Get("exclude_errors") == "true" {
-			f.ExcludeErrors = true
-		}
+		f := runFiltersFromRequest(r)
 
 		runs, total, err := svc.ListRuns(r.Context(), tenantID, f)
 		if err != nil {
@@ -73,10 +33,55 @@ func handleListRuns(svc *Service) http.HandlerFunc {
 		apiutil.WriteJSON(w, http.StatusOK, map[string]any{
 			"runs":   runs,
 			"total":  total,
-			"limit":  limit,
-			"offset": offset,
+			"limit":  f.Limit,
+			"offset": f.Offset,
 		})
 	}
+}
+
+func runFiltersFromRequest(r *http.Request) bench.RunFilters {
+	q := r.URL.Query()
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	if limit <= 0 {
+		limit = 50
+	}
+	offset, _ := strconv.Atoi(q.Get("offset"))
+
+	f := bench.RunFilters{
+		ScenarioID:              q.Get("scenario"),
+		ScenarioIDs:             parseCSVQuery(q.Get("scenarios")),
+		Model:                   q.Get("model"),
+		Provider:                q.Get("provider"),
+		ToolServer:              q.Get("tool_server"),
+		ToolServerVersion:       q.Get("tool_server_version"),
+		ReportID:                q.Get("report_id"),
+		SkillID:                 q.Get("skill_id"),
+		SkillVersion:            q.Get("skill_version"),
+		SkillUnset:              q.Get("skill_unset") == "true",
+		ToolServerUnset:         q.Get("tool_server_unset") == "true",
+		Since:                   parseSince(q.Get("since")),
+		Limit:                   limit,
+		Offset:                  offset,
+		SortBy:                  q.Get("sort_by"),
+		SortOrder:               q.Get("sort_order"),
+		ReviewState:             q.Get("review"),
+		ReviewVerdict:           q.Get("review_verdict"),
+		ReviewSeverity:          q.Get("review_severity"),
+		ReviewVisibility:        q.Get("review_visibility"),
+		Reviewer:                q.Get("reviewer"),
+		ReviewHasSuggestedRules: q.Get("has_suggested_rules") == "true",
+		ReviewIncludePrivate:    !isAnonymousRead(r),
+	}
+	if q.Get("passed") == "true" {
+		f.PassedOnly = true
+	}
+	if q.Get("passed") == "false" {
+		f.FailedOnly = true
+	}
+	if q.Get("exclude_errors") == "true" {
+		f.ExcludeErrors = true
+	}
+	return f
 }
 
 func handleGetRun(svc *Service) http.HandlerFunc {
@@ -169,6 +174,25 @@ func primaryEvidenceSnippet(review runreview.Review, primaryLabel string) string
 	for _, label := range review.Labels {
 		if strings.TrimSpace(label.EvidenceSnippet) != "" {
 			return label.EvidenceSnippet
+		}
+	}
+	return ""
+}
+
+func primaryReviewerNote(review runreview.Review, primaryLabel string) string {
+	if len(review.Labels) == 0 {
+		return ""
+	}
+	if primaryLabel != "" {
+		for _, label := range review.Labels {
+			if label.Kind == primaryLabel && strings.TrimSpace(label.Note) != "" {
+				return label.Note
+			}
+		}
+	}
+	for _, label := range review.Labels {
+		if strings.TrimSpace(label.Note) != "" {
+			return label.Note
 		}
 	}
 	return ""

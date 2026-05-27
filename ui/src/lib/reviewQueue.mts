@@ -26,9 +26,7 @@ export function reviewQueueApiPath(queue: ReviewQueueKey, limit: number): string
       params.set("review", "reviewed");
       break;
     case "scenarioImprovements":
-      params.set("review", "reviewed");
-      params.set("has_suggested_rules", "true");
-      break;
+      return `/v1/bench/scenario-improvements?${params.toString()}`;
   }
   return `/v1/bench/runs?${params.toString()}`;
 }

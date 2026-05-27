@@ -3,7 +3,12 @@ import { useNavigate } from "react-router";
 import { useBenchApi } from "../../hooks/useBenchApi";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { formatDateTime } from "../../lib/benchFormatters.mts";
-import type { BenchRunsResponse, BenchRunReviewSummary } from "../../lib/benchTypes.mts";
+import type {
+  BenchRunsResponse,
+  BenchRunReviewSummary,
+  BenchScenarioImprovement,
+  BenchScenarioImprovementsResponse,
+} from "../../lib/benchTypes.mts";
 import { reviewQueueApiPath, reviewSeverityTone, reviewSummaryText } from "../../lib/reviewQueue.mts";
 import { benchRunPath, BENCH_REVIEWS_PATH } from "../../lib/routes.mts";
 
@@ -13,7 +18,7 @@ interface ReviewQueueState {
   needsReview: BenchRunsResponse;
   unsafePasses: BenchRunsResponse;
   reviewedFailures: BenchRunsResponse;
-  scenarioImprovements: BenchRunsResponse;
+  scenarioImprovements: BenchScenarioImprovementsResponse;
 }
 
 export function Reviews() {
@@ -32,7 +37,7 @@ export function Reviews() {
       request<BenchRunsResponse>(reviewQueueApiPath("needsReview", QUEUE_LIMIT)),
       request<BenchRunsResponse>(reviewQueueApiPath("unsafePasses", QUEUE_LIMIT)),
       request<BenchRunsResponse>(reviewQueueApiPath("reviewedFailures", QUEUE_LIMIT)),
-      request<BenchRunsResponse>(reviewQueueApiPath("scenarioImprovements", QUEUE_LIMIT)),
+      request<BenchScenarioImprovementsResponse>(reviewQueueApiPath("scenarioImprovements", QUEUE_LIMIT)),
     ])
       .then(([needsReview, unsafePasses, reviewedFailures, scenarioImprovements]) => {
         if (!cancelled) {
@@ -40,7 +45,7 @@ export function Reviews() {
             needsReview: normalizeRunsResponse(needsReview),
             unsafePasses: normalizeRunsResponse(unsafePasses),
             reviewedFailures: normalizeRunsResponse(reviewedFailures),
-            scenarioImprovements: normalizeRunsResponse(scenarioImprovements),
+            scenarioImprovements: normalizeScenarioImprovementsResponse(scenarioImprovements),
           });
         }
       })
@@ -76,13 +81,11 @@ export function Reviews() {
         </div>
       ) : (
         <div className="space-y-5">
-          <QueueSection
+          <ScenarioImprovementSection
             title="Scenario Improvements"
             description="Reviewed runs with suggested scenario rules ready for patch preview."
             response={queue.scenarioImprovements}
             navigate={navigate}
-            openReviewTab
-            showImprovementDetails
           />
           <QueueSection
             title="Needs Review"
@@ -184,12 +187,88 @@ function QueueSection({
   );
 }
 
+function ScenarioImprovementSection({
+  title,
+  description,
+  response,
+  navigate,
+}: {
+  title: string;
+  description: string;
+  response: BenchScenarioImprovementsResponse;
+  navigate: (path: string) => void;
+}) {
+  const improvements = response.improvements ?? [];
+  const total = response.total ?? improvements.length;
+
+  return (
+    <section className="border border-border rounded-lg overflow-hidden bg-bg-elevated">
+      <div className="flex items-start justify-between gap-4 px-4 py-3 border-b border-border-subtle bg-bg-alt/50">
+        <div>
+          <h2 className="text-[0.95rem] font-semibold text-fg">{title}</h2>
+          <p className="text-[0.76rem] text-fg-muted mt-0.5">{description}</p>
+        </div>
+        <span className="font-mono text-[0.78rem] text-fg-muted">{total}</span>
+      </div>
+      {improvements.length === 0 ? (
+        <div className="px-4 py-6 text-[0.82rem] text-fg-muted">No runs in this queue.</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b border-border-subtle">
+                <th className="text-left text-[0.68rem] font-semibold text-fg-muted uppercase px-3 py-2">Run</th>
+                <th className="text-left text-[0.68rem] font-semibold text-fg-muted uppercase px-3 py-2">Scenario</th>
+                <th className="text-left text-[0.68rem] font-semibold text-fg-muted uppercase px-3 py-2">Status</th>
+                <th className="text-left text-[0.68rem] font-semibold text-fg-muted uppercase px-3 py-2">Review</th>
+                <th className="text-left text-[0.68rem] font-semibold text-fg-muted uppercase px-3 py-2">Evidence</th>
+                <th className="text-left text-[0.68rem] font-semibold text-fg-muted uppercase px-3 py-2">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {improvements.map((item) => (
+                <tr
+                  key={item.run_id}
+                  onClick={() => navigate(`${benchRunPath(item.run_id)}?tab=review`)}
+                  className="border-b border-border-subtle cursor-pointer hover:bg-accent-subtle transition-colors"
+                >
+                  <td className="px-3 py-2.5 font-mono text-[0.76rem] text-fg-body max-w-[18rem] truncate">
+                    {item.run_id}
+                  </td>
+                  <td className="px-3 py-2.5 font-mono text-[0.76rem] text-fg-body">{item.scenario_id}</td>
+                  <td className="px-3 py-2.5">
+                    <RunStatus passed={item.passed} />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <ReviewCell summary={scenarioImprovementReviewSummary(item)} showImprovementDetails />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <ImprovementEvidence item={item} />
+                  </td>
+                  <td className="px-3 py-2.5 font-mono text-[0.76rem] text-fg-muted whitespace-nowrap">
+                    {formatDateTime(item.created_at)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {total > improvements.length && (
+            <div className="px-4 py-2 text-[0.76rem] text-fg-muted border-t border-border-subtle">
+              Showing first {improvements.length} of {total}.
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function emptyReviewQueueState(): ReviewQueueState {
   return {
     needsReview: emptyRunsResponse(),
     unsafePasses: emptyRunsResponse(),
     reviewedFailures: emptyRunsResponse(),
-    scenarioImprovements: emptyRunsResponse(),
+    scenarioImprovements: emptyScenarioImprovementsResponse(),
   };
 }
 
@@ -206,6 +285,51 @@ function normalizeRunsResponse(response: BenchRunsResponse): BenchRunsResponse {
     limit: response.limit ?? QUEUE_LIMIT,
     offset: response.offset ?? 0,
   };
+}
+
+function emptyScenarioImprovementsResponse(): BenchScenarioImprovementsResponse {
+  return { improvements: [], total: 0, limit: QUEUE_LIMIT, offset: 0 };
+}
+
+function normalizeScenarioImprovementsResponse(
+  response: BenchScenarioImprovementsResponse,
+): BenchScenarioImprovementsResponse {
+  const improvements = response.improvements ?? [];
+  return {
+    ...response,
+    improvements,
+    total: response.total ?? improvements.length,
+    limit: response.limit ?? QUEUE_LIMIT,
+    offset: response.offset ?? 0,
+  };
+}
+
+function scenarioImprovementReviewSummary(item: BenchScenarioImprovement): BenchRunReviewSummary {
+  return {
+    verdict: item.verdict,
+    primary_label: item.primary_label,
+    visibility: item.visibility,
+    label_count: 0,
+    max_severity: item.max_severity,
+    suggested_rule_count: item.suggested_rule_count,
+    primary_evidence_snippet: item.primary_evidence_snippet,
+  };
+}
+
+function ImprovementEvidence({ item }: { item: BenchScenarioImprovement }) {
+  return (
+    <div className="max-w-[24rem] space-y-1">
+      {item.reviewer_note && (
+        <div className="text-[0.76rem] text-fg-body leading-snug line-clamp-2">{item.reviewer_note}</div>
+      )}
+      {item.primary_evidence_snippet && (
+        <div className="font-mono text-[0.7rem] text-fg-muted truncate">{item.primary_evidence_snippet}</div>
+      )}
+      {!item.reviewer_note && !item.primary_evidence_snippet && (
+        <div className="text-[0.76rem] text-fg-muted">No evidence note.</div>
+      )}
+    </div>
+  );
 }
 
 function RunStatus({ passed }: { passed: boolean }) {
@@ -235,11 +359,6 @@ function ReviewCell({
           {(summary.suggested_rule_count ?? 0) > 0 && (
             <div className="font-mono text-[0.68rem] text-fg-muted">
               {summary.suggested_rule_count} suggested {summary.suggested_rule_count === 1 ? "rule" : "rules"}
-            </div>
-          )}
-          {summary.primary_evidence_snippet && (
-            <div className="font-mono text-[0.7rem] text-fg-muted truncate">
-              {summary.primary_evidence_snippet}
             </div>
           )}
         </div>

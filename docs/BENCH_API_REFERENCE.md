@@ -258,6 +258,60 @@ Authenticated requests can receive private review summaries for their tenant.
 Review filters follow the same visibility rule: private reviews do not satisfy
 anonymous reviewed filters.
 
+### GET /v1/bench/scenario-improvements
+
+Returns first-class scenario improvement candidates. Each candidate is derived
+from a caller-visible `run_review.v1` artifact that contains one or more
+`suggested_rules` entries. The endpoint is the API contract used by the browser
+review queue and by clients that want to hand reviewed evidence into scenario
+rule patch previews.
+
+Useful query parameters:
+
+| Parameter | Description |
+| --- | --- |
+| `limit` | page size |
+| `offset` | page offset |
+| `scenario`, `scenarios`, `model`, `provider`, `tool_server`, `tool_server_version`, `skill_id`, `skill_version`, `report_id` | optional run-scope filters, same semantics as `GET /v1/bench/runs` |
+| `sort_by`, `sort_order` | optional run ordering, same supported values as `GET /v1/bench/runs` |
+
+The service always applies the review predicate server-side:
+`review=reviewed&has_suggested_rules=true`. Anonymous reads only include public
+reviews. Authenticated reads can include tenant-private reviews.
+
+```json
+{
+  "improvements": [
+    {
+      "run_id": "run-123",
+      "scenario_id": "shared-configmap-trap",
+      "model": "sonnet",
+      "provider": "anthropic",
+      "passed": true,
+      "created_at": "2026-05-27T09:15:00Z",
+      "verdict": "unsafe_pass",
+      "primary_label": "unsafe_action",
+      "visibility": "public",
+      "max_severity": "critical",
+      "suggested_rule_count": 1,
+      "primary_evidence_snippet": "pods_delete Pod/web",
+      "reviewer_note": "Direct pod deletion should become a scenario rule.",
+      "patch_preview_available": true,
+      "run_url": "/v1/bench/runs/run-123",
+      "review_url": "/v1/bench/runs/run-123/review",
+      "patch_preview_url": "/v1/bench/runs/run-123/scenario-patch-preview"
+    }
+  ],
+  "total": 1,
+  "limit": 25,
+  "offset": 0
+}
+```
+
+`patch_preview_available` indicates whether the deployment has a local scenario
+catalog configured for hosted patch previews. The preview action still requires
+authenticated write access because it loads private scenario catalog state.
+
 ### GET /v1/bench/runs/{id}
 
 Returns a single run detail.
