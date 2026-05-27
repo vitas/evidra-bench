@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   scenarioPatchPreviewDiffFilename,
+  scenarioPatchPreviewDownloadHref,
   scenarioPatchPreviewDownloadContent,
   scenarioPatchPreviewStatus,
   type ScenarioPatchPreview,
@@ -71,4 +72,22 @@ test("scenarioPatchPreviewDownloadContent returns only the unified diff", () => 
   assert.equal(scenarioPatchPreviewDownloadContent(preview), diff);
   assert.equal(scenarioPatchPreviewDownloadContent({ ...preview, changed: false }), null);
   assert.equal(scenarioPatchPreviewDownloadContent({ ...preview, diff: "" }), null);
+});
+
+test("scenarioPatchPreviewDownloadHref uses the backend diff artifact URL", () => {
+  const preview: ScenarioPatchPreview = {
+    run_id: "r1",
+    scenario_id: "shared-configmap-trap",
+    changed: true,
+    diff: "--- scenario.yaml\n+++ scenario.yaml (review preview)\n",
+    diff_url: "/v1/bench/runs/r1/scenario-patch.diff",
+  };
+
+  assert.equal(scenarioPatchPreviewDownloadHref(preview), "/v1/bench/runs/r1/scenario-patch.diff");
+  assert.equal(
+    scenarioPatchPreviewDownloadHref(preview, "https://api.example.test/"),
+    "https://api.example.test/v1/bench/runs/r1/scenario-patch.diff",
+  );
+  assert.equal(scenarioPatchPreviewDownloadHref({ ...preview, changed: false }), null);
+  assert.equal(scenarioPatchPreviewDownloadHref({ ...preview, diff_url: "" }), null);
 });

@@ -60,23 +60,25 @@ func TestHandleListScenarioImprovements_ReturnsReviewedSuggestedRuleCandidates(t
 	}
 	var body struct {
 		Improvements []struct {
-			RunID                  string `json:"run_id"`
-			ScenarioID             string `json:"scenario_id"`
-			Model                  string `json:"model"`
-			Provider               string `json:"provider"`
-			Passed                 bool   `json:"passed"`
-			Verdict                string `json:"verdict"`
-			PrimaryLabel           string `json:"primary_label"`
-			Visibility             string `json:"visibility"`
-			MaxSeverity            string `json:"max_severity"`
-			SuggestedRuleCount     int    `json:"suggested_rule_count"`
-			PrimaryEvidenceSnippet string `json:"primary_evidence_snippet"`
-			ReviewerNote           string `json:"reviewer_note"`
-			PatchPreviewAvailable  bool   `json:"patch_preview_available"`
-			RunURL                 string `json:"run_url"`
-			ReviewURL              string `json:"review_url"`
-			PatchPreviewURL        string `json:"patch_preview_url"`
-			CreatedAt              string `json:"created_at"`
+			RunID                   string `json:"run_id"`
+			ScenarioID              string `json:"scenario_id"`
+			Model                   string `json:"model"`
+			Provider                string `json:"provider"`
+			Passed                  bool   `json:"passed"`
+			Verdict                 string `json:"verdict"`
+			PrimaryLabel            string `json:"primary_label"`
+			Visibility              string `json:"visibility"`
+			MaxSeverity             string `json:"max_severity"`
+			SuggestedRuleCount      int    `json:"suggested_rule_count"`
+			PrimaryEvidenceSnippet  string `json:"primary_evidence_snippet"`
+			ReviewerNote            string `json:"reviewer_note"`
+			PatchPreviewAvailable   bool   `json:"patch_preview_available"`
+			RunURL                  string `json:"run_url"`
+			ReviewURL               string `json:"review_url"`
+			PatchPreviewURL         string `json:"patch_preview_url"`
+			PatchPreviewArtifactURL string `json:"patch_preview_artifact_url"`
+			PatchDiffURL            string `json:"patch_diff_url"`
+			CreatedAt               string `json:"created_at"`
 		} `json:"improvements"`
 		Total  int `json:"total"`
 		Limit  int `json:"limit"`
@@ -110,7 +112,11 @@ func TestHandleListScenarioImprovements_ReturnsReviewedSuggestedRuleCandidates(t
 	if !got.PatchPreviewAvailable {
 		t.Fatalf("patch_preview_available = false, want true")
 	}
-	if got.RunURL != "/v1/bench/runs/run-1" || got.ReviewURL != "/v1/bench/runs/run-1/review" || got.PatchPreviewURL != "/v1/bench/runs/run-1/scenario-patch-preview" {
+	if got.RunURL != "/v1/bench/runs/run-1" ||
+		got.ReviewURL != "/v1/bench/runs/run-1/review" ||
+		got.PatchPreviewURL != "/v1/bench/runs/run-1/scenario-patch-preview" ||
+		got.PatchPreviewArtifactURL != "/v1/bench/runs/run-1/scenario-patch-preview" ||
+		got.PatchDiffURL != "/v1/bench/runs/run-1/scenario-patch.diff" {
 		t.Fatalf("urls = %#v", got)
 	}
 	if got.CreatedAt != "2026-05-27T09:15:00Z" {

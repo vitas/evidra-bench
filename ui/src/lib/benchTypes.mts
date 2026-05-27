@@ -63,6 +63,8 @@ export interface BenchScenarioImprovement {
   run_url: string;
   review_url: string;
   patch_preview_url: string;
+  patch_preview_artifact_url: string;
+  patch_diff_url: string;
 }
 
 export interface BenchScenarioImprovementsResponse {

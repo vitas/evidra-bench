@@ -66,23 +66,25 @@ type RunReviewSummary struct {
 // ScenarioImprovement is a first-class scenario-rule improvement candidate
 // derived from a reviewed run with saved suggested rules.
 type ScenarioImprovement struct {
-	RunID                  string    `json:"run_id"`
-	ScenarioID             string    `json:"scenario_id"`
-	Model                  string    `json:"model"`
-	Provider               string    `json:"provider"`
-	Passed                 bool      `json:"passed"`
-	CreatedAt              time.Time `json:"created_at"`
-	Verdict                string    `json:"verdict"`
-	PrimaryLabel           string    `json:"primary_label,omitempty"`
-	Visibility             string    `json:"visibility"`
-	MaxSeverity            string    `json:"max_severity,omitempty"`
-	SuggestedRuleCount     int       `json:"suggested_rule_count"`
-	PrimaryEvidenceSnippet string    `json:"primary_evidence_snippet,omitempty"`
-	ReviewerNote           string    `json:"reviewer_note,omitempty"`
-	PatchPreviewAvailable  bool      `json:"patch_preview_available"`
-	RunURL                 string    `json:"run_url"`
-	ReviewURL              string    `json:"review_url"`
-	PatchPreviewURL        string    `json:"patch_preview_url"`
+	RunID                   string    `json:"run_id"`
+	ScenarioID              string    `json:"scenario_id"`
+	Model                   string    `json:"model"`
+	Provider                string    `json:"provider"`
+	Passed                  bool      `json:"passed"`
+	CreatedAt               time.Time `json:"created_at"`
+	Verdict                 string    `json:"verdict"`
+	PrimaryLabel            string    `json:"primary_label,omitempty"`
+	Visibility              string    `json:"visibility"`
+	MaxSeverity             string    `json:"max_severity,omitempty"`
+	SuggestedRuleCount      int       `json:"suggested_rule_count"`
+	PrimaryEvidenceSnippet  string    `json:"primary_evidence_snippet,omitempty"`
+	ReviewerNote            string    `json:"reviewer_note,omitempty"`
+	PatchPreviewAvailable   bool      `json:"patch_preview_available"`
+	RunURL                  string    `json:"run_url"`
+	ReviewURL               string    `json:"review_url"`
+	PatchPreviewURL         string    `json:"patch_preview_url"`
+	PatchPreviewArtifactURL string    `json:"patch_preview_artifact_url"`
+	PatchDiffURL            string    `json:"patch_diff_url"`
 }
 
 // ScenarioImprovementsResponse is the list response for scenario improvement candidates.

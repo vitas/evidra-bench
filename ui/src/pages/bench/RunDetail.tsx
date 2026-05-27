@@ -11,7 +11,7 @@ import { normalizeRunReviewView } from "../../lib/runReview.mts";
 import type { ScenarioPatchPreview } from "../../lib/scenarioPatchPreview.mts";
 import {
   scenarioPatchPreviewDiffFilename,
-  scenarioPatchPreviewDownloadContent,
+  scenarioPatchPreviewDownloadHref,
   scenarioPatchPreviewStatus,
 } from "../../lib/scenarioPatchPreview.mts";
 import { RunReviewEditor } from "./RunReviewEditor";
@@ -69,6 +69,7 @@ const PHASE_STYLES: Record<string, string> = {
 };
 
 const PHASE_ORDER = ["discover", "diagnose", "decide", "act", "verify", "explain"];
+const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
 
 type Tab = "summary" | "review" | "autopsy" | "timeline" | "transcript" | "tool-calls" | "scorecard";
 
@@ -852,7 +853,7 @@ function ScenarioPatchPreviewPanel({
   }
   if (!preview) return null;
 
-  const diffContent = scenarioPatchPreviewDownloadContent(preview);
+  const diffHref = scenarioPatchPreviewDownloadHref(preview, API_BASE);
 
   return (
     <div className="mt-3 rounded-md border border-border-subtle bg-bg-alt/50 p-3">
@@ -863,14 +864,14 @@ function ScenarioPatchPreviewPanel({
             <span className="block font-mono text-[0.72rem] text-fg-muted break-all">{preview.scenario_path}</span>
           )}
         </div>
-        {diffContent && (
-          <button
-            type="button"
-            onClick={() => downloadScenarioPatchDiff(preview)}
+        {diffHref && (
+          <a
+            href={diffHref}
+            download={scenarioPatchPreviewDiffFilename(preview)}
             className="w-fit rounded-md border border-border bg-bg-alt px-3 py-1.5 text-[0.78rem] font-semibold text-fg transition-colors hover:border-accent"
           >
             Download diff
-          </button>
+          </a>
         )}
       </div>
       {preview.diff ? (
@@ -891,21 +892,6 @@ function ScenarioPatchPreviewPanel({
       )}
     </div>
   );
-}
-
-function downloadScenarioPatchDiff(preview: ScenarioPatchPreview) {
-  const diff = scenarioPatchPreviewDownloadContent(preview);
-  if (!diff) return;
-
-  const blob = new Blob([diff], { type: "text/x-diff;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = scenarioPatchPreviewDiffFilename(preview);
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
 }
 
 function TranscriptTab({

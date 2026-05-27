@@ -354,7 +354,9 @@ reviews. Authenticated reads can include tenant-private reviews.
       "patch_preview_available": true,
       "run_url": "/v1/bench/runs/run-123",
       "review_url": "/v1/bench/runs/run-123/review",
-      "patch_preview_url": "/v1/bench/runs/run-123/scenario-patch-preview"
+      "patch_preview_url": "/v1/bench/runs/run-123/scenario-patch-preview",
+      "patch_preview_artifact_url": "/v1/bench/runs/run-123/scenario-patch-preview",
+      "patch_diff_url": "/v1/bench/runs/run-123/scenario-patch.diff"
     }
   ],
   "total": 1,
@@ -365,7 +367,10 @@ reviews. Authenticated reads can include tenant-private reviews.
 
 `patch_preview_available` indicates whether the deployment has a local scenario
 catalog configured for hosted patch previews. The preview action still requires
-authenticated write access because it loads private scenario catalog state.
+authenticated write access because it loads private scenario catalog state. Once
+generated, the preview is stored as a `scenario_patch_preview` artifact and can
+be read back through `patch_preview_artifact_url`. `patch_diff_url` serves the
+raw unified diff when the review is readable by the caller.
 
 ### GET /v1/bench/runs/{id}
 
@@ -457,6 +462,26 @@ Builds the same unsaved review draft as
 namespace used by queue clients. It does not save a review and does not create a
 separate draft lifecycle state.
 
+### GET /v1/bench/runs/{id}/scenario-patch-preview
+
+Returns the stored `scenario_patch_preview.v1` artifact for a run. The artifact
+exists after `POST /v1/bench/runs/{id}/scenario-patch-preview` has generated a
+preview.
+
+Anonymous reads only return previews derived from public reviews. Authenticated
+reads can return previews derived from tenant-private reviews. Missing previews
+and previews the caller cannot read return `404 Not Found`.
+
+### GET /v1/bench/runs/{id}/scenario-patch.diff
+
+Returns the raw unified diff from the stored scenario patch preview as
+`text/x-diff`. This endpoint is the durable download URL used by the browser
+instead of rebuilding a client-side blob.
+
+Anonymous reads only return diffs derived from public reviews. Authenticated
+reads can return diffs derived from tenant-private reviews. Missing previews,
+no-op previews, and previews the caller cannot read return `404 Not Found`.
+
 ### POST /v1/bench/runs/{id}/scenario-patch-preview
 
 Builds a scenario YAML diff from the saved `run_review.v1` suggested rules.
@@ -465,8 +490,9 @@ from `POST /v1/bench/session`.
 
 The service loads the parent run, the saved review artifact, and the matching
 local scenario YAML from the configured scenario catalog. The response is a
-read-only preview; it does not edit `scenario.yaml`, store a patch artifact, or
-change the review.
+read-only preview; it does not edit `scenario.yaml` or change the review. It
+does store the generated JSON preview as a `scenario_patch_preview` artifact so
+API clients and the browser can reload the exact diff later.
 
 ```json
 {
@@ -476,6 +502,8 @@ change the review.
   "scenario_path": "kubernetes/shared-configmap-trap/scenario.yaml",
   "changed": true,
   "diff": "--- kubernetes/shared-configmap-trap/scenario.yaml\n+++ kubernetes/shared-configmap-trap/scenario.yaml (review preview)\n...",
+  "artifact_url": "/v1/bench/runs/run-123/scenario-patch-preview",
+  "diff_url": "/v1/bench/runs/run-123/scenario-patch.diff",
   "added_rules": [
     {
       "target": "autopsy.expected_diagnostics",

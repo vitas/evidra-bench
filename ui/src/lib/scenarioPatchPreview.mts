@@ -1,3 +1,5 @@
+import { buildBenchApiURL } from "./apiBase.mts";
+
 export interface ScenarioPatchPreview {
   version?: string;
   run_id?: string;
@@ -5,6 +7,8 @@ export interface ScenarioPatchPreview {
   scenario_path?: string;
   changed?: boolean;
   diff?: string;
+  artifact_url?: string;
+  diff_url?: string;
   added_rules?: ScenarioPatchRuleChange[];
   skipped_rules?: ScenarioPatchRuleSkip[];
 }
@@ -38,6 +42,14 @@ export function scenarioPatchPreviewStatus(preview: ScenarioPatchPreview): strin
 export function scenarioPatchPreviewDownloadContent(preview: ScenarioPatchPreview): string | null {
   if (!preview.changed || !preview.diff) return null;
   return preview.diff;
+}
+
+export function scenarioPatchPreviewDownloadHref(
+  preview: ScenarioPatchPreview,
+  apiBase: string | undefined = "",
+): string | null {
+  if (!preview.changed || !preview.diff_url?.trim()) return null;
+  return buildBenchApiURL(apiBase, preview.diff_url);
 }
 
 export function scenarioPatchPreviewDiffFilename(preview: ScenarioPatchPreview): string {

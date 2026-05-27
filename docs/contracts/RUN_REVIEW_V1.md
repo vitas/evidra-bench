@@ -107,3 +107,17 @@ Draft generation does not store `run_review`, does not change `review_summary`,
 and does not introduce a separate lifecycle state. A human reviewer still owns
 the final artifact by saving the edited payload with
 `PUT /v1/bench/runs/{id}/review`.
+
+## Scenario Patch Previews
+
+When a saved review contains `suggested_rules`, hosted deployments can build a
+scenario patch preview with `POST /v1/bench/runs/{id}/scenario-patch-preview`.
+The preview is stored as artifact type `scenario_patch_preview` and can be read
+back through `GET /v1/bench/runs/{id}/scenario-patch-preview`; the raw unified
+diff is available at `GET /v1/bench/runs/{id}/scenario-patch.diff`.
+
+Patch previews follow review visibility. Anonymous callers can read only
+previews derived from public reviews. Authenticated callers can read previews
+for tenant-private reviews. The preview never applies changes to
+`scenario.yaml`; a human still reviews the diff and decides whether to commit
+the rule.

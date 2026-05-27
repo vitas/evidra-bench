@@ -78,7 +78,7 @@ The browser `Scenario Improvements` queue uses `GET
 /v1/bench/scenario-improvements`. That endpoint returns reviewed runs with
 suggested rules as product-level candidates, including reviewer note, evidence
 snippet, suggested rule count, and action URLs for reading the review or
-building a scenario patch preview.
+building, reading, and downloading a scenario patch preview.
 
 ## TUI Workflow
 
@@ -128,6 +128,17 @@ curl -X POST "$BENCH_API_URL/v1/bench/runs/$RUN_ID/scenario-patch-preview" \
   -H "Authorization: Bearer $BENCH_API_KEY"
 ```
 
+Read the stored preview artifact or download the raw diff later:
+
+```bash
+curl "$BENCH_API_URL/v1/bench/runs/$RUN_ID/scenario-patch-preview" \
+  -H "Authorization: Bearer $BENCH_API_KEY"
+
+curl "$BENCH_API_URL/v1/bench/runs/$RUN_ID/scenario-patch.diff" \
+  -H "Authorization: Bearer $BENCH_API_KEY" \
+  -o scenario.patch.diff
+```
+
 Read a public review:
 
 ```bash
@@ -154,9 +165,10 @@ Pod names when the problem is direct Pod deletion.
 
 In the browser, save the review and then select `Preview scenario patch` from
 the saved review's suggested-rules section. Hosted preview uses the same patch
-builder as the CLI and returns a diff only; it never applies the patch. When a
-preview contains changes, `Download diff` saves the raw unified diff without
-extra metadata headers.
+builder as the CLI, stores the generated `scenario_patch_preview` artifact, and
+never applies the patch. When a preview contains changes, `Download diff` uses
+the backend `scenario-patch.diff` URL so the downloaded diff is the same durable
+artifact clients can fetch from the API.
 
 Preview a scenario patch from a saved local review:
 

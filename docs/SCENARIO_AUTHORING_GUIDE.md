@@ -404,7 +404,9 @@ bench-cli scenario patch-preview \
 
 In the hosted browser UI, save the review, select `Preview scenario patch`,
 then use `Download diff` when the preview contains changes. Browser download
-uses the same diff format as the CLI and does not store or apply the patch.
+uses the same diff format as the CLI, reads the stored
+`scenario_patch_preview` artifact through `/scenario-patch.diff`, and does not
+apply the patch.
 
 `patch-preview` only prints a diff. It currently maps supported
 `suggested_rules` targets into `autopsy.expected_diagnostics`,
