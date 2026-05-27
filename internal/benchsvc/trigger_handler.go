@@ -16,6 +16,12 @@ import (
 
 var errPinnedRunnerUnavailable = errors.New("pinned runner unavailable")
 
+type triggerStartResult struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+	Mode   string `json:"mode,omitempty"`
+}
+
 // handleTrigger returns a handler that starts a new bench trigger job.
 // POST /v1/bench/trigger
 func handleTrigger(svc *Service, store *TriggerStore, executor RunExecutor) http.HandlerFunc {
@@ -27,65 +33,74 @@ func handleTrigger(svc *Service, store *TriggerStore, executor RunExecutor) http
 			return
 		}
 
-		handled, ok := maybeHandleRunnerTrigger(w, r, svc, store, tenantID, req)
-		if handled {
-			return
-		}
+		result, ok := startTriggerRequest(w, r, svc, store, executor, tenantID, req)
 		if !ok {
 			return
 		}
 
-		if executor == nil {
-			apiutil.WriteError(w, http.StatusNotImplemented, "bench trigger not configured: no executor")
-			return
-		}
-
-		provider, ok := resolveDirectTriggerProvider(w, r, svc, req)
-		if !ok {
-			return
-		}
-
-		job := &TriggerJob{
-			ID:                NewJobID(),
-			Status:            "pending",
-			Model:             req.Model,
-			Provider:          provider,
-			ExecutionMode:     req.ExecutionMode,
-			MCPServer:         req.MCPServer,
-			ToolServer:        req.ToolServer,
-			ToolServerVersion: req.ToolServerVersion,
-			SkillFile:         req.SkillFile,
-			SkillID:           req.SkillID,
-			SkillVersion:      req.SkillVersion,
-			SkillSource:       req.SkillSource,
-			SkillSHA256:       req.SkillSHA256,
-			Total:             len(req.Scenarios),
-			Progress:          pendingScenarioProgress(req.Scenarios),
-			CreatedAt:         time.Now(),
-		}
-		store.Create(job)
-
-		benchURL := resolveBenchURL(r)
-		apiKey := r.Header.Get("Authorization")
-
-		go func() {
-			if err := executor.Start(context.Background(), job, benchURL, apiKey); err != nil {
-				log.Printf("[bench-trigger] executor failed for job %s: %v", job.ID, err)
-				store.Update(ProgressUpdate{
-					JobID:     job.ID,
-					Scenario:  "",
-					Status:    "error",
-					Completed: job.Total,
-					Total:     job.Total,
-				})
-			}
-		}()
-
-		apiutil.WriteJSON(w, http.StatusAccepted, map[string]any{
-			"id":     job.ID,
-			"status": job.Status,
-		})
+		apiutil.WriteJSON(w, http.StatusAccepted, result)
 	}
+}
+
+func startTriggerRequest(w http.ResponseWriter, r *http.Request, svc *Service, store *TriggerStore, executor RunExecutor, tenantID string, req TriggerRequest) (triggerStartResult, bool) {
+	handled, result, ok := maybeStartRunnerTrigger(w, r, svc, store, tenantID, req)
+	if handled {
+		return result, ok
+	}
+	if !ok {
+		return triggerStartResult{}, false
+	}
+
+	if executor == nil {
+		apiutil.WriteError(w, http.StatusNotImplemented, "bench trigger not configured: no executor")
+		return triggerStartResult{}, false
+	}
+
+	provider, ok := resolveDirectTriggerProvider(w, r, svc, req)
+	if !ok {
+		return triggerStartResult{}, false
+	}
+
+	job := &TriggerJob{
+		ID:                NewJobID(),
+		Status:            "pending",
+		Model:             req.Model,
+		Provider:          provider,
+		ExecutionMode:     req.ExecutionMode,
+		MCPServer:         req.MCPServer,
+		ToolServer:        req.ToolServer,
+		ToolServerVersion: req.ToolServerVersion,
+		SkillFile:         req.SkillFile,
+		SkillID:           req.SkillID,
+		SkillVersion:      req.SkillVersion,
+		SkillSource:       req.SkillSource,
+		SkillSHA256:       req.SkillSHA256,
+		Total:             len(req.Scenarios),
+		Progress:          pendingScenarioProgress(req.Scenarios),
+		CreatedAt:         time.Now(),
+	}
+	store.Create(job)
+
+	benchURL := resolveBenchURL(r)
+	apiKey := r.Header.Get("Authorization")
+
+	go func() {
+		if err := executor.Start(context.Background(), job, benchURL, apiKey); err != nil {
+			log.Printf("[bench-trigger] executor failed for job %s: %v", job.ID, err)
+			store.Update(ProgressUpdate{
+				JobID:     job.ID,
+				Scenario:  "",
+				Status:    "error",
+				Completed: job.Total,
+				Total:     job.Total,
+			})
+		}
+	}()
+
+	return triggerStartResult{
+		ID:     job.ID,
+		Status: job.Status,
+	}, true
 }
 
 func decodeTriggerRequest(w http.ResponseWriter, r *http.Request) (TriggerRequest, bool) {
@@ -139,9 +154,9 @@ func resolveDirectTriggerProvider(w http.ResponseWriter, r *http.Request, svc *S
 	return provider, true
 }
 
-func maybeHandleRunnerTrigger(w http.ResponseWriter, r *http.Request, svc *Service, store *TriggerStore, tenantID string, req TriggerRequest) (handled bool, ok bool) {
+func maybeStartRunnerTrigger(w http.ResponseWriter, r *http.Request, svc *Service, store *TriggerStore, tenantID string, req TriggerRequest) (handled bool, result triggerStartResult, ok bool) {
 	if svc.cfg.Dispatcher == nil {
-		return false, true
+		return false, triggerStartResult{}, true
 	}
 
 	runner, err := resolveRunnerForTrigger(r.Context(), svc, tenantID, req)
@@ -152,29 +167,28 @@ func maybeHandleRunnerTrigger(w http.ResponseWriter, r *http.Request, svc *Servi
 		default:
 			apiutil.WriteError(w, http.StatusInternalServerError, err.Error())
 		}
-		return true, false
+		return true, triggerStartResult{}, false
 	}
 	if runner == nil {
-		return false, true
+		return false, triggerStartResult{}, true
 	}
 
 	provider, ok := resolveRunnerTriggerProvider(w, r, svc, req, runner)
 	if !ok {
-		return true, false
+		return true, triggerStartResult{}, false
 	}
 
 	jobID, err := enqueueRunnerTrigger(r.Context(), svc, store, tenantID, req, provider, runner)
 	if err != nil {
 		apiutil.WriteError(w, http.StatusInternalServerError, err.Error())
-		return true, false
+		return true, triggerStartResult{}, false
 	}
 
-	apiutil.WriteJSON(w, http.StatusAccepted, map[string]any{
-		"id":     jobID,
-		"status": "pending",
-		"mode":   "runner",
-	})
-	return true, true
+	return true, triggerStartResult{
+		ID:     jobID,
+		Status: "pending",
+		Mode:   "runner",
+	}, true
 }
 
 func resolveRunnerTriggerProvider(w http.ResponseWriter, r *http.Request, svc *Service, req TriggerRequest, runner *Runner) (string, bool) {

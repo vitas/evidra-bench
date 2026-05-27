@@ -8,8 +8,10 @@ import { formatCompactTokens, formatDuration } from "../../lib/benchFormatters.m
 import type { BenchRunRecord } from "../../lib/benchTypes.mts";
 import type { RunReview } from "../../lib/runReview.mts";
 import { normalizeRunReviewView } from "../../lib/runReview.mts";
-import type { ScenarioPatchPreview } from "../../lib/scenarioPatchPreview.mts";
+import type { ScenarioPatchPreview, ScenarioPatchValidation } from "../../lib/scenarioPatchPreview.mts";
 import {
+  scenarioPatchValidationApiPath,
+  scenarioPatchValidationStatus,
   scenarioPatchPreviewDiffFilename,
   scenarioPatchPreviewDownloadHref,
   scenarioPatchPreviewStatus,
@@ -165,6 +167,9 @@ export function RunDetail() {
   const [scenarioPatchPreview, setScenarioPatchPreview] = useState<ScenarioPatchPreview | null>(null);
   const [scenarioPatchPreviewLoading, setScenarioPatchPreviewLoading] = useState(false);
   const [scenarioPatchPreviewError, setScenarioPatchPreviewError] = useState<string | null>(null);
+  const [scenarioPatchValidation, setScenarioPatchValidation] = useState<ScenarioPatchValidation | null>(null);
+  const [scenarioPatchValidationLoading, setScenarioPatchValidationLoading] = useState(false);
+  const [scenarioPatchValidationError, setScenarioPatchValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     setActiveTab(parseTab(searchParams.get("tab")));
@@ -173,6 +178,9 @@ export function RunDetail() {
   useEffect(() => {
     setScenarioPatchPreview(null);
     setScenarioPatchPreviewError(null);
+    setScenarioPatchValidation(null);
+    setScenarioPatchValidationLoading(false);
+    setScenarioPatchValidationError(null);
     setReviewDraftSeed(null);
     setReviewAutoDraftedRunID(null);
   }, [id]);
@@ -195,6 +203,9 @@ export function RunDetail() {
     setReviewDraftError(null);
     setScenarioPatchPreview(null);
     setScenarioPatchPreviewError(null);
+    setScenarioPatchValidation(null);
+    setScenarioPatchValidationLoading(false);
+    setScenarioPatchValidationError(null);
     setReviewSaved(false);
     try {
       const saved = await request<RunReview>(`/v1/bench/runs/${id}/review`, {
@@ -225,6 +236,9 @@ export function RunDetail() {
     setReviewSaveError(null);
     setScenarioPatchPreview(null);
     setScenarioPatchPreviewError(null);
+    setScenarioPatchValidation(null);
+    setScenarioPatchValidationLoading(false);
+    setScenarioPatchValidationError(null);
     setReviewSaved(false);
     try {
       const draft = await request<RunReview>(`/v1/bench/review-candidates/${id}/draft`, {
@@ -244,6 +258,9 @@ export function RunDetail() {
     if (!id) return;
     setScenarioPatchPreviewLoading(true);
     setScenarioPatchPreviewError(null);
+    setScenarioPatchValidation(null);
+    setScenarioPatchValidationLoading(false);
+    setScenarioPatchValidationError(null);
     try {
       const preview = await request<ScenarioPatchPreview>(`/v1/bench/runs/${id}/scenario-patch-preview`, {
         method: "POST",
@@ -253,6 +270,22 @@ export function RunDetail() {
       setScenarioPatchPreviewError(err instanceof Error ? err.message : "Failed to preview scenario patch");
     } finally {
       setScenarioPatchPreviewLoading(false);
+    }
+  }
+
+  async function validateScenarioPatch() {
+    if (!id) return;
+    setScenarioPatchValidationLoading(true);
+    setScenarioPatchValidationError(null);
+    try {
+      const validation = await request<ScenarioPatchValidation>(scenarioPatchValidationApiPath(id), {
+        method: "POST",
+      });
+      setScenarioPatchValidation(validation);
+    } catch (err) {
+      setScenarioPatchValidationError(err instanceof Error ? err.message : "Failed to queue validation rerun");
+    } finally {
+      setScenarioPatchValidationLoading(false);
     }
   }
 
@@ -502,8 +535,12 @@ export function RunDetail() {
           scenarioPatchPreview={scenarioPatchPreview}
           scenarioPatchPreviewLoading={scenarioPatchPreviewLoading}
           scenarioPatchPreviewError={scenarioPatchPreviewError}
+          scenarioPatchValidation={scenarioPatchValidation}
+          scenarioPatchValidationLoading={scenarioPatchValidationLoading}
+          scenarioPatchValidationError={scenarioPatchValidationError}
           onDraft={draftReview}
           onPreviewScenarioPatch={previewScenarioPatch}
+          onValidateScenarioPatch={validateScenarioPatch}
           onSave={saveReview}
         />
       )}
@@ -653,8 +690,12 @@ function ReviewTab({
   scenarioPatchPreview,
   scenarioPatchPreviewLoading,
   scenarioPatchPreviewError,
+  scenarioPatchValidation,
+  scenarioPatchValidationLoading,
+  scenarioPatchValidationError,
   onDraft,
   onPreviewScenarioPatch,
+  onValidateScenarioPatch,
   onSave,
 }: {
   run: BenchRunRecord;
@@ -671,8 +712,12 @@ function ReviewTab({
   scenarioPatchPreview: ScenarioPatchPreview | null;
   scenarioPatchPreviewLoading: boolean;
   scenarioPatchPreviewError: string | null;
+  scenarioPatchValidation: ScenarioPatchValidation | null;
+  scenarioPatchValidationLoading: boolean;
+  scenarioPatchValidationError: string | null;
   onDraft: () => Promise<RunReview>;
   onPreviewScenarioPatch: () => Promise<void>;
+  onValidateScenarioPatch: () => Promise<void>;
   onSave: (payload: RunReview) => Promise<void>;
 }) {
   if (loading) {
@@ -808,6 +853,10 @@ function ReviewTab({
           preview={scenarioPatchPreview}
           loading={scenarioPatchPreviewLoading}
           error={scenarioPatchPreviewError}
+          validation={scenarioPatchValidation}
+          validationLoading={scenarioPatchValidationLoading}
+          validationError={scenarioPatchValidationError}
+          onValidate={onValidateScenarioPatch}
         />
       </div>
 
@@ -832,10 +881,18 @@ function ScenarioPatchPreviewPanel({
   preview,
   loading,
   error,
+  validation,
+  validationLoading,
+  validationError,
+  onValidate,
 }: {
   preview: ScenarioPatchPreview | null;
   loading: boolean;
   error: string | null;
+  validation: ScenarioPatchValidation | null;
+  validationLoading: boolean;
+  validationError: string | null;
+  onValidate: () => Promise<void>;
 }) {
   if (loading) {
     return (
@@ -865,15 +922,36 @@ function ScenarioPatchPreviewPanel({
           )}
         </div>
         {diffHref && (
-          <a
-            href={diffHref}
-            download={scenarioPatchPreviewDiffFilename(preview)}
-            className="w-fit rounded-md border border-border bg-bg-alt px-3 py-1.5 text-[0.78rem] font-semibold text-fg transition-colors hover:border-accent"
-          >
-            Download diff
-          </a>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={diffHref}
+              download={scenarioPatchPreviewDiffFilename(preview)}
+              className="w-fit rounded-md border border-border bg-bg-alt px-3 py-1.5 text-[0.78rem] font-semibold text-fg transition-colors hover:border-accent"
+            >
+              Download diff
+            </a>
+            <button
+              type="button"
+              onClick={onValidate}
+              disabled={validationLoading}
+              className="w-fit rounded-md border border-border bg-bg-alt px-3 py-1.5 text-[0.78rem] font-semibold text-fg transition-colors hover:border-accent disabled:cursor-default disabled:opacity-50"
+            >
+              {validationLoading ? "Queuing..." : "Validate rerun"}
+            </button>
+          </div>
         )}
       </div>
+      {validation && (
+        <div className="mb-2 rounded border border-border-subtle bg-bg-elevated px-3 py-2 text-[0.76rem] text-fg-muted">
+          <span className="block text-fg-body">{scenarioPatchValidationStatus(validation)}</span>
+          <span className="block font-mono break-all">{validation.trigger_url}</span>
+        </div>
+      )}
+      {validationError && (
+        <div className="mb-2 rounded bg-[var(--color-danger-badge-bg)] px-3 py-2 text-[0.76rem] text-[var(--color-danger-badge-fg)]">
+          {validationError}
+        </div>
+      )}
       {preview.diff ? (
         <pre className="max-h-[360px] overflow-auto rounded border border-border-subtle bg-code-bg px-3 py-2 font-mono text-[0.72rem] leading-relaxed text-fg-muted whitespace-pre">
           {preview.diff}

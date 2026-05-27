@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  scenarioPatchValidationApiPath,
+  scenarioPatchValidationStatus,
   scenarioPatchPreviewDiffFilename,
   scenarioPatchPreviewDownloadHref,
   scenarioPatchPreviewDownloadContent,
   scenarioPatchPreviewStatus,
+  type ScenarioPatchValidation,
   type ScenarioPatchPreview,
 } from "./scenarioPatchPreview.mts";
 
@@ -90,4 +93,25 @@ test("scenarioPatchPreviewDownloadHref uses the backend diff artifact URL", () =
   );
   assert.equal(scenarioPatchPreviewDownloadHref({ ...preview, changed: false }), null);
   assert.equal(scenarioPatchPreviewDownloadHref({ ...preview, diff_url: "" }), null);
+});
+
+test("scenarioPatchValidation helpers target the backend validation endpoint", () => {
+  const validation: ScenarioPatchValidation = {
+    version: "scenario_patch_validation.v1",
+    source_run_id: "run-123",
+    scenario_id: "shared-configmap-trap",
+    model: "sonnet",
+    provider: "anthropic",
+    trigger_id: "job-1",
+    trigger_url: "/v1/bench/trigger/job-1",
+    status: "pending",
+    patch_preview_url: "/v1/bench/runs/run-123/scenario-patch-preview",
+    patch_diff_url: "/v1/bench/runs/run-123/scenario-patch.diff",
+  };
+
+  assert.equal(
+    scenarioPatchValidationApiPath("run/123"),
+    "/v1/bench/runs/run%2F123/scenario-patch-validation",
+  );
+  assert.equal(scenarioPatchValidationStatus(validation), "Validation rerun queued for shared-configmap-trap");
 });

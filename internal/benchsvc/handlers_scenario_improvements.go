@@ -103,8 +103,9 @@ func scenarioImprovementForRun(r *http.Request, svc *Service, tenantID string, r
 		PatchPreviewAvailable:   strings.TrimSpace(svc.cfg.ScenariosDir) != "",
 		RunURL:                  runURL,
 		ReviewURL:               runURL + "/review",
-		PatchPreviewURL:         runURL + "/scenario-patch-preview",
-		PatchPreviewArtifactURL: runURL + "/scenario-patch-preview",
-		PatchDiffURL:            runURL + "/scenario-patch.diff",
+		PatchPreviewURL:         previewURLForRun(run.ID),
+		PatchPreviewArtifactURL: previewURLForRun(run.ID),
+		PatchDiffURL:            diffURLForRun(run.ID),
+		PatchValidationURL:      validationURLForRun(run.ID),
 	}, true, nil
 }

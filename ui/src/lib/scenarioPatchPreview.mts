@@ -13,6 +13,20 @@ export interface ScenarioPatchPreview {
   skipped_rules?: ScenarioPatchRuleSkip[];
 }
 
+export interface ScenarioPatchValidation {
+  version?: string;
+  source_run_id: string;
+  scenario_id: string;
+  model: string;
+  provider?: string;
+  trigger_id: string;
+  trigger_url: string;
+  status: string;
+  mode?: string;
+  patch_preview_url: string;
+  patch_diff_url: string;
+}
+
 export interface ScenarioPatchRuleChange {
   target?: string;
   section?: string;
@@ -56,6 +70,21 @@ export function scenarioPatchPreviewDiffFilename(preview: ScenarioPatchPreview):
   const scenario = slugPart(preview.scenario_id || preview.scenario_path || "scenario");
   const run = slugPart(preview.run_id || "run");
   return `evidra-scenario-patch-${scenario}-${run}.diff`;
+}
+
+export function scenarioPatchValidationApiPath(runID: string): string {
+  return `/v1/bench/runs/${encodeURIComponent(runID)}/scenario-patch-validation`;
+}
+
+export function scenarioPatchValidationStatus(validation: ScenarioPatchValidation): string {
+  const scenario = validation.scenario_id || "scenario";
+  if (validation.status === "completed") {
+    return `Validation rerun completed for ${scenario}`;
+  }
+  if (validation.status === "failed" || validation.status === "error") {
+    return `Validation rerun failed for ${scenario}`;
+  }
+  return `Validation rerun queued for ${scenario}`;
 }
 
 function slugPart(value: string): string {

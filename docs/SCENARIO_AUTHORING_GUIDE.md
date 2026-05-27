@@ -406,7 +406,8 @@ In the hosted browser UI, save the review, select `Preview scenario patch`,
 then use `Download diff` when the preview contains changes. Browser download
 uses the same diff format as the CLI, reads the stored
 `scenario_patch_preview` artifact through `/scenario-patch.diff`, and does not
-apply the patch.
+apply the patch. After applying the diff, use `Validate rerun` to queue the
+same scenario/model/tool-server slice through the trigger API.
 
 `patch-preview` only prints a diff. It currently maps supported
 `suggested_rules` targets into `autopsy.expected_diagnostics`,

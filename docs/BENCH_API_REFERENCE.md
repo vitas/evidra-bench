@@ -356,7 +356,8 @@ reviews. Authenticated reads can include tenant-private reviews.
       "review_url": "/v1/bench/runs/run-123/review",
       "patch_preview_url": "/v1/bench/runs/run-123/scenario-patch-preview",
       "patch_preview_artifact_url": "/v1/bench/runs/run-123/scenario-patch-preview",
-      "patch_diff_url": "/v1/bench/runs/run-123/scenario-patch.diff"
+      "patch_diff_url": "/v1/bench/runs/run-123/scenario-patch.diff",
+      "patch_validation_url": "/v1/bench/runs/run-123/scenario-patch-validation"
     }
   ],
   "total": 1,
@@ -371,6 +372,8 @@ authenticated write access because it loads private scenario catalog state. Once
 generated, the preview is stored as a `scenario_patch_preview` artifact and can
 be read back through `patch_preview_artifact_url`. `patch_diff_url` serves the
 raw unified diff when the review is readable by the caller.
+`patch_validation_url` queues a scenario rerun from the source run metadata
+after the diff has been applied to the scenario catalog.
 
 ### GET /v1/bench/runs/{id}
 
@@ -515,6 +518,59 @@ API clients and the browser can reload the exact diff later.
   "skipped_rules": []
 }
 ```
+
+### POST /v1/bench/runs/{id}/scenario-patch-validation
+
+Queues a validation rerun for the same scenario, model, provider, tool-server
+identity, and skill identity as the source run. This endpoint is the API-first
+close-loop action after a human has reviewed and applied the generated scenario
+diff. It requires a stored changed `scenario_patch_preview` artifact and the
+same trigger configuration as `POST /v1/bench/trigger`.
+
+Requires `Authorization: Bearer $BENCH_API_KEY` or a browser session cookie
+from `POST /v1/bench/session`. The endpoint does not apply the diff and does
+not mutate `scenario.yaml`; it only queues the validation rerun through the
+existing trigger runner/direct-executor path.
+
+Optional request fields can provide runtime-only values not stored on the
+source run, such as `runner_id`, `execution_mode`, `mcp_server`, or
+`skill_file`. Stored identity fields such as `tool_server`,
+`tool_server_version`, `skill_id`, `skill_version`, `skill_source`, and
+`skill_sha256` default from the source run and may be overridden.
+
+```json
+{
+  "runner_id": "01K...",
+  "mcp_server": "npx -y @vendor/kubernetes-mcp --stdio",
+  "skill_file": "/tmp/bench-skills/k8s-admin.md"
+}
+```
+
+Response:
+
+```json
+{
+  "version": "scenario_patch_validation.v1",
+  "source_run_id": "run-123",
+  "scenario_id": "shared-configmap-trap",
+  "model": "sonnet",
+  "provider": "anthropic",
+  "trigger_id": "01K...",
+  "trigger_url": "/v1/bench/trigger/01K...",
+  "status": "pending",
+  "mode": "runner",
+  "patch_preview_url": "/v1/bench/runs/run-123/scenario-patch-preview",
+  "patch_diff_url": "/v1/bench/runs/run-123/scenario-patch.diff"
+}
+```
+
+Errors:
+
+| Status | Meaning |
+|---|---|
+| `400` | stored preview exists but produced no diff, or request overrides are invalid |
+| `404` | source run or stored patch preview is missing |
+| `501` | no eligible runner and no direct executor configured |
 
 Missing runs or reviews return `404 Not Found`. Deployments without a local
 scenario catalog return `503 Service Unavailable`.

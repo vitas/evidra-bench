@@ -85,6 +85,7 @@ type ScenarioImprovement struct {
 	PatchPreviewURL         string    `json:"patch_preview_url"`
 	PatchPreviewArtifactURL string    `json:"patch_preview_artifact_url"`
 	PatchDiffURL            string    `json:"patch_diff_url"`
+	PatchValidationURL      string    `json:"patch_validation_url"`
 }
 
 // ScenarioImprovementsResponse is the list response for scenario improvement candidates.

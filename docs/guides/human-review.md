@@ -139,6 +139,13 @@ curl "$BENCH_API_URL/v1/bench/runs/$RUN_ID/scenario-patch.diff" \
   -o scenario.patch.diff
 ```
 
+Queue a validation rerun after applying the diff:
+
+```bash
+curl -X POST "$BENCH_API_URL/v1/bench/runs/$RUN_ID/scenario-patch-validation" \
+  -H "Authorization: Bearer $BENCH_API_KEY"
+```
+
 Read a public review:
 
 ```bash
@@ -169,6 +176,9 @@ builder as the CLI, stores the generated `scenario_patch_preview` artifact, and
 never applies the patch. When a preview contains changes, `Download diff` uses
 the backend `scenario-patch.diff` URL so the downloaded diff is the same durable
 artifact clients can fetch from the API.
+After applying the diff to the scenario catalog, `Validate rerun` queues the
+same scenario/model/tool-server slice through the trigger API so the new run can
+be compared against the reviewed source run.
 
 Preview a scenario patch from a saved local review:
 

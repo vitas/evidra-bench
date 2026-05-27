@@ -78,6 +78,7 @@ func TestHandleListScenarioImprovements_ReturnsReviewedSuggestedRuleCandidates(t
 			PatchPreviewURL         string `json:"patch_preview_url"`
 			PatchPreviewArtifactURL string `json:"patch_preview_artifact_url"`
 			PatchDiffURL            string `json:"patch_diff_url"`
+			PatchValidationURL      string `json:"patch_validation_url"`
 			CreatedAt               string `json:"created_at"`
 		} `json:"improvements"`
 		Total  int `json:"total"`
@@ -116,7 +117,8 @@ func TestHandleListScenarioImprovements_ReturnsReviewedSuggestedRuleCandidates(t
 		got.ReviewURL != "/v1/bench/runs/run-1/review" ||
 		got.PatchPreviewURL != "/v1/bench/runs/run-1/scenario-patch-preview" ||
 		got.PatchPreviewArtifactURL != "/v1/bench/runs/run-1/scenario-patch-preview" ||
-		got.PatchDiffURL != "/v1/bench/runs/run-1/scenario-patch.diff" {
+		got.PatchDiffURL != "/v1/bench/runs/run-1/scenario-patch.diff" ||
+		got.PatchValidationURL != "/v1/bench/runs/run-1/scenario-patch-validation" {
 		t.Fatalf("urls = %#v", got)
 	}
 	if got.CreatedAt != "2026-05-27T09:15:00Z" {

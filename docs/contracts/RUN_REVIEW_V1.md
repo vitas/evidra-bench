@@ -121,3 +121,9 @@ previews derived from public reviews. Authenticated callers can read previews
 for tenant-private reviews. The preview never applies changes to
 `scenario.yaml`; a human still reviews the diff and decides whether to commit
 the rule.
+
+After the diff is applied, `POST
+/v1/bench/runs/{id}/scenario-patch-validation` queues a validation rerun for the
+same scenario and source-run execution identity. The validation request does not
+store a new review state; it creates a normal trigger job whose resulting run
+artifacts can be reviewed and compared like any other run.
