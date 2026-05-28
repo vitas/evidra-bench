@@ -372,6 +372,14 @@ func (a *App) renderReviewEditor() string {
 	b.WriteString("\n\n")
 	fmt.Fprintf(&b, "  run:        %s\n", valueOrDefault(a.artifacts.RunID, "(unknown)"))
 	fmt.Fprintf(&b, "  scenario:   %s\n", valueOrDefault(a.artifacts.ScenarioID, "(unknown)"))
+
+	if focusLines := reviewFocusLines(*a.artifacts); len(focusLines) > 0 {
+		b.WriteString("\nReview Focus\n")
+		for _, line := range focusLines {
+			fmt.Fprintf(&b, "  %s\n", line)
+		}
+	}
+
 	fmt.Fprintf(&b, "  verdict:    %s\n", a.reviewEditor.verdict())
 	fmt.Fprintf(&b, "  label:      %s\n", a.reviewEditor.labelKind())
 	fmt.Fprintf(&b, "  severity:   %s\n", a.reviewEditor.severity())

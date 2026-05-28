@@ -158,7 +158,7 @@ func Analyze(in Input) Report {
 		report.add(Finding{
 			Kind:     FailureRetryLoop,
 			Severity: SeverityWarning,
-			Message:  fmt.Sprintf("Repeated the same command %d times.", count),
+			Message:  retryLoopMessage(cmd, count, timeline),
 			Evidence: cmd,
 		})
 	}
@@ -592,6 +592,53 @@ func mostRepeatedCommand(calls []bench.ToolCall) (string, int) {
 		}
 	}
 	return best, bestCount
+}
+
+func retryLoopMessage(cmd string, count int, timeline *bench.Timeline) string {
+	commandKind := "command"
+	if repeatedCommandIsReadOnly(cmd, timeline) {
+		commandKind = "read-only diagnostic command"
+	}
+	message := fmt.Sprintf("Repeated the same %s %d times.", commandKind, count)
+	if timeline != nil && timeline.MutationCount == 0 {
+		message += " No mutation was observed before the failed run ended."
+	}
+	return message
+}
+
+func repeatedCommandIsReadOnly(cmd string, timeline *bench.Timeline) bool {
+	if timeline != nil {
+		for _, step := range timeline.Steps {
+			if normalizeCommand(step.Command) == cmd {
+				return step.Phase != bench.PhaseAct
+			}
+		}
+	}
+	return likelyReadOnlyCommand(cmd)
+}
+
+func likelyReadOnlyCommand(cmd string) bool {
+	words := strings.Fields(cmd)
+	if len(words) < 2 {
+		return false
+	}
+	if words[0] != "kubectl" {
+		return false
+	}
+	switch words[1] {
+	case "get", "describe", "logs", "top":
+		return true
+	case "rollout":
+		return len(words) >= 3 && readOnlyRolloutCommand(words[2])
+	case "exec":
+		return strings.Contains(" "+cmd+" ", " cat ")
+	default:
+		return false
+	}
+}
+
+func readOnlyRolloutCommand(subcommand string) bool {
+	return subcommand == "status" || subcommand == "history"
 }
 
 func extractCommand(args json.RawMessage) string {

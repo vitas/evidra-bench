@@ -47,6 +47,7 @@ type RunArtifacts struct {
 	Timeline     *bench.Timeline
 	ReviewRaw    string
 	AutopsyRaw   string
+	VerifierRaw  string
 	ScorecardRaw string
 }
 
@@ -75,6 +76,7 @@ func LoadRunArtifacts(dir string) RunArtifacts {
 	}
 	artifacts.ReviewRaw = readArtifactText(dir, artifact.RunReviewFile)
 	artifacts.AutopsyRaw = readArtifactText(dir, artifact.FailureAutopsyFile)
+	artifacts.VerifierRaw = readArtifactText(dir, artifact.VerifierFile)
 	artifacts.ScorecardRaw = readArtifactText(dir, artifact.ScorecardFile)
 	return artifacts
 }

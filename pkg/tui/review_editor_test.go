@@ -86,6 +86,117 @@ func TestBuildReviewFromEditorDefaultsStepEvidenceAndRule(t *testing.T) {
 	}
 }
 
+func TestReviewEditorDefaultsToRetryLoopFindingEvidence(t *testing.T) {
+	t.Parallel()
+
+	artifacts := RunArtifacts{
+		Dir:        "/runs/run-1",
+		RunID:      "run-1",
+		ScenarioID: "crashloop-probe-masking",
+		Passed:     false,
+		AutopsyRaw: `{"version":"autopsy.v1","outcome":"fail","primary_failure":"timeout_no_progress","summary":"Run failed with primary failure timeout_no_progress.","confidence":"medium","findings":[{"kind":"retry_loop","severity":"warning","message":"Repeated the same command 4 times.","evidence":"kubectl exec -n bench api -- cat /etc/nginx/conf.d/default.conf"},{"kind":"timeout_no_progress","severity":"warning","message":"Run exited unsuccessfully without any observed mutation."}],"metrics":{"mutation_count":0,"diagnosis_depth":4,"total_steps":8}}`,
+		Timeline: &bench.Timeline{MutationCount: 0, DiagnosisDepth: 4, TotalSteps: 3, Steps: []bench.TimelineStep{
+			{Index: 0, Phase: bench.PhaseDiscover, Command: "kubectl get pods -n bench", Summary: "list pods in bench"},
+			{Index: 1, Phase: bench.PhaseDiagnose, Command: "kubectl exec -n bench api -- cat /etc/nginx/conf.d/default.conf", Summary: "inspect nginx config"},
+			{Index: 2, Phase: bench.PhaseDiagnose, Command: "kubectl logs -n bench deployment/api", Summary: "inspect api logs"},
+		}},
+	}
+
+	editor := newReviewEditor(artifacts)
+	step, ok := selectedReviewStep(artifacts, editor)
+	if !ok {
+		t.Fatal("expected selected review step")
+	}
+
+	if editor.verdict() != runreview.VerdictValidFailure {
+		t.Fatalf("verdict = %q, want valid_failure", editor.verdict())
+	}
+	if editor.labelKind() != runreview.LabelRetryLoop {
+		t.Fatalf("label = %q, want retry_loop", editor.labelKind())
+	}
+	if step.Index != 1 {
+		t.Fatalf("selected step = %d, want retry-loop evidence step 1", step.Index)
+	}
+	for _, want := range []string{"retry_loop", "read-only diagnostic command", "no mutation was observed"} {
+		if !strings.Contains(editor.Note, want) {
+			t.Fatalf("note missing %q:\n%s", want, editor.Note)
+		}
+	}
+}
+
+func TestRenderReviewEditorShowsAutopsyReviewFocus(t *testing.T) {
+	t.Parallel()
+
+	artifacts := RunArtifacts{
+		Dir:        "/runs/run-1",
+		RunID:      "run-1",
+		ScenarioID: "crashloop-probe-masking",
+		Passed:     false,
+		AutopsyRaw: `{"version":"autopsy.v1","outcome":"fail","primary_failure":"timeout_no_progress","summary":"Run failed with primary failure timeout_no_progress.","confidence":"medium","findings":[{"kind":"retry_loop","severity":"warning","message":"Repeated the same command 4 times.","evidence":"kubectl exec -n bench api -- cat /etc/nginx/conf.d/default.conf"}],"metrics":{"mutation_count":0,"diagnosis_depth":4,"total_steps":8}}`,
+		Timeline: &bench.Timeline{MutationCount: 0, DiagnosisDepth: 4, TotalSteps: 8, Steps: []bench.TimelineStep{
+			{Index: 0, Phase: bench.PhaseDiscover, Command: "kubectl get pods -n bench", Summary: "list pods in bench"},
+			{Index: 1, Phase: bench.PhaseDiagnose, Command: "kubectl exec -n bench api -- cat /etc/nginx/conf.d/default.conf", Summary: "inspect nginx config"},
+		}},
+	}
+	app := &App{
+		view:         viewReviewEditor,
+		artifacts:    &artifacts,
+		reviewEditor: newReviewEditor(artifacts),
+	}
+
+	rendered := app.renderReviewEditor()
+	for _, want := range []string{"Review Focus", "autopsy: timeout_no_progress", "Run failed with primary failure timeout_no_progress.", "finding: retry_loop", "read-only diagnostic command", "no mutation was observed", "timeline: 8 steps, 0 mutations, 4 diagnostic steps"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("review editor missing %q:\n%s", want, rendered)
+		}
+	}
+}
+
+func TestReviewFocusLinesIncludeVerifierFailure(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeArtifactFile(t, dir, "verifier.json", `{"passed":false,"checks":[{"name":"deployment-ready/bench/api","type":"deployment-ready","verdict":"fail","message":"updated replicas: 1/2"},{"name":"service-reachable/bench/api","type":"service-reachable","verdict":"pass"}]}`)
+	artifacts := LoadRunArtifacts(dir)
+
+	rendered := strings.Join(reviewFocusLines(artifacts), "\n")
+	for _, want := range []string{"verifier: deployment-ready/bench/api failed", "updated replicas: 1/2"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("review focus missing %q:\n%s", want, rendered)
+		}
+	}
+}
+
+func TestReviewEditorContextualizesReadOnlyRetryLoop(t *testing.T) {
+	t.Parallel()
+
+	artifacts := RunArtifacts{
+		Dir:        "/runs/run-1",
+		RunID:      "run-1",
+		ScenarioID: "crashloop-probe-masking",
+		Passed:     false,
+		AutopsyRaw: `{"version":"autopsy.v1","outcome":"fail","primary_failure":"timeout_no_progress","summary":"Run failed with primary failure timeout_no_progress.","confidence":"medium","findings":[{"kind":"retry_loop","severity":"warning","message":"Repeated the same command 3 times.","evidence":"kubectl exec -n bench api -- cat /etc/nginx/conf.d/default.conf"}],"metrics":{"mutation_count":0,"diagnosis_depth":4,"total_steps":8}}`,
+		Timeline: &bench.Timeline{MutationCount: 0, DiagnosisDepth: 4, TotalSteps: 8, Steps: []bench.TimelineStep{
+			{Index: 0, Phase: bench.PhaseDiagnose, Command: "kubectl exec -n bench api -- cat /etc/nginx/conf.d/default.conf", Summary: "inspect nginx config"},
+		}},
+	}
+	app := &App{
+		view:         viewReviewEditor,
+		artifacts:    &artifacts,
+		reviewEditor: newReviewEditor(artifacts),
+	}
+
+	rendered := app.renderReviewEditor()
+	for _, want := range []string{"read-only diagnostic command", "3 times", "no mutation was observed"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("review editor missing contextual retry-loop text %q:\n%s", want, rendered)
+		}
+	}
+	if strings.Contains(app.reviewEditor.Note, "Repeated the same command") {
+		t.Fatalf("default note kept ambiguous retry-loop text:\n%s", app.reviewEditor.Note)
+	}
+}
+
 func TestSaveRunReviewWritesPrettyArtifact(t *testing.T) {
 	t.Parallel()
 

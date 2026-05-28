@@ -3,6 +3,7 @@ package tui
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,8 +15,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/vitas/evidra-bench/pkg/artifact"
+	"github.com/vitas/evidra-bench/pkg/autopsy"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
 	"github.com/vitas/evidra-bench/pkg/runreview"
+	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
 var reviewVerdicts = []string{
@@ -63,6 +66,17 @@ type reviewEditorState struct {
 
 type reviewUploadMsg struct {
 	Err error
+}
+
+type reviewFocus struct {
+	AutopsyPrimary  string
+	AutopsySummary  string
+	FindingKind     string
+	FindingMessage  string
+	FindingEvidence string
+	VerifierName    string
+	VerifierMessage string
+	SuggestedLabel  string
 }
 
 type httpDoer interface {
@@ -244,6 +258,12 @@ func defaultReviewStepPos(artifacts RunArtifacts) int {
 	if artifacts.Timeline == nil {
 		return 0
 	}
+	focus := inferReviewFocus(artifacts)
+	if focus.FindingEvidence != "" {
+		if pos, ok := findReviewStepByEvidence(artifacts, focus.FindingEvidence); ok {
+			return pos
+		}
+	}
 	for i, step := range artifacts.Timeline.Steps {
 		if step.Phase == bench.PhaseAct {
 			return i
@@ -260,6 +280,9 @@ func defaultReviewVerdict(artifacts RunArtifacts) string {
 }
 
 func defaultReviewLabelKind(artifacts RunArtifacts) string {
+	if focus := inferReviewFocus(artifacts); focus.SuggestedLabel != "" {
+		return focus.SuggestedLabel
+	}
 	step, ok := selectedReviewStep(artifacts, reviewEditorState{StepPos: defaultReviewStepPos(artifacts)})
 	if !ok {
 		return runreview.LabelUnsafeAction
@@ -271,11 +294,259 @@ func defaultReviewLabelKind(artifacts RunArtifacts) string {
 }
 
 func defaultReviewNote(artifacts RunArtifacts, editor reviewEditorState) string {
+	focus := inferReviewFocus(artifacts)
+	if focus.FindingKind != "" && focus.FindingMessage != "" {
+		return fmt.Sprintf("%s: %s", focus.FindingKind, focus.FindingMessage)
+	}
+	if focus.AutopsyPrimary != "" && focus.AutopsySummary != "" {
+		return fmt.Sprintf("%s: %s", focus.AutopsyPrimary, focus.AutopsySummary)
+	}
 	step, ok := selectedReviewStep(artifacts, editor)
 	if !ok {
 		return "Human review note for this run."
 	}
 	return fmt.Sprintf("Step %d is marked as %s for scenario review.", step.Index+1, editor.labelKind())
+}
+
+func inferReviewFocus(artifacts RunArtifacts) reviewFocus {
+	var focus reviewFocus
+	if report, ok := parseAutopsyReport(artifacts.AutopsyRaw); ok {
+		focus.AutopsyPrimary = string(report.PrimaryFailure)
+		focus.AutopsySummary = strings.TrimSpace(report.Summary)
+		if finding, ok := preferredAutopsyFinding(report); ok {
+			focus.FindingKind = string(finding.Kind)
+			focus.FindingMessage = contextualReviewFindingMessage(artifacts, report, finding)
+			focus.FindingEvidence = strings.TrimSpace(finding.Evidence)
+			focus.SuggestedLabel = labelForAutopsyFailure(finding.Kind)
+		}
+		if focus.SuggestedLabel == "" && report.PrimaryFailure != "" {
+			focus.SuggestedLabel = labelForAutopsyFailure(report.PrimaryFailure)
+		}
+	}
+	if check, ok := firstFailedVerifierCheck(artifacts.VerifierRaw); ok {
+		focus.VerifierName = strings.TrimSpace(check.Name)
+		focus.VerifierMessage = strings.TrimSpace(check.Message)
+	}
+	return focus
+}
+
+func contextualReviewFindingMessage(artifacts RunArtifacts, report autopsy.Report, finding autopsy.Finding) string {
+	message := strings.TrimSpace(finding.Message)
+	if finding.Kind != autopsy.FailureRetryLoop {
+		return message
+	}
+	mutationCount, mutationKnown := reviewMutationCount(artifacts, report)
+	if !mutationKnown || mutationCount != 0 || !readOnlyReviewEvidence(artifacts, finding.Evidence) {
+		return message
+	}
+	count := firstInteger(message)
+	countText := ""
+	if count != "" {
+		countText = " " + count + " times"
+	}
+	return "Repeated a read-only diagnostic command" + countText + "; no mutation was observed before the failed run ended."
+}
+
+func reviewMutationCount(artifacts RunArtifacts, report autopsy.Report) (int, bool) {
+	if artifacts.Timeline != nil {
+		return artifacts.Timeline.MutationCount, true
+	}
+	if report.Metrics.TotalSteps > 0 || report.Metrics.MutationCount > 0 {
+		return report.Metrics.MutationCount, true
+	}
+	return 0, false
+}
+
+func readOnlyReviewEvidence(artifacts RunArtifacts, evidence string) bool {
+	if artifacts.Timeline != nil {
+		if pos, ok := findReviewStepByEvidence(artifacts, evidence); ok {
+			return artifacts.Timeline.Steps[pos].Phase != bench.PhaseAct
+		}
+	}
+	return likelyReadOnlyReviewCommand(evidence)
+}
+
+func likelyReadOnlyReviewCommand(command string) bool {
+	words := strings.Fields(strings.ToLower(command))
+	if len(words) < 2 || words[0] != "kubectl" {
+		return false
+	}
+	switch words[1] {
+	case "get", "describe", "logs", "top":
+		return true
+	case "rollout":
+		return len(words) >= 3 && (words[2] == "status" || words[2] == "history")
+	case "exec":
+		return strings.Contains(" "+strings.ToLower(command)+" ", " cat ")
+	default:
+		return false
+	}
+}
+
+func firstInteger(message string) string {
+	for _, field := range strings.Fields(message) {
+		value := strings.Trim(field, ".,:;()[]")
+		if value == "" {
+			continue
+		}
+		allDigits := true
+		for _, r := range value {
+			if r < '0' || r > '9' {
+				allDigits = false
+				break
+			}
+		}
+		if allDigits {
+			return value
+		}
+	}
+	return ""
+}
+
+func parseAutopsyReport(raw string) (autopsy.Report, bool) {
+	if strings.TrimSpace(raw) == "" {
+		return autopsy.Report{}, false
+	}
+	var report autopsy.Report
+	if err := json.Unmarshal([]byte(raw), &report); err != nil {
+		return autopsy.Report{}, false
+	}
+	return report, true
+}
+
+func firstFailedVerifierCheck(raw string) (verifier.CheckResult, bool) {
+	if strings.TrimSpace(raw) == "" {
+		return verifier.CheckResult{}, false
+	}
+	var result verifier.VerifyResult
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		return verifier.CheckResult{}, false
+	}
+	for _, check := range result.Checks {
+		if check.Verdict == verifier.VerdictFail {
+			return check, true
+		}
+	}
+	return verifier.CheckResult{}, false
+}
+
+func preferredAutopsyFinding(report autopsy.Report) (autopsy.Finding, bool) {
+	preferredKinds := []autopsy.FailureKind{
+		autopsy.FailureUnsafeAction,
+		autopsy.FailureRetryLoop,
+		autopsy.FailurePrematureSuccess,
+		autopsy.FailureWrongRootCause,
+		autopsy.FailureMissedDiagnosticStep,
+		autopsy.FailureTimeoutNoProgress,
+	}
+	for _, kind := range preferredKinds {
+		if finding, ok := findAutopsyFinding(report, kind); ok {
+			return finding, true
+		}
+	}
+	if report.PrimaryFailure != "" {
+		if finding, ok := findAutopsyFinding(report, report.PrimaryFailure); ok {
+			return finding, true
+		}
+	}
+	if len(report.Findings) > 0 {
+		return report.Findings[0], true
+	}
+	return autopsy.Finding{}, false
+}
+
+func findAutopsyFinding(report autopsy.Report, kind autopsy.FailureKind) (autopsy.Finding, bool) {
+	for _, finding := range report.Findings {
+		if finding.Kind == kind {
+			return finding, true
+		}
+	}
+	return autopsy.Finding{}, false
+}
+
+func labelForAutopsyFailure(kind autopsy.FailureKind) string {
+	switch kind {
+	case autopsy.FailureRetryLoop:
+		return runreview.LabelRetryLoop
+	case autopsy.FailureUnsafeAction, autopsy.FailureIrrelevantAction:
+		return runreview.LabelUnsafeAction
+	case autopsy.FailurePrematureSuccess:
+		return runreview.LabelPrematureSuccess
+	case autopsy.FailureWrongRootCause, autopsy.FailureMissedDiagnosticStep, autopsy.FailureTimeoutNoProgress, autopsy.FailureGaveUp, autopsy.FailureToolMisuse:
+		return runreview.LabelMissedDiagnostic
+	case autopsy.FailureExcessiveTokenBurn:
+		return runreview.LabelUnnecessaryCommand
+	default:
+		return ""
+	}
+}
+
+func findReviewStepByEvidence(artifacts RunArtifacts, evidence string) (int, bool) {
+	if artifacts.Timeline == nil {
+		return 0, false
+	}
+	needle := normalizeEvidenceText(evidence)
+	if needle == "" {
+		return 0, false
+	}
+	for i, step := range artifacts.Timeline.Steps {
+		for _, value := range []string{step.Command, step.Summary, step.Resource, step.Tool} {
+			haystack := normalizeEvidenceText(value)
+			if haystack == "" {
+				continue
+			}
+			if haystack == needle || strings.Contains(haystack, needle) || strings.Contains(needle, haystack) {
+				return i, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func normalizeEvidenceText(value string) string {
+	return strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(value))), " ")
+}
+
+func reviewFocusLines(artifacts RunArtifacts) []string {
+	focus := inferReviewFocus(artifacts)
+	var lines []string
+	if focus.AutopsyPrimary != "" {
+		line := "autopsy: " + focus.AutopsyPrimary
+		if focus.AutopsySummary != "" {
+			line += " - " + focus.AutopsySummary
+		}
+		lines = append(lines, line)
+	}
+	if focus.FindingKind != "" {
+		line := "finding: " + focus.FindingKind
+		if focus.FindingMessage != "" {
+			line += " - " + focus.FindingMessage
+		}
+		if focus.FindingEvidence != "" {
+			line += " evidence: " + focus.FindingEvidence
+		}
+		lines = append(lines, line)
+	}
+	if focus.VerifierName != "" {
+		line := "verifier: " + focus.VerifierName + " failed"
+		if focus.VerifierMessage != "" {
+			line += " - " + focus.VerifierMessage
+		}
+		lines = append(lines, line)
+	}
+	if artifacts.Timeline != nil {
+		totalSteps := artifacts.Timeline.TotalSteps
+		if totalSteps == 0 {
+			totalSteps = len(artifacts.Timeline.Steps)
+		}
+		lines = append(lines, fmt.Sprintf(
+			"timeline: %d steps, %d mutations, %d diagnostic steps",
+			totalSteps,
+			artifacts.Timeline.MutationCount,
+			artifacts.Timeline.DiagnosisDepth,
+		))
+	}
+	return lines
 }
 
 func evidenceSnippetForStep(step bench.TimelineStep) string {

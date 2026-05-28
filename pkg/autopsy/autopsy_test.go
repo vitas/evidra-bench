@@ -146,6 +146,32 @@ func TestAnalyze_DetectsRetryLoop(t *testing.T) {
 	}
 }
 
+func TestAnalyze_ContextualizesReadOnlyRetryLoopWithNoMutation(t *testing.T) {
+	t.Parallel()
+
+	report := Analyze(Input{
+		Run: bench.RunRecord{
+			Passed: false,
+			Turns:  6,
+		},
+		ToolCalls: []bench.ToolCall{
+			toolCall(t, "kubectl exec -n bench api -- cat /etc/nginx/conf.d/default.conf", "location /ready { return 200 'ok'; }"),
+			toolCall(t, "kubectl exec -n bench api -- cat /etc/nginx/conf.d/default.conf", "location /ready { return 200 'ok'; }"),
+			toolCall(t, "kubectl exec -n bench api -- cat /etc/nginx/conf.d/default.conf", "location /ready { return 200 'ok'; }"),
+		},
+	})
+
+	finding, ok := findingByKind(report, FailureRetryLoop)
+	if !ok {
+		t.Fatalf("expected retry_loop finding, got %#v", report.Findings)
+	}
+	for _, want := range []string{"read-only diagnostic command", "3 times", "No mutation was observed"} {
+		if !strings.Contains(finding.Message, want) {
+			t.Fatalf("retry_loop message missing %q:\n%s", want, finding.Message)
+		}
+	}
+}
+
 func TestAnalyze_DoesNotFlagProgressingRepeatedCommandAsRetryLoop(t *testing.T) {
 	t.Parallel()
 

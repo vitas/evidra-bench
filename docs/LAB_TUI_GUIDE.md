@@ -115,8 +115,11 @@ shows verdict, visibility, reviewer, labels, notes, evidence snippets, and
 suggested scenario rules. See [Human Review](guides/human-review.md).
 
 Press `r` from the artifact view to create or replace `run_review.json` for
-the loaded run. The editor selects the first mutation step by default, fills an
-evidence snippet from the timeline step, and creates a reviewer note so
+the loaded run. The editor starts with a `Review Focus` block that surfaces
+autopsy primary failure, the strongest finding, the first failed verifier check,
+and timeline counts. It selects the strongest autopsy evidence step when
+available, otherwise falls back to the first mutation step. It also fills an
+evidence snippet from the timeline step and creates a reviewer note so
 warning-or-higher labels are valid by default.
 
 Review editor keys:

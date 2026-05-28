@@ -84,17 +84,21 @@ building, reading, and downloading a scenario patch preview.
 
 1. Run a scenario or open the latest local run artifacts with `a`.
 2. Press `r` from the artifact view to open the review editor.
-3. Choose the evidence step, verdict, label kind, severity, visibility, and
-   reviewer note.
-4. Save local `run_review.json` with `w`.
-5. Use `u` to save and upload when the deployment provides authenticated write
+3. Read `Review Focus` first. It summarizes the autopsy primary failure, the
+   most reviewable finding, the first failed verifier check, and timeline
+   counts.
+4. Confirm or adjust the evidence step, verdict, label kind, severity,
+   visibility, and reviewer note.
+5. Save local `run_review.json` with `w`.
+6. Use `u` to save and upload when the deployment provides authenticated write
    access.
 
 The editor uses the same `run_review.v1` schema as the hosted API. It selects
-the first mutation step by default, fills the evidence snippet from timeline
-evidence, and creates a reviewer note by default. Hosted upload uses
-`PUT /v1/bench/runs/{id}/review` with `BENCH_API_URL`/`BENCH_API_KEY` or the
-TUI lab config `bench_url`/`bench_api_key`.
+the strongest autopsy evidence step when available, otherwise falls back to the
+first mutation step. It fills the evidence snippet from timeline evidence and
+creates a reviewer note by default. Hosted upload uses `PUT
+/v1/bench/runs/{id}/review` with `BENCH_API_URL`/`BENCH_API_KEY` or the TUI lab
+config `bench_url`/`bench_api_key`.
 
 ## API Workflow
 
