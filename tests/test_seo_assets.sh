@@ -21,6 +21,46 @@ require_contains() {
   fi
 }
 
+require_nginx_location_contains() {
+  local location="$1"
+  local needle="$2"
+
+  awk -v header="location $location {" -v needle="$needle" '
+    BEGIN { status = 1 }
+    function trim_left(s) {
+      sub(/^[[:space:]]+/, "", s)
+      return s
+    }
+    {
+      line = trim_left($0)
+      if (!in_block && line == header) {
+        in_block = 1
+        depth = 1
+        if (index($0, needle) > 0) {
+          found = 1
+        }
+        next
+      }
+      if (in_block) {
+        if (index($0, needle) > 0) {
+          found = 1
+        }
+        opens = gsub(/\{/, "{")
+        closes = gsub(/\}/, "}")
+        depth += opens - closes
+        if (depth <= 0) {
+          status = found ? 0 : 1
+          exit
+        }
+      }
+    }
+    END { exit status }
+  ' ui/nginx.conf || {
+    echo "FAIL: nginx location $location should contain $needle" >&2
+    exit 1
+  }
+}
+
 require_file ui/index.html
 require_contains ui/index.html "<title>Evidra Bench - AI Infrastructure Agent Benchmark</title>"
 require_contains ui/index.html "<link rel=\"canonical\" href=\"https://bench.evidra.cc/\""
@@ -48,7 +88,7 @@ require_contains ui/nginx.conf 'try_files $uri $uri/index.html $uri/ /index.html
 require_contains ui/nginx.conf 'location = /bench {'
 require_contains ui/nginx.conf 'location = /bench/ {'
 require_contains ui/nginx.conf 'location = /bench/runs {'
-require_contains ui/nginx.conf 'X-Robots-Tag "noindex, follow" always;'
+require_nginx_location_contains '= /bench/runs' 'X-Robots-Tag "noindex, follow" always;'
 require_contains ui/nginx.conf 'location = /results {'
 require_contains ui/nginx.conf 'location = /results/ {'
 require_contains ui/nginx.conf 'return 301 https://bench.evidra.cc/bench/runs;'
@@ -61,14 +101,13 @@ require_contains ui/nginx.conf 'return 301 https://bench.evidra.cc/robots.txt;'
 
 require_file ui/public/sitemap.xml
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/</loc>"
-require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/bench/runs</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/open-infrastructure-agent-benchmarks/</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/kubernetes-ai-agent-benchmark/</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/mcp-server-benchmark/</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/ai-sre-regression-testing/</loc>"
-if grep -Eq '<loc>https://bench\.evidra\.cc/bench/(leaderboard|sample-report|mcp-readiness|scenarios|results)</loc>' ui/public/sitemap.xml; then
+if grep -Eq '<loc>https://bench\.evidra\.cc/bench/(leaderboard|dashboard|skill-impact|regressions|insights|reviews|session|runs|scenarios|compare|mcp-readiness|benchmarks|sample-report)(/|</loc>)' ui/public/sitemap.xml; then
   echo "FAIL: sitemap should not include SPA app routes with root canonical" >&2
   exit 1
 fi
