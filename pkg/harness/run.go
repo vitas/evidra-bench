@@ -61,6 +61,7 @@ type RunRequest struct {
 // RunResult holds the outcome of a harness run.
 type RunResult struct {
 	ScenarioID  string
+	RunID       string
 	Passed      bool
 	ExitCode    int
 	Duration    time.Duration
@@ -102,8 +103,23 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		}
 		recorder.Event(recorder.CurrentPhase(), "failed", runErr.Error())
 		artifactDir := h.writeFailedRunArtifacts(req, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, runErr, startTime, time.Now())
-		if result != nil && result.ArtifactDir == "" {
-			result.ArtifactDir = artifactDir
+		if result == nil {
+			result = &RunResult{
+				ScenarioID:  s.ID,
+				RunID:       buildRunID(startTime, s.ID, req.Config.Adapter),
+				Passed:      false,
+				ExitCode:    failedRunExitCode(runErr, agentResultExitCode(agentResult)),
+				Duration:    time.Since(startTime),
+				ArtifactDir: artifactDir,
+				Checks:      verifyResult,
+			}
+		} else {
+			if result.RunID == "" {
+				result.RunID = buildRunID(startTime, s.ID, req.Config.Adapter)
+			}
+			if result.ArtifactDir == "" {
+				result.ArtifactDir = artifactDir
+			}
 		}
 	}()
 
@@ -112,6 +128,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		recorder.Event("run", "completed", "dry-run")
 		return &RunResult{
 			ScenarioID: s.ID,
+			RunID:      buildRunID(startTime, s.ID, req.Config.Adapter),
 			Passed:     true,
 			Duration:   time.Since(startTime),
 		}, nil
@@ -210,6 +227,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 
 	result = &RunResult{
 		ScenarioID:  s.ID,
+		RunID:       buildRunID(startTime, s.ID, req.Config.Adapter),
 		Passed:      verifyResult.Passed,
 		ExitCode:    agentResult.ExitCode,
 		Duration:    endTime.Sub(startTime),

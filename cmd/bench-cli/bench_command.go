@@ -457,12 +457,11 @@ func executeBenchParallel(cmd *cobra.Command, cfg config.Config, selected []*sce
 // This is the core run logic shared across all execution modes.
 func makeScenarioRunFunc() orchestrator.RunFunc {
 	return func(ctx context.Context, cfg config.Config, scenarioPath, targetNS, kubeconfigPath string,
-		sharedStore *localstore.Store, provider environment.ClusterLifecycle) error {
+		sharedStore *localstore.Store, provider environment.ClusterLifecycle) (*harness.RunResult, error) {
 		s, loadErr := scenario.Load(filepath.Join(cfg.ScenariosDir, scenarioPath))
 		if loadErr != nil {
-			return fmt.Errorf("load scenario: %w", loadErr)
+			return nil, fmt.Errorf("load scenario: %w", loadErr)
 		}
-		_, runErr := runScenarioOnceWithNamespace(ctx, cfg, s, targetNS, kubeconfigPath, sharedStore, provider)
-		return runErr
+		return runScenarioOnceWithNamespace(ctx, cfg, s, targetNS, kubeconfigPath, sharedStore, provider)
 	}
 }

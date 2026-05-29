@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -23,7 +24,7 @@ func TestServeCertifyParallel_RejectsNonDefaultSharedProfiles(t *testing.T) {
 	cfg.EnvironmentProvider = "kind"
 
 	runner := newNoopParallelRunner()
-	handler := handleCertifyAPI(cfg, runner, t.TempDir())
+	handler := handleCertifyAPI(context.Background(), cfg, runner, t.TempDir())
 
 	body := `{"model":"sonnet","scenarios":["s-default","s-argocd"]}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/certify", strings.NewReader(body))
@@ -62,7 +63,7 @@ func TestHandleCertifyAPI_FiltersIncompatibleScenarios(t *testing.T) {
 	cfg.EnvironmentProvider = "kind"
 
 	runner := newNoopParallelRunner()
-	handler := handleCertifyAPI(cfg, runner, t.TempDir())
+	handler := handleCertifyAPI(context.Background(), cfg, runner, t.TempDir())
 
 	body := `{"model":"sonnet","scenarios":["s-kind","s-k3d","s-all"]}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/certify", strings.NewReader(body))
@@ -98,6 +99,47 @@ func TestHandleCertifyAPI_FiltersIncompatibleScenarios(t *testing.T) {
 	}
 }
 
+func TestHandleCertifyAPI_AppliesCallbackBenchReportingConfig(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeTestScenario(t, dir, "kubernetes", "s-kind", nil)
+
+	cfg := config.Default()
+	cfg.ScenariosDir = dir
+	cfg.EnvironmentProvider = "kind"
+	cfg.BenchURL = "https://base.example"
+	cfg.BenchAPIKey = "base-key"
+
+	runner := newNoopParallelRunner()
+	handler := handleCertifyAPI(context.Background(), cfg, runner, t.TempDir())
+
+	body := `{
+		"model":"sonnet",
+		"scenarios":["s-kind"],
+		"callback":{
+			"bench_url":"https://callback.example",
+			"bench_api_key":"Bearer callback-key"
+		}
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/certify", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202; body = %s", rec.Code, rec.Body.String())
+	}
+	runner.waitCalled(t)
+
+	if runner.runCfg.BenchURL != "https://callback.example" {
+		t.Fatalf("BenchURL = %q, want callback URL", runner.runCfg.BenchURL)
+	}
+	if runner.runCfg.BenchAPIKey != "callback-key" {
+		t.Fatalf("BenchAPIKey = %q, want normalized callback key", runner.runCfg.BenchAPIKey)
+	}
+}
+
 func TestHandleCertifyAPI_RejectsFullyIncompatibleRequest(t *testing.T) {
 	t.Parallel()
 
@@ -109,7 +151,7 @@ func TestHandleCertifyAPI_RejectsFullyIncompatibleRequest(t *testing.T) {
 	cfg.EnvironmentProvider = "kind"
 
 	runner := newNoopParallelRunner()
-	handler := handleCertifyAPI(cfg, runner, t.TempDir())
+	handler := handleCertifyAPI(context.Background(), cfg, runner, t.TempDir())
 
 	body := `{"model":"sonnet","scenarios":["s-k3d-only"]}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/certify", strings.NewReader(body))

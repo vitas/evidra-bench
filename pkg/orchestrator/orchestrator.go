@@ -27,7 +27,7 @@ import (
 // sharedStore persists results beyond workspace cleanup.
 // provider is the cluster lifecycle (nil when using external kubeconfig).
 type RunFunc func(ctx context.Context, cfg config.Config, scenarioPath, targetNS, kubeconfigPath string,
-	sharedStore *localstore.Store, provider environment.ClusterLifecycle) error
+	sharedStore *localstore.Store, provider environment.ClusterLifecycle) (*harness.RunResult, error)
 
 // ScenarioEvent describes a scenario lifecycle transition for external reporting.
 type ScenarioEvent struct {
@@ -153,6 +153,26 @@ func classifyScenarioError(err error) scenarioOutcome {
 	return scenarioOutcome{status: "failed", exitCode: 1, failed: true}
 }
 
+// classifyScenarioResult combines the harness result with any execution error.
+// A completed run with failed verification is a benchmark failure even when the
+// harness returned nil error.
+func classifyScenarioResult(result *harness.RunResult, err error) scenarioOutcome {
+	if err != nil {
+		return classifyScenarioError(err)
+	}
+	if result == nil {
+		return scenarioOutcome{status: "error", exitCode: -1, failed: true, infra: true}
+	}
+	if result.Passed {
+		return scenarioOutcome{status: "passed", exitCode: result.ExitCode, passed: true}
+	}
+	exitCode := result.ExitCode
+	if exitCode == 0 {
+		exitCode = 1
+	}
+	return scenarioOutcome{status: "failed", exitCode: exitCode, failed: true}
+}
+
 // ValidateParallelProfiles checks that all scenarios use the default execution
 // profile. Shared-cluster parallel mode relies on namespace isolation, which
 // only works for the default profile. ArgoCD uses a shared namespace and
@@ -256,12 +276,12 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 
 		scenarioPath := args.ScenarioID
 		startTime := time.Now()
-		runErr := runFn(jobCtx, workerCfg, scenarioPath, ns, workerKubeconfigPath, sharedStore, o.provider)
+		runResult, runErr := runFn(jobCtx, workerCfg, scenarioPath, ns, workerKubeconfigPath, sharedStore, o.provider)
 		duration := time.Since(startTime)
 		atomic.AddInt64(&completed, 1)
 		c = int(atomic.LoadInt64(&completed))
 
-		outcome := classifyScenarioError(runErr)
+		outcome := classifyScenarioResult(runResult, runErr)
 		switch {
 		case outcome.passed:
 			atomic.StoreInt64(&consecutiveInfraFailures, 0)
@@ -285,9 +305,13 @@ func (o *Orchestrator) RunParallel(ctx context.Context, runCfg config.Config, re
 
 		// Report scenario completed.
 		if reporter != nil {
-			runID := fmt.Sprintf("%s-%s-%s",
-				time.Now().UTC().Format("20060102-150405"),
-				args.ScenarioID, args.Model)
+			runID := ""
+			if runResult != nil {
+				runID = runResult.RunID
+				if runResult.Duration > 0 {
+					duration = runResult.Duration
+				}
+			}
 			reporter.OnScenario(jobCtx, ScenarioEvent{
 				JobID:      args.JobID,
 				ScenarioID: args.ScenarioID,

@@ -83,9 +83,10 @@ func startTriggerRequest(w http.ResponseWriter, r *http.Request, svc *Service, s
 
 	benchURL := resolveBenchURL(r)
 	apiKey := r.Header.Get("Authorization")
+	runCtx := svc.cfg.BackgroundContext
 
 	go func() {
-		if err := executor.Start(context.Background(), job, benchURL, apiKey); err != nil {
+		if err := executor.Start(runCtx, job, benchURL, apiKey); err != nil {
 			log.Printf("[bench-trigger] executor failed for job %s: %v", job.ID, err)
 			store.Update(ProgressUpdate{
 				JobID:     job.ID,

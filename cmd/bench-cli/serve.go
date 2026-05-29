@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/vitas/evidra-bench/internal/auth"
@@ -89,21 +92,27 @@ func serveAPI(cfg config.Config, addr string, optList ...serveOptions) error {
 	benchRepo := benchsvc.NewPgStore(pool)
 	triggerStore := benchsvc.NewTriggerStore()
 	defaultTenant, publicTenant := resolveServeTenants()
-	benchService := benchsvc.NewService(benchRepo, benchsvc.ServiceConfig{
-		PublicTenant:    publicTenant,
-		ScenariosDir:    cfg.ScenariosDir,
-		ReviewDraftMode: opts.ReviewDraftMode,
-		TriggerStore:    triggerStore,
-		Dispatcher:      &benchsvc.PoolDispatcher{},
-	})
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	ctx := context.Background()
+	benchService := benchsvc.NewService(benchRepo, benchsvc.ServiceConfig{
+		PublicTenant:      publicTenant,
+		ScenariosDir:      cfg.ScenariosDir,
+		ReviewDraftMode:   opts.ReviewDraftMode,
+		TriggerStore:      triggerStore,
+		Dispatcher:        &benchsvc.PoolDispatcher{},
+		BackgroundContext: ctx,
+	})
 
 	runner, teardown, err := prepareServeRunner(ctx, cfg, opts, defaultServeOrchestrator)
 	if err != nil {
 		return fmt.Errorf("serve: %w", err)
 	}
-	defer teardown(ctx)
+	defer func() {
+		teardownCtx, cancel := context.WithTimeout(context.Background(), config.GracefulStopTimeout)
+		defer cancel()
+		teardown(teardownCtx)
+	}()
 	go benchsvc.StartRunnerJanitor(ctx, benchRepo, 10*time.Second)
 
 	// Sync scenarios to the configured bench API on startup.
@@ -123,15 +132,28 @@ func serveAPI(cfg config.Config, addr string, optList ...serveOptions) error {
 	if runner == nil {
 		mux.HandleFunc("POST /v1/certify", authMiddleware(apiToken, handleCertifyDisabled()))
 	} else {
-		mux.HandleFunc("POST /v1/certify", authMiddleware(apiToken, handleCertifyAPI(cfg, runner, dbURL)))
+		mux.HandleFunc("POST /v1/certify", authMiddleware(apiToken, handleCertifyAPI(ctx, cfg, runner, dbURL)))
 	}
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.WriteString(w, `{"status":"ok"}`)
 	})
 
+	server := &http.Server{Addr: addr, Handler: mux}
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), config.GracefulStopTimeout)
+		defer cancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			log.Printf("[bench-service] shutdown failed: %v", err)
+		}
+	}()
+
 	log.Printf("bench service listening on %s", addr)
-	return http.ListenAndServe(addr, mux)
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	return nil
 }
 
 func resolveServeTenants() (defaultTenant string, publicTenant string) {
@@ -181,7 +203,10 @@ func authMiddleware(token string, next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string) http.HandlerFunc {
+func handleCertifyAPI(serviceCtx context.Context, baseCfg config.Config, runner parallelRunner, dbURL string) http.HandlerFunc {
+	if serviceCtx == nil {
+		serviceCtx = context.Background()
+	}
 	// Load scenarios once at handler construction — cache full objects for filtering.
 	scenarioMap := make(map[string]*scenario.Scenario) // ID → Scenario
 	if allScenarios, loadErr := scenario.LoadAll(baseCfg.ScenariosDir); loadErr == nil {
@@ -263,24 +288,19 @@ func handleCertifyAPI(baseCfg config.Config, runner parallelRunner, dbURL string
 		if benchURL == "" {
 			benchURL = baseCfg.BenchURL
 		}
+		if authToken == "" {
+			authToken = baseCfg.BenchAPIKey
+		}
+		runCfg.BenchURL = benchURL
+		runCfg.BenchAPIKey = normalizeBenchAPIKey(authToken)
 
-		runMeta := config.CollectVersions(version, commit, runCfg).ToMetadata()
 		reporter := &benchReporter{
-			progressURL:       progressURL,
-			benchURL:          benchURL,
-			authToken:         authToken,
-			adapter:           runCfg.Adapter,
-			toolServer:        runCfg.ToolServerID,
-			toolServerVersion: runCfg.ToolServerVersion,
-			skillID:           runMeta["skill_id"],
-			skillVersion:      runMeta["skill_version"],
-			skillSource:       runMeta["skill_source"],
-			skillSHA256:       runMeta["skill_sha256"],
+			progressURL: progressURL,
+			authToken:   authToken,
 		}
 
 		go func() {
-			runCtx := context.Background()
-			result, err := runner.RunParallel(runCtx, runCfg, reporter, scenarioPaths, []string{req.Model}, 1, parallel, dbURL)
+			result, err := runner.RunParallel(serviceCtx, runCfg, reporter, scenarioPaths, []string{req.Model}, 1, parallel, dbURL)
 			if err != nil {
 				log.Printf("[bench-service] certify job %s failed: %v", jobID, err)
 				return
@@ -351,33 +371,20 @@ func writeJSON(w http.ResponseWriter, status int, data any) {
 	}
 }
 
-// benchReporter implements orchestrator.ProgressReporter by sending
-// progress webhooks and bench run submissions to the Bench API.
+// benchReporter implements orchestrator.ProgressReporter by sending progress
+// webhooks to the Bench API. Run ingestion belongs to the harness, which has
+// the artifact-backed localstore record.
 type benchReporter struct {
-	progressURL       string // POST progress updates here
-	benchURL          string // POST bench runs here
-	authToken         string // Bearer token for both endpoints
-	adapter           string // configured bench execution mode
-	toolServer        string // stable MCP server identity for run submissions
-	toolServerVersion string // stable MCP server version for run submissions
-	skillID           string // stable skill identity for run submissions
-	skillVersion      string // stable skill version for run submissions
-	skillSource       string // skill source label for run submissions
-	skillSHA256       string // skill prompt digest for run submissions
+	progressURL string // POST progress updates here
+	authToken   string // Bearer token for progress endpoint
 }
 
-// OnScenario sends a progress webhook and (on completion) submits the bench run.
+// OnScenario sends a progress webhook.
 func (r *benchReporter) OnScenario(_ context.Context, ev orchestrator.ScenarioEvent) {
 	log.Printf("[bench-reporter] %s %s/%s (completed=%d/%d, progressURL=%q)",
 		ev.Status, ev.ScenarioID, ev.Model, ev.Completed, ev.Total, r.progressURL)
 
-	// Send progress webhook.
 	r.sendProgress(ev)
-
-	// Submit bench run on terminal status.
-	if ev.Status == "passed" || ev.Status == "failed" || ev.Status == "error" {
-		r.submitBenchRun(ev)
-	}
 }
 
 func (r *benchReporter) sendProgress(ev orchestrator.ScenarioEvent) {
@@ -406,8 +413,8 @@ func (r *benchReporter) sendProgress(ev orchestrator.ScenarioEvent) {
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if r.authToken != "" {
-		req.Header.Set("Authorization", r.authToken)
+	if authHeader := benchBearerHeader(r.authToken); authHeader != "" {
+		req.Header.Set("Authorization", authHeader)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -420,77 +427,19 @@ func (r *benchReporter) sendProgress(ev orchestrator.ScenarioEvent) {
 	}
 }
 
-func (r *benchReporter) submitBenchRun(ev orchestrator.ScenarioEvent) {
-	if r.benchURL == "" {
-		return
+func normalizeBenchAPIKey(authToken string) string {
+	authToken = strings.TrimSpace(authToken)
+	parts := strings.Fields(authToken)
+	if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+		return parts[1]
 	}
-	adapterName := "bench-cli"
-	if r.adapter == "a2a" {
-		adapterName = "a2a"
-	}
-	run := map[string]any{
-		"id":               ev.RunID,
-		"scenario_id":      ev.ScenarioID,
-		"model":            ev.Model,
-		"provider":         ev.Provider,
-		"adapter":          adapterName,
-		"passed":           ev.Passed,
-		"exit_code":        ev.ExitCode,
-		"duration_seconds": ev.Duration.Seconds(),
-		"checks_passed":    boolToInt(ev.Passed),
-		"checks_total":     1,
-	}
-	if r.toolServer != "" {
-		run["tool_server"] = r.toolServer
-	}
-	if r.toolServerVersion != "" {
-		run["tool_server_version"] = r.toolServerVersion
-	}
-	if r.skillID != "" {
-		run["skill_id"] = r.skillID
-	}
-	if r.skillVersion != "" {
-		run["skill_version"] = r.skillVersion
-	}
-	if r.skillSource != "" {
-		run["skill_source"] = r.skillSource
-	}
-	if r.skillSHA256 != "" {
-		run["skill_sha256"] = r.skillSHA256
-	}
-	body, err := json.Marshal(run)
-	if err != nil {
-		log.Printf("[bench-reporter] marshal bench run: %v", err)
-		return
-	}
-	url := r.benchURL + "/v1/bench/runs"
-	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
-	if err != nil {
-		log.Printf("[bench-reporter] create bench run request: %v", err)
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if r.authToken != "" {
-		auth := r.authToken
-		if !strings.HasPrefix(auth, "Bearer ") {
-			auth = "Bearer " + auth
-		}
-		req.Header.Set("Authorization", auth)
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Printf("[bench-reporter] submit bench run: %v", err)
-		return
-	}
-	log.Printf("[bench-reporter] bench run POST %s → %d", url, resp.StatusCode)
-	if err := resp.Body.Close(); err != nil {
-		log.Printf("[bench-reporter] close bench run response: %v", err)
-	}
+	return authToken
 }
 
-func boolToInt(b bool) int {
-	if b {
-		return 1
+func benchBearerHeader(authToken string) string {
+	apiKey := normalizeBenchAPIKey(authToken)
+	if apiKey == "" {
+		return ""
 	}
-	return 0
+	return "Bearer " + apiKey
 }

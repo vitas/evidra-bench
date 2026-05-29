@@ -218,7 +218,7 @@ func runScenarioOnceWithLease(ctx context.Context, cfg config.Config, s *scenari
 		ExtraEnv:       extraEnv,
 	})
 	if err != nil {
-		return nil, err
+		return result, err
 	}
 	return result, nil
 }
@@ -316,7 +316,7 @@ func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *sce
 		KubeconfigPath:  kubeconfigPath,
 	})
 	if runErr != nil {
-		return nil, runErr
+		return result, runErr
 	}
 	return result, nil
 }

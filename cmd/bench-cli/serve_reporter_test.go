@@ -1,91 +1,57 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/vitas/evidra-bench/pkg/orchestrator"
 )
 
-func TestBenchReporter_SubmitBenchRunOmitsLegacyMode(t *testing.T) {
+func TestBenchReporter_OnScenarioOnlySendsProgress(t *testing.T) {
 	t.Parallel()
 
-	var got map[string]any
+	var mu sync.Mutex
+	progressRequests := 0
+	benchRequests := 0
+	progressAuth := ""
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/bench/runs" {
-			t.Fatalf("path = %q, want /v1/bench/runs", r.URL.Path)
+		mu.Lock()
+		defer mu.Unlock()
+		switch r.URL.Path {
+		case "/progress":
+			progressRequests++
+			progressAuth = r.Header.Get("Authorization")
+		case "/v1/bench/runs":
+			benchRequests++
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
-			t.Fatalf("decode request: %v", err)
-		}
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusAccepted)
 	}))
 	t.Cleanup(server.Close)
 
 	reporter := &benchReporter{
-		benchURL: server.URL,
+		progressURL: server.URL + "/progress",
+		authToken:   "raw-key",
 	}
-	reporter.submitBenchRun(orchestratorScenarioEventForTest())
+	ev := orchestratorScenarioEventForTest()
+	ev.Status = "passed"
+	reporter.OnScenario(context.Background(), ev)
 
-	legacyModeKey := "evidence" + "_mode"
-	if _, ok := got[legacyModeKey]; ok {
-		t.Fatalf("unexpected legacy mode in payload: %v", got[legacyModeKey])
+	mu.Lock()
+	defer mu.Unlock()
+	if progressRequests != 1 {
+		t.Fatalf("progress requests = %d, want 1", progressRequests)
 	}
-}
-
-func TestBenchReporter_SubmitBenchRunUsesA2AAdapter(t *testing.T) {
-	t.Parallel()
-
-	var got map[string]any
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/bench/runs" {
-			t.Fatalf("path = %q, want /v1/bench/runs", r.URL.Path)
-		}
-		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
-			t.Fatalf("decode request: %v", err)
-		}
-		w.WriteHeader(http.StatusCreated)
-	}))
-	t.Cleanup(server.Close)
-
-	reporter := &benchReporter{
-		benchURL: server.URL,
-		adapter:  "a2a",
+	if benchRequests != 0 {
+		t.Fatalf("bench run requests = %d, want 0", benchRequests)
 	}
-	reporter.submitBenchRun(orchestratorScenarioEventForTest())
-
-	if got["adapter"] != "a2a" {
-		t.Fatalf("adapter = %v, want a2a", got["adapter"])
-	}
-}
-
-func TestBenchReporter_SubmitBenchRunIncludesToolServerIdentity(t *testing.T) {
-	t.Parallel()
-
-	var got map[string]any
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
-			t.Fatalf("decode request: %v", err)
-		}
-		w.WriteHeader(http.StatusCreated)
-	}))
-	t.Cleanup(server.Close)
-
-	reporter := &benchReporter{
-		benchURL:          server.URL,
-		toolServer:        "kubernetes-mcp",
-		toolServerVersion: "1.2.3",
-	}
-	reporter.submitBenchRun(orchestratorScenarioEventForTest())
-
-	if got["tool_server"] != "kubernetes-mcp" {
-		t.Fatalf("tool_server = %v, want kubernetes-mcp", got["tool_server"])
-	}
-	if got["tool_server_version"] != "1.2.3" {
-		t.Fatalf("tool_server_version = %v, want 1.2.3", got["tool_server_version"])
+	if progressAuth != "Bearer raw-key" {
+		t.Fatalf("progress Authorization = %q, want Bearer raw-key", progressAuth)
 	}
 }
 

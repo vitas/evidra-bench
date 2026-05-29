@@ -1,6 +1,7 @@
 package benchsvc
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -77,6 +78,44 @@ func TestHandleTrigger_DefaultsExecutionMode(t *testing.T) {
 	}
 	if stored.ExecutionMode != "provider" {
 		t.Fatalf("stored execution mode = %q, want provider", stored.ExecutionMode)
+	}
+}
+
+func TestHandleTrigger_UsesServiceBackgroundContext(t *testing.T) {
+	t.Parallel()
+
+	store := NewTriggerStore()
+	startedCh := make(chan struct{})
+	spy := &spyExecutor{startedCh: startedCh}
+	repo := &handlerRepo{
+		modelProvider: &ModelProviderInfo{Provider: "bifrost"},
+	}
+	bgCtx := context.WithValue(context.Background(), testContextKey{}, "service-context")
+	svc := NewService(repo, ServiceConfig{
+		PublicTenant:      "pub",
+		TriggerStore:      store,
+		Executor:          spy,
+		BackgroundContext: bgCtx,
+	})
+	mux := http.NewServeMux()
+	RegisterRoutes(mux, svc, passthroughAuth("t1"))
+
+	rec := httptest.NewRecorder()
+	body := `{"model":"test-model","scenarios":["s1"]}`
+	req := httptest.NewRequest("POST", "/v1/bench/trigger", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusAccepted, rec.Body.String())
+	}
+	select {
+	case <-startedCh:
+	case <-time.After(time.Second):
+		t.Fatal("executor Start was not called")
+	}
+	if spy.ctxValue != "service-context" {
+		t.Fatalf("executor context value = %v, want service-context", spy.ctxValue)
 	}
 }
 

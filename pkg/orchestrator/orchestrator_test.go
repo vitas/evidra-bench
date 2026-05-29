@@ -129,6 +129,46 @@ func TestClassifyScenarioError_NilIsPassed(t *testing.T) {
 	}
 }
 
+func TestClassifyScenarioResult_FailedResultIsFailed(t *testing.T) {
+	t.Parallel()
+
+	o := classifyScenarioResult(&harness.RunResult{
+		ScenarioID: "kubernetes/broken-deployment",
+		Passed:     false,
+		ExitCode:   0,
+	}, nil)
+
+	if o.status != "failed" {
+		t.Fatalf("status = %q, want failed", o.status)
+	}
+	if o.exitCode != 1 {
+		t.Fatalf("exitCode = %d, want 1", o.exitCode)
+	}
+	if !o.failed {
+		t.Fatal("failed = false, want true")
+	}
+	if o.passed || o.skipped || o.infra {
+		t.Fatalf("unexpected flags: passed=%v skipped=%v infra=%v", o.passed, o.skipped, o.infra)
+	}
+}
+
+func TestClassifyScenarioResult_UsesNonZeroResultExitCode(t *testing.T) {
+	t.Parallel()
+
+	o := classifyScenarioResult(&harness.RunResult{
+		ScenarioID: "kubernetes/broken-deployment",
+		Passed:     false,
+		ExitCode:   42,
+	}, nil)
+
+	if o.status != "failed" {
+		t.Fatalf("status = %q, want failed", o.status)
+	}
+	if o.exitCode != 42 {
+		t.Fatalf("exitCode = %d, want 42", o.exitCode)
+	}
+}
+
 func TestClassifyScenarioError_IncompatibleProviderIsSkipped(t *testing.T) {
 	t.Parallel()
 	err := &scenario.IncompatibleProviderError{

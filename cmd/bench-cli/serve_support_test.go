@@ -16,13 +16,15 @@ import (
 type noopParallelRunner struct {
 	done      chan struct{}
 	scenarios []string
+	runCfg    config.Config
 }
 
 func newNoopParallelRunner() *noopParallelRunner {
 	return &noopParallelRunner{done: make(chan struct{}, 1)}
 }
 
-func (r *noopParallelRunner) RunParallel(_ context.Context, _ config.Config, _ orchestrator.ProgressReporter, scenarios []string, _ []string, _ int, _ int, _ string) (*orchestrator.RunResult, error) {
+func (r *noopParallelRunner) RunParallel(_ context.Context, runCfg config.Config, _ orchestrator.ProgressReporter, scenarios []string, _ []string, _ int, _ int, _ string) (*orchestrator.RunResult, error) {
+	r.runCfg = runCfg
 	r.scenarios = scenarios
 	r.done <- struct{}{}
 	return &orchestrator.RunResult{}, nil

@@ -213,7 +213,7 @@ func buildRunRecord(req RunRequest, agentResult *adapter.RunResult, verifyResult
 
 	s := req.Scenario
 	return localstore.RunRecord{
-		ID:                fmt.Sprintf("%s-%s-%s", startTime.Format("20060102-150405"), s.ID, req.Config.Adapter),
+		ID:                buildRunID(startTime, s.ID, req.Config.Adapter),
 		ScenarioID:        s.ID,
 		Model:             req.Config.Model,
 		Provider:          req.Config.Provider,
@@ -239,6 +239,10 @@ func buildRunRecord(req RunRequest, agentResult *adapter.RunResult, verifyResult
 		ArtifactDir:       artifactDir,
 		CreatedAt:         startTime,
 	}
+}
+
+func buildRunID(startTime time.Time, scenarioID, adapter string) string {
+	return fmt.Sprintf("%s-%s-%s", startTime.Format("20060102-150405"), scenarioID, adapter)
 }
 
 func (h *Harness) persistRun(req RunRequest, rec localstore.RunRecord, transcript string, toolCalls []adapter.ToolCallRecord, timelineJSON, autopsyJSON, runErrorJSON, runEventsJSON json.RawMessage) {

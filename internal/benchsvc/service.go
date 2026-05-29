@@ -66,12 +66,13 @@ type Repository interface {
 
 // ServiceConfig holds configuration for the bench service.
 type ServiceConfig struct {
-	PublicTenant    string        // tenant for unauthenticated read-only bench routes
-	ScenariosDir    string        // local scenario catalog root for scenario patch previews
-	ReviewDraftMode string        // artifact or human; human disables generated review drafts
-	TriggerStore    *TriggerStore // in-memory trigger job store (nil disables trigger endpoints)
-	Executor        RunExecutor   // executor for bench trigger jobs (nil returns 501)
-	Dispatcher      JobDispatcher // V2b: dispatches queued jobs to runners (nil skips runner path)
+	PublicTenant      string          // tenant for unauthenticated read-only bench routes
+	ScenariosDir      string          // local scenario catalog root for scenario patch previews
+	ReviewDraftMode   string          // artifact or human; human disables generated review drafts
+	TriggerStore      *TriggerStore   // in-memory trigger job store (nil disables trigger endpoints)
+	Executor          RunExecutor     // executor for bench trigger jobs (nil returns 501)
+	Dispatcher        JobDispatcher   // V2b: dispatches queued jobs to runners (nil skips runner path)
+	BackgroundContext context.Context // root context for async service work
 }
 
 // Service provides request-scoped bench operations over a tenant-agnostic repository.
@@ -82,6 +83,9 @@ type Service struct {
 
 // NewService creates a new Service backed by the given repository.
 func NewService(repo Repository, cfg ServiceConfig) *Service {
+	if cfg.BackgroundContext == nil {
+		cfg.BackgroundContext = context.Background()
+	}
 	return &Service{repo: repo, cfg: cfg}
 }
 
