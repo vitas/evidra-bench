@@ -219,7 +219,7 @@ func validate(s *Scenario) error {
 
 func validateExecutionProfile(s *Scenario) error {
 	if s.Environment.Profile != "" && !IsSupportedExecutionProfile(s.Environment.Profile) {
-		return fmt.Errorf("scenario %s: unsupported execution profile %q (valid: default, argocd, aws-localstack)", s.ID, s.Environment.Profile)
+		return fmt.Errorf("scenario %s: unsupported execution profile %q (valid: default, argocd, aws-localstack, multi-node)", s.ID, s.Environment.Profile)
 	}
 	return nil
 }

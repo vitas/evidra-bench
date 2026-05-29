@@ -66,6 +66,8 @@ func (p *LocalProvisioner) acquire(ctx context.Context, req ProvisionRequest, re
 	switch req.Profile {
 	case scenario.ProfileDefault:
 		return p.acquireDefault(ctx, req, provider, recreate)
+	case scenario.ProfileMultiNode:
+		return p.acquireDefault(ctx, req, provider, recreate)
 	case scenario.ProfileArgocd:
 		return p.acquireArgocd(ctx, req, provider, recreate)
 	case scenario.ProfileAWSLocalStack:

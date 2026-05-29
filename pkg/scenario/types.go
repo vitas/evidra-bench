@@ -164,7 +164,7 @@ type ChaosStep struct {
 
 // EnvironmentConfig describes additional infrastructure for a scenario.
 type EnvironmentConfig struct {
-	Profile    ExecutionProfile `yaml:"profile,omitempty"`   // execution profile: default, argocd, aws-localstack
+	Profile    ExecutionProfile `yaml:"profile,omitempty"`   // execution profile: default, argocd, aws-localstack, multi-node
 	Providers  []string         `yaml:"providers,omitempty"` // supported cluster providers; empty = all
 	Cloud      CloudConfig      `yaml:"cloud,omitempty"`
 	Kubernetes KubernetesConfig `yaml:"kubernetes,omitempty"`

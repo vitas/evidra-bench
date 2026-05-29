@@ -107,6 +107,32 @@ func TestAssetResolver_ResolveAWSLocalStackProfile(t *testing.T) {
 	}
 }
 
+func TestAssetResolver_ResolveMultiNodeProfileWithoutHooks(t *testing.T) {
+	t.Parallel()
+
+	root := setupAssetTree(t)
+	r := AssetResolver{RootDir: root}
+
+	assets, err := r.Resolve("kind", scenario.ExecutionProfile("multi-node"))
+	if err != nil {
+		t.Fatalf("Resolve(kind, multi-node) error: %v", err)
+	}
+
+	wantCluster := filepath.Join(root, "clusters", "kind", "multi-node.yaml")
+	if assets.ClusterConfigPath != wantCluster {
+		t.Errorf("ClusterConfigPath = %q, want %q", assets.ClusterConfigPath, wantCluster)
+	}
+	if assets.InstallScript != "" {
+		t.Errorf("InstallScript = %q, want empty for config-only profile", assets.InstallScript)
+	}
+	if assets.HealthcheckScript != "" {
+		t.Errorf("HealthcheckScript = %q, want empty for config-only profile", assets.HealthcheckScript)
+	}
+	if assets.CleanupScript != "" {
+		t.Errorf("CleanupScript = %q, want empty for config-only profile", assets.CleanupScript)
+	}
+}
+
 func TestAssetResolver_RejectsMissingNonDefaultInstallHook(t *testing.T) {
 	t.Parallel()
 
@@ -156,9 +182,11 @@ func setupAssetTree(t *testing.T) string {
 		"clusters/kind/default.yaml",
 		"clusters/kind/argocd.yaml",
 		"clusters/kind/aws-localstack.yaml",
+		"clusters/kind/multi-node.yaml",
 		"clusters/k3d/default.yaml",
 		"clusters/k3d/argocd.yaml",
 		"clusters/k3d/aws-localstack.yaml",
+		"clusters/k3d/multi-node.yaml",
 		"profiles/argocd/install.sh",
 		"profiles/argocd/healthcheck.sh",
 		"profiles/argocd/cleanup.sh",

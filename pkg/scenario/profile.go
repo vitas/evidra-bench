@@ -13,6 +13,9 @@ const (
 
 	// ProfileAWSLocalStack requires a cluster plus a running LocalStack instance.
 	ProfileAWSLocalStack ExecutionProfile = "aws-localstack"
+
+	// ProfileMultiNode requires a cluster with at least one worker node.
+	ProfileMultiNode ExecutionProfile = "multi-node"
 )
 
 // supportedExecutionProfiles is the set of valid execution profile values.
@@ -20,6 +23,7 @@ var supportedExecutionProfiles = map[ExecutionProfile]bool{
 	ProfileDefault:       true,
 	ProfileArgocd:        true,
 	ProfileAWSLocalStack: true,
+	ProfileMultiNode:     true,
 }
 
 // IsSupportedExecutionProfile reports whether p is a known execution profile.

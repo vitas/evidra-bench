@@ -1,0 +1,35 @@
+# Broken: this preserves app egress but accidentally allows cloud metadata.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: restrict-egress
+  namespace: bench
+spec:
+  podSelector:
+    matchLabels:
+      app: metadata-client
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: metadata-api
+      ports:
+        - protocol: TCP
+          port: 80
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0

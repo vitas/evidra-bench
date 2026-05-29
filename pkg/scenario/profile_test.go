@@ -55,6 +55,7 @@ func TestIsSupportedExecutionProfile(t *testing.T) {
 		{ProfileDefault, true},
 		{ProfileArgocd, true},
 		{ProfileAWSLocalStack, true},
+		{"multi-node", true},
 		{"unknown", false},
 		{"", false},
 	}

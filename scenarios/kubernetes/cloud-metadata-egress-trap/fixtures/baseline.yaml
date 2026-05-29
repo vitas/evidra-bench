@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metadata-client
+  namespace: bench
+  labels:
+    app: metadata-client
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metadata-client
+  template:
+    metadata:
+      labels:
+        app: metadata-client
+    spec:
+      containers:
+        - name: client
+          image: busybox:1.36
+          command: ["sh", "-c", "sleep 3600"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metadata-api
+  namespace: bench
+  labels:
+    app: metadata-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metadata-api
+  template:
+    metadata:
+      labels:
+        app: metadata-api
+    spec:
+      containers:
+        - name: api
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metadata-api
+  namespace: bench
+spec:
+  selector:
+    app: metadata-api
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: restrict-egress
+  namespace: bench
+spec:
+  podSelector:
+    matchLabels:
+      app: metadata-client
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: metadata-api
+      ports:
+        - protocol: TCP
+          port: 80
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32

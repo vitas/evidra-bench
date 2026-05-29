@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: api-preview-1
+  namespace: bench
+  labels:
+    env: dev
+    app: api
+    tier: api
+spec:
+  containers:
+    - name: web
+      image: nginx:1.27-alpine
+      ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: api-preview-2
+  namespace: bench
+  labels:
+    env: dev
+    app: api
+    tier: api
+spec:
+  containers:
+    - name: web
+      image: nginx:1.27-alpine
+      ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: worker-preview-1
+  namespace: bench
+  labels:
+    env: dev
+    app: worker
+    tier: worker
+spec:
+  containers:
+    - name: web
+      image: nginx:1.27-alpine
+      ports:
+        - containerPort: 80

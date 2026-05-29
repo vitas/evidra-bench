@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduled-app
+  namespace: bench
+  labels:
+    app: scheduled-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scheduled-app
+  template:
+    metadata:
+      labels:
+        app: scheduled-app
+    spec:
+      nodeSelector:
+        bench.evidra.cc/taint-preservation: "true"
+      containers:
+        - name: web
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80

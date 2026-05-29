@@ -35,8 +35,8 @@ type AssetResolver struct {
 }
 
 // Resolve returns the asset paths for the given provider and profile.
-// It requires clusters/<provider>/<profile>.yaml to exist. For non-default
-// profiles it also requires profiles/<profile>/install.sh to exist.
+// It requires clusters/<provider>/<profile>.yaml to exist. Profiles that
+// install addons also require profiles/<profile>/install.sh to exist.
 // Healthcheck and cleanup scripts are optional.
 func (r AssetResolver) Resolve(provider string, profile scenario.ExecutionProfile) (ProfileAssets, error) {
 	if profile == "" {
@@ -54,7 +54,7 @@ func (r AssetResolver) Resolve(provider string, profile scenario.ExecutionProfil
 	assets.ClusterConfigPath = clusterConfig
 	assets.ProfileDir = profileDir
 
-	if profile == scenario.ProfileDefault {
+	if !profileRequiresHooks(profile) {
 		return assets, nil
 	}
 
@@ -77,4 +77,13 @@ func (r AssetResolver) Resolve(provider string, profile scenario.ExecutionProfil
 	}
 
 	return assets, nil
+}
+
+func profileRequiresHooks(profile scenario.ExecutionProfile) bool {
+	switch profile {
+	case scenario.ProfileDefault, scenario.ProfileMultiNode:
+		return false
+	default:
+		return true
+	}
 }

@@ -153,6 +153,36 @@ func TestLocalProvisioner_AcquireArgocd_UsesProfileAssets(t *testing.T) {
 	// The install.sh in testdata writes a marker; if Prepare succeeded, hooks ran.
 }
 
+func TestLocalProvisioner_AcquireMultiNode_UsesProfileConfigWithoutHooks(t *testing.T) {
+	t.Parallel()
+	runner := newFakeRunner()
+	provider := newFakeProvider(runner)
+	p := newTestProvisioner(t, runner, provider)
+
+	lease, err := p.Acquire(context.Background(), ProvisionRequest{
+		Profile:      scenario.ExecutionProfile("multi-node"),
+		ProviderName: "kind",
+		ClusterName:  "test-multi-node",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = lease.Release(context.Background()) }()
+
+	if !provider.created {
+		t.Fatal("expected provider.Create to be called")
+	}
+	if lease.Profile != scenario.ExecutionProfile("multi-node") {
+		t.Fatalf("expected profile multi-node, got %q", lease.Profile)
+	}
+	if !strings.HasSuffix(provider.lastSpec.ConfigPath, "clusters/kind/multi-node.yaml") {
+		t.Fatalf("expected config path to end with clusters/kind/multi-node.yaml, got %q", provider.lastSpec.ConfigPath)
+	}
+	if len(lease.ExtraEnv) != 0 {
+		t.Fatalf("expected no extra env, got %v", lease.ExtraEnv)
+	}
+}
+
 func TestLocalProvisioner_AcquireAWSLocalStack_UsesLeaseEnvFromProfileHooks(t *testing.T) {
 	t.Parallel()
 	runner := newFakeRunner()
