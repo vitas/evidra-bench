@@ -28,11 +28,11 @@ type ComparisonDelta struct {
 // CompareRuns fetches two runs by ID and computes the delta.
 // Single query: both runs in one roundtrip.
 func (s *Service) CompareRuns(ctx context.Context, tenantID, idA, idB string) (*RunComparison, error) {
-	runA, err := s.repo.GetRun(ctx, tenantID, idA)
+	runA, err := s.repos.Runs.GetRun(ctx, tenantID, idA)
 	if err != nil {
 		return nil, fmt.Errorf("benchsvc.CompareRuns: run A: %w", err)
 	}
-	runB, err := s.repo.GetRun(ctx, tenantID, idB)
+	runB, err := s.repos.Runs.GetRun(ctx, tenantID, idB)
 	if err != nil {
 		return nil, fmt.Errorf("benchsvc.CompareRuns: run B: %w", err)
 	}
@@ -85,7 +85,7 @@ type ModelComparisonSummary struct {
 // CompareModels compares two models across all shared scenarios.
 // Single query: aggregates in SQL.
 func (s *Service) CompareModels(ctx context.Context, tenantID, modelA, modelB string) (*ModelComparison, error) {
-	scenarios, err := s.repo.CompareModels(ctx, tenantID, modelA, modelB)
+	scenarios, err := s.repos.Comparisons.CompareModels(ctx, tenantID, modelA, modelB)
 	if err != nil {
 		return nil, fmt.Errorf("benchsvc.CompareModels: %w", err)
 	}
@@ -182,7 +182,7 @@ type ToolServerScenarioComparison struct {
 
 // CompareToolServer compares direct/native-tool runs to runs using one MCP server.
 func (s *Service) CompareToolServer(ctx context.Context, tenantID string, req ToolServerCompareRequest) (*ToolServerComparison, error) {
-	baselineRuns, _, err := s.repo.ListRuns(ctx, tenantID, bench.RunFilters{
+	baselineRuns, _, err := s.repos.Runs.ListRuns(ctx, tenantID, bench.RunFilters{
 		Model:           req.Model,
 		ToolServerUnset: true,
 		ReportID:        req.ReportID,
@@ -192,7 +192,7 @@ func (s *Service) CompareToolServer(ctx context.Context, tenantID string, req To
 		return nil, fmt.Errorf("benchsvc.CompareToolServer: baseline: %w", err)
 	}
 
-	candidateRuns, _, err := s.repo.ListRuns(ctx, tenantID, bench.RunFilters{
+	candidateRuns, _, err := s.repos.Runs.ListRuns(ctx, tenantID, bench.RunFilters{
 		Model:             req.Model,
 		ToolServer:        req.ToolServer,
 		ToolServerVersion: req.ToolServerVersion,

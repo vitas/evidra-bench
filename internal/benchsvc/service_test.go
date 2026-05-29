@@ -161,6 +161,35 @@ func TestServiceLeaderboard_UsesProvidedTenant(t *testing.T) {
 	}
 }
 
+type leaderboardOnlyRepo struct {
+	tenantID string
+}
+
+func (r *leaderboardOnlyRepo) Leaderboard(_ context.Context, tenantID string, _ int, _ []string) ([]bench.LeaderboardEntry, error) {
+	r.tenantID = tenantID
+	return []bench.LeaderboardEntry{{Model: "sonnet"}}, nil
+}
+
+func TestNewServiceWithRepositories_AllowsNarrowLeaderboardRepo(t *testing.T) {
+	t.Parallel()
+
+	repo := &leaderboardOnlyRepo{}
+	svc := NewServiceWithRepositories(ServiceRepositories{
+		Leaderboard: repo,
+	}, ServiceConfig{})
+
+	got, err := svc.Leaderboard(context.Background(), "tenant-a", 3, nil)
+	if err != nil {
+		t.Fatalf("Leaderboard() error = %v", err)
+	}
+	if repo.tenantID != "tenant-a" {
+		t.Fatalf("tenantID = %q, want tenant-a", repo.tenantID)
+	}
+	if len(got) != 1 || got[0].Model != "sonnet" {
+		t.Fatalf("leaderboard = %#v, want sonnet entry", got)
+	}
+}
+
 func TestServiceModelConfigMethods_DelegateToRepo(t *testing.T) {
 	t.Parallel()
 

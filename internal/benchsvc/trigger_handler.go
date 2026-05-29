@@ -129,10 +129,10 @@ func decodeTriggerRequest(w http.ResponseWriter, r *http.Request) (TriggerReques
 
 func normalizeTriggerExecutionMode(mode string) (string, bool) {
 	switch mode {
-	case "", "provider":
-		return "provider", true
-	case "a2a":
-		return "a2a", true
+	case "", ExecutionModeProvider:
+		return ExecutionModeProvider, true
+	case ExecutionModeA2A:
+		return ExecutionModeA2A, true
 	default:
 		return "", false
 	}
@@ -219,7 +219,7 @@ func resolveRunnerForTrigger(ctx context.Context, svc *Service, tenantID string,
 		return runner, nil
 	}
 
-	runner, err := svc.repo.FindRunnerForModel(ctx, tenantID, req.Model)
+	runner, err := svc.repos.Jobs.FindRunnerForModel(ctx, tenantID, req.Model)
 	if err != nil {
 		return nil, fmt.Errorf("runner lookup failed: %w", err)
 	}
@@ -258,7 +258,7 @@ func enqueueRunnerTrigger(ctx context.Context, svc *Service, store *TriggerStore
 		SkillSource:       req.SkillSource,
 		SkillSHA256:       req.SkillSHA256,
 	}
-	benchJob, err := svc.repo.EnqueueJob(ctx, tenantID, req.Model, provider, cfg)
+	benchJob, err := svc.repos.Jobs.EnqueueJob(ctx, tenantID, req.Model, provider, cfg)
 	if err != nil {
 		return "", fmt.Errorf("enqueue job: %w", err)
 	}
@@ -396,7 +396,7 @@ func handleTriggerProgress(svc *Service, store *TriggerStore) http.HandlerFunc {
 			passed = current.Passed
 			failed = current.Failed
 		}
-		_ = svc.repo.UpdateJobProgress(r.Context(), update.JobID, update.Completed, passed, failed)
+		_ = svc.repos.Jobs.UpdateJobProgress(r.Context(), update.JobID, update.Completed, passed, failed)
 
 		w.WriteHeader(http.StatusOK)
 	}

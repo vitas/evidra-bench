@@ -70,8 +70,8 @@ func buildCertifyConfig(job *TriggerJob) map[string]any {
 	if job.SkillSHA256 != "" {
 		cfg["skill_sha256"] = job.SkillSHA256
 	}
-	if job.ExecutionMode == "a2a" {
-		cfg["adapter"] = "a2a"
+	if job.ExecutionMode == ExecutionModeA2A {
+		cfg["adapter"] = ExecutionModeA2A
 	}
 	return cfg
 }

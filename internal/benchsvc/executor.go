@@ -11,6 +11,13 @@ import (
 // ExecutorContractVersion is the protocol version for bench executor communication.
 const ExecutorContractVersion = "v1.0.0"
 
+const (
+	// ExecutionModeProvider runs scenarios through the built-in provider/tool loop.
+	ExecutionModeProvider = "provider"
+	// ExecutionModeA2A delegates scenario execution to an external A2A agent.
+	ExecutionModeA2A = "a2a"
+)
+
 // TriggerRequest is the payload for POST /v1/bench/trigger.
 type TriggerRequest struct {
 	Model             string   `json:"model"`

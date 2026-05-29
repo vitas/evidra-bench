@@ -132,7 +132,7 @@ func (s *Service) BuildToolServerReport(ctx context.Context, tenantID string, re
 		return nil, fmt.Errorf("model and tool_server are required")
 	}
 
-	scenarioCatalog, err := s.repo.ListScenarios(ctx)
+	scenarioCatalog, err := s.repos.Scenarios.ListScenarios(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("benchsvc.BuildToolServerReport: scenarios: %w", err)
 	}
@@ -160,7 +160,7 @@ func (s *Service) BuildToolServerReport(ctx context.Context, tenantID string, re
 		return nil, err
 	}
 
-	baselineRuns, _, err := s.repo.ListRuns(ctx, tenantID, bench.RunFilters{
+	baselineRuns, _, err := s.repos.Runs.ListRuns(ctx, tenantID, bench.RunFilters{
 		Model:           req.Model,
 		ToolServerUnset: true,
 		ReportID:        req.ReportID,
@@ -169,7 +169,7 @@ func (s *Service) BuildToolServerReport(ctx context.Context, tenantID string, re
 	if err != nil {
 		return nil, fmt.Errorf("benchsvc.BuildToolServerReport: baseline runs: %w", err)
 	}
-	candidateRuns, _, err := s.repo.ListRuns(ctx, tenantID, bench.RunFilters{
+	candidateRuns, _, err := s.repos.Runs.ListRuns(ctx, tenantID, bench.RunFilters{
 		Model:             req.Model,
 		ToolServer:        req.ToolServer,
 		ToolServerVersion: req.ToolServerVersion,
@@ -300,7 +300,7 @@ func (s *Service) loadReportAutopsy(ctx context.Context, tenantID string, run be
 	if run.ID == "" {
 		return reportAutopsyArtifact{}, false
 	}
-	data, _, err := s.repo.GetArtifact(ctx, tenantID, run.ID, artifact.HostedFailureAutopsy)
+	data, _, err := s.repos.Artifacts.GetArtifact(ctx, tenantID, run.ID, artifact.HostedFailureAutopsy)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return reportAutopsyArtifact{}, false

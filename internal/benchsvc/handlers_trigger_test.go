@@ -81,6 +81,26 @@ func TestHandleTrigger_DefaultsExecutionMode(t *testing.T) {
 	}
 }
 
+func TestNormalizeTriggerExecutionMode_UsesExecutionModeConstants(t *testing.T) {
+	t.Parallel()
+
+	got, ok := normalizeTriggerExecutionMode("")
+	if !ok {
+		t.Fatal("normalizeTriggerExecutionMode(\"\") ok = false, want true")
+	}
+	if got != ExecutionModeProvider {
+		t.Fatalf("default mode = %q, want %q", got, ExecutionModeProvider)
+	}
+
+	got, ok = normalizeTriggerExecutionMode(ExecutionModeA2A)
+	if !ok {
+		t.Fatalf("normalizeTriggerExecutionMode(%q) ok = false, want true", ExecutionModeA2A)
+	}
+	if got != ExecutionModeA2A {
+		t.Fatalf("mode = %q, want %q", got, ExecutionModeA2A)
+	}
+}
+
 func TestHandleTrigger_UsesServiceBackgroundContext(t *testing.T) {
 	t.Parallel()
 

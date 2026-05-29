@@ -291,10 +291,10 @@ func scenarioPatchValidationRunIDs(job *TriggerJob) []string {
 }
 
 func executionModeForRun(run bench.RunRecord) string {
-	if run.Adapter == "a2a" {
-		return "a2a"
+	if run.Adapter == ExecutionModeA2A {
+		return ExecutionModeA2A
 	}
-	return "provider"
+	return ExecutionModeProvider
 }
 
 func resultProvider(sourceProvider, triggerProvider string) string {

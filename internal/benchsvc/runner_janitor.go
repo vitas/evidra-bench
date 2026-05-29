@@ -7,7 +7,7 @@ import (
 )
 
 // StartRunnerJanitor periodically marks unhealthy runners and resets stale jobs.
-func StartRunnerJanitor(ctx context.Context, repo Repository, interval time.Duration) {
+func StartRunnerJanitor(ctx context.Context, repo RunnerMaintenanceRepository, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {

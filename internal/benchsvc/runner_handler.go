@@ -119,7 +119,7 @@ func handlePollJob(svc *Service) http.HandlerFunc {
 			return
 		}
 		if cfg.ExecutionMode == "" {
-			cfg.ExecutionMode = "provider" // default for legacy jobs without execution_mode
+			cfg.ExecutionMode = ExecutionModeProvider // default for legacy jobs without execution_mode
 		}
 		if cfg.ToolServer == "" {
 			cfg.ToolServer = job.ToolServer

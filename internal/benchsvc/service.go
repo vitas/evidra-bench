@@ -24,44 +24,118 @@ type ArchiveRequest struct {
 	Model  string     `json:"model,omitempty"`
 }
 
-// Repository defines the data-access contract the Service depends on.
-// PgStore satisfies this interface; test fakes can implement it too.
-type Repository interface {
+// RunRepository stores benchmark run records.
+type RunRepository interface {
 	ListRuns(ctx context.Context, tenantID string, f bench.RunFilters) ([]bench.RunRecord, int, error)
 	GetRun(ctx context.Context, tenantID string, id string) (*bench.RunRecord, error)
-	InsertRun(ctx context.Context, tenantID string, r bench.RunRecord) error
-	InsertRunBatch(ctx context.Context, tenantID string, runs []bench.RunRecord) (int, error)
 	DeleteRun(ctx context.Context, tenantID, runID string) error
 	ArchiveRuns(ctx context.Context, tenantID string, req ArchiveRequest) (int, error)
+}
+
+// RunTransactionRepository starts transactions for atomic run ingestion.
+type RunTransactionRepository interface {
+	BeginTx(ctx context.Context) (pgx.Tx, error)
+}
+
+// RunStatsRepository computes read-side run summaries.
+type RunStatsRepository interface {
 	FilteredStats(ctx context.Context, tenantID string, f bench.RunFilters) (*bench.StatsResult, error)
 	Catalog(ctx context.Context, tenantID string) (*bench.RunCatalog, error)
+}
+
+// LeaderboardRepository computes reliability leaderboards.
+type LeaderboardRepository interface {
+	Leaderboard(ctx context.Context, tenantID string, k int, scenarios []string) ([]bench.LeaderboardEntry, error)
+}
+
+// RunComparisonRepository computes model and matrix comparisons.
+type RunComparisonRepository interface {
+	CompareModels(ctx context.Context, tenantID, modelA, modelB string) ([]ScenarioModelComparison, error)
+	ModelMatrix(ctx context.Context, tenantID string, models, scenarios []string) (*bench.ModelMatrix, error)
+}
+
+// SignalRepository computes signal and regression summaries.
+type SignalRepository interface {
+	SignalSummary(ctx context.Context, tenantID string, f bench.RunFilters) (*bench.SignalAggregation, error)
+	Regressions(ctx context.Context, tenantID string) ([]bench.Regression, error)
+	FailureAnalysis(ctx context.Context, tenantID string, scenarioID string) (*bench.FailureInsights, error)
+}
+
+// ModelRepository stores model and provider configuration.
+type ModelRepository interface {
 	ListEnabledModels(ctx context.Context, tenantID string) ([]EnabledModel, error)
 	UpsertTenantProvider(ctx context.Context, tenantID, modelID string, cfg TenantProviderConfig) error
 	DeleteTenantProvider(ctx context.Context, tenantID, modelID string) error
 	UpdateGlobalModel(ctx context.Context, modelID string, cfg GlobalModelConfig) error
 	ResolveModelProvider(ctx context.Context, modelID string) (*ModelProviderInfo, error)
+}
+
+// RunnerRepository stores remote runner registrations.
+type RunnerRepository interface {
 	RegisterRunner(ctx context.Context, tenantID string, req RegisterRunnerRequest) (*Runner, error)
 	ListRunners(ctx context.Context, tenantID string) ([]Runner, error)
 	DeleteRunner(ctx context.Context, tenantID, runnerID string) error
 	TouchRunner(ctx context.Context, tenantID, runnerID string) error
+}
+
+// JobRepository stores queued work for remote runners.
+type JobRepository interface {
 	EnqueueJob(ctx context.Context, tenantID, model, provider string, cfg JobConfig) (*BenchJob, error)
 	ClaimJob(ctx context.Context, tenantID, runnerID string, models []string) (*BenchJob, error)
 	CompleteJob(ctx context.Context, tenantID, runnerID, jobID, status string, passed, failed int, errMsg string) error
 	FindRunnerForModel(ctx context.Context, tenantID, model string) (*Runner, error)
+	UpdateJobProgress(ctx context.Context, jobID string, completed, passed, failed int) error
+}
+
+// RunnerMaintenanceRepository maintains remote runner liveness.
+type RunnerMaintenanceRepository interface {
 	MarkUnhealthyRunners(ctx context.Context, threshold time.Duration) (int, error)
 	ResetStaleJobs(ctx context.Context, threshold time.Duration) (int, error)
-	UpdateJobProgress(ctx context.Context, jobID string, completed, passed, failed int) error
-	Leaderboard(ctx context.Context, tenantID string, k int, scenarios []string) ([]bench.LeaderboardEntry, error)
+}
+
+// ScenarioRepository stores the global benchmark scenario catalog.
+type ScenarioRepository interface {
 	ListScenarios(ctx context.Context) ([]bench.ScenarioSummary, error)
+	UpsertScenarios(ctx context.Context, scenarios []bench.ScenarioSummary) (int, error)
+}
+
+// ArtifactRepository stores and reads hosted run artifacts.
+type ArtifactRepository interface {
 	StoreArtifact(ctx context.Context, runID, artifactType, contentType string, data []byte) error
 	GetArtifact(ctx context.Context, tenantID string, runID, artifactType string) ([]byte, string, error)
-	CompareModels(ctx context.Context, tenantID, modelA, modelB string) ([]ScenarioModelComparison, error)
-	ModelMatrix(ctx context.Context, tenantID string, models, scenarios []string) (*bench.ModelMatrix, error)
-	SignalSummary(ctx context.Context, tenantID string, f bench.RunFilters) (*bench.SignalAggregation, error)
-	Regressions(ctx context.Context, tenantID string) ([]bench.Regression, error)
-	FailureAnalysis(ctx context.Context, tenantID string, scenarioID string) (*bench.FailureInsights, error)
-	UpsertScenarios(ctx context.Context, scenarios []bench.ScenarioSummary) (int, error)
-	BeginTx(ctx context.Context) (pgx.Tx, error)
+}
+
+// Repository is the full production data-access contract. Most code should use
+// narrower interfaces through ServiceRepositories.
+type Repository interface {
+	RunRepository
+	RunTransactionRepository
+	RunStatsRepository
+	LeaderboardRepository
+	RunComparisonRepository
+	SignalRepository
+	ModelRepository
+	RunnerRepository
+	JobRepository
+	RunnerMaintenanceRepository
+	ScenarioRepository
+	ArtifactRepository
+}
+
+// ServiceRepositories groups the Service's narrow data dependencies.
+type ServiceRepositories struct {
+	Runs         RunRepository
+	Transactions RunTransactionRepository
+	Stats        RunStatsRepository
+	Leaderboard  LeaderboardRepository
+	Comparisons  RunComparisonRepository
+	Signals      SignalRepository
+	Models       ModelRepository
+	Runners      RunnerRepository
+	Jobs         JobRepository
+	Maintenance  RunnerMaintenanceRepository
+	Scenarios    ScenarioRepository
+	Artifacts    ArtifactRepository
 }
 
 // ServiceConfig holds configuration for the bench service.
@@ -77,16 +151,36 @@ type ServiceConfig struct {
 
 // Service provides request-scoped bench operations over a tenant-agnostic repository.
 type Service struct {
-	repo Repository
-	cfg  ServiceConfig
+	repos ServiceRepositories
+	cfg   ServiceConfig
 }
 
 // NewService creates a new Service backed by the given repository.
 func NewService(repo Repository, cfg ServiceConfig) *Service {
+	return NewServiceWithRepositories(ServiceRepositories{
+		Runs:         repo,
+		Transactions: repo,
+		Stats:        repo,
+		Leaderboard:  repo,
+		Comparisons:  repo,
+		Signals:      repo,
+		Models:       repo,
+		Runners:      repo,
+		Jobs:         repo,
+		Maintenance:  repo,
+		Scenarios:    repo,
+		Artifacts:    repo,
+	}, cfg)
+}
+
+// NewServiceWithRepositories creates a Service from narrowly scoped repository
+// dependencies. Tests and smaller surfaces can provide only the dependency
+// groups they exercise.
+func NewServiceWithRepositories(repos ServiceRepositories, cfg ServiceConfig) *Service {
 	if cfg.BackgroundContext == nil {
 		cfg.BackgroundContext = context.Background()
 	}
-	return &Service{repo: repo, cfg: cfg}
+	return &Service{repos: repos, cfg: cfg}
 }
 
 // IngestRunRequest wraps RunRecord with optional artifact payloads
@@ -138,18 +232,18 @@ func ingestArtifacts(req IngestRunRequest) []ingestArtifact {
 
 // ListRuns returns runs matching filters, scoped to the given tenant.
 func (s *Service) ListRuns(ctx context.Context, tenantID string, f bench.RunFilters) ([]bench.RunRecord, int, error) {
-	return s.repo.ListRuns(ctx, tenantID, f)
+	return s.repos.Runs.ListRuns(ctx, tenantID, f)
 }
 
 // GetRun returns a single run by ID, scoped to the given tenant.
 func (s *Service) GetRun(ctx context.Context, tenantID string, id string) (*bench.RunRecord, error) {
-	return s.repo.GetRun(ctx, tenantID, id)
+	return s.repos.Runs.GetRun(ctx, tenantID, id)
 }
 
 // IngestRun atomically inserts a run and its artifacts using a database transaction.
 // If any step fails, the entire operation is rolled back.
 func (s *Service) IngestRun(ctx context.Context, tenantID string, req IngestRunRequest) error {
-	tx, err := s.repo.BeginTx(ctx)
+	tx, err := s.repos.Transactions.BeginTx(ctx)
 	if err != nil {
 		return fmt.Errorf("benchsvc.IngestRun: begin tx: %w", err)
 	}
@@ -210,7 +304,7 @@ func (s *Service) IngestRunBatch(ctx context.Context, tenantID string, runs []In
 		return 0, nil
 	}
 
-	tx, err := s.repo.BeginTx(ctx)
+	tx, err := s.repos.Transactions.BeginTx(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("benchsvc.IngestRunBatch: begin tx: %w", err)
 	}
@@ -270,121 +364,121 @@ func (s *Service) IngestRunBatch(ctx context.Context, tenantID string, runs []In
 
 // FilteredStats returns aggregate statistics matching the given filters.
 func (s *Service) FilteredStats(ctx context.Context, tenantID string, f bench.RunFilters) (*bench.StatsResult, error) {
-	return s.repo.FilteredStats(ctx, tenantID, f)
+	return s.repos.Stats.FilteredStats(ctx, tenantID, f)
 }
 
 // Catalog returns distinct models and providers for the given tenant.
 func (s *Service) Catalog(ctx context.Context, tenantID string) (*bench.RunCatalog, error) {
-	return s.repo.Catalog(ctx, tenantID)
+	return s.repos.Stats.Catalog(ctx, tenantID)
 }
 
 // ListEnabledModels returns models available to the given tenant.
 func (s *Service) ListEnabledModels(ctx context.Context, tenantID string) ([]EnabledModel, error) {
-	return s.repo.ListEnabledModels(ctx, tenantID)
+	return s.repos.Models.ListEnabledModels(ctx, tenantID)
 }
 
 // UpsertTenantProvider creates or updates a tenant-specific model provider override.
 func (s *Service) UpsertTenantProvider(ctx context.Context, tenantID, modelID string, cfg TenantProviderConfig) error {
-	return s.repo.UpsertTenantProvider(ctx, tenantID, modelID, cfg)
+	return s.repos.Models.UpsertTenantProvider(ctx, tenantID, modelID, cfg)
 }
 
 // DeleteTenantProvider removes a tenant-specific model provider override.
 func (s *Service) DeleteTenantProvider(ctx context.Context, tenantID, modelID string) error {
-	return s.repo.DeleteTenantProvider(ctx, tenantID, modelID)
+	return s.repos.Models.DeleteTenantProvider(ctx, tenantID, modelID)
 }
 
 // UpdateGlobalModel updates platform-level defaults for a model.
 func (s *Service) UpdateGlobalModel(ctx context.Context, modelID string, cfg GlobalModelConfig) error {
-	return s.repo.UpdateGlobalModel(ctx, modelID, cfg)
+	return s.repos.Models.UpdateGlobalModel(ctx, modelID, cfg)
 }
 
 // ResolveModelProvider looks up a model's provider and base URL from the catalog.
 func (s *Service) ResolveModelProvider(ctx context.Context, modelID string) (*ModelProviderInfo, error) {
-	return s.repo.ResolveModelProvider(ctx, modelID)
+	return s.repos.Models.ResolveModelProvider(ctx, modelID)
 }
 
 // RegisterRunner registers a new remote runner.
 func (s *Service) RegisterRunner(ctx context.Context, tenantID string, req RegisterRunnerRequest) (*Runner, error) {
-	return s.repo.RegisterRunner(ctx, tenantID, req)
+	return s.repos.Runners.RegisterRunner(ctx, tenantID, req)
 }
 
 // ListRunners returns all remote runners for a tenant.
 func (s *Service) ListRunners(ctx context.Context, tenantID string) ([]Runner, error) {
-	return s.repo.ListRunners(ctx, tenantID)
+	return s.repos.Runners.ListRunners(ctx, tenantID)
 }
 
 // DeleteRunner removes a runner.
 func (s *Service) DeleteRunner(ctx context.Context, tenantID, runnerID string) error {
-	return s.repo.DeleteRunner(ctx, tenantID, runnerID)
+	return s.repos.Runners.DeleteRunner(ctx, tenantID, runnerID)
 }
 
 // TouchRunner updates the runner's heartbeat timestamp.
 func (s *Service) TouchRunner(ctx context.Context, tenantID, runnerID string) error {
-	return s.repo.TouchRunner(ctx, tenantID, runnerID)
+	return s.repos.Runners.TouchRunner(ctx, tenantID, runnerID)
 }
 
 // ClaimJob atomically claims the next queued job for a runner.
 func (s *Service) ClaimJob(ctx context.Context, tenantID, runnerID string, models []string) (*BenchJob, error) {
-	return s.repo.ClaimJob(ctx, tenantID, runnerID, models)
+	return s.repos.Jobs.ClaimJob(ctx, tenantID, runnerID, models)
 }
 
 // CompleteJob marks a job as completed or failed. RunnerID must match the claiming runner.
 func (s *Service) CompleteJob(ctx context.Context, tenantID, runnerID, jobID, status string, passed, failed int, errMsg string) error {
-	return s.repo.CompleteJob(ctx, tenantID, runnerID, jobID, status, passed, failed, errMsg)
+	return s.repos.Jobs.CompleteJob(ctx, tenantID, runnerID, jobID, status, passed, failed, errMsg)
 }
 
 // GetArtifact retrieves an artifact for a run, scoped to the given tenant.
 func (s *Service) GetArtifact(ctx context.Context, tenantID string, runID, artifactType string) ([]byte, string, error) {
-	return s.repo.GetArtifact(ctx, tenantID, runID, artifactType)
+	return s.repos.Artifacts.GetArtifact(ctx, tenantID, runID, artifactType)
 }
 
 // StoreArtifact stores an artifact for a run (no tenant scoping on writes).
 func (s *Service) StoreArtifact(ctx context.Context, runID, artifactType, contentType string, data []byte) error {
-	return s.repo.StoreArtifact(ctx, runID, artifactType, contentType, data)
+	return s.repos.Artifacts.StoreArtifact(ctx, runID, artifactType, contentType, data)
 }
 
 // DeleteRun deletes a single run by ID, scoped to the given tenant.
 func (s *Service) DeleteRun(ctx context.Context, tenantID, runID string) error {
-	return s.repo.DeleteRun(ctx, tenantID, runID)
+	return s.repos.Runs.DeleteRun(ctx, tenantID, runID)
 }
 
 // ArchiveRuns archives runs matching the given request filters.
 func (s *Service) ArchiveRuns(ctx context.Context, tenantID string, req ArchiveRequest) (int, error) {
-	return s.repo.ArchiveRuns(ctx, tenantID, req)
+	return s.repos.Runs.ArchiveRuns(ctx, tenantID, req)
 }
 
 // Leaderboard returns the leaderboard scoped to the resolved request tenant.
 // k controls the pass^k reliability metric (minimum 1, default 3).
 func (s *Service) Leaderboard(ctx context.Context, tenantID string, k int, scenarios []string) ([]bench.LeaderboardEntry, error) {
-	return s.repo.Leaderboard(ctx, tenantID, k, scenarios)
+	return s.repos.Leaderboard.Leaderboard(ctx, tenantID, k, scenarios)
 }
 
 // ListScenarios returns the global scenario catalog.
 func (s *Service) ListScenarios(ctx context.Context) ([]bench.ScenarioSummary, error) {
-	return s.repo.ListScenarios(ctx)
+	return s.repos.Scenarios.ListScenarios(ctx)
 }
 
 // UpsertScenarios inserts or updates scenario metadata.
 func (s *Service) UpsertScenarios(ctx context.Context, scenarios []bench.ScenarioSummary) (int, error) {
-	return s.repo.UpsertScenarios(ctx, scenarios)
+	return s.repos.Scenarios.UpsertScenarios(ctx, scenarios)
 }
 
 // SignalSummary returns aggregated signal counts for a tenant.
 func (s *Service) SignalSummary(ctx context.Context, tenantID string, f bench.RunFilters) (*bench.SignalAggregation, error) {
-	return s.repo.SignalSummary(ctx, tenantID, f)
+	return s.repos.Signals.SignalSummary(ctx, tenantID, f)
 }
 
 // Regressions returns scenario/model pairs with detected regressions.
 func (s *Service) Regressions(ctx context.Context, tenantID string) ([]bench.Regression, error) {
-	return s.repo.Regressions(ctx, tenantID)
+	return s.repos.Signals.Regressions(ctx, tenantID)
 }
 
 // FailureAnalysis returns failure patterns for a specific scenario.
 func (s *Service) FailureAnalysis(ctx context.Context, tenantID string, scenarioID string) (*bench.FailureInsights, error) {
-	return s.repo.FailureAnalysis(ctx, tenantID, scenarioID)
+	return s.repos.Signals.FailureAnalysis(ctx, tenantID, scenarioID)
 }
 
 // ModelMatrix returns a multi-model comparison grid.
 func (s *Service) ModelMatrix(ctx context.Context, tenantID string, models, scenarios []string) (*bench.ModelMatrix, error) {
-	return s.repo.ModelMatrix(ctx, tenantID, models, scenarios)
+	return s.repos.Comparisons.ModelMatrix(ctx, tenantID, models, scenarios)
 }
