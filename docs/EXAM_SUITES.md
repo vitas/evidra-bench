@@ -1,19 +1,19 @@
 ---
 title: Public Exam Suites
-type: product
+type: reference
 status: active
 tags:
   - bench
   - exams
   - scenarios
-  - positioning
 ---
 
 # Public Exam Suites
 
 Bench packages the live scenario catalog into public exam suites for AI
-infrastructure agents. These suites are the marketing surface: they make the
-benchmark easy to understand, compare, and share.
+infrastructure agents. These suites make benchmark results easier to reproduce,
+compare, and inspect across models, MCP servers, skills, and external agent
+runtimes.
 
 They are exam-aligned benchmark suites, not official certifications. Bench is
 not affiliated with CNCF, the Linux Foundation, HashiCorp, AWS, or any other
@@ -44,25 +44,24 @@ parameter:
 
 ## Why This Layer Exists
 
-The raw scenario catalog is good for builders. Exam suites are better for
-buyers and public comparison:
+The raw scenario catalog is useful for builders. Exam suites add a stable
+comparison layer:
 
-- They make the product story obvious: agents take live infrastructure exams.
-- They create leaderboard slices that are easy to compare.
-- They give scenario authors a target portfolio instead of a loose backlog.
-- They let Bench grow a public moat through hard, real scenarios that are
-  expensive for competitors to reproduce.
+- They define named task slices for public benchmark reports.
+- They make baseline, MCP-server, skill, and external-agent runs comparable.
+- They keep scenario authors focused on balanced task portfolios.
+- They let reports show per-suite and per-failure-mode results instead of only
+  aggregate scores.
 
-## Public Versus Private
+## Public Versus Non-Public Suites
 
-Public exam suites should stay generic enough to be credible marketing proof:
-Kubernetes operations, security, GitOps, Terraform, cloud controls, and MCP
-readiness.
+Public exam suites should stay generic enough for reproducible open-source
+evaluation: Kubernetes operations, security, GitOps, Terraform, cloud controls,
+and MCP readiness.
 
-Private suites should use customer-specific incidents, internal workflows,
-provider constraints, and historical outages. That is the paid product surface:
-scheduled regressions, external readiness reports, and failure autopsy on the
-customer's own cases.
+Non-public suites can use organization-specific incidents, internal workflows,
+provider constraints, and historical outages. Those fixtures and artifacts
+should stay outside the public repository unless they are sanitized.
 
 ## Implementation Notes
 

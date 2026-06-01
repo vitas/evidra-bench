@@ -40,9 +40,9 @@ The public repository does not promise to include:
 - credentials, runner secrets, or deployment-specific configuration
 - commercial scheduling, billing, or customer operations data
 
-This boundary lets the public project build trust while preserving a business
-model around private regression testing, sponsored public benchmark runs, and
-custom live scenario packs.
+This boundary keeps the public project inspectable and reproducible while
+protecting private data, credentials, incident snapshots, and report artifacts
+that cannot safely belong in git.
 
 ## Data Hygiene
 

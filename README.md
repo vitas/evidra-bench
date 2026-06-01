@@ -19,10 +19,9 @@ Bench answers the questions that matter before an agent touches production:
 - Did a new model, prompt, MCP server, or skill regress behavior?
 - How many tokens and turns did the run waste?
 
-The primary product site is `https://bench.evidra.cc`. Public exam suites and
-the leaderboard are the marketing surface. Private regression history,
-scheduled runs, customer incident suites, and failure reports are the product
-surface.
+The public report site is `https://bench.evidra.cc`. It hosts exam suites,
+leaderboards, and inspectable benchmark reports produced by this open-source
+harness.
 
 ## Main Features
 
@@ -48,7 +47,7 @@ can make an easy scenario faster and make a harder scenario fail by skipping
 diagnosis. You need repeatable tests with real infrastructure state, artifacts,
 and comparable run history.
 
-The public suites are exam-aligned marketing proof: Kubernetes, security,
+The public suites are exam-aligned benchmark slices: Kubernetes, security,
 GitOps, Terraform, and cloud-ops tasks that show how agents behave in real
 environments. They are not official CNCF, Linux Foundation, HashiCorp, or AWS
 certifications.

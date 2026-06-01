@@ -22,8 +22,6 @@ Obsidian map of content and the GitHub documentation index.
 - [Public README](../README.md) - GitHub entry point and quick start.
 - [Quickstart](QUICKSTART.md) - clone, build, validate, and run a first
   scenario.
-- [Bench Positioning](POSITIONING.md) - product frame, customer promise, and
-  what Bench is not.
 - [Public Exam Suites](EXAM_SUITES.md) - public suite map for leaderboard and
   readiness reports.
 - [Roadmap](ROADMAP.md) - public-safe project direction.

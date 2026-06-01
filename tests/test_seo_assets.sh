@@ -89,6 +89,10 @@ require_contains ui/nginx.conf 'location = /bench {'
 require_contains ui/nginx.conf 'location = /bench/ {'
 require_contains ui/nginx.conf 'location = /bench/runs {'
 require_nginx_location_contains '= /bench/runs' 'X-Robots-Tag "noindex, follow" always;'
+if grep -Eq 'location ~ .*insights.*X-Robots-Tag "noindex, follow"|location ~ .*insights' ui/nginx.conf; then
+  echo "FAIL: /bench/insights must not match an nginx noindex route" >&2
+  exit 1
+fi
 require_contains ui/nginx.conf 'location = /results {'
 require_contains ui/nginx.conf 'location = /results/ {'
 require_contains ui/nginx.conf 'return 301 https://bench.evidra.cc/bench/runs;'

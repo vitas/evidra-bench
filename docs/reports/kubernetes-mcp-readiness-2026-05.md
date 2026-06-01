@@ -264,7 +264,7 @@ We tested two Kubernetes MCP servers on live incident scenarios. They both
 passed, but the evidence mattered more than the score.
 ```
 
-Suggested positioning:
+Suggested article summary:
 
 > Infrastructure-agent benchmarks should not stop at final-state pass/fail.
 > A live benchmark must show what the agent changed, what it avoided changing,

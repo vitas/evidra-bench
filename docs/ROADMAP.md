@@ -32,6 +32,13 @@ Bench is focused on live infrastructure exams for AI agents:
   retry loops, premature success, and excessive token burn.
 - Publish more public benchmark reports that compare baseline tool use against
   selected MCP servers or external agents.
+- Add per-failure-mode report breakdowns so readers can distinguish diagnosis,
+  root-cause, patching, verification, safety, and efficiency failures instead
+  of relying on one aggregate score.
+- Publish methodology pages for each report family: scenario selection,
+  scoring rules, verifier contracts, repeat policy, and artifact requirements.
+- Add comparison views that keep aggregate results visible while leading with
+  task-class and failure-mode deltas across tools and agents.
 - Improve report reproducibility: command manifests, environment metadata, and
   artifact links should make public results easier to inspect.
 - Keep adapters generic so Bench can evaluate new agent protocols without
