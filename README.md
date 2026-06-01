@@ -69,13 +69,13 @@ See [Public Exam Suites](docs/EXAM_SUITES.md) for the current suite map.
 
 ```bash
 # Baseline model behavior
-bench-cli run \
+bin/bench-cli run \
   --scenario kubernetes/broken-deployment \
   --provider bifrost \
   --model gemini-2.5-flash
 
 # Same model with a skill prompt
-bench-cli run \
+bin/bench-cli run \
   --scenario kubernetes/broken-deployment \
   --provider bifrost \
   --model gemini-2.5-flash \
@@ -83,7 +83,7 @@ bench-cli run \
   --skill-id k8s-admin
 
 # Same scenario through a selected MCP server
-bench-cli run \
+bin/bench-cli run \
   --scenario kubernetes/broken-deployment \
   --provider bifrost \
   --model gemini-2.5-flash \
@@ -171,7 +171,7 @@ executed:
 Any MCP tool server can be tested by passing its command to `--mcp-server`:
 
 ```bash
-bench-cli run \
+bin/bench-cli run \
   --scenario kubernetes/broken-deployment \
   --provider bifrost \
   --model sonnet \
@@ -227,26 +227,26 @@ Prerequisites: Go 1.25.10+, kind or k3d, kubectl, helm.
 make build
 
 # List scenarios
-bench-cli scenario list
+bin/bench-cli scenario list
 
 # Validate a scenario without a cluster run
-bench-cli run --scenario kubernetes/broken-deployment --dry-run
+bin/bench-cli run --scenario kubernetes/broken-deployment --dry-run
 
 # Run one scenario
-bench-cli run \
+bin/bench-cli run \
   --scenario kubernetes/broken-deployment \
   --provider bifrost \
   --model gemini-2.5-flash \
   --reuse-cluster
 
 # Certify on one track
-bench-cli certify --track workloads --model sonnet --provider bifrost
+bin/bench-cli certify --track workloads --model sonnet --provider bifrost
 
 # Run a full benchmark
-bench-cli bench --provider bifrost --model sonnet --reuse-cluster
+bin/bench-cli bench --provider bifrost --model sonnet --reuse-cluster
 
 # Open the local TUI
-bench-cli lab
+bin/bench-cli lab
 ```
 
 ## Provider Setup
@@ -257,21 +257,21 @@ Route model requests directly or through a unified Bifrost gateway:
 # Direct OpenAI-compatible endpoint
 export INFRA_BENCH_BIFROST_URL=https://generativelanguage.googleapis.com/v1beta/openai
 export INFRA_BENCH_BIFROST_AUTH_BEARER=$GEMINI_API_KEY
-bench-cli run --provider bifrost --model gemini-2.5-flash --scenario ...
+bin/bench-cli run --provider bifrost --model gemini-2.5-flash --scenario ...
 
 # Bifrost gateway
 source .env
 ./scripts/bifrost-start.sh
 export INFRA_BENCH_BIFROST_URL=http://localhost:9090/v1
-bench-cli run --provider bifrost --model google/gemini-2.5-flash --scenario ...
-bench-cli run --provider bifrost --model deepseek/deepseek-chat --scenario ...
-bench-cli run --provider bifrost --model openai/gpt-4.1 --scenario ...
+bin/bench-cli run --provider bifrost --model google/gemini-2.5-flash --scenario ...
+bin/bench-cli run --provider bifrost --model deepseek/deepseek-chat --scenario ...
+bin/bench-cli run --provider bifrost --model openai/gpt-4.1 --scenario ...
 ```
 
 Claude CLI is also supported:
 
 ```bash
-bench-cli run --provider claude --model sonnet --scenario ...
+bin/bench-cli run --provider claude --model sonnet --scenario ...
 ```
 
 ## Multi-Stage Scenarios

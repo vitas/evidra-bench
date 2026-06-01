@@ -26,7 +26,7 @@ func executeCertifyExam(cmd *cobra.Command, cfg config.Config, examName string, 
 
 	for _, track := range tracks {
 		writef(w, "── Track: %s ──\n", trackNames[track])
-		cert, err := runCertifySingle(cmd.Context(), cfg, track, model)
+		cert, err := runCertifyTrack(cmd.Context(), cfg, track, model)
 		if err != nil {
 			writef(w, "  ERROR: %v\n\n", err)
 			continue

@@ -10,12 +10,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vitas/evidra-bench/pkg/adapter"
-	"github.com/vitas/evidra-bench/pkg/artifact"
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/environment"
 	"github.com/vitas/evidra-bench/pkg/harness"
 	"github.com/vitas/evidra-bench/pkg/localstore"
-	"github.com/vitas/evidra-bench/pkg/report"
 	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
@@ -32,36 +30,18 @@ func newRunCommand(cfg *config.Config) *cobra.Command {
 	}
 
 	f := cmd.Flags()
-	f.StringVar(&cfg.EnvironmentProvider, "environment", cfg.EnvironmentProvider, "environment provider (kind, k3d)")
-	f.StringVar(&cfg.Scenario, "scenario", cfg.Scenario, "scenario path relative to scenarios dir")
-	f.StringVar(&cfg.Adapter, "adapter", cfg.Adapter, "agent adapter type (cli, mcp, a2a)")
-	f.StringVar(&cfg.A2AAgentURL, "a2a-agent-url", cfg.A2AAgentURL, "A2A agent URL (env: INFRA_BENCH_A2A_AGENT_URL)")
-	f.StringVar(&cfg.AgentCommand, "agent-command", cfg.AgentCommand, "command to invoke the agent")
-	f.StringVar(&cfg.ScenariosDir, "scenarios-dir", cfg.ScenariosDir, "base directory for scenarios")
-	f.StringVar(&cfg.RunsDir, "runs-dir", cfg.RunsDir, "output directory for run artifacts")
-	f.DurationVar(&cfg.Timeout, "timeout", cfg.Timeout, "agent execution timeout")
-	f.BoolVar(&cfg.ReuseCluster, "reuse-cluster", cfg.ReuseCluster, "reuse existing kind cluster")
-	f.StringVar(&cfg.ClusterName, "cluster-name", cfg.ClusterName, "kind cluster name")
-	f.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "validate scenario without executing")
-	f.StringVar(&cfg.BenchURL, "bench-url", cfg.BenchURL, "Bench API URL for online reporting")
-	registerBenchAPIKeyFlag(f, &cfg.BenchAPIKey)
+	registerExecutionFlags(f, cfg, executionFlagOptions{
+		IncludeScenario: true,
+		ScenarioUsage:   "scenario path relative to scenarios dir",
+		DryRunUsage:     "validate scenario without executing",
+	})
+	registerAgentFlags(f, cfg, agentFlagOptions{IncludeModel: true})
 	f.StringVar(&cfg.EvidenceDir, "evidence-dir", cfg.EvidenceDir, "evidence directory for verifier input")
-	f.StringVar(&cfg.Model, "model", cfg.Model, "model for agent (e.g. sonnet, opus, haiku)")
-	f.StringVar(&cfg.Provider, "provider", cfg.Provider, "LLM provider for tool-use agent loop (bifrost, claude)")
-	f.IntVar(&cfg.MemoryWindow, "memory-window", -1, "agent memory window (-1=full, 0=stateless, N=last N exchanges)")
-	f.StringVar(&cfg.SystemPromptFile, "system-prompt-file", cfg.SystemPromptFile, "system prompt file path (overrides default; env: INFRA_BENCH_SYSTEM_PROMPT)")
-	f.StringVar(&cfg.SkillFile, "skill-file", cfg.SkillFile, "local skill prompt file path (runner host path; env: BENCH_SKILL_FILE)")
-	f.StringVar(&cfg.SkillID, "skill-id", cfg.SkillID, "stable skill identity for result comparison")
-	f.StringVar(&cfg.SkillVersion, "skill-version", cfg.SkillVersion, "stable skill version for result comparison")
-	f.StringVar(&cfg.SkillSource, "skill-source", cfg.SkillSource, "skill source label for result comparison")
-	f.StringVar(&cfg.SkillSHA256, "skill-sha256", cfg.SkillSHA256, "expected sha256 for --skill-file")
-	f.StringVar(&cfg.MCPServer, "mcp-server", cfg.MCPServer, "MCP server command for tool execution")
-	f.StringVar(&cfg.ToolServerID, "tool-server-id", cfg.ToolServerID, "stable MCP server identity for result comparison")
-	f.StringVar(&cfg.ToolServerVersion, "tool-server-version", cfg.ToolServerVersion, "stable MCP server version for result comparison")
-	f.StringVar(&cfg.ReportID, "report-id", cfg.ReportID, "stable report campaign identifier for filtering")
-	f.StringVar(&cfg.ContractVersion, "contract-version", cfg.ContractVersion, "contract version label for tracking")
-	f.IntVar(&cfg.Parallel, "parallel", 1, "number of parallel workers (1 = sequential)")
-	f.StringVar(&cfg.DatabaseURL, "database-url", "", "PostgreSQL URL for job queue (env: BENCH_DATABASE_URL)")
+	registerResultMetadataFlags(f, cfg, resultMetadataFlagOptions{
+		IncludeToolServer: true,
+		IncludeReportID:   true,
+	})
+	registerParallelFlags(f, cfg, parallelFlagOptions{IncludeDatabaseURL: true})
 	return cmd
 }
 
@@ -141,15 +121,6 @@ func runScenarioOnceWithLease(ctx context.Context, cfg config.Config, s *scenari
 		return nil, err
 	}
 
-	var agentAdapter adapter.Adapter
-	var err error
-	if cfg.Adapter != "a2a" {
-		agentAdapter, err = resolveLocalAdapter(cfg.Adapter)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	// Acquire a dedicated lease when the caller did not provide one.
 	if lease == nil && !cfg.DryRun {
 		provisioner := newLocalProvisioner(cfg)
@@ -181,35 +152,12 @@ func runScenarioOnceWithLease(ctx context.Context, cfg config.Config, s *scenari
 		extraEnv = lease.ExtraEnv
 	}
 
-	runner := &environment.ExecRunner{}
-	bootstrapper := environment.NewBootstrapper(runner)
-	writer := artifact.NewWriter(cfg.RunsDir)
-
-	reporter := report.NewReporter(report.Config{
-		EvidencePath: filepath.Join(cfg.RunsDir, "evidence"),
-	})
-
-	resultsStore, err := localstore.Open(cfg.RunsDir)
+	rt, err := buildLocalHarnessRuntime(cfg, envProvider, nil)
 	if err != nil {
-		log.Printf("[harness] warning: could not open results store: %v", err)
+		return nil, err
 	}
-	if resultsStore != nil {
-		defer func() {
-			if closeErr := resultsStore.Close(); closeErr != nil {
-				log.Printf("[harness] warning: could not close results store: %v", closeErr)
-			}
-		}()
-	}
-
-	deps := harness.Deps{
-		EnvProvider:  envProvider,
-		Bootstrapper: bootstrapper,
-		Adapter:      agentAdapter,
-		Writer:       writer,
-		Reporter:     reporter,
-		Store:        resultsStore,
-	}
-	h := harness.New(deps)
+	defer rt.Close()
+	h := harness.New(rt.Deps)
 
 	result, err := h.Run(ctx, harness.RunRequest{
 		Config:         cfg,
@@ -262,52 +210,14 @@ func runScenarioOnceWithNamespace(ctx context.Context, cfg config.Config, s *sce
 		return nil, err
 	}
 
-	var agentAdapter adapter.Adapter
-	var err error
-	if cfg.Adapter != "a2a" {
-		agentAdapter, err = resolveLocalAdapter(cfg.Adapter)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	// No environment provider needed — cluster is pre-provisioned.
 	// The harness will skip create/destroy when KubeconfigPath is set.
-	runner := &environment.ExecRunner{}
-	bootstrapper := environment.NewBootstrapper(runner)
-	writer := artifact.NewWriter(cfg.RunsDir)
-
-	reporter := report.NewReporter(report.Config{
-		EvidencePath: filepath.Join(cfg.RunsDir, "evidence"),
-	})
-
-	// Use shared store if provided (parallel mode), otherwise open workspace-local.
-	var resultsStore *localstore.Store
-	if sharedStore != nil {
-		resultsStore = sharedStore
-	} else {
-		var storeErr error
-		resultsStore, storeErr = localstore.Open(cfg.RunsDir)
-		if storeErr != nil {
-			log.Printf("[harness] warning: could not open results store: %v", storeErr)
-		}
-		if resultsStore != nil {
-			defer func() {
-				if closeErr := resultsStore.Close(); closeErr != nil {
-					log.Printf("[harness] warning: could not close workspace-local results store: %v", closeErr)
-				}
-			}()
-		}
+	rt, err := buildLocalHarnessRuntime(cfg, provider, sharedStore)
+	if err != nil {
+		return nil, err
 	}
-
-	h := harness.New(harness.Deps{
-		EnvProvider:  provider,
-		Bootstrapper: bootstrapper,
-		Adapter:      agentAdapter,
-		Writer:       writer,
-		Reporter:     reporter,
-		Store:        resultsStore,
-	})
+	defer rt.Close()
+	h := harness.New(rt.Deps)
 
 	result, runErr := h.Run(ctx, harness.RunRequest{
 		Config:          cfg,

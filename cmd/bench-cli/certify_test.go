@@ -13,8 +13,8 @@ import (
 func TestCertifyFiltering_ExcludesIncompatibleAndSkipped(t *testing.T) {
 	t.Parallel()
 
-	// Tests the filtering logic used by runCertifySingle and executeCertifySingle.
-	// Full integration test of runCertifySingle would require real scenario files
+	// Tests the filtering logic used by runCertifyTrack and executeCertifySingle.
+	// Full integration test of runCertifyTrack requires real scenario files
 	// on disk; the provider guard in runScenarioOnce is the backstop.
 
 	scenarios := []*scenario.Scenario{
