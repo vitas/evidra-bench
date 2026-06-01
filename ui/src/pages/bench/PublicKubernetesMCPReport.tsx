@@ -12,6 +12,7 @@ import {
   buildToolServerMatrixReportApiPath,
   type ToolServerMatrixArm,
   type ToolServerMatrixAutopsy,
+  type ToolServerMatrixFailureModeBreakdownRow,
   type ToolServerMatrixReportResponse,
   type ToolServerMatrixScenario,
   type ToolServerMatrixScenarioArm,
@@ -154,6 +155,7 @@ function BenchmarkOverview({
   arms,
   scenarios,
   autopsies,
+  failureModeBreakdown,
   selectedArm,
   onSelectArm,
   markdownURL,
@@ -163,6 +165,7 @@ function BenchmarkOverview({
   arms: ToolServerMatrixArm[];
   scenarios: ToolServerMatrixScenario[];
   autopsies: ToolServerMatrixAutopsy[];
+  failureModeBreakdown: ToolServerMatrixFailureModeBreakdownRow[];
   selectedArm: ToolServerMatrixArm | undefined;
   onSelectArm: (armID: string) => void;
   markdownURL: string;
@@ -173,6 +176,9 @@ function BenchmarkOverview({
   const finalPassRate = arms.length > 0
     ? Math.min(...arms.map((arm) => arm.aggregate.pass_rate))
     : 0;
+  const overviewCopy = report.summary.fail > 0 || report.summary.missing_evidence > 0
+    ? "A public, evidence-backed benchmark for Kubernetes MCP servers and AI infrastructure agents. The report separates final-state outcomes, unsafe passes, missing evidence, and failure modes by scenario."
+    : "A public, evidence-backed benchmark for Kubernetes MCP servers and AI infrastructure agents. Every arm reached final green checks; the useful signal is whether each pass was operationally safe.";
 
   return (
     <section className="space-y-6">
@@ -185,9 +191,7 @@ function BenchmarkOverview({
             Kubernetes MCP Readiness Benchmark
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-relaxed text-fg-muted">
-            A public, evidence-backed benchmark for Kubernetes MCP servers and
-            AI infrastructure agents. Every arm reached final green checks; the
-            useful signal is whether each pass was operationally safe.
+            {overviewCopy}
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <a
@@ -238,9 +242,55 @@ function BenchmarkOverview({
         <SelectedArmPanel arm={selectedArm} scenarios={scenarios} />
       </div>
 
+      <FailureModeBreakdownTable rows={failureModeBreakdown} />
       <ScenarioMatrix arms={arms} scenarios={scenarios} />
       <UnsafeEvidenceCards autopsies={autopsies} />
       <ReproducePanel markdownURL={markdownURL} rawJSONURL={rawJSONURL} />
+    </section>
+  );
+}
+
+function FailureModeBreakdownTable({ rows }: { rows: ToolServerMatrixFailureModeBreakdownRow[] }) {
+  if (rows.length === 0) return null;
+
+  return (
+    <section className="space-y-4">
+      <h2 className="text-xl font-bold text-fg">Failure Mode Breakdown</h2>
+      <div className="overflow-x-auto rounded-lg border border-border bg-bg-elevated">
+        <table className="w-full min-w-[860px] text-sm">
+          <thead className="bg-bg-alt text-fg-muted">
+            <tr>
+              {["Tool server", "Failure mode", "Unsafe", "Fail", "Missing", "Scenarios"].map((header) => (
+                <th key={header} className="px-4 py-3 text-left text-[0.7rem] font-semibold uppercase tracking-wide">
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={`${row.arm_id}-${row.failure_mode}`} className="border-t border-border-subtle align-top">
+                <td className="px-4 py-3">
+                  <div className="max-w-[260px] break-words font-mono text-[0.8rem] font-semibold text-fg">{row.tool_server}</div>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="inline-flex rounded bg-bg-alt px-2 py-1 text-[0.7rem] font-semibold text-fg-body">
+                    {row.failure_mode_label || row.failure_mode}
+                  </span>
+                </td>
+                <td className="px-4 py-3 font-mono text-[0.8rem] text-warning">{row.unsafe_pass}</td>
+                <td className="px-4 py-3 font-mono text-[0.8rem] text-danger">{row.fail}</td>
+                <td className="px-4 py-3 font-mono text-[0.8rem] text-fg-muted">{row.missing_evidence}</td>
+                <td className="px-4 py-3">
+                  <div className="max-w-[360px] break-words font-mono text-[0.72rem] leading-relaxed text-fg-muted">
+                    {(row.scenario_ids ?? []).join(", ") || "-"}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
@@ -439,7 +489,7 @@ function UnsafeEvidenceCards({ autopsies }: { autopsies: ToolServerMatrixAutopsy
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span className="font-mono text-sm font-semibold text-fg">{autopsy.scenario_id}</span>
               <span className="rounded bg-warning-tint px-2 py-0.5 text-[0.68rem] font-semibold text-warning">
-                {autopsy.primary_failure || "unsafe pass"}
+                {autopsy.failure_mode_label || autopsy.primary_failure || "unsafe pass"}
               </span>
             </div>
             <p className="text-sm leading-relaxed text-fg-muted">{autopsy.summary}</p>
@@ -551,6 +601,7 @@ export function PublicKubernetesMCPReport() {
     ?? arms[0];
   const methodology = report.methodology ?? [];
   const autopsies = report.autopsies ?? [];
+  const failureModeBreakdown = report.failure_mode_breakdown ?? [];
   const findings = report.findings ?? [];
   const recommendations = report.recommendations ?? [];
   const evidenceLinks = report.evidence_links ?? [];
@@ -562,6 +613,7 @@ export function PublicKubernetesMCPReport() {
         arms={arms}
         scenarios={scenarios}
         autopsies={autopsies}
+        failureModeBreakdown={failureModeBreakdown}
         selectedArm={selectedArm}
         onSelectArm={setSelectedArmID}
         markdownURL={markdownURL}
@@ -655,7 +707,7 @@ export function PublicKubernetesMCPReport() {
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <span className="font-mono text-sm font-semibold text-fg">{autopsy.scenario_id}</span>
                   <span className="rounded bg-warning-tint px-2 py-0.5 text-[0.68rem] font-semibold text-warning">
-                    {autopsy.primary_failure || "autopsy"}
+                    {autopsy.failure_mode_label || autopsy.primary_failure || "autopsy"}
                   </span>
                 </div>
                 <p className="text-sm leading-relaxed text-fg-muted">{autopsy.summary}</p>

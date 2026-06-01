@@ -87,6 +87,13 @@ output, turns, tokens, and cost to classify failures such as:
 
 See [Agent Failure Autopsy](AGENT_FAILURE_AUTOPSY.md).
 
+Matrix reports also expose a failure-mode breakdown derived from the same
+autopsy evidence. The v0 taxonomy is public and intentionally mutable:
+`diagnosis`, `root_cause`, `patching`, `verification`, `safety`, `tool_misuse`,
+`missing_evidence`, and `other`. These rows are counts with scenario IDs for
+auditability, not pass rates. Per-mode pass rates require scenario metadata that
+defines which scenarios belong in each denominator.
+
 ### 5. Efficiency
 
 Did the agent solve the task with reasonable time and budget?

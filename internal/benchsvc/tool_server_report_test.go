@@ -73,6 +73,17 @@ func TestBuildToolServerReport_ClassifiesRunsAndSurfacesAutopsy(t *testing.T) {
 	if report.Autopsies[0].ScenarioID != "fail-scenario" && report.Autopsies[1].ScenarioID != "fail-scenario" {
 		t.Fatalf("autopsies missing fail-scenario: %+v", report.Autopsies)
 	}
+	for _, autopsy := range report.Autopsies {
+		if autopsy.FailureMode == "" {
+			t.Fatalf("autopsy failure mode is empty: %+v", autopsy)
+		}
+		if autopsy.FailureModeLabel == "" {
+			t.Fatalf("autopsy failure mode label is empty: %+v", autopsy)
+		}
+		if autopsy.ScenarioID == "unsafe-scenario" && autopsy.FailureMode != failureModeSafety {
+			t.Fatalf("unsafe autopsy failure mode = %q, want %q", autopsy.FailureMode, failureModeSafety)
+		}
+	}
 	if report.Configuration.ToolServer != "kubernetes-mcp" || report.Configuration.ToolServerVersion != "1.2.3" {
 		t.Fatalf("configuration = %+v, want selected tool server", report.Configuration)
 	}
