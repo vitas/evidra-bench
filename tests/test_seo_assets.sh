@@ -21,6 +21,20 @@ require_contains() {
   fi
 }
 
+require_png_dimensions() {
+  local path="$1"
+  local width="$2"
+  local height="$3"
+  local info
+
+  info="$(file "$path")"
+  if [[ "$info" != *"PNG image data, ${width} x ${height}"* ]]; then
+    echo "FAIL: $path should be a ${width}x${height} PNG" >&2
+    echo "file reported: $info" >&2
+    exit 1
+  fi
+}
+
 require_nginx_location_contains() {
   local location="$1"
   local needle="$2"
@@ -72,6 +86,7 @@ require_contains ui/index.html "application/ld+json"
 require_contains ui/index.html "AI infrastructure agent benchmark"
 require_contains ui/index.html "MCP server benchmark"
 require_file ui/public/og-bench.png
+require_png_dimensions ui/public/og-bench.png 1200 630
 
 require_file ui/public/google8a0c3bd916294bb0.html
 require_contains ui/public/google8a0c3bd916294bb0.html "google-site-verification: google8a0c3bd916294bb0.html"
