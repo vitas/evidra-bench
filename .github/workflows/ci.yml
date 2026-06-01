@@ -69,6 +69,10 @@ jobs:
         working-directory: bench
         run: bash tests/test_artifact_hygiene.sh
 
+      - name: Guard documentation consistency
+        working-directory: bench
+        run: bash tests/test_doc_consistency.sh
+
       - name: Guard repository secret hygiene
         working-directory: bench
         run: bash tests/test_secret_hygiene.sh

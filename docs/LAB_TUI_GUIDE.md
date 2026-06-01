@@ -333,5 +333,6 @@ bench-cli db query --scenario broken-deployment  # by scenario
 bench-cli db query --failed --limit 5            # recent failures
 ```
 
-The JSONL backup at `runs/results.jsonl` is committable to git for
-tracking progression over time.
+The JSONL backup at `runs/results.jsonl` is local generated data. Keep it out of
+git with the rest of `runs/`. If you need to publish progression over time,
+export a sanitized report or fixture outside `runs/`.

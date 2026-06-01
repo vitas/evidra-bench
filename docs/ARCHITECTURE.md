@@ -178,8 +178,27 @@ Local artifacts plus `pkg/localstore` are the local runner boundary. PostgreSQL
 is the hosted/control-plane boundary. The synchronization point between them is
 the Bench ingest API, not direct shared storage ownership.
 
+Local artifacts under `runs/` are the durable evidence bundle for local runs.
+`pkg/localstore` indexes those runs for local queries. Hosted ingest stores the
+same user-visible result and artifact types in PostgreSQL for API and UI reads.
+Do not treat raw `runs/` output as publishable data; publish sanitized reports
+or fixtures instead.
+
 The current PostgreSQL schema lives in
 `internal/benchdb/migrations/001_init.up.sql`.
+
+### Local vs Hosted Work Queues
+
+Bench has two queue boundaries:
+
+| Boundary | Code | Storage | Used by |
+|---|---|---|---|
+| Local parallel queue | `pkg/jobqueue` | River tables in the CLI database URL | `bench-cli bench --parallel` |
+| Hosted runner queue | `internal/benchsvc` | `bench_jobs` in the Bench service database | runner pool and `/v1/runners/jobs` |
+
+The local queue exists to fan out one CLI benchmark across workers. The hosted
+queue exists to coordinate durable runner work for the Bench API. They are kept
+separate so local CLI runs do not require the hosted control plane.
 
 ## Control Plane
 

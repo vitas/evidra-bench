@@ -2,21 +2,25 @@ import { type ReactNode } from "react";
 import { NavLink } from "react-router";
 import { useTheme } from "../../hooks/useTheme";
 import { useAppInfo } from "../../hooks/useAppInfo";
+import { BENCH_PRIMARY_NAV, BENCH_SECONDARY_NAV, type BenchNavItem } from "../../lib/benchNav.mts";
 
-const navItems = [
-  { to: "/bench", label: "Leaderboard" },
-  { to: "/bench/dashboard", label: "Dashboard" },
-  { to: "/bench/skill-impact", label: "Skill Impact" },
-  { to: "/bench/regressions", label: "Regressions" },
-  { to: "/bench/insights", label: "Insights" },
-  { to: "/bench/reviews", label: "Reviews" },
-  { to: "/bench/session", label: "Session" },
-  { to: "/bench/runs", label: "Runs" },
-  { to: "/bench/scenarios", label: "Scenarios" },
-  { to: "/bench/compare", label: "Compare" },
-  { to: "/bench/mcp-readiness", label: "MCP Readiness" },
-  { to: "/bench/benchmarks", label: "Benchmarks" },
-];
+function BenchNavLink({ item }: { item: BenchNavItem }) {
+  return (
+    <NavLink
+      to={item.to}
+      end={item.to === "/bench"}
+      className={({ isActive }) =>
+        `text-[0.78rem] font-medium px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
+          isActive
+            ? "text-accent bg-accent-tint"
+            : "text-fg-muted hover:text-fg hover:bg-accent-subtle"
+        }`
+      }
+    >
+      {item.label}
+    </NavLink>
+  );
+}
 
 export function Layout({ children }: { children: ReactNode }) {
   const { theme, toggle } = useTheme();
@@ -77,22 +81,19 @@ export function Layout({ children }: { children: ReactNode }) {
 
         {/* Nav row: horizontally scrollable on mobile */}
         <nav className="flex gap-1 px-4 sm:px-6 pb-2 overflow-x-auto scrollbar-none">
-          {navItems.map(({ to, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === "/bench"}
-              className={({ isActive }) =>
-                `text-[0.78rem] font-medium px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
-                  isActive
-                    ? "text-accent bg-accent-tint"
-                    : "text-fg-muted hover:text-fg hover:bg-accent-subtle"
-                }`
-              }
-            >
-              {label}
-            </NavLink>
+          {BENCH_PRIMARY_NAV.map((item) => (
+            <BenchNavLink key={item.to} item={item} />
           ))}
+          <details className="relative">
+            <summary className="list-none text-[0.78rem] font-medium px-2.5 py-1 rounded-md transition-all whitespace-nowrap cursor-pointer text-fg-muted hover:text-fg hover:bg-accent-subtle">
+              More
+            </summary>
+            <div className="absolute left-0 top-8 z-50 min-w-40 rounded-md border border-border bg-bg shadow-lg p-1 flex flex-col gap-1">
+              {BENCH_SECONDARY_NAV.map((item) => (
+                <BenchNavLink key={item.to} item={item} />
+              ))}
+            </div>
+          </details>
         </nav>
       </header>
 

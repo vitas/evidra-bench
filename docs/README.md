@@ -19,12 +19,16 @@ Obsidian map of content and the GitHub documentation index.
 
 ## Start Here
 
-- [Public README](../README.md) - GitHub entry point and quick start.
-- [Quickstart](QUICKSTART.md) - clone, build, validate, and run a first
-  scenario.
+- [Quick Start](QUICKSTART.md) - start here if you have not run the project
+  before.
+- [Public README](../README.md) - GitHub entry point and concise product
+  overview.
 - [Public Exam Suites](EXAM_SUITES.md) - public suite map for leaderboard and
   readiness reports.
 - [Roadmap](ROADMAP.md) - public-safe project direction.
+
+If you are new to the project, finish Quick Start before using the hosted API,
+runner pool, report-pack, or review workflows.
 
 ## Run Bench
 

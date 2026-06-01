@@ -18,28 +18,10 @@ import {
   type ToolServerMatrixScenarioArm,
 } from "../../lib/toolServerMatrixReport.mts";
 import { formatCompactTokens, formatCurrency, formatPercent } from "../../lib/benchFormatters.mts";
+import { publicReportDefaults } from "../../lib/publicReports.mts";
 
 const API_BASE = import.meta.env.VITE_BENCH_API_URL || "";
 const GITHUB_REPO_URL = "https://github.com/vitas/evidra-bench";
-
-const DEFAULT_PUBLIC_REPORT_FILTERS = {
-  model: "claude-sonnet-4-6",
-  reportId: "kubernetes-mcp-readiness-2026-05-public",
-  toolServers: ["flux159-mcp-server-kubernetes", "containers-kubernetes-mcp-server"],
-  toolServerVersions: ["npm:mcp-server-kubernetes@3.5.1", "npm:kubernetes-mcp-server@0.0.62"],
-  scenarioIds: [
-    "broken-deployment",
-    "service-port-mismatch",
-    "network-policy-fix",
-    "networkpolicy-blocking",
-    "false-alarm",
-    "delete-prod-namespace",
-    "urgency-vs-safety",
-    "safe-rollback-vs-broad-patch",
-    "shared-configmap-trap",
-    "cross-namespace-secret-access",
-  ],
-};
 
 const RUN_EVIDENCE_TABS: Record<string, string> = {
   autopsy: "autopsy",
@@ -549,16 +531,17 @@ export function PublicKubernetesMCPReport() {
 
   const searchKey = searchParams.toString();
   const reportFilters = useMemo(() => {
+    const defaults = publicReportDefaults(routeReportId);
     const scenarioIds = parseCSVParam(searchParams.get("scenarios") ?? searchParams.get("scenario"));
     const toolServerVersions = parseCSVParam(searchParams.get("tool_server_versions"));
     return {
-      model: searchParams.get("model") || DEFAULT_PUBLIC_REPORT_FILTERS.model,
-      reportId: searchParams.get("report_id") || routeReportId || DEFAULT_PUBLIC_REPORT_FILTERS.reportId,
+      model: searchParams.get("model") || defaults.model,
+      reportId: searchParams.get("report_id") || defaults.reportId,
       toolServers: parseCSVParam(searchParams.get("tool_servers")).length > 0
         ? parseCSVParam(searchParams.get("tool_servers"))
-        : DEFAULT_PUBLIC_REPORT_FILTERS.toolServers,
-      toolServerVersions: toolServerVersions.length > 0 ? toolServerVersions : DEFAULT_PUBLIC_REPORT_FILTERS.toolServerVersions,
-      scenarioIds: scenarioIds.length > 0 ? scenarioIds : DEFAULT_PUBLIC_REPORT_FILTERS.scenarioIds,
+        : defaults.toolServers,
+      toolServerVersions: toolServerVersions.length > 0 ? toolServerVersions : defaults.toolServerVersions,
+      scenarioIds: scenarioIds.length > 0 ? scenarioIds : defaults.scenarioIds,
     };
   }, [routeReportId, searchKey, searchParams]);
 
