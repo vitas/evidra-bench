@@ -92,13 +92,15 @@ type ToolServerReportCostBucket struct {
 }
 
 type ToolServerReportAutopsy struct {
-	ScenarioID     string                         `json:"scenario_id"`
-	RunID          string                         `json:"run_id,omitempty"`
-	PrimaryFailure string                         `json:"primary_failure,omitempty"`
-	Summary        string                         `json:"summary"`
-	Missing        bool                           `json:"missing,omitempty"`
-	Findings       []ToolServerReportFinding      `json:"findings,omitempty"`
-	EvidenceLinks  []ToolServerReportEvidenceLink `json:"evidence_links,omitempty"`
+	ScenarioID       string                         `json:"scenario_id"`
+	RunID            string                         `json:"run_id,omitempty"`
+	PrimaryFailure   string                         `json:"primary_failure,omitempty"`
+	FailureMode      string                         `json:"failure_mode,omitempty"`
+	FailureModeLabel string                         `json:"failure_mode_label,omitempty"`
+	Summary          string                         `json:"summary"`
+	Missing          bool                           `json:"missing,omitempty"`
+	Findings         []ToolServerReportFinding      `json:"findings,omitempty"`
+	EvidenceLinks    []ToolServerReportEvidenceLink `json:"evidence_links,omitempty"`
 }
 
 type ToolServerReportFinding struct {
@@ -251,7 +253,7 @@ func (s *Service) BuildToolServerReport(ctx context.Context, tenantID string, re
 		}
 
 		if candidateRun.ID != "" && (classification == ToolServerReportFail || classification == ToolServerReportUnsafePass) {
-			report.Autopsies = append(report.Autopsies, buildToolServerReportAutopsy(scenarioID, candidateRun.ID, autopsy, hasAutopsy, links))
+			report.Autopsies = append(report.Autopsies, buildToolServerReportAutopsy(scenarioID, candidateRun.ID, classification, autopsy, hasAutopsy, links))
 		}
 		if len(report.EvidenceLinks) < 12 {
 			report.EvidenceLinks = append(report.EvidenceLinks, links...)
@@ -339,23 +341,28 @@ func autopsyHasUnsafeFinding(autopsy reportAutopsyArtifact) bool {
 	return false
 }
 
-func buildToolServerReportAutopsy(scenarioID, runID string, autopsy reportAutopsyArtifact, hasAutopsy bool, links []ToolServerReportEvidenceLink) ToolServerReportAutopsy {
+func buildToolServerReportAutopsy(scenarioID, runID, classification string, autopsy reportAutopsyArtifact, hasAutopsy bool, links []ToolServerReportEvidenceLink) ToolServerReportAutopsy {
+	failureMode := deriveFailureMode(classification, autopsy.PrimaryFailure, autopsy.Findings)
 	if !hasAutopsy {
 		return ToolServerReportAutopsy{
-			ScenarioID:    scenarioID,
-			RunID:         runID,
-			Summary:       "No failure autopsy artifact available for this run.",
-			Missing:       true,
-			EvidenceLinks: links,
+			ScenarioID:       scenarioID,
+			RunID:            runID,
+			FailureMode:      failureMode,
+			FailureModeLabel: failureModeLabel(failureMode),
+			Summary:          "No failure autopsy artifact available for this run.",
+			Missing:          true,
+			EvidenceLinks:    links,
 		}
 	}
 	return ToolServerReportAutopsy{
-		ScenarioID:     scenarioID,
-		RunID:          runID,
-		PrimaryFailure: autopsy.PrimaryFailure,
-		Summary:        autopsy.Summary,
-		Findings:       autopsy.Findings,
-		EvidenceLinks:  links,
+		ScenarioID:       scenarioID,
+		RunID:            runID,
+		PrimaryFailure:   autopsy.PrimaryFailure,
+		FailureMode:      failureMode,
+		FailureModeLabel: failureModeLabel(failureMode),
+		Summary:          autopsy.Summary,
+		Findings:         autopsy.Findings,
+		EvidenceLinks:    links,
 	}
 }
 

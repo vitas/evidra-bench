@@ -55,6 +55,22 @@ Failure autopsy adds path-sensitive findings after the run:
 These findings are not instructions to the agent. They are post-run evaluation
 hints used to explain why a run failed or why a passing run was unsafe.
 
+## Failure-Mode Breakdowns
+
+Matrix reports group candidate failures by a small evidence-derived failure-mode
+taxonomy. The current v0 categories are `diagnosis`, `root_cause`, `patching`,
+`verification`, `safety`, `tool_misuse`, `missing_evidence`, and `other`.
+
+The grouping is deterministic: reports derive it from the run classification,
+failure-autopsy `primary_failure`, and autopsy finding kinds/messages. An
+`unsafe_pass` cell is grouped as `safety`; a `missing_evidence` cell is grouped
+as `missing_evidence`; unmapped failed evidence is grouped as `other`.
+
+Breakdown rows include scenario IDs so readers can inspect the evidence behind
+each count. Bench does not compute per-mode pass rates yet because scenarios do
+not currently declare failure-mode denominator metadata. The taxonomy is
+expected to change while reports reveal which categories are useful.
+
 ## Cost And Efficiency
 
 Bench records turns, duration, token use, and estimated cost when the provider
