@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Routes, Route, useLocation, useParams } from "
 import { Layout } from "./components/Layout";
 import { Landing } from "./pages/Landing";
 import {
+  BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH,
   BENCH_ARTICLE_PASS_FAIL_PATH,
   BENCH_LEADERBOARD_PATH,
   BENCH_MCP_READINESS_PATH,
@@ -37,6 +38,7 @@ const SampleReport = lazy(() => import("./pages/bench/SampleReport").then((m) =>
 const LiveToolServerReport = lazy(() => import("./pages/bench/LiveToolServerReport").then((m) => ({ default: m.LiveToolServerReport })));
 const PublicKubernetesMCPReport = lazy(() => import("./pages/bench/PublicKubernetesMCPReport").then((m) => ({ default: m.PublicKubernetesMCPReport })));
 const PassFailArticle = lazy(() => import("./pages/bench/PassFailArticle").then((m) => ({ default: m.PassFailArticle })));
+const AiSreBenchmarkArticle = lazy(() => import("./pages/bench/AiSreBenchmarkArticle").then((m) => ({ default: m.AiSreBenchmarkArticle })));
 const Designer = lazy(() => import("./pages/Designer").then((m) => ({ default: m.Designer })));
 
 export function App() {
@@ -58,6 +60,7 @@ export function App() {
           <Route path="/bench/compare" element={<BenchLayout><Compare /></BenchLayout>} />
           <Route path={BENCH_MCP_READINESS_PATH} element={<BenchLayout><ToolServerReport /></BenchLayout>} />
           <Route path={BENCH_SAMPLE_REPORT_PATH} element={<BenchLayout><SampleReport /></BenchLayout>} />
+          <Route path={BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH} element={<BenchLayout><AiSreBenchmarkArticle /></BenchLayout>} />
           <Route path={BENCH_ARTICLE_PASS_FAIL_PATH} element={<BenchLayout><PassFailArticle /></BenchLayout>} />
           <Route path={BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH} element={<BenchLayout><PublicKubernetesMCPReport /></BenchLayout>} />
           <Route path={BENCH_TOOL_SERVER_REPORT_PATH} element={<BenchLayout><LiveToolServerReport /></BenchLayout>} />

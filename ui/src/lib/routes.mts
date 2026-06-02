@@ -1,3 +1,5 @@
+export const BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH =
+  "/bench/articles/what-ai-sre-benchmarks-should-catch-before-production";
 export const BENCH_ARTICLE_PASS_FAIL_PATH = "/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough";
 export const BENCH_LEADERBOARD_PATH = "/bench/leaderboard";
 export const BENCH_MCP_READINESS_PATH = "/bench/mcp-readiness";
@@ -38,6 +40,10 @@ export function benchLeaderboardPagePath(params?: Record<string, string | undefi
 
 export function benchMCPReadinessPagePath(params?: Record<string, string | undefined>) {
   return pagePath(BENCH_MCP_READINESS_PATH, params);
+}
+
+export function benchAiSreBenchmarkArticlePagePath(params?: Record<string, string | undefined>) {
+  return pagePath(BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH, params);
 }
 
 export function benchSampleReportPagePath(params?: Record<string, string | undefined>) {

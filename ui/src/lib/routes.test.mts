@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH,
   BENCH_ARTICLE_PASS_FAIL_PATH,
   BENCH_LEADERBOARD_PATH,
   BENCH_MCP_READINESS_PATH,
@@ -12,6 +13,7 @@ import {
   BENCH_SCENARIOS_PATH,
   BENCH_SESSION_PATH,
   BENCH_TOOL_SERVER_REPORT_PATH,
+  benchAiSreBenchmarkArticlePagePath,
   benchPassFailArticlePagePath,
   benchPublicKubernetesMCPReportPagePath,
   benchMCPReadinessPagePath,
@@ -26,6 +28,10 @@ import {
 } from "./routes.mts";
 
 test("bench route constants use canonical bench paths", () => {
+  assert.equal(
+    BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH,
+    "/bench/articles/what-ai-sre-benchmarks-should-catch-before-production",
+  );
   assert.equal(BENCH_ARTICLE_PASS_FAIL_PATH, "/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough");
   assert.equal(BENCH_LEADERBOARD_PATH, "/bench/leaderboard");
   assert.equal(BENCH_MCP_READINESS_PATH, "/bench/mcp-readiness");
@@ -36,6 +42,13 @@ test("bench route constants use canonical bench paths", () => {
   assert.equal(BENCH_SCENARIOS_PATH, "/bench/scenarios");
   assert.equal(BENCH_SESSION_PATH, "/bench/session");
   assert.equal(BENCH_TOOL_SERVER_REPORT_PATH, "/bench/reports/tool-server");
+});
+
+test("bench AI SRE benchmark article helper appends encoded query parameters", () => {
+  assert.equal(
+    benchAiSreBenchmarkArticlePagePath({ source: "buyers guide" }),
+    "/bench/articles/what-ai-sre-benchmarks-should-catch-before-production?source=buyers+guide",
+  );
 });
 
 test("bench pass/fail article helper appends encoded query parameters", () => {

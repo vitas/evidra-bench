@@ -92,6 +92,10 @@ runner pool, report-pack, or review workflows.
 
 ## Articles
 
+- [What AI SRE Benchmarks Should Catch Before Production](articles/what-ai-sre-benchmarks-should-catch-before-production.md)
+  - buyer-facing article about scenario-based AI SRE benchmark failure modes.
+  Public post:
+  <https://bench.evidra.cc/bench/articles/what-ai-sre-benchmarks-should-catch-before-production>
 - [Kubernetes MCP Servers Passed. That Was Not Enough.](articles/pass-fail-is-not-enough-for-ai-infra-agents.md)
   - published article based on the Claude and DeepSeek Kubernetes MCP readiness
     reports.

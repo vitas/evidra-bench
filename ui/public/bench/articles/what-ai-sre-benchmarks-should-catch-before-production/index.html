@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>What AI SRE Benchmarks Should Catch Before Production - Evidra Bench</title>
+    <meta name="description" content="A buyer-facing guide to external scenario-based AI SRE benchmarks, per-failure-mode breakdowns, and evidence buyers should ask for before production use." />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://bench.evidra.cc/bench/articles/what-ai-sre-benchmarks-should-catch-before-production" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="What AI SRE Benchmarks Should Catch Before Production - Evidra Bench" />
+    <meta property="og:description" content="External AI SRE benchmarks should expose wrong-scope repairs, unsafe shortcuts, config drift, and dependency removal instead of only reporting aggregate pass rates." />
+    <meta property="og:url" content="https://bench.evidra.cc/bench/articles/what-ai-sre-benchmarks-should-catch-before-production" />
+    <meta property="og:image" content="https://bench.evidra.cc/og-bench.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": "What AI SRE Benchmarks Should Catch Before Production",
+        "url": "https://bench.evidra.cc/bench/articles/what-ai-sre-benchmarks-should-catch-before-production",
+        "datePublished": "2026-06-02",
+        "dateModified": "2026-06-02",
+        "author": {
+          "@type": "Organization",
+          "name": "Evidra"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Evidra"
+        },
+        "about": [
+          "AI SRE benchmark",
+          "AI infrastructure agent evaluation",
+          "per-failure-mode benchmark reports",
+          "MCP tool server evaluation"
+        ],
+        "isPartOf": {
+          "@type": "WebSite",
+          "name": "Evidra Bench",
+          "url": "https://bench.evidra.cc/"
+        },
+        "description": "A buyer-facing article explaining why AI SRE evaluations need scenario-based benchmarks and per-failure-mode breakdowns."
+      }
+    </script>
+    <style>
+      :root { color-scheme: light; --fg: #101312; --muted: #45514a; --line: #d9ded8; --soft: #eef2ed; --accent: #047857; --warn: #9a5b0a; }
+      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f5; color: var(--fg); }
+      main { max-width: 900px; margin: 0 auto; padding: 56px 24px 72px; }
+      nav { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 46px; font-size: 0.92rem; }
+      h1 { max-width: 860px; font-size: clamp(2.35rem, 6vw, 4.2rem); line-height: 1.04; margin: 0 0 22px; letter-spacing: 0; }
+      h2 { margin: 44px 0 14px; font-size: clamp(1.45rem, 3vw, 2rem); }
+      p, li { font-size: 1.07rem; line-height: 1.72; color: var(--muted); }
+      blockquote { margin: 28px 0; padding: 2px 0 2px 20px; border-left: 4px solid var(--accent); color: var(--fg); }
+      blockquote p { color: var(--fg); font-size: 1.3rem; font-weight: 700; }
+      a { color: var(--accent); font-weight: 700; text-decoration-thickness: 0.08em; text-underline-offset: 0.2em; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 0.92em; }
+      .lede { font-size: 1.18rem; }
+      .kicker { color: var(--accent); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+      .links { display: flex; flex-wrap: wrap; gap: 16px; margin: 30px 0 42px; }
+      .links a { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: white; }
+      .callout { border: 1px solid var(--line); background: white; border-radius: 8px; padding: 18px; margin: 24px 0; }
+      table { width: 100%; border-collapse: collapse; margin-top: 18px; background: white; border: 1px solid var(--line); }
+      th, td { padding: 12px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { background: var(--soft); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em; }
+      @media (max-width: 640px) { main { padding: 36px 18px 56px; } table { font-size: 0.92rem; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav>
+        <a href="https://bench.evidra.cc/">Evidra Bench</a>
+        <a href="https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough">Pass/fail article</a>
+        <a href="https://bench.evidra.cc/bench/reports/next-scenario-hardening-deepseek-202606021840?model=deepseek-v4-flash&amp;report_id=next-scenario-hardening-deepseek-202606021840&amp;scenarios=psa-enforcement-conflict%2Cnearly-valid-manifest%2Cwrong-namespace-similarity%2Cconfig-mutation-mid-fix%2Ccascading-misconfiguration&amp;tool_server_versions=npm%3Amcp-server-kubernetes%403.5.1&amp;tool_servers=flux159-mcp-server-kubernetes">Example report</a>
+        <a href="https://github.com/vitas/evidra-bench">GitHub repository</a>
+      </nav>
+
+      <div class="kicker">Buyer guide</div>
+      <h1>What AI SRE Benchmarks Should Catch Before Production</h1>
+      <p class="lede">
+        AI SRE buyers need external scenario-based benchmarks that show which
+        operational failure modes an agent avoids, not only whether a final
+        readiness check turned green.
+      </p>
+
+      <div class="links">
+        <a href="https://bench.evidra.cc/bench/reports/next-scenario-hardening-deepseek-202606021840?model=deepseek-v4-flash&amp;report_id=next-scenario-hardening-deepseek-202606021840&amp;scenarios=psa-enforcement-conflict%2Cnearly-valid-manifest%2Cwrong-namespace-similarity%2Cconfig-mutation-mid-fix%2Ccascading-misconfiguration&amp;tool_server_versions=npm%3Amcp-server-kubernetes%403.5.1&amp;tool_servers=flux159-mcp-server-kubernetes">Open example report</a>
+        <a href="https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough">Read pass/fail analysis</a>
+        <a href="mailto:bench@evidra.cc?subject=AI%20SRE%20Benchmark%20Request">Commission a benchmark</a>
+      </div>
+
+      <p>
+        Vendor-published numbers can sound precise: accuracy, completion rate,
+        MTTR reduction, incident coverage. Those numbers are hard to compare
+        when every vendor controls its own scenarios, tools, and success
+        criteria.
+      </p>
+
+      <blockquote>
+        <p>Which operational failure modes did the agent avoid?</p>
+      </blockquote>
+
+      <p>
+        That question is more useful than one aggregate score. A tool that fixes
+        incidents but mutates the wrong namespace has a different risk profile
+        from a tool that is slower but conservative. A tool that reaches green by
+        changing an intended image tag has not restored the same state.
+      </p>
+
+      <h2>Failure Modes Buyers Should See</h2>
+      <ul>
+        <li>Wrong resource scope across similar namespaces or environments.</li>
+        <li>Healthy resource mutation during an otherwise successful repair.</li>
+        <li>Symptom patches that lose intended image, probe, selector, or config state.</li>
+        <li>Dependency removal instead of restoring a missing Secret or ConfigMap.</li>
+        <li>Safety boundary weakening, such as broad policy or namespace relaxation.</li>
+      </ul>
+
+      <h2>A Recent Example</h2>
+      <p>
+        On June 2, 2026, Evidra Bench ran five hardened Kubernetes scenarios with
+        DeepSeek V4 Flash and <code>Flux159/mcp-server-kubernetes</code>. The
+        baseline passed three of five. The MCP candidate passed four of five.
+        There were no runtime errors.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Arm</th><th>Result</th><th>Signal</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>baseline</td>
+            <td>3 passed, 2 failed, 0 errors</td>
+            <td>Strict verifiers caught config drift and dependency shortcuts.</td>
+          </tr>
+          <tr>
+            <td>candidate</td>
+            <td>4 passed, 1 failed, 0 errors</td>
+            <td><code>nearly-valid-manifest</code> caught <code>nginx:latest</code> instead of <code>nginx:1.27-alpine</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        A single score would compress that into a percentage. Per-failure-mode
+        breakdowns explain which invariant failed and whether the evidence maps
+        to an operating risk the buyer cares about.
+      </p>
+
+      <div class="callout">
+        <p>
+          The point is not to declare a permanent ranking from one small run. The
+          point is to show what an external benchmark should make visible before
+          production adoption.
+        </p>
+      </div>
+
+      <h2>What To Ask Vendors</h2>
+      <ul>
+        <li>What scenarios were tested?</li>
+        <li>What resources were allowed to change?</li>
+        <li>What safety invariants were checked beyond readiness?</li>
+        <li>Are tool calls, transcripts, and artifacts inspectable?</li>
+        <li>Can someone outside the vendor reproduce the benchmark?</li>
+        <li>Does the report distinguish safe pass, unsafe pass, fail, and runtime error?</li>
+      </ul>
+
+      <h2>What Public Methodology Should Include</h2>
+      <p>
+        A useful benchmark should publish scenario taxonomy, setup and break
+        steps, verifier contracts, mutation boundaries, model and tool-server
+        identity, run artifacts, failure autopsy rules, repeat counts, and known
+        limitations.
+      </p>
+
+      <h2>The Direction</h2>
+      <p>
+        Evidra Bench is open source because infrastructure-agent evaluation
+        needs a shared methodology. The useful output is not a magic score. It
+        is a report that shows which operational behaviors a tool handled and
+        which ones it did not.
+      </p>
+    </main>
+  </body>
+</html>

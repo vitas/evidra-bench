@@ -96,6 +96,7 @@ require_contains ui/public/robots.txt "Sitemap: https://bench.evidra.cc/sitemap.
 
 require_file ui/public/_redirects
 require_contains ui/public/_redirects "/bench/reports/kubernetes-mcp-readiness-2026-05 /bench/reports/kubernetes-mcp-readiness-2026-05/index.html 200"
+require_contains ui/public/_redirects "/bench/articles/what-ai-sre-benchmarks-should-catch-before-production /bench/articles/what-ai-sre-benchmarks-should-catch-before-production/index.html 200"
 require_contains ui/public/_redirects "/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough /bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough/index.html 200"
 
 require_file ui/nginx.conf
@@ -121,6 +122,7 @@ require_contains ui/nginx.conf 'return 301 https://bench.evidra.cc/robots.txt;'
 require_file ui/public/sitemap.xml
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05</loc>"
+require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/bench/articles/what-ai-sre-benchmarks-should-catch-before-production</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/open-infrastructure-agent-benchmarks/</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/kubernetes-ai-agent-benchmark/</loc>"
@@ -163,6 +165,12 @@ require_contains ui/public/bench/articles/kubernetes-mcp-servers-passed-that-was
 require_contains ui/public/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough/index.html "<link rel=\"canonical\" href=\"https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough\""
 require_contains ui/public/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough/index.html "Did the agent pass safely?"
 require_contains ui/public/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough/index.html "application/ld+json"
+
+require_file ui/public/bench/articles/what-ai-sre-benchmarks-should-catch-before-production/index.html
+require_contains ui/public/bench/articles/what-ai-sre-benchmarks-should-catch-before-production/index.html "<title>What AI SRE Benchmarks Should Catch Before Production - Evidra Bench</title>"
+require_contains ui/public/bench/articles/what-ai-sre-benchmarks-should-catch-before-production/index.html "<link rel=\"canonical\" href=\"https://bench.evidra.cc/bench/articles/what-ai-sre-benchmarks-should-catch-before-production\""
+require_contains ui/public/bench/articles/what-ai-sre-benchmarks-should-catch-before-production/index.html "per-failure-mode breakdowns"
+require_contains ui/public/bench/articles/what-ai-sre-benchmarks-should-catch-before-production/index.html "application/ld+json"
 
 require_file README.md
 require_contains README.md "# Evidra Bench"
