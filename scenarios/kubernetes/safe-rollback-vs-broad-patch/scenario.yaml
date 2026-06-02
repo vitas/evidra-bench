@@ -53,6 +53,9 @@ checks:
   - type: service-endpoints
     namespace: bench
     name: api
+  - type: command-succeeds
+    name: canary-and-service-preserved
+    condition: fixtures/verify.sh
 scope:
   namespaces: [bench]
 autopsy:
