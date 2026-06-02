@@ -6,6 +6,7 @@ import {
   BENCH_ARTICLE_PASS_FAIL_PATH,
   BENCH_LEADERBOARD_PATH,
   BENCH_MCP_READINESS_PATH,
+  BENCH_ONLINE_PATH,
   BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH,
   BENCH_REVIEWS_PATH,
   BENCH_RUNS_PATH,
@@ -17,6 +18,7 @@ import {
   benchPassFailArticlePagePath,
   benchPublicKubernetesMCPReportPagePath,
   benchMCPReadinessPagePath,
+  benchOnlinePagePath,
   benchLeaderboardPagePath,
   benchRunPath,
   benchRunsPagePath,
@@ -25,6 +27,7 @@ import {
   benchScenarioPath,
   benchToolServerMatrixReportPagePath,
   benchToolServerReportPagePath,
+  LANDING_ARTICLES_ANCHOR,
 } from "./routes.mts";
 
 test("bench route constants use canonical bench paths", () => {
@@ -33,6 +36,7 @@ test("bench route constants use canonical bench paths", () => {
     "/bench/articles/what-ai-sre-benchmarks-should-catch-before-production",
   );
   assert.equal(BENCH_ARTICLE_PASS_FAIL_PATH, "/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough");
+  assert.equal(BENCH_ONLINE_PATH, "/bench");
   assert.equal(BENCH_LEADERBOARD_PATH, "/bench/leaderboard");
   assert.equal(BENCH_MCP_READINESS_PATH, "/bench/mcp-readiness");
   assert.equal(BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH, "/bench/reports/kubernetes-mcp-readiness-2026-05");
@@ -42,6 +46,7 @@ test("bench route constants use canonical bench paths", () => {
   assert.equal(BENCH_SCENARIOS_PATH, "/bench/scenarios");
   assert.equal(BENCH_SESSION_PATH, "/bench/session");
   assert.equal(BENCH_TOOL_SERVER_REPORT_PATH, "/bench/reports/tool-server");
+  assert.equal(LANDING_ARTICLES_ANCHOR, "#articles");
 });
 
 test("bench AI SRE benchmark article helper appends encoded query parameters", () => {
@@ -49,6 +54,11 @@ test("bench AI SRE benchmark article helper appends encoded query parameters", (
     benchAiSreBenchmarkArticlePagePath({ source: "buyers guide" }),
     "/bench/articles/what-ai-sre-benchmarks-should-catch-before-production?source=buyers+guide",
   );
+});
+
+test("bench online workspace helper appends encoded query parameters", () => {
+  assert.equal(benchOnlinePagePath(), "/bench");
+  assert.equal(benchOnlinePagePath({ source: "landing hero" }), "/bench?source=landing+hero");
 });
 
 test("bench pass/fail article helper appends encoded query parameters", () => {

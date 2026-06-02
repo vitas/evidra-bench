@@ -1,6 +1,7 @@
 export const BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH =
   "/bench/articles/what-ai-sre-benchmarks-should-catch-before-production";
 export const BENCH_ARTICLE_PASS_FAIL_PATH = "/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough";
+export const BENCH_ONLINE_PATH = "/bench";
 export const BENCH_LEADERBOARD_PATH = "/bench/leaderboard";
 export const BENCH_MCP_READINESS_PATH = "/bench/mcp-readiness";
 export const BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH = "/bench/reports/kubernetes-mcp-readiness-2026-05";
@@ -10,6 +11,7 @@ export const BENCH_SAMPLE_REPORT_PATH = "/bench/sample-report";
 export const BENCH_SCENARIOS_PATH = "/bench/scenarios";
 export const BENCH_SESSION_PATH = "/bench/session";
 export const BENCH_TOOL_SERVER_REPORT_PATH = "/bench/reports/tool-server";
+export const LANDING_ARTICLES_ANCHOR = "#articles";
 
 export function benchRunPath(id: string) {
   return `${BENCH_RUNS_PATH}/${encodeURIComponent(id)}`;
@@ -36,6 +38,10 @@ export function benchScenariosPagePath(params?: Record<string, string | undefine
 
 export function benchLeaderboardPagePath(params?: Record<string, string | undefined>) {
   return pagePath(BENCH_LEADERBOARD_PATH, params);
+}
+
+export function benchOnlinePagePath(params?: Record<string, string | undefined>) {
+  return pagePath(BENCH_ONLINE_PATH, params);
 }
 
 export function benchMCPReadinessPagePath(params?: Record<string, string | undefined>) {

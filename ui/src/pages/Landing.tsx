@@ -7,8 +7,10 @@ import {
   BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH,
   BENCH_ARTICLE_PASS_FAIL_PATH,
   BENCH_LEADERBOARD_PATH,
+  BENCH_ONLINE_PATH,
   BENCH_SAMPLE_REPORT_PATH,
   BENCH_SCENARIOS_PATH,
+  LANDING_ARTICLES_ANCHOR,
   benchLeaderboardPagePath,
   benchScenariosPagePath,
 } from "../lib/routes.mts";
@@ -182,18 +184,24 @@ export function Landing() {
           Evidra Bench
         </Link>
         <div className="flex items-center gap-2">
+          <Link
+            to={BENCH_ONLINE_PATH}
+            className="hidden rounded-md bg-accent px-3 py-2 text-[0.76rem] font-bold text-white transition-colors hover:bg-accent-bright hover:text-white sm:inline-flex"
+          >
+            Online Bench
+          </Link>
           <a
             href="#public-reports"
             className="hidden rounded-md px-3 py-2 text-[0.76rem] font-semibold text-fg-muted hover:text-accent sm:inline-flex"
           >
             Reports
           </a>
-          <Link
-            to={BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH}
+          <a
+            href={LANDING_ARTICLES_ANCHOR}
             className="hidden rounded-md px-3 py-2 text-[0.76rem] font-semibold text-fg-muted hover:text-accent sm:inline-flex"
           >
-            Methodology
-          </Link>
+            Articles
+          </a>
           <a
             href="https://github.com/vitas/evidra-bench"
             target="_blank"
@@ -241,12 +249,18 @@ export function Landing() {
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <a
-                href="#public-reports"
+              <Link
+                to={BENCH_ONLINE_PATH}
                 className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-[0.86rem] font-semibold text-white transition-all hover:bg-accent-bright hover:text-white hover:shadow-[0_0_28px_rgba(14,165,233,0.24)] md:px-5 md:py-3 md:text-[0.88rem]"
               >
-                View public reports
+                Open online bench
                 <ArrowIcon />
+              </Link>
+              <a
+                href="#public-reports"
+                className="inline-flex items-center gap-2 rounded-lg border border-accent/35 bg-accent/10 px-4 py-2.5 text-[0.86rem] font-semibold text-accent transition-all hover:border-accent/60 hover:text-accent-bright md:px-5 md:py-3 md:text-[0.88rem]"
+              >
+                View public reports
               </a>
               <Link
                 to={BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH}
@@ -339,7 +353,21 @@ export function Landing() {
           ))}
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div id="articles" className="mt-5 scroll-mt-24">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-[0.9rem] font-bold uppercase tracking-wider text-fg-muted">
+              Articles
+            </h3>
+            <Link
+              to={BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH}
+              className="text-[0.74rem] font-semibold text-accent hover:text-accent-bright"
+            >
+              Start with methodology
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
           {ARTICLE_CARDS.map((article) => (
             <Link
               key={article.to}
@@ -519,7 +547,9 @@ export function Landing() {
         <div className="flex flex-col gap-4 text-[0.72rem] text-fg-muted md:flex-row md:items-center md:justify-between">
           <span>Evidra Bench - live regression testing for AI infrastructure agents</span>
           <div className="flex flex-wrap items-center gap-4">
+            <Link to={BENCH_ONLINE_PATH} className="transition-colors hover:text-accent">Online Bench</Link>
             <a href="#public-reports" className="transition-colors hover:text-accent">Reports</a>
+            <a href={LANDING_ARTICLES_ANCHOR} className="transition-colors hover:text-accent">Articles</a>
             <Link to={BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH} className="transition-colors hover:text-accent">Methodology</Link>
             <Link to={BENCH_ARTICLE_PASS_FAIL_PATH} className="transition-colors hover:text-accent">Case study</Link>
             <Link to={BENCH_SCENARIOS_PATH} className="transition-colors hover:text-accent">Scenarios</Link>
