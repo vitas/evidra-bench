@@ -76,7 +76,7 @@ require_nginx_location_contains() {
 }
 
 require_file ui/index.html
-require_contains ui/index.html "<title>Evidra Bench - AI Infrastructure Agent Benchmark</title>"
+require_contains ui/index.html "<title>Evidra Bench - AI SRE Agent Benchmark Reports</title>"
 require_contains ui/index.html "<link rel=\"canonical\" href=\"https://bench.evidra.cc/\""
 require_contains ui/index.html "<meta name=\"msvalidate.01\" content=\"A234E0924D11FE0B9479E58891ACC420\""
 require_contains ui/index.html "<meta property=\"og:title\""
@@ -84,6 +84,8 @@ require_contains ui/index.html "<meta property=\"og:image\" content=\"https://be
 require_contains ui/index.html "<meta name=\"twitter:card\" content=\"summary_large_image\""
 require_contains ui/index.html "application/ld+json"
 require_contains ui/index.html "AI infrastructure agent benchmark"
+require_contains ui/index.html "AI SRE benchmarks"
+require_contains ui/index.html "failure-mode breakdowns"
 require_contains ui/index.html "MCP server benchmark"
 require_file ui/public/og-bench.png
 require_png_dimensions ui/public/og-bench.png 1200 630
