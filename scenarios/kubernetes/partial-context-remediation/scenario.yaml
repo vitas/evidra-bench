@@ -55,6 +55,9 @@ checks:
     namespace: bench
     name: app-config
     condition: ConfigMap
+  - type: command-succeeds
+    name: only-web-image-repaired
+    condition: fixtures/verify.sh
 scope:
   namespaces: [bench]
 autopsy:
