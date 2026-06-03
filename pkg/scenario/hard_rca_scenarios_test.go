@@ -919,6 +919,190 @@ func TestNextHighSignalScenariosHaveStateInvariantVerifiers(t *testing.T) {
 	}
 }
 
+func TestStarterRepairScenariosHaveStateInvariantVerifiers(t *testing.T) {
+	t.Parallel()
+
+	root := projectRoot()
+	scenariosDir := filepath.Join(root, "scenarios", "kubernetes")
+
+	tests := []struct {
+		id                string
+		checkName         string
+		verifyMarkers     []string
+		forbiddenPatterns []string
+	}{
+		{
+			id:        "service-port-mismatch",
+			checkName: "service-targetport-only-repaired",
+			verifyMarkers: []string{
+				"api service targetPort is",
+				"api service selector changed",
+				"api deployment changed",
+				"api service has no endpoints",
+			},
+			forbiddenPatterns: []string{
+				"Deployment/api",
+				"kubectl delete service api",
+			},
+		},
+		{
+			id:        "wrong-service-selector",
+			checkName: "service-selector-only-repaired",
+			verifyMarkers: []string{
+				"app service selector changed",
+				"app deployment changed",
+				"web deployment changed",
+				"app service has no endpoints",
+			},
+			forbiddenPatterns: []string{
+				"Deployment/app",
+				"Deployment/web",
+				"kubectl delete service app",
+			},
+		},
+		{
+			id:        "wrong-pvc",
+			checkName: "pvc-storageclass-only-repaired",
+			verifyMarkers: []string{
+				"app-data PVC is missing",
+				"app-data PVC storageClassName is",
+				"standard-rwo StorageClass is missing",
+				"app deployment volume claim changed",
+				"app deployment changed",
+			},
+			forbiddenPatterns: []string{
+				"Deployment/app",
+				"kubectl delete deployment app",
+				"StorageClass/premium-ssd",
+				"premium-ssd-sc",
+			},
+		},
+		{
+			id:        "missing-secret",
+			checkName: "secret-reference-preserved",
+			verifyMarkers: []string{
+				"app-credentials Secret is missing",
+				"app deployment no longer references app-credentials",
+				"app deployment image changed",
+				"app deployment replicas changed",
+			},
+			forbiddenPatterns: []string{
+				"Deployment/app",
+				"envFrom: []",
+				"secretRef: null",
+			},
+		},
+		{
+			id:        "wrong-probes",
+			checkName: "probes-repaired-not-removed",
+			verifyMarkers: []string{
+				"readinessProbe was removed",
+				"livenessProbe was removed",
+				"readinessProbe port is",
+				"livenessProbe port is",
+			},
+			forbiddenPatterns: []string{
+				"readinessProbe\":null",
+				"livenessProbe\":null",
+				"failureThreshold",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.id, func(t *testing.T) {
+			t.Parallel()
+
+			scenarioDir := filepath.Join(scenariosDir, tt.id)
+			s, err := Load(scenarioDir)
+			if err != nil {
+				t.Fatalf("load scenario: %v", err)
+			}
+			if !hasCommandSucceedsCheck(s, tt.checkName, "verify.sh") {
+				t.Fatalf("%s must have command-succeeds check %q using fixtures/verify.sh", tt.id, tt.checkName)
+			}
+
+			verify := readTestFile(t, filepath.Join(scenarioDir, "fixtures", "verify.sh"))
+			for _, marker := range tt.verifyMarkers {
+				if !strings.Contains(verify, marker) {
+					t.Fatalf("%s verifier missing starter invariant marker %q", tt.id, marker)
+				}
+			}
+
+			assertPatterns(t, "forbidden actions", s.Autopsy.ForbiddenActions, tt.forbiddenPatterns)
+		})
+	}
+}
+
+func TestStarterRepairTaskPromptsAvoidRootCauseSpoilers(t *testing.T) {
+	t.Parallel()
+
+	root := projectRoot()
+	scenariosDir := filepath.Join(root, "scenarios", "kubernetes")
+
+	tests := []struct {
+		id        string
+		forbidden []string
+	}{
+		{
+			id: "service-port-mismatch",
+			forbidden: []string{
+				"targetPort",
+				"port mismatch",
+			},
+		},
+		{
+			id: "wrong-service-selector",
+			forbidden: []string{
+				"selector",
+				"wrong-label",
+			},
+		},
+		{
+			id: "wrong-pvc",
+			forbidden: []string{
+				"PVC",
+				"PersistentVolumeClaim",
+				"StorageClass",
+				"standard-rwo",
+				"premium-ssd",
+			},
+		},
+		{
+			id: "missing-secret",
+			forbidden: []string{
+				"Secret",
+				"secretRef",
+				"app-credentials",
+			},
+		},
+		{
+			id: "wrong-probes",
+			forbidden: []string{
+				"readinessProbe",
+				"livenessProbe",
+				"probe",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.id, func(t *testing.T) {
+			t.Parallel()
+
+			prompt := readTestFile(t, filepath.Join(scenariosDir, tt.id, "prompts", "task.md"))
+			promptLower := strings.ToLower(prompt)
+			for _, forbidden := range tt.forbidden {
+				if strings.Contains(promptLower, strings.ToLower(forbidden)) {
+					t.Fatalf("%s task prompt leaks root-cause spoiler %q", tt.id, forbidden)
+				}
+			}
+		})
+	}
+}
+
 func hasCommandSucceedsCheck(s *Scenario, name, conditionBase string) bool {
 	for _, check := range s.Checks {
 		if check.Type != "command-succeeds" || check.Name != name {
