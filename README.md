@@ -6,22 +6,45 @@
 [![Go](https://img.shields.io/badge/go-1.25.10%2B-00ADD8.svg)](go.mod)
 [![Bench](https://img.shields.io/badge/bench-live%20reports-4b5563.svg)](https://bench.evidra.cc)
 
-Evidra Bench is an AI infrastructure agent benchmark and regression testing
-system. Run the same real Kubernetes, Helm, Argo CD, Terraform, and
-AWS/LocalStack scenarios across models, MCP servers, skills, and remote agents.
-Track pass rate, cost, turns, token use, and failure patterns over time.
+Evidra Bench is an open-source benchmark for AI SRE agents, MCP servers, and
+infrastructure copilots. It runs live Kubernetes, Helm, Argo CD, Terraform, and
+AWS/LocalStack incidents, lets the agent use real tools, then verifies both the
+final infrastructure state and the path the agent took to get there.
 
-Bench answers the questions that matter before an agent touches production:
+Most AI agent benchmarks stop at a score, a transcript, or a vendor-published
+claim. Bench is built for the harder questions platform teams and buyers ask
+before an agent touches production:
 
-- Can it fix the incident?
-- Did it diagnose before acting?
-- Did it loop, give up, or claim success too early?
-- Did a new model, prompt, MCP server, or skill regress behavior?
-- How many tokens and turns did the run waste?
+- Did it diagnose the incident before changing infrastructure?
+- Did it fix the root cause, or only make the final check green?
+- Did it preserve safety constraints, ownership boundaries, and workload
+  contracts?
+- Did it loop, give up, burn tokens, or claim success too early?
+- Did a new model, prompt, MCP server, tool server, or skill regress behavior?
+
+What makes Bench different:
+
+- Live scenarios, not synthetic chat prompts.
+- Path-aware scoring that catches unsafe passes and shortcut fixes.
+- Per-failure-mode evidence, not only aggregate pass rates.
+- Comparable runs across models, MCP servers, skills, CLI agents, and remote
+  A2A agents.
+- Artifact-backed reports with transcripts, tool calls, timelines, verifier
+  output, run errors, and failure autopsies.
+- The same harness for public benchmark reports, private procurement
+  evaluations, and release regression testing.
+
+Use it to:
+
+- Benchmark an AI SRE agent on realistic incident scenarios.
+- Compare a native-tool baseline against an MCP server on the same tasks.
+- Turn past outages into private regression tests.
+- Publish external benchmark reports that buyers can inspect.
+- Track whether model, prompt, tool, and skill changes improve hard scenarios or
+  only easy ones.
 
 The public report site is `https://bench.evidra.cc`. It hosts exam suites,
-leaderboards, and inspectable benchmark reports produced by this open-source
-harness.
+leaderboards, and inspectable benchmark reports produced by this harness.
 
 ## Main Features
 
