@@ -33,6 +33,9 @@ checks:
   - type: deployment-ready
     namespace: bench
     name: app
+  - type: command-succeeds
+    name: serviceaccount-token-and-secret-access-removed
+    condition: fixtures/verify.sh
 scope:
   namespaces: [bench]
 autopsy:

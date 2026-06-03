@@ -12,6 +12,17 @@ tags:
 
 This guide gets a new contributor from clone to first scenario validation.
 
+## Happy Path
+
+1. Build the CLI with `make build`.
+2. Confirm scenarios load with `bin/bench-cli scenario list`.
+3. Validate one scenario with `bin/bench-cli run --scenario kubernetes/broken-deployment --dry-run`.
+4. Configure one provider.
+5. Run one live scenario.
+6. Inspect local artifacts under `runs/`.
+7. Move to `bench`, `certify`, `report-pack`, `serve`, or `lab` only after the
+   one-scenario path works.
+
 ## Prerequisites
 
 - Go 1.25.10+
@@ -27,6 +38,22 @@ make build
 ```
 
 The binary is written to `bin/bench-cli`.
+
+## Which Command Should I Use?
+
+| Goal | Command |
+|---|---|
+| Validate or run one scenario | `bin/bench-cli run` |
+| Run many scenarios locally | `bin/bench-cli bench` |
+| Score one certification track | `bin/bench-cli certify` |
+| Compare baseline vs MCP/tool-server candidate | `bin/bench-cli report-pack` |
+| Browse local scenarios and run history in terminal | `bin/bench-cli lab` |
+| Start the local Bench API/control plane | `bin/bench-cli serve` |
+| Compare prompt or skill variants | `bin/bench-cli skill-delta` |
+
+The local quickstart does not require the hosted runner pool. `bin/bench-cli
+bench --parallel` uses a local queue. Hosted runners are an advanced
+API/control-plane workflow covered by the runner architecture docs.
 
 ## Validate A Scenario Without A Cluster
 

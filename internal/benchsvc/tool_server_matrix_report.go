@@ -19,19 +19,20 @@ type ToolServerMatrixReportRequest struct {
 
 // ToolServerMatrixReport is the public multi-arm report DTO.
 type ToolServerMatrixReport struct {
-	Title           string                         `json:"title"`
-	GeneratedAt     time.Time                      `json:"generated_at"`
-	Model           string                         `json:"model"`
-	ReportID        string                         `json:"report_id"`
-	ScenarioIDs     []string                       `json:"scenario_ids,omitempty"`
-	Arms            []ToolServerMatrixArm          `json:"arms"`
-	Summary         ToolServerMatrixSummary        `json:"summary"`
-	Methodology     []string                       `json:"methodology"`
-	Scenarios       []ToolServerMatrixScenario     `json:"scenarios"`
-	Autopsies       []ToolServerMatrixAutopsy      `json:"autopsies"`
-	Findings        []string                       `json:"findings"`
-	Recommendations []string                       `json:"recommendations"`
-	EvidenceLinks   []ToolServerReportEvidenceLink `json:"evidence_links"`
+	Title                string                                    `json:"title"`
+	GeneratedAt          time.Time                                 `json:"generated_at"`
+	Model                string                                    `json:"model"`
+	ReportID             string                                    `json:"report_id"`
+	ScenarioIDs          []string                                  `json:"scenario_ids,omitempty"`
+	Arms                 []ToolServerMatrixArm                     `json:"arms"`
+	Summary              ToolServerMatrixSummary                   `json:"summary"`
+	Methodology          []string                                  `json:"methodology"`
+	Scenarios            []ToolServerMatrixScenario                `json:"scenarios"`
+	Autopsies            []ToolServerMatrixAutopsy                 `json:"autopsies"`
+	FailureModeBreakdown []ToolServerMatrixFailureModeBreakdownRow `json:"failure_mode_breakdown,omitempty"`
+	Findings             []string                                  `json:"findings"`
+	Recommendations      []string                                  `json:"recommendations"`
+	EvidenceLinks        []ToolServerReportEvidenceLink            `json:"evidence_links"`
 }
 
 type ToolServerMatrixArm struct {
@@ -77,6 +78,8 @@ type ToolServerMatrixAutopsy struct {
 	ScenarioID        string                         `json:"scenario_id"`
 	RunID             string                         `json:"run_id,omitempty"`
 	PrimaryFailure    string                         `json:"primary_failure,omitempty"`
+	FailureMode       string                         `json:"failure_mode,omitempty"`
+	FailureModeLabel  string                         `json:"failure_mode_label,omitempty"`
 	Summary           string                         `json:"summary"`
 	Missing           bool                           `json:"missing,omitempty"`
 	Findings          []ToolServerReportFinding      `json:"findings,omitempty"`
@@ -138,6 +141,7 @@ func (s *Service) BuildToolServerMatrixReport(ctx context.Context, tenantID stri
 	}
 
 	first := candidateReports[0]
+	breakdown := newFailureModeBreakdownAccumulator()
 	report.Arms = append(report.Arms, ToolServerMatrixArm{
 		ID:        "baseline",
 		Label:     "Baseline",
@@ -153,6 +157,10 @@ func (s *Service) BuildToolServerMatrixReport(ctx context.Context, tenantID stri
 			ToolServerVersion: req.ToolServerVersions[i],
 			Aggregate:         candidateReport.Comparison.Candidate,
 		})
+		classificationByScenario := map[string]string{}
+		for _, scenario := range candidateReport.Scenarios {
+			classificationByScenario[scenario.ID] = scenario.Classification
+		}
 		for _, autopsy := range candidateReport.Autopsies {
 			report.Autopsies = append(report.Autopsies, ToolServerMatrixAutopsy{
 				ArmID:             req.ToolServers[i],
@@ -161,11 +169,14 @@ func (s *Service) BuildToolServerMatrixReport(ctx context.Context, tenantID stri
 				ScenarioID:        autopsy.ScenarioID,
 				RunID:             autopsy.RunID,
 				PrimaryFailure:    autopsy.PrimaryFailure,
+				FailureMode:       autopsy.FailureMode,
+				FailureModeLabel:  autopsy.FailureModeLabel,
 				Summary:           autopsy.Summary,
 				Missing:           autopsy.Missing,
 				Findings:          autopsy.Findings,
 				EvidenceLinks:     autopsy.EvidenceLinks,
 			})
+			breakdown.add(req.ToolServers[i], req.ToolServers[i], autopsy.ScenarioID, classificationByScenario[autopsy.ScenarioID], autopsy.FailureMode)
 		}
 	}
 
@@ -178,6 +189,9 @@ func (s *Service) BuildToolServerMatrixReport(ctx context.Context, tenantID stri
 			}
 			report.Summary.CandidateCells++
 			addMatrixClassification(&report.Summary, arm.Classification)
+			if arm.Classification == ToolServerReportMissingEvidence {
+				breakdown.add(arm.ArmID, arm.Label, row.ID, ToolServerReportMissingEvidence, failureModeMissingEvidence)
+			}
 			if len(report.EvidenceLinks) < 24 {
 				report.EvidenceLinks = append(report.EvidenceLinks, arm.EvidenceLinks...)
 				if len(report.EvidenceLinks) > 24 {
@@ -186,6 +200,7 @@ func (s *Service) BuildToolServerMatrixReport(ctx context.Context, tenantID stri
 			}
 		}
 	}
+	report.FailureModeBreakdown = breakdown.rows()
 	report.Findings = matrixReportFindings(report)
 	report.Recommendations = matrixReportRecommendations(report)
 	normalizeToolServerMatrixReportSlices(report)
@@ -304,6 +319,27 @@ func RenderToolServerMatrixReportMarkdown(report *ToolServerMatrixReport) string
 		fmt.Fprintf(&b, "| %s | %s |\n", row[0], row[1])
 	}
 	b.WriteString("\n")
+
+	b.WriteString("## Failure Mode Breakdown\n\n")
+	if len(report.FailureModeBreakdown) == 0 {
+		b.WriteString("No failure-mode signals were detected from available evidence.\n\n")
+	} else {
+		b.WriteString("| Tool server | Failure mode | Unsafe pass | Fail | Missing evidence | Scenarios |\n")
+		b.WriteString("| --- | --- | ---: | ---: | ---: | --- |\n")
+		for _, row := range report.FailureModeBreakdown {
+			fmt.Fprintf(
+				&b,
+				"| %s | %s | %d | %d | %d | %s |\n",
+				mdEscape(row.ToolServer),
+				mdEscape(row.FailureModeLabel),
+				row.UnsafePass,
+				row.Fail,
+				row.MissingEvidence,
+				mdEscape(strings.Join(row.ScenarioIDs, ", ")),
+			)
+		}
+		b.WriteString("\n")
+	}
 
 	if len(report.Autopsies) > 0 {
 		b.WriteString("## Failure Autopsy Highlights\n\n")
@@ -441,6 +477,9 @@ func normalizeToolServerMatrixReportSlices(report *ToolServerMatrixReport) {
 	}
 	if report.Autopsies == nil {
 		report.Autopsies = []ToolServerMatrixAutopsy{}
+	}
+	if report.FailureModeBreakdown == nil {
+		report.FailureModeBreakdown = []ToolServerMatrixFailureModeBreakdownRow{}
 	}
 	if report.Findings == nil {
 		report.Findings = []string{}

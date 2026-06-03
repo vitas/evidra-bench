@@ -19,6 +19,12 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://bench.evidra.cc/bench/articles/what-ai-sre-benchmarks-should-catch-before-production</loc>
+    <lastmod>2026-06-02</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://bench.evidra.cc/open-infrastructure-agent-benchmarks/</loc>
     <lastmod>2026-05-17</lastmod>
     <changefreq>monthly</changefreq>

@@ -20,10 +20,20 @@ bootstrap:
 break:
   type: kubectl-apply
   path: fixtures/broken.yaml
+after_break:
+  - name: recreate-node-monitor-under-restricted-psa
+    type: kubectl
+    args: [delete, pod, -n, bench, -l, app=node-monitor, --ignore-not-found=true, --timeout=30s]
+  - name: let-psa-denial-surface
+    type: sleep
+    duration: 5s
 checks:
   - type: deployment-ready
     namespace: bench
     name: web
+  - type: command-succeeds
+    name: monitoring-runs-with-scoped-psa
+    condition: fixtures/verify.sh
 scope:
   namespaces: [bench, bench-monitoring]
 autopsy:

@@ -2,25 +2,31 @@ import { type ReactNode } from "react";
 import { NavLink } from "react-router";
 import { useTheme } from "../../hooks/useTheme";
 import { useAppInfo } from "../../hooks/useAppInfo";
+import { SCENARIOS } from "../../data/catalog";
+import { BENCH_FEATURE_NAV, BENCH_PRIMARY_NAV, type BenchNavItem } from "../../lib/benchNav.mts";
 
-const navItems = [
-  { to: "/bench", label: "Leaderboard" },
-  { to: "/bench/dashboard", label: "Dashboard" },
-  { to: "/bench/skill-impact", label: "Skill Impact" },
-  { to: "/bench/regressions", label: "Regressions" },
-  { to: "/bench/insights", label: "Insights" },
-  { to: "/bench/reviews", label: "Reviews" },
-  { to: "/bench/session", label: "Session" },
-  { to: "/bench/runs", label: "Runs" },
-  { to: "/bench/scenarios", label: "Scenarios" },
-  { to: "/bench/compare", label: "Compare" },
-  { to: "/bench/mcp-readiness", label: "MCP Readiness" },
-  { to: "/bench/benchmarks", label: "Benchmarks" },
-];
+function BenchNavLink({ item, variant = "primary" }: { item: BenchNavItem; variant?: "primary" | "feature" }) {
+  return (
+    <NavLink
+      to={item.to}
+      end={item.to === "/bench"}
+      className={({ isActive }) =>
+        `${variant === "primary" ? "text-[0.8rem] px-2.5 py-1.5" : "text-[0.72rem] px-2 py-1"} font-semibold rounded-md transition-all whitespace-nowrap ${
+          isActive
+            ? "text-accent bg-accent-tint"
+            : "text-fg-muted hover:text-fg hover:bg-accent-subtle"
+        }`
+      }
+    >
+      {item.label}
+    </NavLink>
+  );
+}
 
 export function Layout({ children }: { children: ReactNode }) {
   const { theme, toggle } = useTheme();
   const { readonly, version } = useAppInfo();
+  const activeScenarioCount = SCENARIOS.length;
 
   return (
     <>
@@ -28,21 +34,23 @@ export function Layout({ children }: { children: ReactNode }) {
         className="sticky top-0 z-50 glass border-b-0"
         style={{ borderBottom: "1px solid var(--glass-border)" }}
       >
-        {/* Top row: logo + mode toggle + icons */}
-        <div className="h-12 flex items-center gap-4 px-4 sm:px-6">
-          <div className="flex items-center gap-2 font-extrabold text-fg tracking-tight whitespace-nowrap">
+        <div className="flex min-h-14 items-center gap-3 px-4 sm:px-6 py-2">
+          <div className="flex items-center gap-3 min-w-0">
             <NavLink
               to="/"
-              className="inline-flex items-center gap-2 hover:text-accent transition-colors"
+              className="inline-flex items-center gap-2 text-fg hover:text-accent transition-colors whitespace-nowrap"
               style={{ textDecoration: "none", color: "inherit" }}
             >
               <span
-                className="inline-block w-2 h-2 bg-accent rounded-sm"
+                className="inline-block w-2.5 h-2.5 bg-accent rounded-sm"
                 style={{ transform: "rotate(45deg)" }}
               />
-              <span className="hidden sm:inline">Bench Lab</span>
-              <span className="sm:hidden">Bench</span>
+              <span className="text-base font-extrabold tracking-tight hidden sm:inline">Bench Lab</span>
+              <span className="text-base font-extrabold tracking-tight sm:hidden">Bench</span>
             </NavLink>
+            <span className="hidden lg:inline text-[0.72rem] font-semibold text-fg-muted whitespace-nowrap">
+              Live AI SRE benchmark workspace
+            </span>
           </div>
 
           {readonly && (
@@ -51,7 +59,19 @@ export function Layout({ children }: { children: ReactNode }) {
             </span>
           )}
 
+          <span className="hidden md:inline-flex items-center gap-1.5 text-[0.68rem] font-semibold text-fg-muted px-2 py-1 rounded-md border border-border bg-bg-elevated">
+            <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+            {activeScenarioCount} active scenarios
+          </span>
+
           <div className="flex-1" />
+
+          <NavLink
+            to="/bench/session"
+            className="hidden md:inline-flex items-center justify-center rounded-md bg-accent px-3 py-1.5 text-[0.75rem] font-bold text-white hover:text-white hover:bg-accent-bright transition-colors whitespace-nowrap"
+          >
+            API Session
+          </NavLink>
 
           <a
             href="https://github.com/vitas/evidra-bench"
@@ -75,25 +95,21 @@ export function Layout({ children }: { children: ReactNode }) {
           </button>
         </div>
 
-        {/* Nav row: horizontally scrollable on mobile */}
-        <nav className="flex gap-1 px-4 sm:px-6 pb-2 overflow-x-auto scrollbar-none">
-          {navItems.map(({ to, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === "/bench"}
-              className={({ isActive }) =>
-                `text-[0.78rem] font-medium px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
-                  isActive
-                    ? "text-accent bg-accent-tint"
-                    : "text-fg-muted hover:text-fg hover:bg-accent-subtle"
-                }`
-              }
-            >
-              {label}
-            </NavLink>
-          ))}
-        </nav>
+        <div className="border-t border-border-subtle">
+          <nav className="flex gap-1 px-4 sm:px-6 py-2 overflow-x-auto scrollbar-none">
+            {BENCH_PRIMARY_NAV.map((item) => (
+              <BenchNavLink key={item.to} item={item} />
+            ))}
+          </nav>
+          <div className="flex items-center gap-1 px-4 sm:px-6 pb-2 overflow-x-auto scrollbar-none">
+            <span className="text-[0.65rem] font-bold uppercase tracking-wide text-fg-muted whitespace-nowrap mr-1">
+              Online bench
+            </span>
+            {BENCH_FEATURE_NAV.map((item) => (
+              <BenchNavLink key={item.to} item={item} variant="feature" />
+            ))}
+          </div>
+        </div>
       </header>
 
       <main className="max-w-[1280px] mx-auto px-6 py-5 pb-12">
