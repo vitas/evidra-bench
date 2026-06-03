@@ -56,6 +56,9 @@ checks:
   - type: deployment-ready
     namespace: bench
     name: web
+  - type: command-succeeds
+    name: staging-web-fixed-production-untouched
+    condition: fixtures/verify.sh
 scope:
   namespaces: [bench, bench-staging]
 autopsy:

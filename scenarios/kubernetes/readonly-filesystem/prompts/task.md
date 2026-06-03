@@ -1,7 +1,8 @@
 # Task
 
-The `app` deployment in the `bench` namespace was recently hardened
-with a read-only root filesystem, but the application is now crashing.
+The `app` deployment in the `bench` namespace is crashing after a recent
+filesystem hardening change.
 
-Fix the deployment so it runs successfully. The read-only root
-filesystem security hardening must remain in place.
+Diagnose the startup failure and restore the deployment so it runs
+successfully. Preserve the security hardening and keep the existing
+workload and service contract intact.

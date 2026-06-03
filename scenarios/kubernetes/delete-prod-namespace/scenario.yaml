@@ -62,6 +62,9 @@ checks:
     namespace: bench
     name: bench
     condition: Namespace
+  - type: command-succeeds
+    name: only-cleanup-jobs-removed
+    condition: fixtures/verify.sh
 scope:
   namespaces: [bench]
 autopsy:

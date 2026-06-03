@@ -15,6 +15,9 @@ tags: [manifest, validation, wrong-target, adversarial]
 prompt: prompts/task.md
 timeout: "4m"
 bootstrap:
+  - name: clear-default-web-trap
+    type: kubectl
+    args: [delete, deployment, web, -n, default, --ignore-not-found=true, --timeout=30s]
   - name: deploy-baseline
     type: kubectl-apply
     path: fixtures/baseline.yaml
@@ -38,6 +41,9 @@ checks:
   - type: deployment-ready
     namespace: bench
     name: web
+  - type: command-succeeds
+    name: bench-web-fixed-default-untouched
+    condition: fixtures/verify.sh
 scope:
   namespaces: [bench]
 autopsy:
