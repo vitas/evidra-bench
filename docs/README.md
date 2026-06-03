@@ -3,6 +3,7 @@ title: Bench Documentation
 aliases:
   - Bench Docs
   - Documentation Home
+  - Evidra Bench Docs
 type: index
 status: active
 tags:
@@ -14,81 +15,78 @@ tags:
 # Bench Documentation
 
 Bench is a live infrastructure exam and regression-testing system for AI
-agents, MCP servers, skills, and remote agent runtimes. This page is the
-Obsidian map of content and the GitHub documentation index.
+agents, MCP servers, skills, and remote agent runtimes. This page is the main
+Obsidian map and GitHub documentation index.
 
 ## Start Here
 
-- [Quick Start](QUICKSTART.md) - start here if you have not run the project
-  before.
-- [Public README](../README.md) - GitHub entry point and concise product
-  overview.
-- [Public Exam Suites](EXAM_SUITES.md) - public suite map for leaderboard and
-  readiness reports.
-- [Roadmap](ROADMAP.md) - public-safe project direction.
+| Reader | First page | Purpose |
+|---|---|---|
+| Buyer, platform lead, or evaluator | [Results And Reports](RESULTS_AND_REPORTS.md) | Understand suites, scoring, unsafe passes, evidence, and reproducibility. |
+| Agent, MCP server, or skill builder | [Quickstart](QUICKSTART.md) | Build the CLI, validate a scenario, run one live task, and inspect artifacts. |
+| Contributor | [Scenario Authoring Guide](SCENARIO_AUTHORING_GUIDE.md) | Write scenarios that test capability instead of obedience. |
+| API or runner integrator | [Bench Service Setup](guides/bench-service-setup.md) | Run the local API and understand the runner control plane. |
 
-If you are new to the project, finish Quick Start before using the hosted API,
-runner pool, report-pack, or review workflows.
+If you are new to the project, read the public [README](../README.md), then
+choose one of the two main lanes below.
 
-## Run Bench
+## Lane 1: Understand Bench
 
-- [Testing Guide](TESTING.md) - local commands, CI gates, and package-level
-  test coverage.
-- [Bench Service Setup](guides/bench-service-setup.md) - local service,
-  Postgres, control-plane-only mode, and runner setup.
-- [Runner Architecture](RUNNER_ARCHITECTURE.md) - how remote runners register,
-  poll, execute, report progress, and complete jobs.
-- [Lab TUI Guide](LAB_TUI_GUIDE.md) - terminal UI usage.
-- [Private Report Pack](PRIVATE_REPORT_PACK.md) - baseline versus MCP
-  tool-server report workflow.
-- [Human Review](guides/human-review.md) - review candidates, scenario
-  improvements, stored patch previews, validation rerun records, public review
-  visibility, and review artifacts.
-- [Reproducibility](REPRODUCIBILITY.md) - what public and private reports
-  should record.
-
-## Understand Results
-
-- [Testing Methodology](TESTING_METHODOLOGY.md) - what Bench measures and why.
-- [Scoring](SCORING.md) - final-state outcomes, unsafe passes, behavior
-  findings, and efficiency.
-- [Agent Failure Autopsy](AGENT_FAILURE_AUTOPSY.md) - target product layer for
-  explaining why an agent failed.
-- [Sample Bench Report](SAMPLE_BENCH_REPORT.md) - example customer-facing
-  report structure.
+- [Results And Reports](RESULTS_AND_REPORTS.md) - public exam suites, outcome
+  labels, unsafe passes, failure autopsy, evidence, reproducibility, and sample
+  report shape.
+- [Testing Methodology](TESTING_METHODOLOGY.md) - deeper reference for what the
+  benchmark measures: remediation, diagnosis, judgment, failure analysis,
+  efficiency, chaos, memory windows, and comparison patterns.
+- [Scenario Catalog](SCENARIO_CATALOG.md) - current public inventory by
+  category, track, level, and skipped infrastructure requirements.
 - [Kubernetes MCP Readiness 2026-05](reports/kubernetes-mcp-readiness-2026-05.md)
-  - published public baseline versus two Kubernetes MCP servers.
+  - published public baseline-versus-MCP report.
   Public page: <https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05>
 
-## Build Scenarios
+## Lane 2: Run And Evaluate
 
-- [Scenario Authoring Guide](SCENARIO_AUTHORING_GUIDE.md) - how to write
-  scenarios that test capability instead of obedience.
-- [Scenario Schema](SCENARIO_SCHEMA.md) - YAML schema reference.
+- [Quickstart](QUICKSTART.md) - first local run and artifact inspection.
+- [Tool Server Integration](TOOL_SERVER_INTEGRATION.md) - compare native tools,
+  MCP servers, skills, and external agent runtimes under fixed scenarios.
+- [Private Report Pack](PRIVATE_REPORT_PACK.md) - paired baseline-versus-MCP
+  report-pack workflow.
+- [Lab TUI Guide](LAB_TUI_GUIDE.md) - terminal UI for browsing scenarios,
+  running one task, and reviewing local artifacts.
+- [Bench Service Setup](guides/bench-service-setup.md) - local service,
+  Postgres, UI, private review writes, and runner setup.
+- [Human Review](guides/human-review.md) - review candidates, scenario
+  improvements, stored patch previews, validation rerun records, and review
+  artifacts.
+
+## Scenario Authoring
+
+- [Scenario Authoring Guide](SCENARIO_AUTHORING_GUIDE.md) - task prompt design,
+  scenario structure, break design, check design, autopsy hints, traps,
+  multi-stage scenarios, and authoring checklist.
+- [Scenario Schema](SCENARIO_SCHEMA.md) - YAML field reference.
 - [Scenario Catalog](SCENARIO_CATALOG.md) - implemented scenario inventory.
 
-## Integrate Agents And Tool Servers
+## Reference
 
-- [Tool Server And Evidence Compatibility](TOOL_SERVER_INTEGRATION.md) -
-  generic MCP/tool-server integration, `tool_server` identity, and optional
-  evidence-directory checks.
-- [Bench API Reference](BENCH_API_REFERENCE.md) - HTTP API reference.
+- [Architecture](ARCHITECTURE.md) - execution model, control-plane boundary,
+  package map, data flow, storage, profiles, leases, and deployment ownership.
+- [Runner Architecture](RUNNER_ARCHITECTURE.md) - poll-based remote runner
+  topology, job lifecycle, queue semantics, and contracts.
+- [Bench API Reference](BENCH_API_REFERENCE.md) - HTTP API reference for runs,
+  catalog, analytics, triggers, review endpoints, and runners.
 - [Executor Contract](contracts/EXECUTOR_CONTRACT_V1.md) - direct executor API.
 - [Runner Control Plane Contract](contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md)
   - poll-based remote runner API.
 - [Run Review Contract v1](contracts/RUN_REVIEW_V1.md) - human review artifact
   schema.
-
-## Architecture And Governance
-
-- [Architecture](ARCHITECTURE.md) - execution model, control-plane boundary,
-  package map, data flow, and deployment ownership.
-- [Runner Architecture](RUNNER_ARCHITECTURE.md) - poll-based remote execution
-  topology and lifecycle diagrams.
-- [Threat Model](THREAT_MODEL.md) - runner, API, artifact, and credential
-  boundaries.
+- [Testing Guide](TESTING.md) - local commands, CI gates, and package-level
+  test coverage.
+- [Threat Model](THREAT_MODEL.md) - runner, API, artifact, credential, and
+  public-report boundaries.
 - [Open Source Boundary](OPEN_SOURCE.md) - what belongs in the public repo and
   what stays private.
+- [Roadmap](ROADMAP.md) - public-safe project direction.
 
 ## Articles
 
@@ -97,28 +95,22 @@ runner pool, report-pack, or review workflows.
   Public post:
   <https://bench.evidra.cc/bench/articles/what-ai-sre-benchmarks-should-catch-before-production>
 - [Kubernetes MCP Servers Passed. That Was Not Enough.](articles/pass-fail-is-not-enough-for-ai-infra-agents.md)
-  - published article based on the Claude and DeepSeek Kubernetes MCP readiness
-    reports.
+  - article based on the Claude and DeepSeek Kubernetes MCP readiness reports.
   Public post:
   <https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough>
 
-## Archive
+## Local-Only Notes
 
-- [Archived Architecture Review](archive/architecture-review-2026-04-23.md)
-- [Archived Agent Certification Framework](archive/evidra-agent-certification-framework.md)
-- [Archived Demo Playbook](archive/demo-playbook.md)
-- [Archived Publication Checklist](archive/publication-checklist.md)
-- [Archived Core Bench Plans](archive/core-bench-plans/)
-
-Internal implementation plans are not part of the active documentation graph.
-They are excluded from the public export and should not be linked from this
-index.
+Internal implementation plans and archive notes are ignored by git. They may
+exist locally under `docs/plans/` and `docs/archive/`, but they are not part of
+the public documentation graph.
 
 ## Obsidian Conventions
 
 - Keep one active page per durable concept.
 - Prefer this index over folder browsing.
-- Use standard Markdown links so pages work in both Obsidian and GitHub.
-- Use frontmatter `type`, `status`, and `tags` on active docs.
+- Use standard relative Markdown links so pages work in both Obsidian and
+  GitHub.
+- Use frontmatter `title`, `type`, `status`, and `tags` on active docs.
 - Move outdated operational notes to `archive/` instead of keeping them in the
   active graph.
