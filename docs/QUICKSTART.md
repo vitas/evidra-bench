@@ -19,7 +19,7 @@ before running batch benchmarks, hosted report workflows, or remote runners.
 
 ## Prerequisites
 
-- Go 1.25.10+
+- Go 1.25.11+
 - `kubectl`
 - `kind` or `k3d` for live Kubernetes scenarios
 - `helm` for Helm scenarios
