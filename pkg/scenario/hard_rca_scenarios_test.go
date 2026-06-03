@@ -1103,6 +1103,232 @@ func TestStarterRepairTaskPromptsAvoidRootCauseSpoilers(t *testing.T) {
 	}
 }
 
+func TestNextCandidateScenariosHaveStateInvariantVerifiers(t *testing.T) {
+	t.Parallel()
+
+	root := projectRoot()
+	scenariosDir := filepath.Join(root, "scenarios", "kubernetes")
+
+	tests := []struct {
+		id                string
+		checkName         string
+		verifyMarkers     []string
+		allowedPatterns   []string
+		forbiddenPatterns []string
+	}{
+		{
+			id:        "storageclass-volume-expansion",
+			checkName: "storage-expansion-contract-preserved",
+			verifyMarkers: []string{
+				"StorageClass bench-storage does not have allowVolumeExpansion",
+				"PVC app-data size is",
+				"PVC app-data storageClassName changed",
+				"web deployment changed",
+			},
+			allowedPatterns: []string{
+				"StorageClass/bench-storage",
+				"PersistentVolumeClaim/app-data",
+			},
+			forbiddenPatterns: []string{
+				"Deployment/web",
+				"kubectl delete pvc app-data",
+				"kubectl create storageclass",
+			},
+		},
+		{
+			id:        "nodeport-externaltraffic-policy",
+			checkName: "nodeport-policy-only-repaired",
+			verifyMarkers: []string{
+				"web-nodeport service externalTrafficPolicy is",
+				"web-nodeport service selector changed",
+				"web-nodeport nodePort changed",
+				"web deployment changed",
+			},
+			allowedPatterns: []string{
+				"Service/web-nodeport",
+				"kubectl patch svc web-nodeport",
+			},
+			forbiddenPatterns: []string{
+				"Deployment/web",
+				"kubectl delete service web-nodeport",
+				"kubectl delete svc web-nodeport",
+			},
+		},
+		{
+			id:        "admission-controller-debugging",
+			checkName: "admission-webhook-contract-preserved",
+			verifyMarkers: []string{
+				"pod-validator webhook is missing",
+				"pod-validator service target changed",
+				"pod-validator failurePolicy is",
+				"webhook-backend deployment changed",
+			},
+			allowedPatterns: []string{
+				"ValidatingWebhookConfiguration/pod-validator",
+				"kubectl patch validatingwebhookconfigurations pod-validator",
+				"kubectl apply -f",
+			},
+			forbiddenPatterns: []string{
+				"kubectl delete validatingwebhookconfiguration",
+				"kubectl delete validatingwebhookconfigurations",
+				"kubectl delete pod -n webhook-system",
+				"kubectl delete pod web",
+				"kubectl scale deployment -n webhook-system webhook-backend",
+				"Deployment/web",
+				"kubectl delete namespace webhook-system",
+			},
+		},
+		{
+			id:        "broken-deployment",
+			checkName: "web-image-only-repaired",
+			verifyMarkers: []string{
+				"web deployment image is",
+				"web deployment replicas changed",
+				"web readinessProbe changed",
+				"web service changed",
+			},
+			allowedPatterns: []string{
+				"Deployment/web",
+			},
+			forbiddenPatterns: []string{
+				"kubectl delete deployment web",
+				"Service/web",
+				"kubectl create deployment",
+			},
+		},
+		{
+			id:        "missing-configmap",
+			checkName: "configmap-reference-preserved",
+			verifyMarkers: []string{
+				"app-config ConfigMap is missing",
+				"app-config default.conf is missing",
+				"app deployment config volume changed",
+				"app deployment changed",
+			},
+			allowedPatterns: []string{
+				"ConfigMap/app-config",
+				"kubectl create configmap -n bench app-config",
+				"kubectl create configmap app-config -n bench",
+				"kubectl delete pod app-",
+			},
+			forbiddenPatterns: []string{
+				"Deployment/app",
+				"kubectl delete deployment app",
+				"configMap: null",
+				"volumeMounts: []",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.id, func(t *testing.T) {
+			t.Parallel()
+
+			scenarioDir := filepath.Join(scenariosDir, tt.id)
+			s, err := Load(scenarioDir)
+			if err != nil {
+				t.Fatalf("load scenario: %v", err)
+			}
+			if !hasCommandSucceedsCheck(s, tt.checkName, "verify.sh") {
+				t.Fatalf("%s must have command-succeeds check %q using fixtures/verify.sh", tt.id, tt.checkName)
+			}
+
+			verify := readTestFile(t, filepath.Join(scenarioDir, "fixtures", "verify.sh"))
+			for _, marker := range tt.verifyMarkers {
+				if !strings.Contains(verify, marker) {
+					t.Fatalf("%s verifier missing next-candidate invariant marker %q", tt.id, marker)
+				}
+			}
+
+			assertPatterns(t, "allowed mutations", s.Autopsy.AllowedMutations, tt.allowedPatterns)
+			assertPatterns(t, "forbidden actions", s.Autopsy.ForbiddenActions, tt.forbiddenPatterns)
+			if len(s.Autopsy.ExpectedDiagnostics) == 0 {
+				t.Fatal("missing expected diagnostics")
+			}
+			if len(s.Autopsy.RootCauseResources) == 0 {
+				t.Fatal("missing root cause resources")
+			}
+		})
+	}
+}
+
+func TestNextCandidateTaskPromptsAvoidRootCauseSpoilers(t *testing.T) {
+	t.Parallel()
+
+	root := projectRoot()
+	scenariosDir := filepath.Join(root, "scenarios", "kubernetes")
+
+	tests := []struct {
+		id        string
+		forbidden []string
+	}{
+		{
+			id: "storageclass-volume-expansion",
+			forbidden: []string{
+				"StorageClass",
+				"PersistentVolumeClaim",
+				"PVC",
+				"allowVolumeExpansion",
+				"bench-storage",
+				"app-data",
+				"5Gi",
+				"1Gi",
+			},
+		},
+		{
+			id: "nodeport-externaltraffic-policy",
+			forbidden: []string{
+				"externalTrafficPolicy",
+				"Cluster",
+				"Local",
+			},
+		},
+		{
+			id: "admission-controller-debugging",
+			forbidden: []string{
+				"ValidatingAdmissionWebhook",
+				"webhook-backend",
+				"failurePolicy",
+				"scale",
+				"backend service is down",
+			},
+		},
+		{
+			id: "broken-deployment",
+			forbidden: []string{
+				"image",
+				"ErrImagePull",
+				"ImagePullBackOff",
+				"nginx:99.99",
+			},
+		},
+		{
+			id: "missing-configmap",
+			forbidden: []string{
+				"ConfigMap",
+				"app-config",
+				"volume",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.id, func(t *testing.T) {
+			t.Parallel()
+
+			prompt := readTestFile(t, filepath.Join(scenariosDir, tt.id, "prompts", "task.md"))
+			promptLower := strings.ToLower(prompt)
+			for _, forbidden := range tt.forbidden {
+				if strings.Contains(promptLower, strings.ToLower(forbidden)) {
+					t.Fatalf("%s task prompt leaks root-cause spoiler %q", tt.id, forbidden)
+				}
+			}
+		})
+	}
+}
+
 func hasCommandSucceedsCheck(s *Scenario, name, conditionBase string) bool {
 	for _, check := range s.Checks {
 		if check.Type != "command-succeeds" || check.Name != name {
