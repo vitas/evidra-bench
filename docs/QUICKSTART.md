@@ -1,27 +1,21 @@
 ---
 title: Quickstart
+aliases:
+  - First Run
+  - Local Quickstart
 type: guide
 status: active
 tags:
   - bench
   - quickstart
+  - local
   - oss
 ---
 
 # Quickstart
 
-This guide gets a new contributor from clone to first scenario validation.
-
-## Happy Path
-
-1. Build the CLI with `make build`.
-2. Confirm scenarios load with `bin/bench-cli scenario list`.
-3. Validate one scenario with `bin/bench-cli run --scenario kubernetes/broken-deployment --dry-run`.
-4. Configure one provider.
-5. Run one live scenario.
-6. Inspect local artifacts under `runs/`.
-7. Move to `bench`, `certify`, `report-pack`, `serve`, or `lab` only after the
-   one-scenario path works.
+This guide gets you from a fresh clone to one validated local scenario. Use it
+before running batch benchmarks, hosted report workflows, or remote runners.
 
 ## Prerequisites
 
@@ -31,7 +25,7 @@ This guide gets a new contributor from clone to first scenario validation.
 - `helm` for Helm scenarios
 - Node.js 22+ only if you want to build the UI
 
-## Build
+## Build The CLI
 
 ```bash
 make build
@@ -39,25 +33,19 @@ make build
 
 The binary is written to `bin/bench-cli`.
 
-## Which Command Should I Use?
+## Confirm Scenarios Load
 
-| Goal | Command |
-|---|---|
-| Validate or run one scenario | `bin/bench-cli run` |
-| Run many scenarios locally | `bin/bench-cli bench` |
-| Score one certification track | `bin/bench-cli certify` |
-| Compare baseline vs MCP/tool-server candidate | `bin/bench-cli report-pack` |
-| Browse local scenarios and run history in terminal | `bin/bench-cli lab` |
-| Start the local Bench API/control plane | `bin/bench-cli serve` |
-| Compare prompt or skill variants | `bin/bench-cli skill-delta` |
+```bash
+bin/bench-cli scenario list
+```
 
-The local quickstart does not require the hosted runner pool. `bin/bench-cli
-bench --parallel` uses a local queue. Hosted runners are an advanced
-API/control-plane workflow covered by the runner architecture docs.
+Use the catalog to choose a scenario by ID. For the current inventory, see
+[Scenario Catalog](SCENARIO_CATALOG.md).
 
-## Validate A Scenario Without A Cluster
+## Validate Without A Cluster
 
-Use dry-run mode to check that the scenario loads and validates:
+Dry-run mode validates scenario YAML and command wiring without provisioning a
+cluster:
 
 ```bash
 bin/bench-cli run \
@@ -65,12 +53,20 @@ bin/bench-cli run \
   --dry-run
 ```
 
-## Run A Live Scenario
+## Configure A Provider
 
-Live runs provision or reuse an infrastructure environment, inject a failure,
-execute the selected agent adapter, and verify final state.
+Bench can route model requests through the generic `bifrost` provider path.
+Point it at an OpenAI-compatible endpoint:
 
-Example with the generic provider loop:
+```bash
+export INFRA_BENCH_BIFROST_URL=http://localhost:9090/v1
+export INFRA_BENCH_BIFROST_AUTH_BEARER="$PROVIDER_API_KEY"
+```
+
+You can also point directly at a provider endpoint when it exposes an
+OpenAI-compatible API.
+
+## Run One Live Scenario
 
 ```bash
 bin/bench-cli run \
@@ -80,53 +76,47 @@ bin/bench-cli run \
   --reuse-cluster
 ```
 
-If you use a local OpenAI-compatible provider gateway, point Bench at it:
+A live run provisions or reuses infrastructure, injects the scenario failure,
+executes the selected agent adapter, records artifacts, and verifies final
+state.
 
-```bash
-export INFRA_BENCH_BIFROST_URL=http://localhost:9090/v1
-export INFRA_BENCH_BIFROST_AUTH_BEARER="$PROVIDER_API_KEY"
-```
-
-## Run Through An MCP Server
-
-Bench can evaluate any MCP server by passing the server command and a stable
-identity:
-
-```bash
-bin/bench-cli run \
-  --scenario kubernetes/broken-deployment \
-  --provider bifrost \
-  --model sonnet \
-  --mcp-server "$MCP_SERVER" \
-  --tool-server-id "$TOOL_SERVER_ID" \
-  --tool-server-version "$TOOL_SERVER_VERSION"
-```
-
-## Run With A Skill Prompt
-
-Skill prompts are local files on the runner host. Bench records their identity,
-version, source, and SHA-256 digest for comparison:
-
-```bash
-bin/bench-cli run \
-  --scenario kubernetes/broken-deployment \
-  --provider bifrost \
-  --model sonnet \
-  --skill-file skills/k8s-admin.md \
-  --skill-id k8s-admin \
-  --skill-version 2026-05-13
-```
-
-## Inspect Results
+## Inspect Local Artifacts
 
 Local artifacts are written under `runs/`, which is intentionally ignored by
-git. Do not commit raw run artifacts or private transcripts.
+git. A run can include:
 
-For hosted/private reporting, see [Private Report Pack](PRIVATE_REPORT_PACK.md).
+- transcript
+- tool calls
+- timeline
+- scorecard
+- verifier output
+- failure autopsy
+- run review
+
+Do not commit raw run artifacts or private transcripts.
+
+## Choose The Next Command
+
+| Goal | Command | Guide |
+|---|---|---|
+| Run many scenarios locally | `bin/bench-cli bench` | [Testing Methodology](TESTING_METHODOLOGY.md) |
+| Score one certification-style track | `bin/bench-cli certify` | [Results And Reports](RESULTS_AND_REPORTS.md) |
+| Compare baseline vs MCP/tool-server candidate | `bin/bench-cli report-pack` | [Private Report Pack](PRIVATE_REPORT_PACK.md) |
+| Browse scenarios and artifacts in a terminal UI | `bin/bench-cli lab` | [Lab TUI Guide](LAB_TUI_GUIDE.md) |
+| Start the local Bench API/control plane | `bin/bench-cli serve` | [Bench Service Setup](guides/bench-service-setup.md) |
+| Compare prompt or skill variants | `bin/bench-cli skill-delta` | [Tool Server Integration](TOOL_SERVER_INTEGRATION.md) |
+
+Hosted runners are an advanced API/control-plane workflow. Start with one
+local run, then move to [Bench Service Setup](guides/bench-service-setup.md)
+and [Runner Architecture](RUNNER_ARCHITECTURE.md).
 
 ## Next Reading
 
-- [Scenario Authoring Guide](SCENARIO_AUTHORING_GUIDE.md)
-- [Scoring](SCORING.md)
-- [Reproducibility](REPRODUCIBILITY.md)
-- [Threat Model](THREAT_MODEL.md)
+- [Results And Reports](RESULTS_AND_REPORTS.md) - understand scoring,
+  unsafe passes, evidence, reproducibility, and report structure.
+- [Tool Server Integration](TOOL_SERVER_INTEGRATION.md) - compare MCP servers,
+  skills, and external agents.
+- [Scenario Authoring Guide](SCENARIO_AUTHORING_GUIDE.md) - write or review
+  scenarios.
+- [Threat Model](THREAT_MODEL.md) - understand runner, credential, and artifact
+  boundaries before live evaluations.
