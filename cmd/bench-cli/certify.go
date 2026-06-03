@@ -11,17 +11,18 @@ import (
 
 // CertResult holds the certification outcome for a track.
 type CertResult struct {
-	Track       string                 `json:"track"`
-	Model       string                 `json:"model"`
-	Provider    string                 `json:"provider"`
-	Grade       string                 `json:"grade"`
-	LevelMax    string                 `json:"level_max"`
-	Total       int                    `json:"total"`
-	Passed      int                    `json:"passed"`
-	Skipped     int                    `json:"skipped"`
-	ByLevel     map[string]LevelResult `json:"by_level"`
-	Duration    time.Duration          `json:"duration"`
-	CertifiedAt time.Time              `json:"certified_at"`
+	Track        string                 `json:"track"`
+	Model        string                 `json:"model"`
+	Provider     string                 `json:"provider"`
+	Grade        string                 `json:"grade"`
+	LevelMax     string                 `json:"level_max"`
+	Total        int                    `json:"total"`
+	Passed       int                    `json:"passed"`
+	Skipped      int                    `json:"skipped"`
+	ByLevel      map[string]LevelResult `json:"by_level"`
+	Duration     time.Duration          `json:"duration"`
+	CertifiedAt  time.Time              `json:"certified_at"`
+	ArtifactPath string                 `json:"-"`
 }
 
 // LevelResult holds pass/fail counts for one level.

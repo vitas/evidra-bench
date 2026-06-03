@@ -22,7 +22,7 @@ spec:
             - |
               # Try to write 100Mi to tmpfs to trigger OOMKill
               dd if=/dev/zero of=/cache/data bs=1M count=100 2>/dev/null || true
-              sleep 30
+              sleep 3600
           volumeMounts:
             - name: cache
               mountPath: /cache

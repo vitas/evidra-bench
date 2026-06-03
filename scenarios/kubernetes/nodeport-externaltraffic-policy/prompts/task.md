@@ -1,14 +1,9 @@
-# Task: Fix NodePort source IP preservation
+# Task
 
-The `web-nodeport` service in the `bench` namespace is a NodePort service that currently has
-`externalTrafficPolicy: Cluster`, which causes source IP address rewriting (masquerading).
+External access to `web` through the node's published endpoint is
+working, but downstream diagnostics no longer see the original client
+identity.
 
-The requirement is to preserve the original client source IP addresses by switching to
-`externalTrafficPolicy: Local`.
-
-Your tasks:
-1. Update the `web-nodeport` service to set `externalTrafficPolicy: Local`
-2. Ensure the web deployment remains ready with 2 replicas
-3. Verify that endpoints are properly configured
-
-Use `kubectl` to edit the service and verify the changes.
+Diagnose the service exposure path and repair client identity
+preservation. Keep the existing `web` workload and the published
+external port intact.

@@ -255,7 +255,7 @@ stages:
         namespace: bench
         name: db-credentials
         condition: Secret
-    on_fail: continue                    # What to do if stage fails: "continue" or "abort" (default).
+    on_fail: continue                    # What to do if stage fails: "stop" or "continue" (default).
     trap:                                # Optional: detect bad agent behavior.
       name: deleted-deployment
       detect: "kubectl delete deployment"
@@ -272,7 +272,7 @@ stages:
 | `verify` | []Check | Verification checks for this stage |
 | `agent_goal` | string | New instruction injected into agent conversation |
 | `timeout` | duration | Per-stage timeout |
-| `on_fail` | string | `"continue"` or `"abort"` (default) |
+| `on_fail` | string | `"stop"` or `"continue"` (default) |
 | `trap` | Trap | Detect specific bad agent behavior |
 
 ### Break Memory Modes

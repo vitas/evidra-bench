@@ -1,4 +1,3 @@
-// Package jobqueue provides River-based job scheduling for parallel bench runs.
 package jobqueue
 
 import "github.com/riverqueue/river"

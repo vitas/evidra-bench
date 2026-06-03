@@ -45,6 +45,9 @@ checks:
   - type: deployment-ready
     namespace: bench
     name: web
+  - type: command-succeeds
+    name: config-restored-after-drift
+    condition: fixtures/verify.sh
 scope:
   namespaces: [bench]
 autopsy:

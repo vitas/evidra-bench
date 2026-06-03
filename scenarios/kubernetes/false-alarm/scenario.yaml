@@ -47,6 +47,9 @@ checks:
   - type: service-endpoints
     namespace: bench
     name: web-svc
+  - type: command-succeeds
+    name: healthy-service-left-unchanged
+    condition: fixtures/verify.sh
 scope:
   namespaces: [bench]
 autopsy:

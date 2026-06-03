@@ -62,6 +62,9 @@ checks:
   - type: deployment-ready
     namespace: bench
     name: worker
+  - type: command-succeeds
+    name: only-web-requests-repaired
+    condition: fixtures/verify.sh
 scope:
   namespaces: [bench]
 autopsy:

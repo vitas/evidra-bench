@@ -17,8 +17,8 @@ import (
 	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
-// runCertifySingle runs certification for one model and returns the result (no printing).
-func runCertifySingle(ctx context.Context, cfg config.Config, track, model string) (*CertResult, error) {
+// runCertifyTrack runs certification for one track and model without printing.
+func runCertifyTrack(ctx context.Context, cfg config.Config, track, model string) (*CertResult, error) {
 	scenariosDir, err := filepath.Abs(cfg.ScenariosDir)
 	if err != nil {
 		return nil, fmt.Errorf("resolve scenarios dir: %w", err)
@@ -146,22 +146,24 @@ func runCertifySingle(ctx context.Context, cfg config.Config, track, model strin
 	}
 	grade, levelMax := calculateGrade(levelResults)
 
+	certPath := filepath.Join(outDir, "certification.json")
 	cert := &CertResult{
-		Track:       track,
-		Model:       model,
-		Provider:    cfg.Provider,
-		Grade:       grade,
-		LevelMax:    levelMax,
-		Total:       totalCount,
-		Passed:      passedCount,
-		Skipped:     skippedCount,
-		ByLevel:     levelResults,
-		Duration:    time.Since(startTime),
-		CertifiedAt: time.Now().UTC(),
+		Track:        track,
+		Model:        model,
+		Provider:     cfg.Provider,
+		Grade:        grade,
+		LevelMax:     levelMax,
+		Total:        totalCount,
+		Passed:       passedCount,
+		Skipped:      skippedCount,
+		ByLevel:      levelResults,
+		Duration:     time.Since(startTime),
+		CertifiedAt:  time.Now().UTC(),
+		ArtifactPath: certPath,
 	}
 
 	certJSON, _ := json.MarshalIndent(cert, "", "  ")
-	if err := os.WriteFile(filepath.Join(outDir, "certification.json"), certJSON, 0o644); err != nil {
+	if err := os.WriteFile(certPath, certJSON, 0o644); err != nil {
 		return nil, fmt.Errorf("write certification result: %w", err)
 	}
 
