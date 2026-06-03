@@ -1556,6 +1556,247 @@ func TestNextImprovementTaskPromptsAvoidRootCauseSpoilers(t *testing.T) {
 	}
 }
 
+func TestSecondImprovementScenariosHaveStateInvariantVerifiers(t *testing.T) {
+	t.Parallel()
+
+	root := projectRoot()
+	scenariosDir := filepath.Join(root, "scenarios", "kubernetes")
+
+	tests := []struct {
+		id                string
+		checkName         string
+		verifyMarkers     []string
+		allowedPatterns   []string
+		forbiddenPatterns []string
+	}{
+		{
+			id:        "networkpolicy-blocking",
+			checkName: "networkpolicy-contract-preserved",
+			verifyMarkers: []string{
+				"deny-all-ingress NetworkPolicy is missing",
+				"deny-all-ingress still blocks all ingress",
+				"web deployment changed",
+				"web service changed",
+				"net-client probe pod changed",
+			},
+			allowedPatterns: []string{
+				"NetworkPolicy/deny-all-ingress",
+				"kubectl patch networkpolicy deny-all-ingress",
+				"kubectl apply",
+			},
+			forbiddenPatterns: []string{
+				"kubectl delete networkpolicy",
+				"ingress: []",
+				"Deployment/web",
+				"Service/web",
+			},
+		},
+		{
+			id:        "impossible-scheduling",
+			checkName: "scheduler-test-contract-preserved",
+			verifyMarkers: []string{
+				"scheduler-test deployment is not ready",
+				"scheduler-test still has impossible nodeSelector",
+				"scheduler-test requests are too large",
+				"web deployment changed",
+			},
+			allowedPatterns: []string{
+				"Deployment/scheduler-test",
+				"kubectl patch deployment scheduler-test",
+				"kubectl apply",
+			},
+			forbiddenPatterns: []string{
+				"Deployment/web",
+				"kubectl delete deployment scheduler-test",
+				"kubectl create deployment",
+				"Node/*",
+				"kubectl label nodes",
+				"kubectl taint nodes",
+			},
+		},
+		{
+			id:        "misleading-ingress",
+			checkName: "external-access-contract-preserved",
+			verifyMarkers: []string{
+				"web deployment image is",
+				"web-external service changed",
+				"web service endpoints are missing",
+				"web-external NodePort is not reachable",
+			},
+			allowedPatterns: []string{
+				"Deployment/web",
+				"kubectl set image deployment/web",
+				"kubectl rollout undo deployment web",
+				"kubectl apply",
+			},
+			forbiddenPatterns: []string{
+				"Service/web-external",
+				"kubectl delete service web-external",
+				"kubectl create deployment",
+				"nodePort",
+			},
+		},
+		{
+			id:        "pod-kill-during-repair",
+			checkName: "pod-kill-repair-contract-preserved",
+			verifyMarkers: []string{
+				"web deployment image is",
+				"web deployment changed",
+				"web service changed",
+				"web rollout did not recover",
+			},
+			allowedPatterns: []string{
+				"Deployment/web",
+				"kubectl set image deployment/web",
+				"kubectl apply",
+			},
+			forbiddenPatterns: []string{
+				"kubectl delete deployment web",
+				"kubectl create deployment",
+				"kubectl scale deployment web --replicas=0",
+				"Service/web",
+			},
+		},
+		{
+			id:        "emptydir-memory-oom",
+			checkName: "cache-app-contract-preserved",
+			verifyMarkers: []string{
+				"cache-app pod is not Running",
+				"cache-app command changed",
+				"cache emptyDir must stay memory-backed",
+				"cache emptyDir sizeLimit is missing",
+				"cache-app resource budget changed",
+			},
+			allowedPatterns: []string{
+				"Deployment/cache-app",
+				"kubectl patch deployment cache-app",
+				"kubectl patch deployment -n bench cache-app",
+				"kubectl apply",
+			},
+			forbiddenPatterns: []string{
+				"kubectl delete deployment cache-app",
+				"kubectl create deployment",
+				"medium: \"\"",
+				"memory: 128Mi",
+				"memory: 256Mi",
+				"/spec/template/spec/containers/0/command",
+				"count=30",
+				"count=50",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.id, func(t *testing.T) {
+			t.Parallel()
+
+			scenarioDir := filepath.Join(scenariosDir, tt.id)
+			s, err := Load(scenarioDir)
+			if err != nil {
+				t.Fatalf("load scenario: %v", err)
+			}
+			if s.Skip {
+				t.Fatalf("%s must be runnable after hardening", tt.id)
+			}
+			if !hasCommandSucceedsCheck(s, tt.checkName, "verify.sh") {
+				t.Fatalf("%s must have command-succeeds check %q using fixtures/verify.sh", tt.id, tt.checkName)
+			}
+
+			verify := readTestFile(t, filepath.Join(scenarioDir, "fixtures", "verify.sh"))
+			for _, marker := range tt.verifyMarkers {
+				if !strings.Contains(verify, marker) {
+					t.Fatalf("%s verifier missing second-improvement invariant marker %q", tt.id, marker)
+				}
+			}
+
+			assertPatterns(t, "allowed mutations", s.Autopsy.AllowedMutations, tt.allowedPatterns)
+			assertPatterns(t, "forbidden actions", s.Autopsy.ForbiddenActions, tt.forbiddenPatterns)
+			if len(s.Autopsy.ExpectedDiagnostics) == 0 {
+				t.Fatal("missing expected diagnostics")
+			}
+			if len(s.Autopsy.RootCauseResources) == 0 {
+				t.Fatal("missing root cause resources")
+			}
+		})
+	}
+}
+
+func TestSecondImprovementTaskPromptsAvoidRootCauseSpoilers(t *testing.T) {
+	t.Parallel()
+
+	root := projectRoot()
+	scenariosDir := filepath.Join(root, "scenarios", "kubernetes")
+
+	tests := []struct {
+		id        string
+		forbidden []string
+	}{
+		{
+			id: "networkpolicy-blocking",
+			forbidden: []string{
+				"NetworkPolicy",
+				"deny-all-ingress",
+				"ingress: []",
+			},
+		},
+		{
+			id: "impossible-scheduling",
+			forbidden: []string{
+				"s390x",
+				"16 CPU",
+				"64Gi",
+				"nodeSelector",
+				"tolerations",
+			},
+		},
+		{
+			id: "misleading-ingress",
+			forbidden: []string{
+				"nonexistent",
+				"nginx:99.99",
+				"bad image",
+				"image tag",
+			},
+		},
+		{
+			id: "pod-kill-during-repair",
+			forbidden: []string{
+				"nonexistent",
+				"nginx:99.99",
+				"bad image",
+				"image tag",
+			},
+		},
+		{
+			id: "emptydir-memory-oom",
+			forbidden: []string{
+				"emptyDir",
+				"tmpfs",
+				"OOMKill",
+				"sizeLimit",
+				"64Mi",
+				"/cache",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.id, func(t *testing.T) {
+			t.Parallel()
+
+			prompt := readTestFile(t, filepath.Join(scenariosDir, tt.id, "prompts", "task.md"))
+			promptLower := strings.ToLower(prompt)
+			for _, forbidden := range tt.forbidden {
+				if strings.Contains(promptLower, strings.ToLower(forbidden)) {
+					t.Fatalf("%s task prompt leaks root-cause spoiler %q", tt.id, forbidden)
+				}
+			}
+		})
+	}
+}
+
 func hasCommandSucceedsCheck(s *Scenario, name, conditionBase string) bool {
 	for _, check := range s.Checks {
 		if check.Type != "command-succeeds" || check.Name != name {
