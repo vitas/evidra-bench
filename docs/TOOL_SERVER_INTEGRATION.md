@@ -1,112 +1,150 @@
 ---
-title: Tool Server And Evidence Compatibility
+title: Tool Server Integration
+aliases:
+  - MCP Integration
+  - Agent Integration
+  - Skill Comparison
 type: guide
 status: active
 tags:
   - bench
   - mcp
   - integrations
-  - compatibility
+  - agents
+  - skills
 ---
 
-# Tool Server And Evidence Compatibility
+# Tool Server Integration
 
-Bench uses a generic integration model. Tool servers are external processes,
-not project-specific modes. No MCP server is privileged or treated as the Bench
-reference implementation.
+Bench evaluates agent runtimes by keeping scenario setup and verification
+inside the harness, then swapping how the agent acts. Use this guide when you
+want to compare native Bench tools, an MCP server, a skill prompt, a CLI agent,
+or a remote A2A agent.
 
-## MCP Servers
+## Comparison Rule
 
-All MCP servers are configured through the same flag:
+Change one axis at a time. Keep these fixed:
+
+- scenario set
+- model
+- provider route
+- timeout
+- memory window
+- cluster settings
+- report ID when producing a shared report
+
+Then vary one of:
+
+- MCP/tool server command and version
+- skill prompt
+- CLI agent command
+- A2A agent URL
+- model or provider
+
+## Native-Tools Baseline
+
+A baseline run uses the Bench-owned provider loop and direct tools. It has an
+empty `tool_server` identity in stored results.
 
 ```bash
-bench-cli run \
-  --scenario kubernetes/broken-deployment \
+bin/bench-cli bench \
+  --scenario kubernetes \
   --provider bifrost \
   --model sonnet \
-  --mcp-server "$MCP_SERVER"
+  --reuse-cluster
 ```
 
-Bench does not auto-start or auto-build MCP server binaries. Install them in
-the runner environment the same way you would install any other tool server.
+## MCP Server Run
 
-`--mcp-server` is the executable command. Use `--tool-server-id` and
-`--tool-server-version` as stable comparison labels when the command is not a
-good product identity:
+All MCP servers use the same flag. Bench does not auto-start, auto-build, or
+privilege any MCP server.
 
 ```bash
-bench-cli bench \
+bin/bench-cli bench \
   --scenario kubernetes \
   --provider bifrost \
   --model sonnet \
   --mcp-server "npx -y @vendor/kubernetes-mcp --stdio" \
   --tool-server-id kubernetes-mcp \
-  --tool-server-version 1.2.3
+  --tool-server-version 1.2.3 \
+  --reuse-cluster
 ```
 
-If labels are omitted, Bench infers a best-effort ID from the command. Explicit
-labels always win and are recommended for private reports and release
-regression comparisons.
+`--mcp-server` is the executable command. `--tool-server-id` and
+`--tool-server-version` are stable comparison labels used by reports and
+leaderboards. If labels are omitted, Bench infers a best-effort ID from the
+command, but explicit labels are recommended.
 
 ## Stored Tool Server Identity
 
-Tool-server comparison and reports use `tool_server` as the source of truth:
+Reports use `tool_server` as the source of truth:
 
-- empty `tool_server`: baseline or direct provider-loop run
-- non-empty `tool_server`: run used the selected external tool server
+| Stored value | Meaning |
+|---|---|
+| empty `tool_server` | baseline or direct provider-loop run |
+| non-empty `tool_server` | run used the named external tool server |
 
-For tool-server runs the trigger endpoint and runner config may carry:
+For tool-server runs, trigger requests and runner configs may carry:
 
 - `mcp_server`: executable command for the runner
-- `tool_server`: stable server identity used for filtering/comparison
-- `tool_server_version`: stable server version used for filtering/comparison
-  and reports
+- `tool_server`: stable server identity used for filtering and comparison
+- `tool_server_version`: stable version used for filtering and reports
 
-Bench does not store a coarse run mode. The source of truth is `tool_server`:
-empty means a native/direct provider-loop baseline, and non-empty means the
-named external tool server. Compare by keeping model, provider, scenario set,
-and runtime settings fixed while varying `tool_server` and
-`tool_server_version`.
+Bench does not store a coarse run mode. The comparison identity is the
+`tool_server` field.
 
-There are no Bench-specific MCP submodes and no reference MCP server. To test
-a tool server, pass its command through `--mcp-server` and label the tested
-server explicitly with `--tool-server-id` and `--tool-server-version`.
+## Skill Prompt Run
 
-## Skill Prompts
-
-Skill prompts are a separate comparison axis. Use a local file that already
-exists on the runner host:
+Skill prompts are local files on the runner host. Bench records their identity,
+version, source, and SHA-256 digest for comparison.
 
 ```bash
-bench-cli run \
+bin/bench-cli run \
   --scenario kubernetes/broken-deployment \
   --provider bifrost \
   --model sonnet \
-  --skill-file /tmp/bench-skills/k8s-admin.md \
+  --skill-file skills/k8s-admin.md \
   --skill-id k8s-admin \
   --skill-version 2026-05-13
 ```
 
-Bench stores `skill_id`, `skill_version`, `skill_source`, and `skill_sha256`
-on run records. If `--skill-id` is omitted, Bench infers it from the file name.
-If `--skill-sha256` is supplied, the runner verifies the local file content
-before using it.
+If `--skill-id` is omitted, Bench infers it from the file name. If
+`--skill-sha256` is supplied, the runner verifies the local file content before
+using it.
 
 Bench does not download arbitrary skill URLs from the hosted API. To use an
-external skill, download or copy it in runner-side setup code, then pass the
-local path through `--skill-file`.
+external skill, download or copy it during runner setup, then pass the local
+path through `--skill-file`.
 
-Tool-server and skill comparisons can be combined. Keep model, provider,
-scenario set, timeout, memory window, and cluster settings fixed while varying
-only `tool_server`/`tool_server_version`, `skill_id`/`skill_version`, or both.
+## CLI And A2A Agents
 
-## Optional File-Based Checks
-
-Some scenarios can read local evidence artifacts when a run explicitly provides
-an evidence directory:
+External agents can run through adapter paths while Bench still owns scenario
+setup and final verification.
 
 ```bash
-bench-cli run \
+bin/bench-cli run \
+  --scenario kubernetes/broken-deployment \
+  --adapter cli \
+  --agent-command "/path/to/agent --stdio"
+```
+
+```bash
+bin/bench-cli run \
+  --scenario kubernetes/broken-deployment \
+  --adapter a2a \
+  --a2a-agent-url "$A2A_AGENT_URL"
+```
+
+Use these paths when the agent already has its own runtime and Bench should
+evaluate behavior without embedding it into the provider loop.
+
+## Optional Evidence Directory
+
+Some scenarios can read local evidence artifacts when a run explicitly
+provides an evidence directory:
+
+```bash
+bin/bench-cli run \
   --scenario kubernetes/privileged-pod-review \
   --provider bifrost \
   --model sonnet \
@@ -117,44 +155,15 @@ bench-cli run \
 This is compatibility behavior. Normal infrastructure checks always run
 regardless of tool-server identity or evidence directory.
 
-## Comparison Pattern
+## Paired Report Workflow
 
-To compare tool backends, keep the model, provider, scenario set, timeout,
-memory window, and cluster settings fixed. Change only the MCP server command:
-
-```bash
-# Baseline
-bench-cli bench \
-  --scenario kubernetes \
-  --model sonnet \
-  --provider bifrost \
-  --reuse-cluster
-
-# Same benchmark through the selected MCP server
-bench-cli bench \
-  --scenario kubernetes \
-  --model sonnet \
-  --provider bifrost \
-  --mcp-server "$MCP_SERVER" \
-  --tool-server-id "$TOOL_SERVER_ID" \
-  --tool-server-version "$TOOL_SERVER_VERSION" \
-  --reuse-cluster
-
-# Same benchmark through another MCP server
-bench-cli bench \
-  --scenario kubernetes \
-  --model sonnet \
-  --provider bifrost \
-  --mcp-server "$OTHER_MCP_SERVER" \
-  --tool-server-id other-kubernetes-mcp \
-  --tool-server-version "$OTHER_MCP_VERSION" \
-  --reuse-cluster
-```
-
-For a private report deliverable, prefer the paired workflow:
+For a private or public MCP readiness report, prefer `report-pack`. It runs a
+native-tools baseline and a candidate MCP server over the same scenario slice,
+sends both phases to Bench, and prints report URLs.
 
 ```bash
-bench-cli report-pack \
+bin/bench-cli report-pack \
+  --phase both \
   --model sonnet \
   --provider bifrost \
   --bench-url https://api.evidra.cc \
@@ -165,11 +174,10 @@ bench-cli report-pack \
   --reuse-cluster
 ```
 
-It runs the direct baseline and candidate MCP server phases under the same
-scenario slice, sends both sides to Bench, and prints live report links. See
-[Private Report Pack](PRIVATE_REPORT_PACK.md).
+See [Private Report Pack](PRIVATE_REPORT_PACK.md) for split-phase, multi-server,
+and report-ID usage.
 
-## Bench Job Contracts
+## API And Runner Contracts
 
 This repo owns the benchmark API and runner control-plane surface used by the
 Bench UI and remote runners:
