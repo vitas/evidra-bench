@@ -348,11 +348,11 @@ containers. It is not Docker-in-Docker.
 ## Documentation Map
 
 - [Docs Home](README.md)
+- [Results And Reports](RESULTS_AND_REPORTS.md)
 - [Testing Guide](TESTING.md)
 - [Testing Methodology](TESTING_METHODOLOGY.md)
-- [Agent Failure Autopsy](AGENT_FAILURE_AUTOPSY.md)
 - [Scenario Authoring Guide](SCENARIO_AUTHORING_GUIDE.md)
 - [Runner Architecture](RUNNER_ARCHITECTURE.md)
-- [Tool Server And Evidence Compatibility](TOOL_SERVER_INTEGRATION.md)
+- [Tool Server Integration](TOOL_SERVER_INTEGRATION.md)
 - [Bench API Reference](BENCH_API_REFERENCE.md)
 - [Bench Service Setup](guides/bench-service-setup.md)

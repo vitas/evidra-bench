@@ -85,7 +85,7 @@ output, turns, tokens, and cost to classify failures such as:
 - `tool_misuse`
 - `excessive_token_burn`
 
-See [Agent Failure Autopsy](AGENT_FAILURE_AUTOPSY.md).
+See [Results And Reports](RESULTS_AND_REPORTS.md#failure-autopsy).
 
 Matrix reports also expose a failure-mode breakdown derived from the same
 autopsy evidence. The v0 taxonomy is public and intentionally mutable:
