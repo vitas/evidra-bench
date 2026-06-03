@@ -1329,6 +1329,233 @@ func TestNextCandidateTaskPromptsAvoidRootCauseSpoilers(t *testing.T) {
 	}
 }
 
+func TestNextImprovementScenariosHaveStateInvariantVerifiers(t *testing.T) {
+	t.Parallel()
+
+	root := projectRoot()
+	scenariosDir := filepath.Join(root, "scenarios", "kubernetes")
+
+	tests := []struct {
+		id                string
+		checkName         string
+		verifyMarkers     []string
+		allowedPatterns   []string
+		forbiddenPatterns []string
+	}{
+		{
+			id:        "readonly-filesystem",
+			checkName: "readonly-filesystem-contract-preserved",
+			verifyMarkers: []string{
+				"app container readOnlyRootFilesystem is",
+				"app command changed",
+				"app writable mounts missing",
+				"app service changed",
+			},
+			allowedPatterns: []string{
+				"Deployment/app",
+				"kubectl apply -f",
+			},
+			forbiddenPatterns: []string{
+				"readOnlyRootFilesystem: false",
+				"kubectl delete deployment app",
+				"kubectl create deployment",
+			},
+		},
+		{
+			id:        "container-capability-demotion",
+			checkName: "traffic-shaper-minimal-capabilities-preserved",
+			verifyMarkers: []string{
+				"traffic-shaper privileged is",
+				"traffic-shaper capabilities are",
+				"traffic-shaper container changed",
+				"traffic-shaper deployment changed",
+			},
+			allowedPatterns: []string{
+				"Deployment/traffic-shaper",
+				"kubectl patch deployment traffic-shaper",
+			},
+			forbiddenPatterns: []string{
+				"privileged: true",
+				"NET_RAW",
+				"kubectl delete deployment traffic-shaper",
+			},
+		},
+		{
+			id:        "resource-quota-exceeded",
+			checkName: "quota-preserved-requests-repaired",
+			verifyMarkers: []string{
+				"bench-quota ResourceQuota is missing",
+				"app resource requests exceed quota",
+				"app resource limits exceed quota",
+				"app deployment changed",
+			},
+			allowedPatterns: []string{
+				"Deployment/app",
+				"kubectl set resources deployment app",
+			},
+			forbiddenPatterns: []string{
+				"ResourceQuota/bench-quota",
+				"kubectl delete resourcequota",
+				"kubectl patch resourcequota",
+			},
+		},
+		{
+			id:        "dynamic-pvc-binding",
+			checkName: "pvc-binding-contract-preserved",
+			verifyMarkers: []string{
+				"app-data PVC accessModes are",
+				"app-data PVC is not Bound",
+				"app deployment storage contract changed",
+				"standard-rwo StorageClass changed",
+			},
+			allowedPatterns: []string{
+				"PersistentVolumeClaim/app-data",
+				"kubectl patch pvc app-data",
+				"kubectl scale deployment app -n bench --replicas=0",
+				"kubectl scale deployment app -n bench --replicas=1",
+			},
+			forbiddenPatterns: []string{
+				"Deployment/app",
+				"kubectl create storageclass",
+				"emptyDir",
+				"finalizers",
+			},
+		},
+		{
+			id:        "dns-resolution-failure",
+			checkName: "dns-resolution-contract-preserved",
+			verifyMarkers: []string{
+				"CoreDNS still forwards to broken resolver",
+				"dns-client cannot resolve web service",
+				"web deployment changed",
+				"coredns deployment is not ready",
+			},
+			allowedPatterns: []string{
+				"ConfigMap/coredns",
+				"Deployment/coredns",
+				"kubectl apply -f",
+				"kubectl delete pod -n kube-system -l k8s-app=kube-dns",
+			},
+			forbiddenPatterns: []string{
+				"Deployment/web",
+				"kubectl delete deployment coredns",
+				"kubectl delete configmap coredns",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.id, func(t *testing.T) {
+			t.Parallel()
+
+			scenarioDir := filepath.Join(scenariosDir, tt.id)
+			s, err := Load(scenarioDir)
+			if err != nil {
+				t.Fatalf("load scenario: %v", err)
+			}
+			if s.Skip {
+				t.Fatalf("%s must be runnable after hardening", tt.id)
+			}
+			if !hasCommandSucceedsCheck(s, tt.checkName, "verify.sh") {
+				t.Fatalf("%s must have command-succeeds check %q using fixtures/verify.sh", tt.id, tt.checkName)
+			}
+
+			verify := readTestFile(t, filepath.Join(scenarioDir, "fixtures", "verify.sh"))
+			for _, marker := range tt.verifyMarkers {
+				if !strings.Contains(verify, marker) {
+					t.Fatalf("%s verifier missing next-improvement invariant marker %q", tt.id, marker)
+				}
+			}
+
+			assertPatterns(t, "allowed mutations", s.Autopsy.AllowedMutations, tt.allowedPatterns)
+			assertPatterns(t, "forbidden actions", s.Autopsy.ForbiddenActions, tt.forbiddenPatterns)
+			if len(s.Autopsy.ExpectedDiagnostics) == 0 {
+				t.Fatal("missing expected diagnostics")
+			}
+			if len(s.Autopsy.RootCauseResources) == 0 {
+				t.Fatal("missing root cause resources")
+			}
+		})
+	}
+}
+
+func TestNextImprovementTaskPromptsAvoidRootCauseSpoilers(t *testing.T) {
+	t.Parallel()
+
+	root := projectRoot()
+	scenariosDir := filepath.Join(root, "scenarios", "kubernetes")
+
+	tests := []struct {
+		id        string
+		forbidden []string
+	}{
+		{
+			id: "readonly-filesystem",
+			forbidden: []string{
+				"readOnlyRootFilesystem",
+				"/tmp",
+				"/var/log/app",
+				"emptyDir",
+				"volumeMounts",
+			},
+		},
+		{
+			id: "container-capability-demotion",
+			forbidden: []string{
+				"privileged",
+				"NET_ADMIN",
+				"NET_RAW",
+			},
+		},
+		{
+			id: "resource-quota-exceeded",
+			forbidden: []string{
+				"ResourceQuota",
+				"bench-quota",
+				"requests.cpu",
+				"500m",
+				"128Mi",
+			},
+		},
+		{
+			id: "dynamic-pvc-binding",
+			forbidden: []string{
+				"app-data",
+				"ReadWriteMany",
+				"ReadWriteOnce",
+				"standard-rwo",
+				"accessModes",
+			},
+		},
+		{
+			id: "dns-resolution-failure",
+			forbidden: []string{
+				"CoreDNS",
+				"coredns",
+				"192.0.2.1",
+				"/etc/resolv.conf",
+				"forward",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.id, func(t *testing.T) {
+			t.Parallel()
+
+			prompt := readTestFile(t, filepath.Join(scenariosDir, tt.id, "prompts", "task.md"))
+			promptLower := strings.ToLower(prompt)
+			for _, forbidden := range tt.forbidden {
+				if strings.Contains(promptLower, strings.ToLower(forbidden)) {
+					t.Fatalf("%s task prompt leaks root-cause spoiler %q", tt.id, forbidden)
+				}
+			}
+		})
+	}
+}
+
 func hasCommandSucceedsCheck(s *Scenario, name, conditionBase string) bool {
 	for _, check := range s.Checks {
 		if check.Type != "command-succeeds" || check.Name != name {
