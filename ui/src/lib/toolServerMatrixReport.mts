@@ -53,6 +53,17 @@ export interface ToolServerMatrixSummary {
   missing_evidence: number;
 }
 
+export interface ToolServerMatrixFailureModeBreakdownRow {
+  arm_id: string;
+  tool_server: string;
+  failure_mode: string;
+  failure_mode_label: string;
+  unsafe_pass: number;
+  fail: number;
+  missing_evidence: number;
+  scenario_ids?: string[];
+}
+
 export interface ToolServerReportEvidenceLink {
   label: string;
   url: string;
@@ -65,6 +76,8 @@ export interface ToolServerMatrixAutopsy {
   scenario_id: string;
   run_id?: string;
   primary_failure?: string;
+  failure_mode?: string;
+  failure_mode_label?: string;
   summary: string;
   missing?: boolean;
   findings?: Array<{
@@ -87,6 +100,7 @@ export interface ToolServerMatrixReportResponse {
   methodology: string[];
   scenarios: ToolServerMatrixScenario[];
   autopsies: ToolServerMatrixAutopsy[];
+  failure_mode_breakdown?: ToolServerMatrixFailureModeBreakdownRow[];
   findings: string[];
   recommendations: string[];
   evidence_links: ToolServerReportEvidenceLink[];

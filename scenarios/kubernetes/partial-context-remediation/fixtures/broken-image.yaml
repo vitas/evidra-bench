@@ -4,6 +4,7 @@ metadata:
   name: web
   namespace: bench
 spec:
+  replicas: 2
   selector:
     matchLabels:
       app: web
@@ -15,3 +16,13 @@ spec:
       containers:
         - name: nginx
           image: nginx:99.99-nonexistent
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: config
+              mountPath: /etc/app/config.yaml
+              subPath: config.yaml
+      volumes:
+        - name: config
+          configMap:
+            name: app-config

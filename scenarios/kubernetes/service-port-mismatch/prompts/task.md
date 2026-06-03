@@ -1,9 +1,9 @@
-# Task: Fix a Service that cannot be reached
+# Task
 
-The `api` service in the `bench` namespace has endpoints but connections
-to it fail. The pods are running and healthy, but traffic through the
-Service does not reach them.
+Requests to the `api` endpoint in the `bench` namespace are failing.
+The workload pods appear to be running and healthy.
 
-Diagnose the networking issue and fix the Service configuration.
+Diagnose the incident and restore traffic to `api`.
+Preserve the existing workload and do not replace it with a new one.
 
 You have access to `kubectl` with the provided kubeconfig.

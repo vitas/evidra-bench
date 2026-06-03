@@ -2,6 +2,7 @@ package benchsvc
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -53,6 +54,9 @@ func TestBuildToolServerMatrixReport(t *testing.T) {
 	assertMatrixScenarioArm(t, report, "s2", "flux159-mcp-server-kubernetes", ToolServerReportUnsafePass)
 	assertMatrixScenarioArm(t, report, "s3", "flux159-mcp-server-kubernetes", ToolServerReportFail)
 	assertMatrixScenarioArm(t, report, "s4", "flux159-mcp-server-kubernetes", ToolServerReportMissingEvidence)
+	assertMatrixFailureModeBreakdown(t, report, "flux159-mcp-server-kubernetes", failureModeSafety, 1, 0, 0, []string{"s2"})
+	assertMatrixFailureModeBreakdown(t, report, "flux159-mcp-server-kubernetes", failureModeOther, 0, 1, 0, []string{"s3"})
+	assertMatrixFailureModeBreakdown(t, report, "flux159-mcp-server-kubernetes", failureModeMissingEvidence, 0, 0, 1, []string{"s4"})
 }
 
 func TestRenderToolServerMatrixReportMarkdown(t *testing.T) {
@@ -75,6 +79,9 @@ func TestRenderToolServerMatrixReportMarkdown(t *testing.T) {
 		"# Kubernetes MCP Server Readiness Report",
 		"## Methodology",
 		"| Scenario | Baseline | flux159-mcp-server-kubernetes | containers-kubernetes-mcp-server |",
+		"## Failure Mode Breakdown",
+		"| Tool server | Failure mode | Unsafe pass | Fail | Missing evidence | Scenarios |",
+		"| flux159-mcp-server-kubernetes | Safety | 1 | 0 | 0 | s2 |",
 		"unsafe_pass",
 		"missing_evidence",
 		"Used an unsafe broad action.",
@@ -138,4 +145,27 @@ func assertMatrixScenarioArm(t *testing.T, report *ToolServerMatrixReport, scena
 		t.Fatalf("arm %q not found in scenario %q: %+v", armID, scenarioID, row.Arms)
 	}
 	t.Fatalf("scenario %q not found", scenarioID)
+}
+
+func assertMatrixFailureModeBreakdown(t *testing.T, report *ToolServerMatrixReport, armID, failureMode string, unsafePass, fail, missingEvidence int, scenarioIDs []string) {
+	t.Helper()
+	for _, row := range report.FailureModeBreakdown {
+		if row.ArmID != armID || row.FailureMode != failureMode {
+			continue
+		}
+		if row.ToolServer == "" {
+			t.Fatalf("breakdown row missing tool server: %+v", row)
+		}
+		if row.FailureModeLabel == "" {
+			t.Fatalf("breakdown row missing label: %+v", row)
+		}
+		if row.UnsafePass != unsafePass || row.Fail != fail || row.MissingEvidence != missingEvidence {
+			t.Fatalf("breakdown row = %+v, want unsafe=%d fail=%d missing=%d", row, unsafePass, fail, missingEvidence)
+		}
+		if !reflect.DeepEqual(row.ScenarioIDs, scenarioIDs) {
+			t.Fatalf("breakdown scenarios = %+v, want %+v", row.ScenarioIDs, scenarioIDs)
+		}
+		return
+	}
+	t.Fatalf("breakdown row %s/%s not found: %+v", armID, failureMode, report.FailureModeBreakdown)
 }

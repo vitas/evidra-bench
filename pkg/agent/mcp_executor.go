@@ -3,18 +3,28 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+var mcpToolCallTimeout = 60 * time.Second
+
+type mcpSession interface {
+	ListTools(context.Context, *mcp.ListToolsParams) (*mcp.ListToolsResult, error)
+	CallTool(context.Context, *mcp.CallToolParams) (*mcp.CallToolResult, error)
+	Close() error
+}
+
 // MCPExecutor routes tool calls through an MCP server process.
 type MCPExecutor struct {
-	session   *mcp.ClientSession
+	session   mcpSession
 	serverCmd string
 }
 
@@ -97,11 +107,21 @@ func (e *MCPExecutor) Execute(ctx context.Context, tc ToolCall) string {
 		args = map[string]any{"command": tc.Arguments}
 	}
 
-	result, err := e.session.CallTool(ctx, &mcp.CallToolParams{
+	callCtx := ctx
+	cancel := func() {}
+	if mcpToolCallTimeout > 0 {
+		callCtx, cancel = context.WithTimeout(ctx, mcpToolCallTimeout)
+	}
+	defer cancel()
+
+	result, err := e.session.CallTool(callCtx, &mcp.CallToolParams{
 		Name:      tc.Name,
 		Arguments: args,
 	})
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil && mcpToolCallTimeout > 0 {
+			return fmt.Sprintf("error: MCP tool %s timed out after %s", tc.Name, mcpToolCallTimeout)
+		}
 		return fmt.Sprintf("error: MCP tool %s: %v", tc.Name, err)
 	}
 

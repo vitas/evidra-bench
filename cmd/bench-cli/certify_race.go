@@ -37,7 +37,7 @@ func executeCertifyRace(cmd *cobra.Command, cfg config.Config, track string, mod
 			raceCfg := cfg
 			raceCfg.ClusterName = fmt.Sprintf("%s-%s", cfg.ClusterName, strings.ReplaceAll(model, "/", "-"))
 
-			cert, err := runCertifySingle(cmd.Context(), raceCfg, track, model)
+			cert, err := runCertifyTrack(cmd.Context(), raceCfg, track, model)
 			results <- raceResult{model: model, cert: cert, err: err}
 		}(m)
 	}

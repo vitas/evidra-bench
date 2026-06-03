@@ -50,6 +50,9 @@ checks:
   - type: service-endpoints
     namespace: bench
     name: web
+  - type: command-succeeds
+    name: image-and-config-repaired
+    condition: fixtures/verify.sh
 scope:
   namespaces: [bench]
 autopsy:
