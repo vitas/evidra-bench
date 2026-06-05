@@ -11,6 +11,7 @@ import (
 
 // RunBundle holds all data for a single benchmark run.
 type RunBundle struct {
+	RunID          string            `json:"run_id"`
 	ScenarioID     string            `json:"scenario_id"`
 	Adapter        string            `json:"adapter"`
 	StartTime      time.Time         `json:"start_time"`
@@ -53,11 +54,16 @@ func NewWriter(baseDir string) *Writer {
 
 // Write creates a run artifact directory and writes all bundle files.
 func (w *Writer) Write(bundle RunBundle) (*WriteOutput, error) {
-	dirName := fmt.Sprintf("%s-%s-%s",
-		bundle.StartTime.Format("20060102-150405"),
-		bundle.ScenarioID,
-		bundle.Adapter,
-	)
+	dirName := bundle.RunID
+	if dirName == "" {
+		dirName = fmt.Sprintf("%s-%s-%s",
+			bundle.StartTime.Format("20060102-150405"),
+			bundle.ScenarioID,
+			bundle.Adapter,
+		)
+	} else if !isSafeArtifactDirName(dirName) {
+		return nil, fmt.Errorf("artifact.Writer.Write: unsafe run id %q", dirName)
+	}
 	runDir := filepath.Join(w.BaseDir, dirName)
 
 	if err := os.MkdirAll(runDir, 0755); err != nil {
@@ -152,4 +158,8 @@ func (w *Writer) Write(bundle RunBundle) (*WriteOutput, error) {
 	}
 
 	return &WriteOutput{Path: runDir}, nil
+}
+
+func isSafeArtifactDirName(name string) bool {
+	return name != "" && name == filepath.Base(name) && name != "." && name != ".."
 }

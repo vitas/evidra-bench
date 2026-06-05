@@ -49,6 +49,96 @@ func TestWriter_CreatesEvidenceDir(t *testing.T) {
 	}
 }
 
+func TestWriter_UsesRunIDForDirectoryAndRunJSON(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	w := NewWriter(dir)
+	out, err := w.Write(RunBundle{
+		RunID:      "run-abc123",
+		ScenarioID: "broken-deployment",
+		Adapter:    "cli",
+		StartTime:  time.Date(2026, 3, 14, 10, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	if filepath.Base(out.Path) != "run-abc123" {
+		t.Fatalf("artifact dir = %q, want run ID directory", filepath.Base(out.Path))
+	}
+
+	data, err := os.ReadFile(filepath.Join(out.Path, "run.json"))
+	if err != nil {
+		t.Fatalf("read run.json: %v", err)
+	}
+	var parsed RunBundle
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("parse run.json: %v", err)
+	}
+	if parsed.RunID != "run-abc123" {
+		t.Fatalf("run_id = %q, want run-abc123", parsed.RunID)
+	}
+}
+
+func TestWriter_DoesNotCollideWhenRunIDsDiffer(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	w := NewWriter(dir)
+	start := time.Date(2026, 3, 14, 10, 0, 0, 0, time.UTC)
+	first, err := w.Write(RunBundle{
+		RunID:      "run-one",
+		ScenarioID: "same-scenario",
+		Adapter:    "cli",
+		StartTime:  start,
+		Transcript: "first",
+	})
+	if err != nil {
+		t.Fatalf("write first: %v", err)
+	}
+	second, err := w.Write(RunBundle{
+		RunID:      "run-two",
+		ScenarioID: "same-scenario",
+		Adapter:    "cli",
+		StartTime:  start,
+		Transcript: "second",
+	})
+	if err != nil {
+		t.Fatalf("write second: %v", err)
+	}
+	if first.Path == second.Path {
+		t.Fatalf("artifact paths collided: %s", first.Path)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read artifact root: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("artifact dir count = %d, want 2", len(entries))
+	}
+}
+
+func TestWriter_RejectsUnsafeRunIDDirectory(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	outside := filepath.Join(filepath.Dir(dir), "escape")
+	t.Cleanup(func() { _ = os.RemoveAll(outside) })
+
+	w := NewWriter(dir)
+	if _, err := w.Write(RunBundle{
+		RunID:      "../escape",
+		ScenarioID: "unsafe",
+		Adapter:    "cli",
+		StartTime:  time.Now(),
+	}); err == nil {
+		t.Fatal("expected unsafe run ID to be rejected")
+	}
+	if _, err := os.Stat(outside); !os.IsNotExist(err) {
+		t.Fatalf("outside path err = %v, want not exist", err)
+	}
+}
+
 func TestWriter_WritesTextArtifacts(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

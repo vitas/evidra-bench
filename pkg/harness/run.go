@@ -90,6 +90,7 @@ func New(deps Deps) *Harness {
 func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, runErr error) {
 	startTime := time.Now()
 	s := req.Scenario
+	runID := buildRunID(startTime, s.ID, req.Config.Model, req.Config.Adapter)
 	ns := targetNamespace(req)
 	recorder := newRunArtifactRecorder(startTime)
 	var agentResult *adapter.RunResult
@@ -102,11 +103,11 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 			return
 		}
 		recorder.Event(recorder.CurrentPhase(), "failed", runErr.Error())
-		artifactDir := h.writeFailedRunArtifacts(req, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, runErr, startTime, time.Now())
+		artifactDir := h.writeFailedRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, runErr, startTime, time.Now())
 		if result == nil {
 			result = &RunResult{
 				ScenarioID:  s.ID,
-				RunID:       buildRunID(startTime, s.ID, req.Config.Adapter),
+				RunID:       runID,
 				Passed:      false,
 				ExitCode:    failedRunExitCode(runErr, agentResultExitCode(agentResult)),
 				Duration:    time.Since(startTime),
@@ -115,7 +116,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 			}
 		} else {
 			if result.RunID == "" {
-				result.RunID = buildRunID(startTime, s.ID, req.Config.Adapter)
+				result.RunID = runID
 			}
 			if result.ArtifactDir == "" {
 				result.ArtifactDir = artifactDir
@@ -128,7 +129,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		recorder.Event("run", "completed", "dry-run")
 		return &RunResult{
 			ScenarioID: s.ID,
-			RunID:      buildRunID(startTime, s.ID, req.Config.Adapter),
+			RunID:      runID,
 			Passed:     true,
 			Duration:   time.Since(startTime),
 		}, nil
@@ -217,17 +218,17 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	endTime := time.Now()
 	recorder.Event("run", "completed", "")
 	recorder.Event("artifact_write", "started", "")
-	artifactDir, autopsyJSON := h.writeRunArtifacts(req, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, startTime, endTime)
+	artifactDir, autopsyJSON := h.writeRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, startTime, endTime)
 	recorder.Event("artifact_write", "completed", "")
 
 	// Step 7: Bench reporting.
 	recorder.Event("report", "started", "")
-	h.reportRun(req, agentResult, verifyResult, startTime, endTime)
+	h.reportRun(req, runID, agentResult, verifyResult, startTime, endTime)
 	recorder.Event("report", "completed", "")
 
 	result = &RunResult{
 		ScenarioID:  s.ID,
-		RunID:       buildRunID(startTime, s.ID, req.Config.Adapter),
+		RunID:       runID,
 		Passed:      verifyResult.Passed,
 		ExitCode:    agentResult.ExitCode,
 		Duration:    endTime.Sub(startTime),
@@ -237,7 +238,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 
 	// Step 8: Store result in database.
 	recorder.Event("store", "started", "")
-	h.storeRun(req, agentResult, verifyResult, artifactDir, autopsyJSON, recorder, startTime, endTime)
+	h.storeRun(req, runID, agentResult, verifyResult, artifactDir, autopsyJSON, recorder, startTime, endTime)
 	recorder.Event("store", "completed", "")
 
 	return result, nil

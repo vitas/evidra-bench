@@ -229,6 +229,74 @@ func TestHarness_RunStoresFailedRecordWhenAdapterErrors(t *testing.T) {
 	}
 }
 
+func TestHarness_RunUsesSingleRunIDAcrossResultStoreAndArtifacts(t *testing.T) {
+	t.Parallel()
+
+	resultsStore, err := localstore.Open(filepath.Join(t.TempDir(), "store"))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer func() { _ = resultsStore.Close() }()
+
+	artifactRoot := t.TempDir()
+	h := New(Deps{
+		EnvProvider: &fakeProvider{},
+		Adapter:     &fakeAdapter{},
+		Writer:      artifact.NewWriter(artifactRoot),
+		Store:       resultsStore,
+	})
+
+	cfg := config.Default()
+	cfg.Scenario = "run-id-propagation"
+	cfg.Model = "claude/haiku"
+	cfg.RunsDir = filepath.Join(t.TempDir(), "runs")
+
+	result, err := h.Run(context.Background(), RunRequest{
+		Config:         cfg,
+		KubeconfigPath: fakeKubeconfig(t),
+		Scenario: &scenario.Scenario{
+			ID:       "run-id-propagation",
+			Title:    "Run ID propagation",
+			Category: "kubernetes",
+			Checks:   []scenario.Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+	if result.RunID == "" {
+		t.Fatal("result run ID is empty")
+	}
+	if filepath.Base(result.ArtifactDir) != result.RunID {
+		t.Fatalf("artifact dir basename = %q, want run ID %q", filepath.Base(result.ArtifactDir), result.RunID)
+	}
+
+	records, err := resultsStore.Query(localstore.QueryFilters{ScenarioID: "run-id-propagation"})
+	if err != nil {
+		t.Fatalf("query store: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("records = %d, want 1", len(records))
+	}
+	if records[0].ID != result.RunID {
+		t.Fatalf("stored ID = %q, want result ID %q", records[0].ID, result.RunID)
+	}
+
+	data, err := os.ReadFile(filepath.Join(result.ArtifactDir, "run.json"))
+	if err != nil {
+		t.Fatalf("read run.json: %v", err)
+	}
+	var parsed struct {
+		RunID string `json:"run_id"`
+	}
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("parse run.json: %v", err)
+	}
+	if parsed.RunID != result.RunID {
+		t.Fatalf("run.json run_id = %q, want result ID %q", parsed.RunID, result.RunID)
+	}
+}
+
 func TestHarness_RunExecutesChaosStepsDuringAgent(t *testing.T) {
 	t.Parallel()
 

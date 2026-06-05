@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vitas/evidra-bench/pkg/agent"
 	"github.com/vitas/evidra-bench/pkg/config"
@@ -147,6 +148,26 @@ func TestParseFloatMetaReadsFormattedCost(t *testing.T) {
 	}, "estimated_cost")
 	if got != 0.0336 {
 		t.Fatalf("estimated_cost = %v, want 0.0336", got)
+	}
+}
+
+func TestBuildRunIDUniqueAndPathSafeForSameSecond(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2026, 3, 14, 10, 0, 0, 0, time.UTC)
+	first := buildRunID(start, "same-scenario", "claude/haiku", "cli")
+	second := buildRunID(start, "same-scenario", "claude/haiku", "cli")
+
+	if first == second {
+		t.Fatalf("run IDs collided: %q", first)
+	}
+	for _, id := range []string{first, second} {
+		if strings.ContainsAny(id, `/\`) {
+			t.Fatalf("run ID %q is not path safe", id)
+		}
+		if !strings.Contains(id, "claude-haiku") {
+			t.Fatalf("run ID %q should include sanitized model context", id)
+		}
 	}
 }
 

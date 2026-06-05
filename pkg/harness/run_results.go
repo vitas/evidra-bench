@@ -2,10 +2,11 @@ package harness
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"strings"
 	"time"
+
+	"github.com/oklog/ulid/v2"
 
 	"github.com/vitas/evidra-bench/pkg/adapter"
 	"github.com/vitas/evidra-bench/pkg/artifact"
@@ -16,7 +17,7 @@ import (
 	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
-func (h *Harness) writeRunArtifacts(req RunRequest, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, startTime, endTime time.Time) (string, json.RawMessage) {
+func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, startTime, endTime time.Time) (string, json.RawMessage) {
 	s := req.Scenario
 	checksJSON, _ := json.Marshal(verifyResult)
 	toolCallsJSON := marshalToolCallsJSON(agentResult.ToolCalls)
@@ -52,6 +53,7 @@ func (h *Harness) writeRunArtifacts(req RunRequest, agentResult *adapter.RunResu
 	}
 
 	bundle := artifact.RunBundle{
+		RunID:          runID,
 		ScenarioID:     s.ID,
 		Adapter:        req.Config.Adapter,
 		StartTime:      startTime,
@@ -86,7 +88,7 @@ func (h *Harness) writeRunArtifacts(req RunRequest, agentResult *adapter.RunResu
 	return out.Path, autopsyJSON
 }
 
-func (h *Harness) writeFailedRunArtifacts(req RunRequest, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, runErr error, startTime, endTime time.Time) string {
+func (h *Harness) writeFailedRunArtifacts(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, runErr error, startTime, endTime time.Time) string {
 	exitCode := failedRunExitCode(runErr, agentResultExitCode(agentResult))
 	agentResult = failedAgentResult(agentResult, exitCode)
 	verifyResult = failedVerifyResult(verifyResult)
@@ -98,7 +100,7 @@ func (h *Harness) writeFailedRunArtifacts(req RunRequest, agentResult *adapter.R
 	runErrArtifact := buildRunErrorArtifact(runErr, recorder.CurrentPhase(), agentResult.ExitCode, endTime)
 	runErrorJSON := buildRunErrorJSON(runErrArtifact)
 
-	rec := buildRunRecord(req, agentResult, verifyResult, "", startTime, endTime)
+	rec := buildRunRecord(req, runID, agentResult, verifyResult, "", startTime, endTime)
 	autopsyJSON := buildRunErrorAutopsyJSON(rec, runErrArtifact)
 
 	chaosJSON, chaosLog := chaosArtifacts(chaosRunner)
@@ -113,6 +115,7 @@ func (h *Harness) writeFailedRunArtifacts(req RunRequest, agentResult *adapter.R
 	artifactDir := ""
 	if h.deps.Writer != nil {
 		bundle := artifact.RunBundle{
+			RunID:          runID,
 			ScenarioID:     req.Scenario.ID,
 			Adapter:        req.Config.Adapter,
 			StartTime:      startTime,
@@ -149,14 +152,14 @@ func (h *Harness) writeFailedRunArtifacts(req RunRequest, agentResult *adapter.R
 	return artifactDir
 }
 
-func (h *Harness) reportRun(req RunRequest, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, startTime, endTime time.Time) {
+func (h *Harness) reportRun(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, startTime, endTime time.Time) {
 	if h.deps.Reporter == nil {
 		return
 	}
 	s := req.Scenario
 	entries := []report.EvidenceEntry{
 		{
-			ID:         fmt.Sprintf("bench-%s-%d", s.ID, startTime.UnixMilli()),
+			ID:         runID,
 			Type:       "benchmark-run",
 			Actor:      req.Config.Adapter,
 			Timestamp:  startTime,
@@ -173,13 +176,13 @@ func (h *Harness) reportRun(req RunRequest, agentResult *adapter.RunResult, veri
 	}
 }
 
-func (h *Harness) storeRun(req RunRequest, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, artifactDir string, autopsyJSON json.RawMessage, recorder *runArtifactRecorder, startTime, endTime time.Time) {
-	rec := buildRunRecord(req, agentResult, verifyResult, artifactDir, startTime, endTime)
+func (h *Harness) storeRun(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, artifactDir string, autopsyJSON json.RawMessage, recorder *runArtifactRecorder, startTime, endTime time.Time) {
+	rec := buildRunRecord(req, runID, agentResult, verifyResult, artifactDir, startTime, endTime)
 	timelineJSON := buildTimelineJSONFromToolCalls(agentResult.ToolCalls)
 	h.persistRun(req, rec, agentResult.Transcript, agentResult.ToolCalls, timelineJSON, autopsyJSON, nil, recorder.EventsJSON())
 }
 
-func buildRunRecord(req RunRequest, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, artifactDir string, startTime, endTime time.Time) localstore.RunRecord {
+func buildRunRecord(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, artifactDir string, startTime, endTime time.Time) localstore.RunRecord {
 	runCfg := req.Config
 	toolServer, toolServerVersion := resolveToolServerIdentity(runCfg)
 	if runCfg.MCPServer != "" || toolServer != "" || toolServerVersion != "" {
@@ -213,7 +216,7 @@ func buildRunRecord(req RunRequest, agentResult *adapter.RunResult, verifyResult
 
 	s := req.Scenario
 	return localstore.RunRecord{
-		ID:                buildRunID(startTime, s.ID, req.Config.Adapter),
+		ID:                runID,
 		ScenarioID:        s.ID,
 		Model:             req.Config.Model,
 		Provider:          req.Config.Provider,
@@ -241,8 +244,47 @@ func buildRunRecord(req RunRequest, agentResult *adapter.RunResult, verifyResult
 	}
 }
 
-func buildRunID(startTime time.Time, scenarioID, adapter string) string {
-	return fmt.Sprintf("%s-%s-%s", startTime.Format("20060102-150405"), scenarioID, adapter)
+func buildRunID(startTime time.Time, scenarioID, model, adapter string) string {
+	parts := []string{
+		startTime.UTC().Format("20060102-150405.000000000"),
+		safeRunIDComponent(scenarioID),
+		safeRunIDComponent(model),
+		safeRunIDComponent(adapter),
+		strings.ToLower(ulid.Make().String()),
+	}
+	return strings.Join(parts, "-")
+}
+
+func safeRunIDComponent(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "unknown"
+	}
+	var b strings.Builder
+	lastDash := false
+	for _, r := range strings.ToLower(value) {
+		allowed := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
+		if allowed {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	cleaned := strings.Trim(b.String(), "-")
+	if cleaned == "" {
+		return "unknown"
+	}
+	if len(cleaned) > 80 {
+		cleaned = strings.Trim(cleaned[:80], "-")
+		if cleaned == "" {
+			return "unknown"
+		}
+	}
+	return cleaned
 }
 
 func (h *Harness) persistRun(req RunRequest, rec localstore.RunRecord, transcript string, toolCalls []adapter.ToolCallRecord, timelineJSON, autopsyJSON, runErrorJSON, runEventsJSON json.RawMessage) {
