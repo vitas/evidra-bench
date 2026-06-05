@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -85,6 +87,94 @@ func TestValidateCommand_BlockedWatch(t *testing.T) {
 		"kubectl get pods -o wide",
 		"kubectl get pods",
 		"kubectl get pods -n bench",
+	}
+
+	for _, cmd := range allowed {
+		if err := validateCommand(cmd); err != nil {
+			t.Errorf("expected %q to be allowed, got: %v", cmd, err)
+		}
+	}
+}
+
+func TestValidateCommand_BlockedPipeBypass(t *testing.T) {
+	t.Parallel()
+
+	blocked := []string{
+		"kubectl get pods | bash -c 'echo pwned'",
+		"kubectl get pods | python -c 'print(1)'",
+		"kubectl get pods | /bin/sh -c 'echo pwned'",
+		"grep ok file | node -e 'console.log(1)'",
+		"kubectl get pods & bash -c 'echo pwned'",
+		"kubectl get pods\nbash -c 'echo pwned'",
+	}
+
+	for _, cmd := range blocked {
+		if err := validateCommand(cmd); err == nil {
+			t.Errorf("expected %q to be blocked", cmd)
+		}
+	}
+
+	allowed := []string{
+		"kubectl get pods | jq '.items | length'",
+		"kubectl get pods | grep nginx | wc -l",
+		"grep 'ready|running' pods.txt",
+		"sed -E 's/foo|bar/baz/' file.txt",
+	}
+
+	for _, cmd := range allowed {
+		if err := validateCommand(cmd); err != nil {
+			t.Errorf("expected %q to be allowed, got: %v", cmd, err)
+		}
+	}
+}
+
+func TestValidateCommand_BlockedShellSubstitution(t *testing.T) {
+	t.Parallel()
+
+	blocked := []string{
+		"kubectl get pods $(bash -c 'echo pwned')",
+		"echo $(python -c 'print(1)')",
+		"kubectl get pods `bash -c 'echo pwned'`",
+		"kubectl get pods <(bash -c 'echo pwned')",
+	}
+
+	for _, cmd := range blocked {
+		if err := validateCommand(cmd); err == nil {
+			t.Errorf("expected %q to be blocked", cmd)
+		}
+	}
+
+	allowed := []string{
+		"echo '$(not command substitution)'",
+		"grep '`literal`' file.txt",
+		"echo ${KUBECONFIG}",
+	}
+
+	for _, cmd := range allowed {
+		if err := validateCommand(cmd); err != nil {
+			t.Errorf("expected %q to be allowed, got: %v", cmd, err)
+		}
+	}
+}
+
+func TestValidateCommand_BlockedFindExec(t *testing.T) {
+	t.Parallel()
+
+	blocked := []string{
+		"find . -exec bash -c 'echo pwned' {} \\;",
+		"find . -execdir sh -c 'echo pwned' {} \\;",
+		"find . -ok bash -c 'echo pwned' {} \\;",
+	}
+
+	for _, cmd := range blocked {
+		if err := validateCommand(cmd); err == nil {
+			t.Errorf("expected %q to be blocked", cmd)
+		}
+	}
+
+	allowed := []string{
+		"find . -name '*.yaml' -print",
+		"find /tmp -maxdepth 1 -type f",
 	}
 
 	for _, cmd := range allowed {
@@ -189,6 +279,120 @@ func TestToolExecutorRunCommandHasPerToolTimeout(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("runCommand did not return after per-tool timeout")
+	}
+}
+
+func TestToolExecutorRunCommandUsesWorkspaceDir(t *testing.T) {
+	workspace := t.TempDir()
+	marker := filepath.Join(workspace, "workspace-marker.txt")
+	if err := os.WriteFile(marker, []byte("workspace"), 0o644); err != nil {
+		t.Fatalf("write marker: %v", err)
+	}
+
+	payload, err := json.Marshal(map[string]string{"command": "cat workspace-marker.txt"})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	result := (&ToolExecutor{WorkspaceDir: workspace}).runCommand(context.Background(), string(payload))
+	if result != "workspace" {
+		t.Fatalf("result = %q, want workspace marker from executor workspace", result)
+	}
+}
+
+func TestToolExecutorRunCommandExportsWorkspaceEnv(t *testing.T) {
+	workspace := t.TempDir()
+	payload, err := json.Marshal(map[string]string{"command": "echo $INFRA_BENCH_WORKSPACE"})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	result := (&ToolExecutor{WorkspaceDir: workspace}).runCommand(context.Background(), string(payload))
+	if result != workspace {
+		t.Fatalf("INFRA_BENCH_WORKSPACE = %q, want %q", result, workspace)
+	}
+}
+
+func TestToolExecutorWriteFileUsesWorkspaceDir(t *testing.T) {
+	workspace := t.TempDir()
+	outside := t.TempDir()
+	old, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get cwd: %v", err)
+	}
+	if err := os.Chdir(outside); err != nil {
+		t.Fatalf("chdir outside: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(old); err != nil {
+			t.Errorf("restore cwd: %v", err)
+		}
+	})
+
+	payload, err := json.Marshal(map[string]string{
+		"path":    "manifests/app.yaml",
+		"content": "apiVersion: v1\n",
+	})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	result := (&ToolExecutor{WorkspaceDir: workspace}).writeFile(context.Background(), string(payload))
+	if strings.HasPrefix(result, "error:") {
+		t.Fatalf("writeFile returned %q", result)
+	}
+	if _, err := os.Stat(filepath.Join(workspace, "manifests", "app.yaml")); err != nil {
+		t.Fatalf("workspace file missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(outside, "manifests", "app.yaml")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("outside file err = %v, want not exist", err)
+	}
+}
+
+func TestToolExecutorWriteFileRejectsWorkspaceEscape(t *testing.T) {
+	workspace := t.TempDir()
+	outsidePath := filepath.Join(filepath.Dir(workspace), "escape.txt")
+	t.Cleanup(func() { _ = os.Remove(outsidePath) })
+
+	payload, err := json.Marshal(map[string]string{
+		"path":    "../escape.txt",
+		"content": "outside",
+	})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	result := (&ToolExecutor{WorkspaceDir: workspace}).writeFile(context.Background(), string(payload))
+	if !strings.HasPrefix(result, "error:") {
+		t.Fatalf("writeFile result = %q, want error", result)
+	}
+	if _, err := os.Stat(outsidePath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("escape file err = %v, want not exist", err)
+	}
+}
+
+func TestToolExecutorWriteFileRejectsEscapingSymlink(t *testing.T) {
+	workspace := t.TempDir()
+	outside := t.TempDir()
+	link := filepath.Join(workspace, "link")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+
+	payload, err := json.Marshal(map[string]string{
+		"path":    "link/escape.txt",
+		"content": "outside",
+	})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	result := (&ToolExecutor{WorkspaceDir: workspace}).writeFile(context.Background(), string(payload))
+	if !strings.HasPrefix(result, "error:") {
+		t.Fatalf("writeFile result = %q, want error", result)
+	}
+	if _, err := os.Stat(filepath.Join(outside, "escape.txt")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("escape file err = %v, want not exist", err)
 	}
 }
 

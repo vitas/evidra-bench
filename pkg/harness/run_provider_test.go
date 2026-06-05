@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vitas/evidra-bench/pkg/agent"
+	"github.com/vitas/evidra-bench/pkg/config"
 )
 
 func TestProviderEvidenceDir_IsIsolatedPerRun(t *testing.T) {
@@ -21,6 +22,28 @@ func TestProviderEvidenceDir_IsIsolatedPerRun(t *testing.T) {
 	}
 	if a == b {
 		t.Fatalf("provider evidence dirs should differ per run: %q", a)
+	}
+}
+
+func TestNewProviderToolExecutorUsesRunsDirWorkspace(t *testing.T) {
+	t.Parallel()
+
+	runsDir := t.TempDir()
+	executor := newProviderToolExecutor(RunRequest{
+		Config: config.Config{RunsDir: runsDir},
+		ExtraEnv: []string{
+			"AWS_ENDPOINT_URL=http://localhost:4566",
+		},
+	}, "/tmp/kubeconfig")
+
+	if executor.WorkspaceDir != runsDir {
+		t.Fatalf("WorkspaceDir = %q, want %q", executor.WorkspaceDir, runsDir)
+	}
+	if executor.KubeconfigPath != "/tmp/kubeconfig" {
+		t.Fatalf("KubeconfigPath = %q, want /tmp/kubeconfig", executor.KubeconfigPath)
+	}
+	if len(executor.ExtraEnv) != 1 || executor.ExtraEnv[0] != "AWS_ENDPOINT_URL=http://localhost:4566" {
+		t.Fatalf("ExtraEnv = %#v, want lease env preserved", executor.ExtraEnv)
 	}
 }
 

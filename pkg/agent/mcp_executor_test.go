@@ -43,3 +43,32 @@ func TestMCPExecutorExecuteHasPerToolTimeout(t *testing.T) {
 		t.Fatalf("result = %q, want MCP per-tool timeout message", result)
 	}
 }
+
+func TestNewMCPCommandUsesWorkspaceDir(t *testing.T) {
+	t.Parallel()
+
+	workspace := t.TempDir()
+	cmd, err := newMCPCommand("echo hello", []string{"KUBECONFIG=/tmp/kubeconfig"}, workspace)
+	if err != nil {
+		t.Fatalf("newMCPCommand: %v", err)
+	}
+	if cmd.Dir != workspace {
+		t.Fatalf("Dir = %q, want %q", cmd.Dir, workspace)
+	}
+	if got := envValue(cmd.Env, "INFRA_BENCH_WORKSPACE"); got != workspace {
+		t.Fatalf("INFRA_BENCH_WORKSPACE = %q, want %q", got, workspace)
+	}
+	if got := envValue(cmd.Env, "KUBECONFIG"); got != "/tmp/kubeconfig" {
+		t.Fatalf("KUBECONFIG = %q, want /tmp/kubeconfig", got)
+	}
+}
+
+func envValue(env []string, key string) string {
+	prefix := key + "="
+	for i := len(env) - 1; i >= 0; i-- {
+		if strings.HasPrefix(env[i], prefix) {
+			return strings.TrimPrefix(env[i], prefix)
+		}
+	}
+	return ""
+}

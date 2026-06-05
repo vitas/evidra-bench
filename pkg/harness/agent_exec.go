@@ -108,7 +108,7 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		// MCP mode: route tool calls through MCP server.
 		mcpEnv := append(req.ExtraEnv, "KUBECONFIG="+kubeconfigPath)
 		var mcpErr error
-		mcpExec, mcpErr = agent.NewMCPExecutor(agentCtx, cfg.MCPServer, mcpEnv)
+		mcpExec, mcpErr = agent.NewMCPExecutor(agentCtx, cfg.MCPServer, mcpEnv, cfg.RunsDir)
 		if mcpErr != nil {
 			return nil, fmt.Errorf("harness: mcp executor: %w", mcpErr)
 		}
@@ -124,11 +124,7 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		log.Printf("[harness] using MCP server: %s (%d tools)", cfg.MCPServer, len(mcpTools))
 	} else {
 		// Direct mode: harness executes commands.
-		executor := &agent.ToolExecutor{
-			KubeconfigPath: kubeconfigPath,
-			ExtraEnv:       req.ExtraEnv,
-		}
-		loopExecutor = executor
+		loopExecutor = newProviderToolExecutor(req, kubeconfigPath)
 	}
 
 	loopResult, err := agent.RunLoop(agentCtx, agent.LoopConfig{
@@ -168,6 +164,14 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		ToolCalls:  providerToolCalls(loopResult.Messages),
 		Metadata:   buildRunMetadata(cfg, loopResult, evidenceDir),
 	}, nil
+}
+
+func newProviderToolExecutor(req RunRequest, kubeconfigPath string) *agent.ToolExecutor {
+	return &agent.ToolExecutor{
+		KubeconfigPath: kubeconfigPath,
+		WorkspaceDir:   req.Config.RunsDir,
+		ExtraEnv:       req.ExtraEnv,
+	}
 }
 
 // buildRunMetadata creates the metadata map for a provider-path run,

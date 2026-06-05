@@ -31,15 +31,15 @@ type MCPExecutor struct {
 // NewMCPExecutor starts an MCP server subprocess and connects via stdio.
 // The command is split on spaces: "MCP server --signing-mode optional"
 // Extra env vars (e.g., KUBECONFIG) are injected into the subprocess.
-func NewMCPExecutor(ctx context.Context, command string, extraEnv []string) (*MCPExecutor, error) {
-	parts := strings.Fields(command)
-	if len(parts) == 0 {
-		return nil, fmt.Errorf("mcp_executor: empty command")
+func NewMCPExecutor(ctx context.Context, command string, extraEnv []string, workspaceDirOpt ...string) (*MCPExecutor, error) {
+	workspaceDir := ""
+	if len(workspaceDirOpt) > 0 {
+		workspaceDir = workspaceDirOpt[0]
 	}
-
-	cmd := exec.Command(parts[0], parts[1:]...)
-	cmd.Env = append(os.Environ(), extraEnv...)
-	cmd.Stderr = os.Stderr // MCP server logs go to stderr
+	cmd, err := newMCPCommand(command, extraEnv, workspaceDir)
+	if err != nil {
+		return nil, err
+	}
 
 	transport := &mcp.CommandTransport{Command: cmd}
 
@@ -69,6 +69,25 @@ func NewMCPExecutor(ctx context.Context, command string, extraEnv []string) (*MC
 		session:   session,
 		serverCmd: command,
 	}, nil
+}
+
+func newMCPCommand(command string, extraEnv []string, workspaceDir string) (*exec.Cmd, error) {
+	parts := strings.Fields(command)
+	if len(parts) == 0 {
+		return nil, fmt.Errorf("mcp_executor: empty command")
+	}
+	normalizedWorkspace, err := normalizeWorkspaceDir(workspaceDir)
+	if err != nil {
+		return nil, err
+	}
+
+	cmd := exec.Command(parts[0], parts[1:]...)
+	cmd.Env = toolCommandEnv("", extraEnv, normalizedWorkspace)
+	if normalizedWorkspace != "" {
+		cmd.Dir = normalizedWorkspace
+	}
+	cmd.Stderr = os.Stderr // MCP server logs go to stderr
+	return cmd, nil
 }
 
 // Tools returns the tool definitions from the MCP server,

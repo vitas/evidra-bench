@@ -55,6 +55,7 @@ func BenchTools() []ToolDef {
 // ToolExecutor runs tool calls against the real environment.
 type ToolExecutor struct {
 	KubeconfigPath string
+	WorkspaceDir   string
 	ExtraEnv       []string // Additional env vars for commands (e.g., AWS_ENDPOINT_URL)
 }
 
@@ -95,14 +96,18 @@ var blockedSubcommands = []string{
 	"terraform console",
 }
 
-// validateCommand checks that a command starts with an allowed prefix
-// and does not match any blocked interactive subcommand.
-// Compound commands (using &&, ||, ;, |) are split and each segment is validated.
+// validateCommand checks that every shell command segment starts with an allowed
+// prefix and does not match any blocked interactive subcommand.
 func validateCommand(command string) error {
 	trimmed := strings.TrimSpace(command)
+	if err := rejectShellSubstitution(trimmed); err != nil {
+		return err
+	}
 
-	// Split compound commands into segments.
-	segments := splitCompoundCommand(trimmed)
+	segments, err := splitCompoundCommand(trimmed)
+	if err != nil {
+		return err
+	}
 	for _, seg := range segments {
 		if err := validateSegment(seg); err != nil {
 			return err
@@ -114,24 +119,113 @@ func validateCommand(command string) error {
 // compoundAllowed are commands allowed only as part of compound commands (not standalone).
 var compoundAllowed = []string{"cd"}
 
-// splitCompoundCommand splits a shell command on &&, ||, and ; operators.
-// Does NOT split on | (pipe) because it appears inside sed/grep patterns.
-func splitCompoundCommand(cmd string) []string {
-	// Replace operators with a unique separator, then split.
-	// Order matters: check && and || before single characters.
-	normalized := cmd
-	for _, op := range []string{"&&", "||", ";"} {
-		normalized = strings.ReplaceAll(normalized, op, "\x00")
-	}
-	parts := strings.Split(normalized, "\x00")
-	segments := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			segments = append(segments, p)
+// splitCompoundCommand splits shell control operators that can start another
+// command. Operators inside quotes are preserved for commands like jq, grep, and sed.
+// Background execution is blocked because it can outlive the tool timeout.
+func splitCompoundCommand(cmd string) ([]string, error) {
+	segments := make([]string, 0, 1)
+	start := 0
+	inSingle := false
+	inDouble := false
+	escaped := false
+
+	appendSegment := func(end int) {
+		seg := strings.TrimSpace(cmd[start:end])
+		if seg != "" {
+			segments = append(segments, seg)
 		}
 	}
-	return segments
+
+	for i := 0; i < len(cmd); i++ {
+		c := cmd[i]
+		if escaped {
+			escaped = false
+			continue
+		}
+		if c == '\\' && !inSingle {
+			escaped = true
+			continue
+		}
+		if c == '\'' && !inDouble {
+			inSingle = !inSingle
+			continue
+		}
+		if c == '"' && !inSingle {
+			inDouble = !inDouble
+			continue
+		}
+		if inSingle || inDouble {
+			continue
+		}
+
+		switch c {
+		case '\n', '\r':
+			appendSegment(i)
+			start = i + 1
+		case ';':
+			appendSegment(i)
+			start = i + 1
+		case '&':
+			if i+1 < len(cmd) && cmd[i+1] == '&' {
+				appendSegment(i)
+				i++
+				start = i + 1
+			} else {
+				return nil, fmt.Errorf("command %q uses blocked background execution", truncate(cmd, 60))
+			}
+		case '|':
+			appendSegment(i)
+			if i+1 < len(cmd) && cmd[i+1] == '|' {
+				i++
+			}
+			start = i + 1
+		}
+	}
+	if inSingle || inDouble {
+		return nil, fmt.Errorf("command %q has an unterminated quote", truncate(cmd, 60))
+	}
+	appendSegment(len(cmd))
+	return segments, nil
+}
+
+func rejectShellSubstitution(cmd string) error {
+	inSingle := false
+	inDouble := false
+	escaped := false
+
+	for i := 0; i < len(cmd); i++ {
+		c := cmd[i]
+		if escaped {
+			escaped = false
+			continue
+		}
+		if c == '\\' && !inSingle {
+			escaped = true
+			continue
+		}
+		if c == '\'' && !inDouble {
+			inSingle = !inSingle
+			continue
+		}
+		if c == '"' && !inSingle {
+			inDouble = !inDouble
+			continue
+		}
+		if inSingle {
+			continue
+		}
+
+		if c == '`' {
+			return fmt.Errorf("command %q uses blocked shell substitution", truncate(cmd, 60))
+		}
+		if c == '$' && i+1 < len(cmd) && cmd[i+1] == '(' {
+			return fmt.Errorf("command %q uses blocked shell substitution", truncate(cmd, 60))
+		}
+		if (c == '<' || c == '>') && i+1 < len(cmd) && cmd[i+1] == '(' {
+			return fmt.Errorf("command %q uses blocked process substitution", truncate(cmd, 60))
+		}
+	}
+	return nil
 }
 
 func validateSegment(seg string) error {
@@ -145,6 +239,11 @@ func validateSegment(seg string) error {
 	// Block watch mode — these never exit and cause timeouts.
 	if strings.HasPrefix(seg, "kubectl ") && (containsFlag(seg, "-w") || containsFlag(seg, "--watch")) {
 		return fmt.Errorf("command %q is blocked (watch mode never exits)", truncate(seg, 60))
+	}
+	if strings.HasPrefix(seg, "find ") &&
+		(containsFlag(seg, "-exec") || containsFlag(seg, "-execdir") ||
+			containsFlag(seg, "-ok") || containsFlag(seg, "-okdir")) {
+		return fmt.Errorf("command %q is blocked (find execution predicates are not allowed)", truncate(seg, 60))
 	}
 
 	// Check main allowlist.
@@ -192,12 +291,18 @@ func (e *ToolExecutor) runCommand(ctx context.Context, argsJSON string) string {
 	defer cancel()
 
 	cmd := exec.CommandContext(runCtx, "bash", "-c", args.Command)
-	cmd.Env = append(os.Environ(), "KUBECONFIG="+e.KubeconfigPath)
-	cmd.Env = append(cmd.Env, e.ExtraEnv...)
+	workspaceDir, err := normalizeWorkspaceDir(e.WorkspaceDir)
+	if err != nil {
+		return fmt.Sprintf("error: %v", err)
+	}
+	if workspaceDir != "" {
+		cmd.Dir = workspaceDir
+	}
+	cmd.Env = toolCommandEnv(e.KubeconfigPath, e.ExtraEnv, workspaceDir)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	err := runProcessGroupCommand(runCtx, cmd)
+	err = runProcessGroupCommand(runCtx, cmd)
 
 	result := stdout.String()
 	if stderr.Len() > 0 {
@@ -251,16 +356,128 @@ func (e *ToolExecutor) writeFile(_ context.Context, argsJSON string) string {
 		return "error: path is required"
 	}
 
-	// Create parent directories if needed.
-	dir := filepath.Dir(args.Path)
+	targetPath, err := e.resolveWorkspaceWritePath(args.Path)
+	if err != nil {
+		return fmt.Sprintf("error: %v", err)
+	}
+
+	dir := filepath.Dir(targetPath)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Sprintf("error creating directory %s: %v", dir, err)
 	}
+	if err := e.validateResolvedWorkspacePath(targetPath); err != nil {
+		return fmt.Sprintf("error: %v", err)
+	}
 
-	if err := os.WriteFile(args.Path, []byte(args.Content), 0o644); err != nil {
+	if err := os.WriteFile(targetPath, []byte(args.Content), 0o644); err != nil {
 		return fmt.Sprintf("error writing file: %v", err)
 	}
-	return fmt.Sprintf("wrote %d bytes to %s", len(args.Content), args.Path)
+	return fmt.Sprintf("wrote %d bytes to %s", len(args.Content), targetPath)
+}
+
+func toolCommandEnv(kubeconfigPath string, extraEnv []string, workspaceDir string) []string {
+	env := append([]string{}, os.Environ()...)
+	env = append(env, extraEnv...)
+	if kubeconfigPath != "" {
+		env = append(env, "KUBECONFIG="+kubeconfigPath)
+	}
+	if workspaceDir != "" {
+		env = append(env, "INFRA_BENCH_WORKSPACE="+workspaceDir)
+	}
+	return env
+}
+
+func normalizeWorkspaceDir(workspaceDir string) (string, error) {
+	if strings.TrimSpace(workspaceDir) == "" {
+		return "", nil
+	}
+	abs, err := filepath.Abs(workspaceDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve workspace dir: %w", err)
+	}
+	info, err := os.Stat(abs)
+	if err != nil {
+		return "", fmt.Errorf("workspace dir %s: %w", abs, err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("workspace dir %s is not a directory", abs)
+	}
+	return filepath.Clean(abs), nil
+}
+
+func (e *ToolExecutor) resolveWorkspaceWritePath(path string) (string, error) {
+	root, err := normalizeWorkspaceDir(e.WorkspaceDir)
+	if err != nil {
+		return "", err
+	}
+	if root == "" {
+		root, err = os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("resolve current workspace: %w", err)
+		}
+		root = filepath.Clean(root)
+	}
+
+	var target string
+	if filepath.IsAbs(path) {
+		target = filepath.Clean(path)
+	} else {
+		target = filepath.Clean(filepath.Join(root, path))
+	}
+	if !pathWithin(root, target) {
+		return "", fmt.Errorf("path %s escapes workspace %s", path, root)
+	}
+	return target, nil
+}
+
+func (e *ToolExecutor) validateResolvedWorkspacePath(targetPath string) error {
+	root, err := normalizeWorkspaceDir(e.WorkspaceDir)
+	if err != nil {
+		return err
+	}
+	if root == "" {
+		root, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("resolve current workspace: %w", err)
+		}
+		root = filepath.Clean(root)
+	}
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return fmt.Errorf("resolve workspace symlinks: %w", err)
+	}
+
+	parent := filepath.Dir(targetPath)
+	realParent, err := filepath.EvalSymlinks(parent)
+	if err != nil {
+		return fmt.Errorf("resolve parent directory symlinks: %w", err)
+	}
+	if !pathWithin(realRoot, realParent) {
+		return fmt.Errorf("path %s escapes workspace %s through symlink", targetPath, root)
+	}
+
+	if _, err := os.Lstat(targetPath); err == nil {
+		realTarget, evalErr := filepath.EvalSymlinks(targetPath)
+		if evalErr != nil {
+			return fmt.Errorf("resolve target symlinks: %w", evalErr)
+		}
+		if !pathWithin(realRoot, realTarget) {
+			return fmt.Errorf("path %s escapes workspace %s through symlink", targetPath, root)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("inspect target path: %w", err)
+	}
+	return nil
+}
+
+func pathWithin(root, candidate string) bool {
+	root = filepath.Clean(root)
+	candidate = filepath.Clean(candidate)
+	rel, err := filepath.Rel(root, candidate)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) && !filepath.IsAbs(rel))
 }
 
 func exitCode(err error) int {
