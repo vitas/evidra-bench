@@ -103,16 +103,10 @@ func runCertifyTrack(ctx context.Context, cfg config.Config, track, model string
 		byLevel[level].Total++
 
 		runDir := filepath.Join(outDir, fmt.Sprintf("%s_%s_r1", s.ID, model))
-		evidenceDir := filepath.Join(runDir, "evidence")
-
-		runCfg := cfg
-		runCfg.Scenario = s.Path
-		runCfg.Model = model
-		runCfg.RunsDir = runDir
-		runCfg.EvidenceDir = evidenceDir
+		runCfg := prepareScenarioRunConfig(cfg, s, model, runDir)
 
 		if cfg.ReuseCluster && batchLease != nil {
-			cleanBenchNamespace(ctx, cfg.ClusterName, s)
+			cleanBenchNamespace(ctx, batchLease.KubeconfigPath, s)
 		}
 
 		var prov batchLeaseProvisioner

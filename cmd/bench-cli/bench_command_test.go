@@ -148,6 +148,48 @@ func TestBenchSequential_ReuseClusterSingleProfile_UsesBatchLease(t *testing.T) 
 	}
 }
 
+func TestCleanBenchNamespaceUsesProvidedKubeconfigPath(t *testing.T) {
+	dir := t.TempDir()
+	kubectlLog := filepath.Join(dir, "kubectl.log")
+	kubectlPath := filepath.Join(dir, "kubectl")
+	kubectlScript := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$*\" >> \"" + kubectlLog + "\"\n" +
+		"if [ \"$3\" = \"get\" ]; then exit 1; fi\n" +
+		"exit 0\n"
+	if err := os.WriteFile(kubectlPath, []byte(kubectlScript), 0o755); err != nil {
+		t.Fatalf("write fake kubectl: %v", err)
+	}
+
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("KUBECONFIG", filepath.Join(dir, "wrong-env-kubeconfig"))
+	leaseKubeconfig := filepath.Join(dir, "lease-owned-kubeconfig")
+	s := &scenario.Scenario{
+		ID: "cleanup-scenario",
+		Scope: scenario.Scope{
+			Namespaces: []string{"bench", "webhook-system"},
+		},
+	}
+
+	cleanBenchNamespace(t.Context(), leaseKubeconfig, s)
+
+	logBytes, err := os.ReadFile(kubectlLog)
+	if err != nil {
+		t.Fatalf("read kubectl log: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(logBytes)), "\n")
+	if len(lines) != 4 {
+		t.Fatalf("kubectl calls = %d, want 4; log:\n%s", len(lines), string(logBytes))
+	}
+	for _, line := range lines {
+		if !strings.Contains(line, "--kubeconfig "+leaseKubeconfig) {
+			t.Fatalf("kubectl call used wrong kubeconfig: %q", line)
+		}
+		if strings.Contains(line, "wrong-env-kubeconfig") {
+			t.Fatalf("kubectl call fell back to KUBECONFIG env: %q", line)
+		}
+	}
+}
+
 func TestValidateSingleProfile_EmptyList(t *testing.T) {
 	t.Parallel()
 

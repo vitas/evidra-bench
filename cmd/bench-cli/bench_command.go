@@ -185,17 +185,11 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 
 				// Clean namespace between scenarios to avoid stale state.
 				if cfg.ReuseCluster && batchLease != nil {
-					cleanBenchNamespace(cmd.Context(), cfg.ClusterName, s)
+					cleanBenchNamespace(cmd.Context(), batchLease.KubeconfigPath, s)
 				}
 
 				runDir := filepath.Join(outDir, fmt.Sprintf("%s_%s_r%d", s.ID, model, rep))
-				evidenceDir := filepath.Join(runDir, "evidence")
-
-				runCfg := cfg
-				runCfg.Scenario = s.Path
-				runCfg.Model = model
-				runCfg.RunsDir = runDir
-				runCfg.EvidenceDir = evidenceDir
+				runCfg := prepareScenarioRunConfig(cfg, s, model, runDir)
 
 				label := fmt.Sprintf("[%d/%d] %s model=%s repeat=%d", total, len(runnable)*len(models)*repeats, s.ID, model, rep)
 				writef(cmd.OutOrStdout(), "%s ...\n", label)
@@ -239,13 +233,7 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 					}
 				}
 
-				verdict := "PASS"
-				if !r.Passed {
-					verdict = "FAIL"
-				}
-				if r.Error != "" && r.Error != fmt.Sprintf("scenario %s: verification failed", s.ID) {
-					verdict = "ERROR"
-				}
+				verdict := runDisplayVerdict(r.Passed, r.Error, s.ID)
 				writef(cmd.OutOrStdout(), "  %s %s %s\n", verdict, r.Duration, r.Error)
 				results = append(results, r)
 			}
@@ -343,18 +331,12 @@ func validateSingleProfile(scenarios []*scenario.Scenario) error {
 	return nil
 }
 
-// cleanBenchNamespace deletes and recreates the bench namespace between scenario runs
+// cleanBenchNamespace deletes the scenario namespaces between reused-cluster runs
 // to prevent stale state from previous runs causing bootstrap failures.
-func cleanBenchNamespace(ctx context.Context, clusterName string, s *scenario.Scenario) {
-	// Use the provider's kubeconfig temp file (same path convention as providers).
-	kubeconfigPath := filepath.Join(os.TempDir(), fmt.Sprintf("bench-cli-%s-kubeconfig", clusterName))
-	if _, err := os.Stat(kubeconfigPath); err != nil {
-		// Fallback to KUBECONFIG env or default.
-		kubeconfigPath = os.Getenv("KUBECONFIG")
-		if kubeconfigPath == "" {
-			home, _ := os.UserHomeDir()
-			kubeconfigPath = filepath.Join(home, ".kube", "config")
-		}
+func cleanBenchNamespace(ctx context.Context, kubeconfigPath string, s *scenario.Scenario) {
+	if strings.TrimSpace(kubeconfigPath) == "" {
+		log.Printf("[bench] namespace cleanup skipped: empty lease kubeconfig path")
+		return
 	}
 
 	// Collect namespaces from the scenario scope, default to DefaultNamespace.

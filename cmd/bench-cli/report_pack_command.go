@@ -361,14 +361,11 @@ func runReportPackPhase(
 		for rep := 1; rep <= repeats; rep++ {
 			summary.Total++
 			if cfg.ReuseCluster && batchLease != nil {
-				cleanBenchNamespace(cmd.Context(), cfg.ClusterName, s)
+				cleanBenchNamespace(cmd.Context(), batchLease.KubeconfigPath, s)
 			}
 
 			runDir := filepath.Join(outDir, phase, fmt.Sprintf("%s_%s_r%d", safePathComponent(s.ID), safePathComponent(cfg.Model), rep))
-			runCfg := cfg
-			runCfg.Scenario = s.Path
-			runCfg.RunsDir = runDir
-			runCfg.EvidenceDir = filepath.Join(runDir, "evidence")
+			runCfg := prepareScenarioRunConfig(cfg, s, cfg.Model, runDir)
 
 			writef(cmd.OutOrStdout(), "[%s %d/%d] %s model=%s repeat=%d ...\n", phase, summary.Total, total, s.ID, cfg.Model, rep)
 
@@ -412,13 +409,7 @@ func runReportPackPhase(
 				}
 			}
 
-			verdict := "PASS"
-			if !record.Passed {
-				verdict = "FAIL"
-			}
-			if record.Error != "" && record.Error != fmt.Sprintf("scenario %s: verification failed", s.ID) {
-				verdict = "ERROR"
-			}
+			verdict := runDisplayVerdict(record.Passed, record.Error, s.ID)
 			writef(cmd.OutOrStdout(), "  %s %s %s\n", verdict, record.Duration, record.Error)
 			summary.Results = append(summary.Results, record)
 		}
