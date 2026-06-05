@@ -137,29 +137,49 @@ func (s *TriggerStore) Update(u ProgressUpdate) bool {
 		return false
 	}
 
+	oldPassed, oldFailed := 0, 0
+	newPassed, newFailed := progressStatusCounts(u.Status)
+	matchedScenario := false
+
 	// Update scenario progress.
 	for i := range job.Progress {
 		if job.Progress[i].Scenario == u.Scenario {
+			matchedScenario = true
+			oldPassed, oldFailed = progressStatusCounts(job.Progress[i].Status)
 			job.Progress[i].Status = u.Status
 			job.Progress[i].RunID = u.RunID
 			break
 		}
 	}
+	if !matchedScenario && u.Scenario != "" {
+		matchedScenario = true
+		job.Progress = append(job.Progress, ScenarioProgress{
+			Scenario: u.Scenario,
+			Status:   u.Status,
+			RunID:    u.RunID,
+		})
+	}
 
 	job.Completed = u.Completed
 	job.Total = u.Total
-	if u.RunID != "" {
+	if u.RunID != "" && !stringSliceContains(job.RunIDs, u.RunID) {
 		job.RunIDs = append(job.RunIDs, u.RunID)
 	}
 
-	switch u.Status {
-	case "passed":
-		job.Passed++
-	case "failed":
-		job.Failed++
-	case "error":
-		job.Failed++
-	case "running":
+	if matchedScenario {
+		job.Passed += newPassed - oldPassed
+		job.Failed += newFailed - oldFailed
+		if job.Passed < 0 {
+			job.Passed = 0
+		}
+		if job.Failed < 0 {
+			job.Failed = 0
+		}
+	} else if u.Status == "error" && job.Failed == 0 {
+		job.Failed = 1
+	}
+
+	if u.Status == "running" {
 		job.CurrentScenario = u.Scenario
 	}
 
@@ -193,6 +213,26 @@ func (s *TriggerStore) Update(u ProgressUpdate) bool {
 	}
 
 	return true
+}
+
+func progressStatusCounts(status string) (passed, failed int) {
+	switch status {
+	case "passed":
+		return 1, 0
+	case "failed", "error":
+		return 0, 1
+	default:
+		return 0, 0
+	}
+}
+
+func stringSliceContains(values []string, needle string) bool {
+	for _, value := range values {
+		if value == needle {
+			return true
+		}
+	}
+	return false
 }
 
 // Complete applies a final runner completion update to a trigger job snapshot.

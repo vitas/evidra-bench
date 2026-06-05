@@ -82,6 +82,7 @@ type RunnerRepository interface {
 type JobRepository interface {
 	EnqueueJob(ctx context.Context, tenantID, model, provider string, cfg JobConfig) (*BenchJob, error)
 	ClaimJob(ctx context.Context, tenantID, runnerID string, models []string) (*BenchJob, error)
+	GetJob(ctx context.Context, tenantID, jobID string) (*BenchJob, error)
 	CompleteJob(ctx context.Context, tenantID, runnerID, jobID, status string, passed, failed int, errMsg string) error
 	FindRunnerForModel(ctx context.Context, tenantID, model string) (*Runner, error)
 	UpdateJobProgress(ctx context.Context, jobID string, completed, passed, failed int) error
@@ -420,6 +421,11 @@ func (s *Service) TouchRunner(ctx context.Context, tenantID, runnerID string) er
 // ClaimJob atomically claims the next queued job for a runner.
 func (s *Service) ClaimJob(ctx context.Context, tenantID, runnerID string, models []string) (*BenchJob, error) {
 	return s.repos.Jobs.ClaimJob(ctx, tenantID, runnerID, models)
+}
+
+// GetJob returns a persisted runner job scoped to a tenant.
+func (s *Service) GetJob(ctx context.Context, tenantID, jobID string) (*BenchJob, error) {
+	return s.repos.Jobs.GetJob(ctx, tenantID, jobID)
 }
 
 // CompleteJob marks a job as completed or failed. RunnerID must match the claiming runner.

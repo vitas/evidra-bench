@@ -297,13 +297,22 @@ func pendingScenarioProgress(scenarios []string) []ScenarioProgress {
 
 // handleTriggerStatus returns a handler for GET /v1/bench/trigger/{id}.
 // Supports SSE streaming when the client accepts it, otherwise returns a JSON snapshot.
-func handleTriggerStatus(store *TriggerStore) http.HandlerFunc {
+func handleTriggerStatus(svc *Service, store *TriggerStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		tenantID := auth.TenantID(r.Context())
 		id := r.PathValue("id")
 		job := store.Get(id)
 		if job == nil {
-			apiutil.WriteError(w, http.StatusNotFound, "job not found")
-			return
+			var err error
+			job, err = restoreTriggerJobFromPersistentJob(r.Context(), svc, store, tenantID, id)
+			if err != nil {
+				apiutil.WriteError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			if job == nil {
+				apiutil.WriteError(w, http.StatusNotFound, "job not found")
+				return
+			}
 		}
 
 		// Check if SSE is possible.
@@ -384,8 +393,16 @@ func handleTriggerProgress(svc *Service, store *TriggerStore) http.HandlerFunc {
 		update.JobID = id
 
 		if !store.Update(update) {
-			apiutil.WriteError(w, http.StatusNotFound, "job not found")
-			return
+			tenantID := auth.TenantID(r.Context())
+			job, err := restoreTriggerJobFromPersistentJob(r.Context(), svc, store, tenantID, id)
+			if err != nil {
+				apiutil.WriteError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			if job == nil || !store.Update(update) {
+				apiutil.WriteError(w, http.StatusNotFound, "job not found")
+				return
+			}
 		}
 
 		// Update bench_jobs for persistence and janitor tracking.
@@ -399,6 +416,107 @@ func handleTriggerProgress(svc *Service, store *TriggerStore) http.HandlerFunc {
 		_ = svc.repos.Jobs.UpdateJobProgress(r.Context(), update.JobID, update.Completed, passed, failed)
 
 		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func restoreTriggerJobFromPersistentJob(ctx context.Context, svc *Service, store *TriggerStore, tenantID, jobID string) (*TriggerJob, error) {
+	if svc == nil || svc.repos.Jobs == nil {
+		return nil, nil
+	}
+	benchJob, err := svc.GetJob(ctx, tenantID, jobID)
+	if err != nil {
+		return nil, err
+	}
+	if benchJob == nil {
+		return nil, nil
+	}
+	job := triggerJobFromBenchJob(benchJob)
+	store.Create(job)
+	return job, nil
+}
+
+func triggerJobFromBenchJob(job *BenchJob) *TriggerJob {
+	var cfg JobConfig
+	if len(job.ConfigJSON) > 0 {
+		_ = json.Unmarshal(job.ConfigJSON, &cfg)
+	}
+
+	total := job.Total
+	if total == 0 && len(cfg.Scenarios) > 0 {
+		total = len(cfg.Scenarios)
+	}
+	executionMode := cfg.ExecutionMode
+	if executionMode == "" {
+		executionMode = ExecutionModeProvider
+	}
+
+	toolServer := job.ToolServer
+	if toolServer == "" {
+		toolServer = cfg.ToolServer
+	}
+	toolServerVersion := job.ToolServerVersion
+	if toolServerVersion == "" {
+		toolServerVersion = cfg.ToolServerVersion
+	}
+	skillID := job.SkillID
+	if skillID == "" {
+		skillID = cfg.SkillID
+	}
+	skillVersion := job.SkillVersion
+	if skillVersion == "" {
+		skillVersion = cfg.SkillVersion
+	}
+
+	return &TriggerJob{
+		ID:                job.ID,
+		Status:            triggerStatusFromBenchJobStatus(job.Status),
+		Model:             job.Model,
+		Provider:          job.Provider,
+		ExecutionMode:     executionMode,
+		MCPServer:         cfg.MCPServer,
+		ToolServer:        toolServer,
+		ToolServerVersion: toolServerVersion,
+		SkillFile:         cfg.SkillFile,
+		SkillID:           skillID,
+		SkillVersion:      skillVersion,
+		SkillSource:       cfg.SkillSource,
+		SkillSHA256:       cfg.SkillSHA256,
+		Total:             total,
+		Completed:         job.Completed,
+		Passed:            job.Passed,
+		Failed:            job.Failed,
+		Progress:          scenarioProgressFromBenchJob(cfg.Scenarios, job.Passed, job.Failed),
+		CreatedAt:         job.CreatedAt,
+	}
+}
+
+func scenarioProgressFromBenchJob(scenarios []string, passed, failed int) []ScenarioProgress {
+	progress := pendingScenarioProgress(scenarios)
+	for i := range progress {
+		switch {
+		case passed > 0:
+			progress[i].Status = "passed"
+			passed--
+		case failed > 0:
+			progress[i].Status = "failed"
+			failed--
+		default:
+			return progress
+		}
+	}
+	return progress
+}
+
+func triggerStatusFromBenchJobStatus(status string) string {
+	switch status {
+	case "", "queued":
+		return "pending"
+	case "claimed", "running":
+		return "running"
+	case "completed", "failed":
+		return status
+	default:
+		return status
 	}
 }
 

@@ -2,6 +2,7 @@ package benchsvc
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/oklog/ulid/v2"
 )
+
+const benchJobSelectColumns = `id, tenant_id, infra_id, model, provider, status, total,
+	completed, passed, failed, tool_server, tool_server_ver, skill_id, skill_version,
+	error_message, config_json, created_at`
 
 // RegisterRunner inserts a new remote runner into bench_infra.
 func (s *PgStore) RegisterRunner(ctx context.Context, tenantID string, req RegisterRunnerRequest) (*Runner, error) {
@@ -150,9 +155,7 @@ func (s *PgStore) EnqueueJob(ctx context.Context, tenantID, model, provider stri
 // If a job has a runner_id pinned in config_json, only that runner can claim it.
 // Returns nil if no job is available.
 func (s *PgStore) ClaimJob(ctx context.Context, tenantID, runnerID string, models []string) (*BenchJob, error) {
-	var job BenchJob
-	var cfgJSON []byte
-	err := s.db.QueryRow(ctx, `
+	row := s.db.QueryRow(ctx, `
 		UPDATE bench_jobs SET
 			status = 'claimed',
 			infra_id = $3,
@@ -167,23 +170,32 @@ func (s *PgStore) ClaimJob(ctx context.Context, tenantID, runnerID string, model
 			FOR UPDATE SKIP LOCKED
 			LIMIT 1
 		)
-		RETURNING id, tenant_id, infra_id, model, provider, status, total,
-		          completed, passed, failed, tool_server, tool_server_ver, skill_id, skill_version,
-		          error_message, config_json, created_at
-	`, tenantID, models, runnerID).Scan(
-		&job.ID, &job.TenantID, &job.InfraID, &job.Model, &job.Provider,
-		&job.Status, &job.Total, &job.Completed, &job.Passed, &job.Failed,
-		&job.ToolServer, &job.ToolServerVersion, &job.SkillID, &job.SkillVersion,
-		&job.ErrorMessage, &cfgJSON, &job.CreatedAt,
-	)
+		RETURNING `+benchJobSelectColumns, tenantID, models, runnerID)
+	job, err := scanBenchJobRow(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil // no job available
 	}
 	if err != nil {
 		return nil, fmt.Errorf("benchsvc.ClaimJob: %w", err)
 	}
-	job.ConfigJSON = cfgJSON
-	return &job, nil
+	return job, nil
+}
+
+// GetJob returns a persisted job by ID, scoped to a tenant.
+func (s *PgStore) GetJob(ctx context.Context, tenantID, jobID string) (*BenchJob, error) {
+	row := s.db.QueryRow(ctx, `
+		SELECT `+benchJobSelectColumns+`
+		FROM bench_jobs
+		WHERE tenant_id = $1 AND id = $2
+	`, tenantID, jobID)
+	job, err := scanBenchJobRow(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("benchsvc.GetJob: %w", err)
+	}
+	return job, nil
 }
 
 // CompleteJob marks a job as completed or failed with final counts.
@@ -275,4 +287,24 @@ func (s *PgStore) FindRunnerForModel(ctx context.Context, tenantID, model string
 		_ = json.Unmarshal(cfgJSON, &r.Config)
 	}
 	return &r, nil
+}
+
+func scanBenchJobRow(row pgx.Row) (*BenchJob, error) {
+	var job BenchJob
+	var cfgJSON []byte
+	var infraID sql.NullString
+	err := row.Scan(
+		&job.ID, &job.TenantID, &infraID, &job.Model, &job.Provider,
+		&job.Status, &job.Total, &job.Completed, &job.Passed, &job.Failed,
+		&job.ToolServer, &job.ToolServerVersion, &job.SkillID, &job.SkillVersion,
+		&job.ErrorMessage, &cfgJSON, &job.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if infraID.Valid {
+		job.InfraID = infraID.String
+	}
+	job.ConfigJSON = cfgJSON
+	return &job, nil
 }

@@ -128,6 +128,94 @@ func TestTriggerStore_UpdateNotifiesSubscriber(t *testing.T) {
 	}
 }
 
+func TestTriggerStore_UpdateDoesNotDoubleCountDuplicateTerminalStatus(t *testing.T) {
+	t.Parallel()
+
+	store := NewTriggerStore()
+	store.Create(&TriggerJob{
+		ID:     "job-duplicate-progress",
+		Status: "pending",
+		Total:  1,
+		Progress: []ScenarioProgress{
+			{Scenario: "cka-05", Status: "pending"},
+		},
+		CreatedAt: time.Now(),
+	})
+
+	update := ProgressUpdate{
+		JobID:     "job-duplicate-progress",
+		Scenario:  "cka-05",
+		Status:    "passed",
+		RunID:     "run-abc",
+		Completed: 1,
+		Total:     1,
+	}
+	if !store.Update(update) {
+		t.Fatal("first update returned false")
+	}
+	if !store.Update(update) {
+		t.Fatal("duplicate update returned false")
+	}
+
+	got := store.Get("job-duplicate-progress")
+	if got == nil {
+		t.Fatal("expected job")
+	}
+	if got.Passed != 1 || got.Failed != 0 || got.Completed != 1 {
+		t.Fatalf("counters = completed:%d passed:%d failed:%d, want 1/1/0", got.Completed, got.Passed, got.Failed)
+	}
+	if len(got.RunIDs) != 1 {
+		t.Fatalf("run IDs = %v, want one unique run ID", got.RunIDs)
+	}
+}
+
+func TestTriggerStore_UpdateReplacesPreviousTerminalStatusForScenario(t *testing.T) {
+	t.Parallel()
+
+	store := NewTriggerStore()
+	store.Create(&TriggerJob{
+		ID:     "job-status-correction",
+		Status: "pending",
+		Total:  1,
+		Progress: []ScenarioProgress{
+			{Scenario: "cka-05", Status: "pending"},
+		},
+		CreatedAt: time.Now(),
+	})
+
+	if !store.Update(ProgressUpdate{
+		JobID:     "job-status-correction",
+		Scenario:  "cka-05",
+		Status:    "failed",
+		RunID:     "run-first",
+		Completed: 1,
+		Total:     1,
+	}) {
+		t.Fatal("failed update returned false")
+	}
+	if !store.Update(ProgressUpdate{
+		JobID:     "job-status-correction",
+		Scenario:  "cka-05",
+		Status:    "passed",
+		RunID:     "run-retry",
+		Completed: 1,
+		Total:     1,
+	}) {
+		t.Fatal("passed update returned false")
+	}
+
+	got := store.Get("job-status-correction")
+	if got == nil {
+		t.Fatal("expected job")
+	}
+	if got.Status != "completed" || got.Passed != 1 || got.Failed != 0 {
+		t.Fatalf("job = status:%q passed:%d failed:%d, want completed 1/0", got.Status, got.Passed, got.Failed)
+	}
+	if got.Progress[0].Status != "passed" || got.Progress[0].RunID != "run-retry" {
+		t.Fatalf("scenario progress = %#v, want passed with latest run ID", got.Progress[0])
+	}
+}
+
 func TestRemoteExecutor_StartSendsToolServerConfig(t *testing.T) {
 	t.Parallel()
 

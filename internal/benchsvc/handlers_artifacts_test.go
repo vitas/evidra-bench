@@ -2,6 +2,7 @@ package benchsvc
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,6 +14,65 @@ import (
 )
 
 // ---------- Artifacts ----------
+
+func TestWriteRawArtifactResponseSetsContentTypeAndBody(t *testing.T) {
+	t.Parallel()
+
+	rec := httptest.NewRecorder()
+
+	writeRawArtifactResponse(rec, []byte("artifact body"), "text/plain")
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "text/plain" {
+		t.Fatalf("Content-Type = %q, want text/plain", ct)
+	}
+	if rec.Body.String() != "artifact body" {
+		t.Fatalf("body = %q, want artifact body", rec.Body.String())
+	}
+}
+
+func TestWriteArtifactReadErrorMapsRepositoryErrors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:       "not found",
+			err:        ErrNotFound,
+			wantStatus: http.StatusNotFound,
+			wantBody:   `{"error":"artifact not found"}`,
+		},
+		{
+			name:       "internal",
+			err:        errors.New("database down"),
+			wantStatus: http.StatusInternalServerError,
+			wantBody:   `{"error":"database down"}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			rec := httptest.NewRecorder()
+
+			writeArtifactReadError(rec, tt.err, "artifact not found")
+
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d", rec.Code, tt.wantStatus)
+			}
+			if body := strings.TrimSpace(rec.Body.String()); body != tt.wantBody {
+				t.Fatalf("body = %q, want %q", body, tt.wantBody)
+			}
+		})
+	}
+}
 
 func TestHandleGetTranscript_ReturnsText(t *testing.T) {
 	t.Parallel()

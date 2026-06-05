@@ -69,6 +69,11 @@ type handlerRepo struct {
 	enqueuedJob      *BenchJob
 	lastEnqueueCfg   JobConfig
 	claimedJob       *BenchJob
+	persistedJob     *BenchJob
+	lastProgressJob  string
+	lastProgressDone int
+	lastProgressPass int
+	lastProgressFail int
 
 	// capture
 	lastTenant       string
@@ -255,6 +260,13 @@ func (r *handlerRepo) TouchRunner(context.Context, string, string) error     { r
 func (r *handlerRepo) ClaimJob(_ context.Context, _ string, _ string, _ []string) (*BenchJob, error) {
 	return r.claimedJob, nil
 }
+func (r *handlerRepo) GetJob(_ context.Context, tenantID, jobID string) (*BenchJob, error) {
+	r.lastTenant = tenantID
+	if r.persistedJob == nil || r.persistedJob.ID != jobID || r.persistedJob.TenantID != tenantID {
+		return nil, nil
+	}
+	return r.persistedJob, nil
+}
 func (r *handlerRepo) CompleteJob(context.Context, string, string, string, string, int, int, string) error {
 	return nil
 }
@@ -267,7 +279,11 @@ func (r *handlerRepo) MarkUnhealthyRunners(_ context.Context, _ time.Duration) (
 func (r *handlerRepo) ResetStaleJobs(_ context.Context, _ time.Duration) (int, error) {
 	return 0, nil
 }
-func (r *handlerRepo) UpdateJobProgress(_ context.Context, _ string, _, _, _ int) error {
+func (r *handlerRepo) UpdateJobProgress(_ context.Context, jobID string, completed, passed, failed int) error {
+	r.lastProgressJob = jobID
+	r.lastProgressDone = completed
+	r.lastProgressPass = passed
+	r.lastProgressFail = failed
 	return nil
 }
 func (r *handlerRepo) EnqueueJob(_ context.Context, _ string, _ string, _ string, cfg JobConfig) (*BenchJob, error) {

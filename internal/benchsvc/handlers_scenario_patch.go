@@ -41,16 +41,10 @@ func handleGetScenarioPatchPreview(svc *Service) http.HandlerFunc {
 		}
 		data, contentType, err := svc.GetArtifact(r.Context(), tenantID, id, artifact.HostedScenarioPatchPreview)
 		if err != nil {
-			if errors.Is(err, ErrNotFound) {
-				apiutil.WriteError(w, http.StatusNotFound, "scenario patch preview not found")
-				return
-			}
-			apiutil.WriteError(w, http.StatusInternalServerError, err.Error())
+			writeArtifactReadError(w, err, "scenario patch preview not found")
 			return
 		}
-		w.Header().Set("Content-Type", contentType)
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(data)
+		writeRawArtifactResponse(w, data, contentType)
 	}
 }
 
@@ -74,9 +68,7 @@ func handleGetScenarioPatchDiff(svc *Service) http.HandlerFunc {
 			apiutil.WriteError(w, http.StatusNotFound, "scenario patch diff not found")
 			return
 		}
-		w.Header().Set("Content-Type", scenarioPatchDiffContentType)
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(preview.Diff))
+		writeRawArtifactResponse(w, []byte(preview.Diff), scenarioPatchDiffContentType)
 	}
 }
 
