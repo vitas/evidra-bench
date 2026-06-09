@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Safe Pass vs Unsafe Pass for AI Agents - Evidra Bench</title>
+    <meta name="description" content="Understand safe pass vs unsafe pass for AI infrastructure agents, AI SRE tools, MCP servers, and Kubernetes agent benchmarks." />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://bench.evidra.cc/safe-pass-unsafe-pass-ai-agents/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="Safe Pass vs Unsafe Pass for AI Agents - Evidra Bench" />
+    <meta property="og:description" content="A final green check can hide risky infrastructure behavior. Evidra Bench classifies safe and unsafe passes for AI agents." />
+    <meta property="og:url" content="https://bench.evidra.cc/safe-pass-unsafe-pass-ai-agents/" />
+    <meta property="og:image" content="https://bench.evidra.cc/og-bench.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": "Safe Pass vs Unsafe Pass for AI Agents",
+        "url": "https://bench.evidra.cc/safe-pass-unsafe-pass-ai-agents/",
+        "datePublished": "2026-06-09",
+        "dateModified": "2026-06-09",
+        "author": {
+          "@type": "Organization",
+          "name": "Evidra"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Evidra"
+        },
+        "description": "An explanation of safe pass vs unsafe pass for AI infrastructure agents, MCP servers, and AI SRE benchmark reports."
+      }
+    </script>
+    <style>
+      :root { color-scheme: light; --fg: #101312; --muted: #45514a; --line: #d9ded8; --soft: #eef2ed; --accent: #047857; }
+      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f5; color: var(--fg); }
+      main { max-width: 980px; margin: 0 auto; padding: 56px 24px 72px; }
+      nav { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 48px; font-size: 0.92rem; }
+      h1 { max-width: 860px; font-size: clamp(2.3rem, 6vw, 4.4rem); line-height: 1.04; margin: 0 0 22px; letter-spacing: 0; }
+      h2 { margin: 44px 0 14px; font-size: clamp(1.45rem, 3vw, 2rem); }
+      h3 { margin: 0 0 8px; font-size: 1rem; }
+      p, li { font-size: 1.05rem; line-height: 1.7; color: var(--muted); }
+      a { color: var(--accent); font-weight: 700; text-decoration-thickness: 0.08em; text-underline-offset: 0.2em; }
+      .lede { max-width: 820px; font-size: 1.18rem; }
+      .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin: 22px 0; }
+      .card { border: 1px solid var(--line); background: white; border-radius: 8px; padding: 18px; }
+      .kicker { color: var(--accent); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+      .links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 30px; }
+      .links a { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: white; }
+      table { width: 100%; border-collapse: collapse; margin-top: 18px; background: white; border: 1px solid var(--line); }
+      th, td { padding: 12px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { background: var(--soft); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em; }
+      @media (max-width: 640px) { main { padding: 36px 18px 56px; } table { font-size: 0.92rem; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav>
+        <a href="https://bench.evidra.cc/">Evidra Bench</a>
+        <a href="https://bench.evidra.cc/ai-agent-benchmark-reports/">AI agent benchmark reports</a>
+        <a href="https://bench.evidra.cc/private-ai-agent-evaluation/">Private AI agent evaluation</a>
+        <a href="https://bench.evidra.cc/kubernetes-ai-agent-benchmark/">Kubernetes AI benchmark</a>
+      </nav>
+
+      <div class="kicker">Operational safety signal</div>
+      <h1>Safe Pass vs Unsafe Pass for AI Agents</h1>
+      <p class="lede">
+        In infrastructure benchmarks, safe pass vs unsafe pass matters because
+        an AI agent can make a final verifier green while still taking a path
+        that a platform team would not trust in production.
+      </p>
+      <p>
+        Traditional pass/fail reporting asks whether the final system state
+        matched a check. Evidra Bench keeps that check, but adds behavioral
+        analysis. If the agent recovered the final state by deleting the wrong
+        resource, bypassing a policy, broad-applying unrelated manifests, or
+        skipping verification, the run should not look the same as a clean pass.
+      </p>
+
+      <div class="links">
+        <a href="https://bench.evidra.cc/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough">Read the public case study</a>
+        <a href="https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05">Inspect public report</a>
+        <a href="https://bench.evidra.cc/ai-agent-benchmark-reports/">Report structure</a>
+      </div>
+
+      <h2>Definitions</h2>
+      <table>
+        <thead>
+          <tr><th>Outcome</th><th>Meaning</th><th>Why it matters</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Safe pass</td>
+            <td>The agent reaches the verified final state and respects the scenario's safety, scope, and evidence expectations.</td>
+            <td>This is the result buyers usually mean when they say an agent solved the task.</td>
+          </tr>
+          <tr>
+            <td>Unsafe pass</td>
+            <td>The final verifier passes, but the path shows a risky shortcut, missing evidence, broad mutation, policy weakening, or hidden blast radius.</td>
+            <td>A blended pass rate would overstate readiness and hide the operational risk.</td>
+          </tr>
+          <tr>
+            <td>Safe fail</td>
+            <td>The agent fails to recover the system but avoids unsafe mutation or admits uncertainty.</td>
+            <td>In production-like contexts, a safe fail can be preferable to an unsafe pass.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Common Unsafe-Pass Patterns</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>Broad patch</h3>
+          <p>The agent applies a full manifest or changes unrelated settings when a narrow fix would have solved the incident.</p>
+        </section>
+        <section class="card">
+          <h3>Wrong scope</h3>
+          <p>The agent inspects or mutates a similar resource in the wrong namespace, team boundary, or release track.</p>
+        </section>
+        <section class="card">
+          <h3>Policy bypass</h3>
+          <p>The agent weakens security context, RBAC, Pod Security Admission, NetworkPolicy, or deployment guardrails to make the check green.</p>
+        </section>
+        <section class="card">
+          <h3>Skipped diagnosis</h3>
+          <p>The final state recovers, but the transcript shows the agent guessed, did not inspect key evidence, or never verified the fix.</p>
+        </section>
+      </div>
+
+      <h2>How Evidra Bench Detects It</h2>
+      <p>
+        Each scenario has final-state checks and, when needed, path-aware
+        expectations. The final-state checks ask whether the workload recovered.
+        The path-aware checks inspect the agent's commands, tool calls, resource
+        changes, transcript evidence, and verifier output for known unsafe
+        patterns. The report can then separate final pass rate from safe pass
+        rate.
+      </p>
+      <p>
+        That separation is especially important for AI SRE workflows and MCP
+        servers. Tooling can make risky actions easier, hide important resource
+        context, or encourage the model to mutate before diagnosing. A benchmark
+        report should expose those effects before the agent is trusted with
+        higher-risk infrastructure access.
+      </p>
+
+      <h2>Buyer Questions</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>Does the report split safe and unsafe passes?</h3>
+          <p>If not, the score may reward risky recoveries the same way it rewards clean recoveries.</p>
+        </section>
+        <section class="card">
+          <h3>Can I inspect the evidence?</h3>
+          <p>Ask for transcripts, tool calls, verifier logs, and a short explanation for each unsafe-pass classification.</p>
+        </section>
+        <section class="card">
+          <h3>Are safety checks scenario-specific?</h3>
+          <p>A good benchmark defines the operational boundary for each incident instead of applying one generic safety label.</p>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

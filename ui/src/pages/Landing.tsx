@@ -114,6 +114,33 @@ const ARTICLE_CARDS = [
   },
 ];
 
+const SEO_GUIDES = [
+  {
+    label: "Buyer guide",
+    title: "AI Agent Benchmark Reports",
+    desc: "How to read buyer-ready reports with outcome, safety, cost, artifacts, and failure-mode evidence.",
+    href: "/ai-agent-benchmark-reports/",
+  },
+  {
+    label: "Private evaluation",
+    title: "Private AI Agent Evaluation",
+    desc: "A practical structure for confidential model, MCP server, skill, and vendor readiness reports.",
+    href: "/private-ai-agent-evaluation/",
+  },
+  {
+    label: "Safety concept",
+    title: "Safe Pass vs Unsafe Pass",
+    desc: "Why a green final state is not enough when an AI agent mutates real infrastructure.",
+    href: "/safe-pass-unsafe-pass-ai-agents/",
+  },
+  {
+    label: "MCP guide",
+    title: "Kubernetes MCP Server Benchmark",
+    desc: "How to compare Kubernetes MCP servers against direct tool baselines on live cluster scenarios.",
+    href: "/kubernetes-mcp-server-benchmark/",
+  },
+];
+
 const BENCH_ENGAGEMENTS = [
   "Private agent and MCP evaluation reports",
   "Sponsored public benchmark runs",
@@ -387,6 +414,40 @@ export function Landing() {
             </Link>
           ))}
         </div>
+
+        <div className="mt-8">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-[0.9rem] font-bold uppercase tracking-wider text-fg-muted">
+              Buyer guides
+            </h3>
+            <a
+              href="/ai-agent-benchmark-reports/"
+              className="text-[0.74rem] font-semibold text-accent hover:text-accent-bright"
+            >
+              Browse SEO guides
+            </a>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {SEO_GUIDES.map((guide) => (
+              <a
+                key={guide.href}
+                href={guide.href}
+                className="group rounded-lg border border-border bg-bg-alt/70 p-5 transition-all hover:border-accent/40"
+              >
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <span className="rounded border border-accent/25 bg-accent/10 px-2 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wider text-accent">
+                    {guide.label}
+                  </span>
+                  <ArrowIcon className="h-4 w-4 shrink-0 text-accent transition-transform group-hover:translate-x-0.5" />
+                </div>
+                <h3 className="text-[0.98rem] font-bold leading-snug text-fg transition-colors group-hover:text-accent">
+                  {guide.title}
+                </h3>
+                <p className="mt-2 text-[0.8rem] leading-relaxed text-fg-muted">{guide.desc}</p>
+              </a>
+            ))}
+          </div>
+        </div>
       </section>
 
       <section className="relative mx-auto max-w-6xl px-6 py-14">
@@ -552,6 +613,10 @@ export function Landing() {
             <a href={LANDING_ARTICLES_ANCHOR} className="transition-colors hover:text-accent">Articles</a>
             <Link to={BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH} className="transition-colors hover:text-accent">Methodology</Link>
             <Link to={BENCH_ARTICLE_PASS_FAIL_PATH} className="transition-colors hover:text-accent">Case study</Link>
+            <a href="/ai-agent-benchmark-reports/" className="transition-colors hover:text-accent">Benchmark reports</a>
+            <a href="/private-ai-agent-evaluation/" className="transition-colors hover:text-accent">Private evaluation</a>
+            <a href="/safe-pass-unsafe-pass-ai-agents/" className="transition-colors hover:text-accent">Safe pass</a>
+            <a href="/kubernetes-mcp-server-benchmark/" className="transition-colors hover:text-accent">Kubernetes MCP</a>
             <Link to={BENCH_SCENARIOS_PATH} className="transition-colors hover:text-accent">Scenarios</Link>
             <Link to={BENCH_LEADERBOARD_PATH} className="transition-colors hover:text-accent">Leaderboards</Link>
             <a href="https://github.com/vitas/evidra-bench" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-accent">

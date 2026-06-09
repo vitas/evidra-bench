@@ -130,6 +130,10 @@ require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/open-infras
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/kubernetes-ai-agent-benchmark/</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/mcp-server-benchmark/</loc>"
 require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/ai-sre-regression-testing/</loc>"
+require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/ai-agent-benchmark-reports/</loc>"
+require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/private-ai-agent-evaluation/</loc>"
+require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/safe-pass-unsafe-pass-ai-agents/</loc>"
+require_contains ui/public/sitemap.xml "<loc>https://bench.evidra.cc/kubernetes-mcp-server-benchmark/</loc>"
 if grep -Eq '<loc>https://bench\.evidra\.cc/bench/(leaderboard|dashboard|skill-impact|regressions|insights|reviews|session|runs|scenarios|compare|mcp-readiness|benchmarks|sample-report)(/|</loc>)' ui/public/sitemap.xml; then
   echo "FAIL: sitemap should not include SPA app routes with root canonical" >&2
   exit 1
@@ -147,6 +151,30 @@ do
   require_contains "$page" "Evidra Bench"
   require_contains "$page" "application/ld+json"
 done
+
+for page in \
+  ui/public/ai-agent-benchmark-reports/index.html \
+  ui/public/private-ai-agent-evaluation/index.html \
+  ui/public/safe-pass-unsafe-pass-ai-agents/index.html \
+  ui/public/kubernetes-mcp-server-benchmark/index.html
+do
+  require_file "$page"
+  require_contains "$page" "<link rel=\"canonical\""
+  require_contains "$page" "<meta name=\"description\""
+  require_contains "$page" "<meta property=\"og:title\""
+  require_contains "$page" "<meta name=\"robots\" content=\"index,follow\""
+  require_contains "$page" "Evidra Bench"
+  require_contains "$page" "application/ld+json"
+done
+
+require_contains ui/public/ai-agent-benchmark-reports/index.html "buyer-ready AI agent benchmark reports"
+require_contains ui/public/private-ai-agent-evaluation/index.html "Private AI agent evaluation reports"
+require_contains ui/public/safe-pass-unsafe-pass-ai-agents/index.html "safe pass vs unsafe pass"
+require_contains ui/public/kubernetes-mcp-server-benchmark/index.html "Kubernetes MCP server benchmark"
+require_contains ui/index.html "/ai-agent-benchmark-reports/"
+require_contains ui/index.html "/private-ai-agent-evaluation/"
+require_contains ui/index.html "/safe-pass-unsafe-pass-ai-agents/"
+require_contains ui/index.html "/kubernetes-mcp-server-benchmark/"
 
 require_file ui/public/open-infrastructure-agent-benchmarks/index.html
 require_contains ui/public/open-infrastructure-agent-benchmarks/index.html "Evidra Bench"

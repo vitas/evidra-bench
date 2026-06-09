@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kubernetes MCP Server Benchmark - Evidra Bench</title>
+    <meta name="description" content="Kubernetes MCP server benchmark reports comparing MCP-backed AI agents against direct baselines on live Kubernetes infrastructure scenarios." />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://bench.evidra.cc/kubernetes-mcp-server-benchmark/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Kubernetes MCP Server Benchmark - Evidra Bench" />
+    <meta property="og:description" content="Compare Kubernetes MCP servers on live cluster tasks with pass rate, unsafe-pass analysis, cost, and tool-call evidence." />
+    <meta property="og:url" content="https://bench.evidra.cc/kubernetes-mcp-server-benchmark/" />
+    <meta property="og:image" content="https://bench.evidra.cc/og-bench.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "Kubernetes MCP Server Benchmark",
+        "url": "https://bench.evidra.cc/kubernetes-mcp-server-benchmark/",
+        "description": "Evidra Bench compares Kubernetes MCP servers against direct baselines on live cluster scenarios with outcome, cost, tool-call, and unsafe-pass evidence.",
+        "isPartOf": {
+          "@type": "WebSite",
+          "name": "Evidra Bench",
+          "url": "https://bench.evidra.cc/"
+        },
+        "about": [
+          "Kubernetes MCP server benchmark",
+          "MCP server evaluation",
+          "Kubernetes AI agent benchmark",
+          "AI SRE tool testing"
+        ]
+      }
+    </script>
+    <style>
+      :root { color-scheme: light; --fg: #101312; --muted: #45514a; --line: #d9ded8; --soft: #eef2ed; --accent: #047857; }
+      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f5; color: var(--fg); }
+      main { max-width: 980px; margin: 0 auto; padding: 56px 24px 72px; }
+      nav { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 48px; font-size: 0.92rem; }
+      h1 { max-width: 860px; font-size: clamp(2.3rem, 6vw, 4.4rem); line-height: 1.04; margin: 0 0 22px; letter-spacing: 0; }
+      h2 { margin: 44px 0 14px; font-size: clamp(1.45rem, 3vw, 2rem); }
+      h3 { margin: 0 0 8px; font-size: 1rem; }
+      p, li { font-size: 1.05rem; line-height: 1.7; color: var(--muted); }
+      a { color: var(--accent); font-weight: 700; text-decoration-thickness: 0.08em; text-underline-offset: 0.2em; }
+      .lede { max-width: 820px; font-size: 1.18rem; }
+      .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin: 22px 0; }
+      .card { border: 1px solid var(--line); background: white; border-radius: 8px; padding: 18px; }
+      .kicker { color: var(--accent); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+      .links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 30px; }
+      .links a { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: white; }
+      table { width: 100%; border-collapse: collapse; margin-top: 18px; background: white; border: 1px solid var(--line); }
+      th, td { padding: 12px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { background: var(--soft); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em; }
+      @media (max-width: 640px) { main { padding: 36px 18px 56px; } table { font-size: 0.92rem; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav>
+        <a href="https://bench.evidra.cc/">Evidra Bench</a>
+        <a href="https://bench.evidra.cc/mcp-server-benchmark/">MCP server benchmark</a>
+        <a href="https://bench.evidra.cc/kubernetes-ai-agent-benchmark/">Kubernetes AI benchmark</a>
+        <a href="https://bench.evidra.cc/ai-agent-benchmark-reports/">Benchmark reports</a>
+      </nav>
+
+      <div class="kicker">Live cluster comparison for MCP tooling</div>
+      <h1>Kubernetes MCP Server Benchmark</h1>
+      <p class="lede">
+        A Kubernetes MCP server benchmark compares MCP-backed AI agents against
+        direct baselines on live Kubernetes scenarios, then reports pass rate,
+        unsafe passes, cost, tool-call behavior, and failure-mode evidence.
+      </p>
+      <p>
+        Kubernetes MCP servers are not interchangeable. One server may expose
+        better discovery, another may encourage broad mutation, and another may
+        reduce turns while hiding details that the model needs for diagnosis.
+        Evidra Bench measures those effects by running the same model and
+        scenario slice with and without the candidate MCP server.
+      </p>
+
+      <div class="links">
+        <a href="https://bench.evidra.cc/bench/reports/kubernetes-mcp-readiness-2026-05">Public Kubernetes MCP readiness report</a>
+        <a href="https://bench.evidra.cc/mcp-server-benchmark/">General MCP benchmark guide</a>
+        <a href="mailto:bench@evidra.cc?subject=Kubernetes%20MCP%20Server%20Benchmark">Request MCP benchmark</a>
+      </div>
+
+      <h2>What Gets Compared</h2>
+      <table>
+        <thead>
+          <tr><th>Axis</th><th>Direct baseline</th><th>MCP candidate</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Tool access</td>
+            <td>Bench-owned direct Kubernetes tools with fixed behavior.</td>
+            <td>The selected Kubernetes MCP server and its schemas, prompts, affordances, and runtime behavior.</td>
+          </tr>
+          <tr>
+            <td>Scenario slice</td>
+            <td>Same Kubernetes workload, networking, security, and judgment scenarios.</td>
+            <td>Same model, same scenario list, same cluster conditions, and same time budget.</td>
+          </tr>
+          <tr>
+            <td>Evaluation</td>
+            <td>Final-state checks, path-aware checks, artifacts, cost, and failure autopsy.</td>
+            <td>The same checks, plus comparison against the baseline result and behavior profile.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Signals A Kubernetes MCP Benchmark Should Show</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>Resource discovery</h3>
+          <p>Did the server help the agent find pods, events, endpoints, logs, owners, policies, and related resources?</p>
+        </section>
+        <section class="card">
+          <h3>Mutation control</h3>
+          <p>Did the tool surface make narrow, auditable changes easier than broad patches or destructive shortcuts?</p>
+        </section>
+        <section class="card">
+          <h3>Verification</h3>
+          <p>Did the agent re-check rollout, endpoints, policies, and workload behavior after changing the cluster?</p>
+        </section>
+        <section class="card">
+          <h3>Efficiency</h3>
+          <p>Did the MCP server reduce turns, token use, and retries, or did it add verbosity without improving outcomes?</p>
+        </section>
+      </div>
+
+      <h2>Why Kubernetes Is A Hard MCP Test</h2>
+      <p>
+        Kubernetes incidents are stateful and multi-object. A failed deployment
+        may involve a ConfigMap, probe, Service, NetworkPolicy, image pull,
+        quota, or rollout condition. The correct answer is often not visible
+        from the resource named in the user prompt. That makes Kubernetes a
+        useful stress test for MCP server design: the server has to expose
+        enough context for diagnosis without giving the model an unsafe shortcut
+        to mutate everything.
+      </p>
+      <p>
+        A strong Kubernetes MCP server should help the model inspect first,
+        scope carefully, apply a minimal change, and verify the result. The
+        benchmark report should make those behaviors visible.
+      </p>
+
+      <h2>Related Pages</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>MCP server benchmark</h3>
+          <p><a href="https://bench.evidra.cc/mcp-server-benchmark/">Read the general MCP server benchmark guide</a> for broader tool-server comparison criteria.</p>
+        </section>
+        <section class="card">
+          <h3>Safe vs unsafe passes</h3>
+          <p><a href="https://bench.evidra.cc/safe-pass-unsafe-pass-ai-agents/">Understand why final pass rate alone is not enough</a> for infrastructure agents.</p>
+        </section>
+        <section class="card">
+          <h3>Private evaluation</h3>
+          <p><a href="https://bench.evidra.cc/private-ai-agent-evaluation/">Commission a private Kubernetes MCP server evaluation</a> before a release or vendor decision.</p>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

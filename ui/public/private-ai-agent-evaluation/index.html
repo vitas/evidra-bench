@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Private AI Agent Evaluation - Evidra Bench</title>
+    <meta name="description" content="Private AI agent evaluation reports for infrastructure agents, MCP servers, AI SRE workflows, vendor comparisons, and model release gates." />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://bench.evidra.cc/private-ai-agent-evaluation/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Private AI Agent Evaluation - Evidra Bench" />
+    <meta property="og:description" content="Confidential infrastructure-agent benchmark reports for model, MCP server, vendor, and AI SRE release decisions." />
+    <meta property="og:url" content="https://bench.evidra.cc/private-ai-agent-evaluation/" />
+    <meta property="og:image" content="https://bench.evidra.cc/og-bench.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Service",
+        "name": "Private AI Agent Evaluation",
+        "url": "https://bench.evidra.cc/private-ai-agent-evaluation/",
+        "description": "Evidra Bench runs private infrastructure-agent evaluations for AI SRE agents, MCP servers, model upgrades, skills, and vendor comparisons.",
+        "provider": {
+          "@type": "Organization",
+          "name": "Evidra",
+          "url": "https://evidra.cc/"
+        },
+        "serviceType": "AI infrastructure agent benchmark report",
+        "areaServed": "Global",
+        "audience": {
+          "@type": "Audience",
+          "audienceType": "Platform engineering, SRE, AI infrastructure, procurement"
+        }
+      }
+    </script>
+    <style>
+      :root { color-scheme: light; --fg: #101312; --muted: #45514a; --line: #d9ded8; --soft: #eef2ed; --accent: #047857; }
+      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f5; color: var(--fg); }
+      main { max-width: 980px; margin: 0 auto; padding: 56px 24px 72px; }
+      nav { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 48px; font-size: 0.92rem; }
+      h1 { max-width: 860px; font-size: clamp(2.3rem, 6vw, 4.4rem); line-height: 1.04; margin: 0 0 22px; letter-spacing: 0; }
+      h2 { margin: 44px 0 14px; font-size: clamp(1.45rem, 3vw, 2rem); }
+      h3 { margin: 0 0 8px; font-size: 1rem; }
+      p, li { font-size: 1.05rem; line-height: 1.7; color: var(--muted); }
+      a { color: var(--accent); font-weight: 700; text-decoration-thickness: 0.08em; text-underline-offset: 0.2em; }
+      .lede { max-width: 820px; font-size: 1.18rem; }
+      .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin: 22px 0; }
+      .card { border: 1px solid var(--line); background: white; border-radius: 8px; padding: 18px; }
+      .kicker { color: var(--accent); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+      .links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 30px; }
+      .links a { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: white; }
+      table { width: 100%; border-collapse: collapse; margin-top: 18px; background: white; border: 1px solid var(--line); }
+      th, td { padding: 12px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { background: var(--soft); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em; }
+      @media (max-width: 640px) { main { padding: 36px 18px 56px; } table { font-size: 0.92rem; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav>
+        <a href="https://bench.evidra.cc/">Evidra Bench</a>
+        <a href="https://bench.evidra.cc/ai-agent-benchmark-reports/">AI agent benchmark reports</a>
+        <a href="https://bench.evidra.cc/ai-sre-regression-testing/">AI SRE regression testing</a>
+        <a href="https://bench.evidra.cc/mcp-server-benchmark/">MCP server benchmark</a>
+      </nav>
+
+      <div class="kicker">Confidential readiness reports</div>
+      <h1>Private AI Agent Evaluation</h1>
+      <p class="lede">
+        Private AI agent evaluation reports help platform, SRE, and AI
+        infrastructure teams compare agents, MCP servers, model upgrades,
+        operational skills, and vendors before they reach production workflows.
+      </p>
+      <p>
+        Public benchmarks are useful proof points, but many real decisions
+        depend on private context: internal incident patterns, restricted
+        infrastructure controls, custom tools, vendor claims, and rollout risk.
+        Evidra Bench can run a fixed scenario slice confidentially and deliver a
+        report that separates final outcome from operational behavior.
+      </p>
+
+      <div class="links">
+        <a href="mailto:bench@evidra.cc?subject=Private%20AI%20Agent%20Evaluation">Request private evaluation</a>
+        <a href="https://bench.evidra.cc/bench/sample-report">View sample report</a>
+        <a href="https://bench.evidra.cc/ai-agent-benchmark-reports/">Report structure</a>
+      </div>
+
+      <h2>Evaluation Targets</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>AI SRE agents</h3>
+          <p>Test whether an agent can diagnose, scope, mutate, and verify real infrastructure incidents under controlled conditions.</p>
+        </section>
+        <section class="card">
+          <h3>MCP servers</h3>
+          <p>Compare a candidate MCP server against a direct baseline with the same model, scenarios, and time budget.</p>
+        </section>
+        <section class="card">
+          <h3>Model upgrades</h3>
+          <p>Measure whether a new model route improves recovery without introducing unsafe passes or cost regressions.</p>
+        </section>
+        <section class="card">
+          <h3>Vendor claims</h3>
+          <p>Ask for external evidence instead of relying only on demo scripts, screenshots, or isolated success stories.</p>
+        </section>
+      </div>
+
+      <h2>Private Report Workflow</h2>
+      <table>
+        <thead>
+          <tr><th>Phase</th><th>What happens</th><th>Output</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Scope</td>
+            <td>Choose scenario tracks, agent interfaces, MCP servers, model versions, safety boundaries, and reporting constraints.</td>
+            <td>Evaluation plan and scenario slice.</td>
+          </tr>
+          <tr>
+            <td>Run</td>
+            <td>Execute live benchmark scenarios with deterministic setup, failure injection, agent execution, artifact capture, and final verification.</td>
+            <td>Run artifacts, transcripts, tool calls, metrics, and verifier output.</td>
+          </tr>
+          <tr>
+            <td>Analyze</td>
+            <td>Classify final outcome, unsafe passes, failure modes, cost, loops, skipped diagnosis, and verification gaps.</td>
+            <td>Private readiness report with concrete findings.</td>
+          </tr>
+          <tr>
+            <td>Decide</td>
+            <td>Map findings to rollout, procurement, release, or remediation decisions.</td>
+            <td>Ship, hold, restrict, retest, or require vendor fixes.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>What Stays Confidential</h2>
+      <p>
+        A private evaluation can keep customer infrastructure names, transcripts,
+        tool payloads, proprietary prompts, incident patterns, and vendor notes
+        out of public pages. The public method still matters: the evaluator
+        should explain the scenario slice, scoring rules, verifier standards,
+        and unsafe-pass taxonomy well enough for the customer to trust the
+        report without exposing sensitive material.
+      </p>
+      <p>
+        If a customer later wants a public proof point, Evidra Bench can publish
+        a sponsored public report with sanitized data and clear labeling. The
+        sponsor should not control scoring or findings.
+      </p>
+
+      <h2>Good First Evaluation Slice</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>Kubernetes workload</h3>
+          <p>Broken rollout, bad probe, image issue, or CrashLoop task with runtime evidence and final recovery checks.</p>
+        </section>
+        <section class="card">
+          <h3>Networking</h3>
+          <p>Service selector, DNS, NetworkPolicy, ingress, or endpoint task where the named object may not be the root cause.</p>
+        </section>
+        <section class="card">
+          <h3>Safety and judgment</h3>
+          <p>False alarm, urgency pressure, wrong namespace similarity, RBAC boundary, or broad-patch trap.</p>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>
