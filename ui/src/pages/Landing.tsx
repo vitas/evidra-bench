@@ -2,6 +2,20 @@ import { Link } from "react-router";
 import { useTheme } from "../hooks/useTheme";
 import { SCENARIOS } from "../data/catalog";
 import { EXAM_PACKS, countExamPackMatches } from "../lib/examPacks.mts";
+import {
+  ARTICLE_CARDS,
+  BENCH_ENGAGEMENTS,
+  BENCH_PRIVATE_REQUEST_MAILTO,
+  BENCH_SPONSOR_REQUEST_MAILTO,
+  ENTERPRISE_AUDIENCES,
+  FAILURE_MODES,
+  HERO_CONTENT,
+  HERO_EVIDENCE_BULLETS,
+  LANDING_OFFERS,
+  PRODUCT_FEATURES,
+  SEO_GUIDES,
+  type LandingCta,
+} from "../lib/landingContent.mts";
 import { LANDING_PUBLIC_REPORTS } from "../lib/publicReports.mts";
 import {
   BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH,
@@ -16,137 +30,6 @@ import {
 } from "../lib/routes.mts";
 
 const EXAM_PACK_COUNTS = countExamPackMatches(SCENARIOS);
-const BENCH_PRIVATE_REQUEST_MAILTO =
-  "mailto:bench@evidra.cc?subject=Private%20Agent%20Benchmark%20Request";
-const BENCH_SPONSOR_REQUEST_MAILTO =
-  "mailto:bench@evidra.cc?subject=Sponsored%20Public%20Benchmark%20Run";
-
-const PROOF_CHIPS = [
-  "Live scenarios",
-  "Failure-mode breakdowns",
-  "Unsafe-pass autopsy",
-  "MCP/server comparisons",
-  "Artifacts and transcripts",
-];
-
-const FAILURE_MODES = [
-  {
-    title: "Wrong namespace",
-    desc: "Catches fixes that land in the wrong Kubernetes scope or inspect only the happy-path object.",
-    signal: "Scope control",
-  },
-  {
-    title: "Broad patch",
-    desc: "Flags recovery that changes more configuration than the incident required.",
-    signal: "Blast radius",
-  },
-  {
-    title: "Unsafe shortcut",
-    desc: "Separates final-state passes from agents that delete, bypass, or mask the underlying problem.",
-    signal: "Safety",
-  },
-  {
-    title: "Config drift",
-    desc: "Tests whether the agent preserves shared resources and avoids breaking adjacent workloads.",
-    signal: "Regression risk",
-  },
-  {
-    title: "Dependency removal",
-    desc: "Detects fixes that make the current check green by removing the dependency being tested.",
-    signal: "Root cause",
-  },
-];
-
-const PRODUCT_FEATURES = [
-  {
-    title: "Scenario packs",
-    desc: "Curated Kubernetes, MCP, GitOps, Terraform, security, and cloud-ops exams with fixed inputs.",
-  },
-  {
-    title: "Verifier contracts",
-    desc: "Each scenario defines the expected final state plus stricter mutation checks for unsafe passes.",
-  },
-  {
-    title: "Failure autopsy",
-    desc: "Reports explain which failure mode fired, not just whether the agent ended green.",
-  },
-  {
-    title: "Public and private reports",
-    desc: "Publish shareable benchmark pages or run confidential vendor and procurement evaluations.",
-  },
-  {
-    title: "Artifacts and transcripts",
-    desc: "Keep the commands, model turns, patches, final state, and verifier output attached to the result.",
-  },
-  {
-    title: "Regression tracking",
-    desc: "Rerun the same scenario packs across model, MCP server, prompt, and toolchain releases.",
-  },
-];
-
-const USE_CASES = [
-  {
-    title: "AI SRE teams",
-    desc: "Prove that an agent diagnoses, patches, and verifies production-like incidents before it touches real clusters.",
-  },
-  {
-    title: "MCP builders",
-    desc: "Show which server capabilities help agents act safely, and where tool access creates unsafe shortcuts.",
-  },
-  {
-    title: "Platform buyers",
-    desc: "Compare vendors with a public methodology, per-failure-mode breakdowns, and reproducible evidence.",
-  },
-];
-
-const ARTICLE_CARDS = [
-  {
-    label: "Methodology",
-    title: "What AI SRE Benchmarks Should Catch Before Production",
-    desc: "Why buyer-grade AI SRE benchmarks need scenario-based evaluation, per-failure-mode scoring, and public methodology.",
-    to: BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH,
-  },
-  {
-    label: "Case study",
-    title: "Kubernetes MCP Servers Passed. That Was Not Enough.",
-    desc: "A public report where aggregate pass/fail hid the real signal: some agents recovered final state through unsafe passes.",
-    to: BENCH_ARTICLE_PASS_FAIL_PATH,
-  },
-];
-
-const SEO_GUIDES = [
-  {
-    label: "Buyer guide",
-    title: "AI Agent Benchmark Reports",
-    desc: "How to read buyer-ready reports with outcome, safety, cost, artifacts, and failure-mode evidence.",
-    href: "/ai-agent-benchmark-reports/",
-  },
-  {
-    label: "Private evaluation",
-    title: "Private AI Agent Evaluation",
-    desc: "A practical structure for confidential model, MCP server, skill, and vendor readiness reports.",
-    href: "/private-ai-agent-evaluation/",
-  },
-  {
-    label: "Safety concept",
-    title: "Safe Pass vs Unsafe Pass",
-    desc: "Why a green final state is not enough when an AI agent mutates real infrastructure.",
-    href: "/safe-pass-unsafe-pass-ai-agents/",
-  },
-  {
-    label: "MCP guide",
-    title: "Kubernetes MCP Server Benchmark",
-    desc: "How to compare Kubernetes MCP servers against direct tool baselines on live cluster scenarios.",
-    href: "/kubernetes-mcp-server-benchmark/",
-  },
-];
-
-const BENCH_ENGAGEMENTS = [
-  "Private agent and MCP evaluation reports",
-  "Sponsored public benchmark runs",
-  "Custom live scenario packs",
-  "Monthly release regression reports",
-];
 
 function ArrowIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
@@ -161,6 +44,41 @@ function CheckIcon() {
     <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4}>
       <path d="m5 12 4 4L19 6" />
     </svg>
+  );
+}
+
+const CTA_CLASS_NAMES: Record<LandingCta["kind"], string> = {
+  primary:
+    "bg-accent text-white hover:bg-accent-bright hover:text-white hover:shadow-[0_0_28px_rgba(14,165,233,0.24)]",
+  secondary:
+    "border border-accent/35 bg-accent/10 text-accent hover:border-accent/60 hover:text-accent-bright",
+  tertiary:
+    "border border-border text-fg-body hover:border-accent/50 hover:text-fg",
+  quiet:
+    "border border-border text-fg-muted hover:border-accent/50 hover:text-fg",
+};
+
+function CtaLink({ cta }: { cta: LandingCta }) {
+  const className = `inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-[0.86rem] font-semibold transition-all md:px-5 md:py-3 md:text-[0.88rem] ${CTA_CLASS_NAMES[cta.kind]}`;
+  const content = (
+    <>
+      {cta.label}
+      {cta.kind === "primary" ? <ArrowIcon /> : null}
+    </>
+  );
+
+  if (cta.href.startsWith("/")) {
+    return (
+      <Link to={cta.href} className={className}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <a href={cta.href} className={className}>
+      {content}
+    </a>
   );
 }
 
@@ -211,9 +129,15 @@ export function Landing() {
           Evidra Bench
         </Link>
         <div className="flex items-center gap-2">
+          <a
+            href={BENCH_PRIVATE_REQUEST_MAILTO}
+            className="inline-flex rounded-md bg-accent px-3 py-2 text-[0.76rem] font-bold text-white transition-colors hover:bg-accent-bright hover:text-white"
+          >
+            Book evaluation
+          </a>
           <Link
             to={BENCH_ONLINE_PATH}
-            className="hidden rounded-md bg-accent px-3 py-2 text-[0.76rem] font-bold text-white transition-colors hover:bg-accent-bright hover:text-white sm:inline-flex"
+            className="hidden rounded-md px-3 py-2 text-[0.76rem] font-semibold text-fg-muted hover:text-accent md:inline-flex"
           >
             Online Bench
           </Link>
@@ -255,7 +179,7 @@ export function Landing() {
         <div className="grid gap-10 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
           <div>
             <div className="mb-5 flex flex-wrap gap-2 md:mb-7">
-              {PROOF_CHIPS.map((chip) => (
+              {HERO_CONTENT.proofChips.map((chip) => (
                 <span
                   key={chip}
                   className="rounded-md border border-border bg-bg-elevated/70 px-3 py-1.5 text-[0.72rem] font-semibold text-fg-body"
@@ -266,41 +190,17 @@ export function Landing() {
             </div>
 
             <h1 className="max-w-4xl text-[2.15rem] font-extrabold leading-[1.08] tracking-tight text-fg md:text-[3.45rem] lg:text-[3.75rem]">
-              AI SRE benchmarks that show what agents actually do
+              {HERO_CONTENT.title}
             </h1>
 
             <p className="mt-6 max-w-2xl text-[1rem] leading-relaxed text-fg-muted md:text-[1.08rem]">
-              Evidra Bench runs live infrastructure scenarios for AI agents, MCP servers,
-              and AI SRE tools, then shows pass/fail, unsafe passes, failure modes,
-              artifacts, and reproducible evidence.
+              {HERO_CONTENT.body}
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link
-                to={BENCH_ONLINE_PATH}
-                className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-[0.86rem] font-semibold text-white transition-all hover:bg-accent-bright hover:text-white hover:shadow-[0_0_28px_rgba(14,165,233,0.24)] md:px-5 md:py-3 md:text-[0.88rem]"
-              >
-                Open online bench
-                <ArrowIcon />
-              </Link>
-              <a
-                href="#public-reports"
-                className="inline-flex items-center gap-2 rounded-lg border border-accent/35 bg-accent/10 px-4 py-2.5 text-[0.86rem] font-semibold text-accent transition-all hover:border-accent/60 hover:text-accent-bright md:px-5 md:py-3 md:text-[0.88rem]"
-              >
-                View public reports
-              </a>
-              <Link
-                to={BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH}
-                className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-[0.86rem] font-semibold text-fg-body transition-all hover:border-accent/50 hover:text-fg md:px-5 md:py-3 md:text-[0.88rem]"
-              >
-                Read methodology
-              </Link>
-              <a
-                href={BENCH_PRIVATE_REQUEST_MAILTO}
-                className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-[0.86rem] font-semibold text-fg-body transition-all hover:border-accent/50 hover:text-fg md:px-5 md:py-3 md:text-[0.88rem]"
-              >
-                Request benchmark
-              </a>
+              {HERO_CONTENT.ctas.map((cta) => (
+                <CtaLink key={cta.label} cta={cta} />
+              ))}
             </div>
           </div>
 
@@ -308,14 +208,14 @@ export function Landing() {
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-accent">
-                  Product evidence
+                  Deployment evidence
                 </p>
                 <h2 className="mt-2 text-[1.25rem] font-extrabold leading-tight text-fg">
-                  Reports designed for platform teams and procurement
+                  Reports designed for enterprise rollout decisions
                 </h2>
               </div>
               <span className="rounded-md bg-accent-tint px-2.5 py-1 text-[0.66rem] font-bold uppercase tracking-wider text-accent">
-                Open source
+                Private first
               </span>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -329,11 +229,7 @@ export function Landing() {
               ))}
             </div>
             <div className="mt-5 space-y-3">
-              {[
-                "Per-failure-mode breakdowns instead of a single blended score.",
-                "Unsafe-pass autopsy for agents that recover final state the wrong way.",
-                "Scenario artifacts that make report claims inspectable and reproducible.",
-              ].map((item) => (
+              {HERO_EVIDENCE_BULLETS.map((item) => (
                 <div key={item} className="flex items-start gap-3 text-[0.84rem] leading-relaxed text-fg-body">
                   <span className="mt-0.5 text-accent">
                     <CheckIcon />
@@ -346,11 +242,83 @@ export function Landing() {
         </div>
       </section>
 
+      <section id="private-evaluation" className="relative mx-auto max-w-6xl px-6 py-10 md:py-14">
+        <div className="grid items-start gap-8 border-y border-border py-10 lg:grid-cols-[0.92fr_1.08fr]">
+          <div>
+            <span className="mb-5 inline-flex rounded border border-accent/25 bg-accent/10 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-wider text-accent">
+              Enterprise deployment evidence
+            </span>
+            <h2 className="max-w-2xl text-[1.9rem] font-extrabold leading-tight text-fg md:text-[2.35rem]">
+              Evaluate agents before enterprise rollout
+            </h2>
+            <p className="mt-4 max-w-2xl text-[0.95rem] leading-relaxed text-fg-muted">
+              Run a confidential evaluation for an agent implementation, vendor
+              shortlist, model upgrade, or MCP toolchain. The output is a
+              buyer-ready report with scenarios, safety findings, artifacts, and
+              rollout risks.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <a
+                href={BENCH_PRIVATE_REQUEST_MAILTO}
+                className="inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-[0.84rem] font-semibold text-white transition-all hover:bg-accent-bright hover:text-white"
+              >
+                Book private evaluation
+                <ArrowIcon />
+              </a>
+              <Link
+                to={BENCH_SAMPLE_REPORT_PATH}
+                className="inline-flex items-center gap-2 rounded-lg border border-accent/35 bg-accent/10 px-5 py-2.5 text-[0.84rem] font-semibold text-accent transition-all hover:border-accent/60 hover:text-accent-bright"
+              >
+                View sample report
+              </Link>
+              <a
+                href={BENCH_SPONSOR_REQUEST_MAILTO}
+                className="inline-flex items-center gap-2 rounded-lg border border-border px-5 py-2.5 text-[0.84rem] font-semibold text-fg-body transition-all hover:border-accent/50 hover:text-fg"
+              >
+                Sponsor public proof
+              </a>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {LANDING_OFFERS.map((offer) => (
+              <div key={offer.title} className="glass-card p-5">
+                <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg bg-accent-tint text-accent">
+                  <CheckIcon />
+                </div>
+                <h3 className="text-[1rem] font-bold text-fg">{offer.title}</h3>
+                <p className="mt-2 text-[0.82rem] leading-relaxed text-fg-muted">{offer.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-lg border border-border bg-bg-alt/70 p-5 lg:col-span-2">
+            <h3 className="mb-4 text-[0.82rem] font-semibold uppercase tracking-wider text-fg-muted">
+              Available engagements
+            </h3>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+              {BENCH_ENGAGEMENTS.map((item) => (
+                <div key={item} className="flex items-start gap-3 text-[0.85rem] text-fg-body">
+                  <span className="mt-0.5 text-accent">
+                    <CheckIcon />
+                  </span>
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-5 max-w-3xl text-[0.78rem] leading-relaxed text-fg-muted">
+              Private reports stay confidential. Sponsored reports are labeled,
+              and sponsors do not control scoring or findings.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section id="public-reports" className="relative mx-auto max-w-6xl px-6 py-10 md:py-14">
         <SectionHeader
           eyebrow="Public proof"
-          title="Reports and articles are the product surface"
-          body="Buyers should not have to trust a vendor claim. Start with public runs, then inspect the methodology and the evidence behind each failure mode."
+          title="Public reports prove the method"
+          body="Buyers should not have to trust a vendor claim. Public runs show the methodology, while private evaluations apply the same scoring and artifact standards to customer decisions."
         />
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -473,8 +441,8 @@ export function Landing() {
       <section className="relative mx-auto max-w-6xl px-6 py-14">
         <SectionHeader
           eyebrow="Feature set"
-          title="Built for live AI SRE and MCP evaluation"
-          body="Evidra Bench combines scenario authoring, deterministic verification, public reporting, and regression views so benchmark results are inspectable."
+          title="Built for private AI SRE and MCP evaluation"
+          body="Evidra Bench combines scenario authoring, deterministic verification, public reporting, and regression views so enterprise benchmark claims are inspectable."
         />
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -531,76 +499,18 @@ export function Landing() {
 
       <section className="relative mx-auto max-w-6xl px-6 py-14">
         <SectionHeader
-          eyebrow="Users"
-          title="Who this is for"
-          body="The same benchmark surface works for builders who need regression signal and buyers who need comparable external evidence."
+          eyebrow="Enterprise buyers"
+          title="Who buys this evaluation"
+          body="The strongest use case is not a generic open-source score. It is independent rollout evidence for teams implementing AI agents in enterprise environments."
         />
 
         <div className="grid gap-4 md:grid-cols-3">
-          {USE_CASES.map((useCase) => (
-            <div key={useCase.title} className="rounded-lg border border-border bg-bg-elevated/70 p-5">
-              <h3 className="text-[1rem] font-bold text-fg">{useCase.title}</h3>
-              <p className="mt-2 text-[0.84rem] leading-relaxed text-fg-muted">{useCase.desc}</p>
+          {ENTERPRISE_AUDIENCES.map((audience) => (
+            <div key={audience.title} className="rounded-lg border border-border bg-bg-elevated/70 p-5">
+              <h3 className="text-[1rem] font-bold text-fg">{audience.title}</h3>
+              <p className="mt-2 text-[0.84rem] leading-relaxed text-fg-muted">{audience.desc}</p>
             </div>
           ))}
-        </div>
-      </section>
-
-      <section className="relative mx-auto max-w-6xl px-6 py-16">
-        <div className="grid items-start gap-8 border-y border-border py-10 lg:grid-cols-[1.05fr_0.95fr]">
-          <div>
-            <span className="mb-5 inline-flex rounded border border-accent/25 bg-accent/10 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-wider text-accent">
-              Independent live evaluation
-            </span>
-            <h2 className="max-w-2xl text-[1.9rem] font-extrabold leading-tight text-fg md:text-[2.35rem]">
-              Commission a benchmark that buyers can inspect
-            </h2>
-            <p className="mt-4 max-w-2xl text-[0.95rem] leading-relaxed text-fg-muted">
-              Run a private evaluation for internal decision-making, or sponsor a
-              clearly labeled public report with the same scoring and artifact standards.
-            </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <a
-                href={BENCH_PRIVATE_REQUEST_MAILTO}
-                className="inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-[0.84rem] font-semibold text-white transition-all hover:bg-accent-bright hover:text-white"
-              >
-                Request a private benchmark
-                <ArrowIcon />
-              </a>
-              <a
-                href={BENCH_SPONSOR_REQUEST_MAILTO}
-                className="inline-flex items-center gap-2 rounded-lg border border-border px-5 py-2.5 text-[0.84rem] font-semibold text-fg-body transition-all hover:border-accent/50 hover:text-fg"
-              >
-                Sponsor a public run
-              </a>
-              <Link
-                to={BENCH_SAMPLE_REPORT_PATH}
-                className="inline-flex items-center gap-2 rounded-lg border border-border px-5 py-2.5 text-[0.84rem] font-semibold text-fg-body transition-all hover:border-accent/50 hover:text-fg"
-              >
-                View sample report
-              </Link>
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-border bg-bg-alt/70 p-5">
-            <h3 className="mb-4 text-[0.82rem] font-semibold uppercase tracking-wider text-fg-muted">
-              Available engagements
-            </h3>
-            <ul className="space-y-3">
-              {BENCH_ENGAGEMENTS.map((item) => (
-                <li key={item} className="flex items-start gap-3 text-[0.85rem] text-fg-body">
-                  <span className="mt-0.5 text-accent">
-                    <CheckIcon />
-                  </span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-5 text-[0.78rem] leading-relaxed text-fg-muted">
-              Private reports stay confidential. Sponsored reports are labeled, and
-              sponsors do not control scoring or findings.
-            </p>
-          </div>
         </div>
       </section>
 

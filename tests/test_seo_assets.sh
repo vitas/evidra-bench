@@ -76,7 +76,7 @@ require_nginx_location_contains() {
 }
 
 require_file ui/index.html
-require_contains ui/index.html "<title>Evidra Bench - AI SRE Agent Benchmark Reports</title>"
+require_contains ui/index.html "<title>Enterprise AI Agent Evaluation - Evidra Bench</title>"
 require_contains ui/index.html "<link rel=\"canonical\" href=\"https://bench.evidra.cc/\""
 require_contains ui/index.html "<meta name=\"msvalidate.01\" content=\"A234E0924D11FE0B9479E58891ACC420\""
 require_contains ui/index.html "<meta property=\"og:title\""

@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Evidra Bench - AI SRE Agent Benchmark Reports</title>
-    <meta name="description" content="Evidra Bench runs live AI SRE and infrastructure-agent benchmarks with public reports, failure-mode breakdowns, unsafe-pass autopsy, artifacts, and reproducible evidence." />
+    <title>Enterprise AI Agent Evaluation - Evidra Bench</title>
+    <meta name="description" content="Evidra Bench runs private AI agent deployment readiness evaluations with live infrastructure scenarios, safety findings, artifacts, and private evaluation reports for enterprise rollout decisions." />
     <meta name="robots" content="index,follow" />
     <meta name="msvalidate.01" content="A234E0924D11FE0B9479E58891ACC420" />
     <link rel="canonical" href="https://bench.evidra.cc/" />
@@ -14,16 +14,16 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Evidra Bench" />
     <meta property="og:url" content="https://bench.evidra.cc/" />
-    <meta property="og:title" content="Evidra Bench - AI SRE Agent Benchmark Reports" />
-    <meta property="og:description" content="Live AI SRE and infrastructure-agent benchmarks with public reports, failure-mode breakdowns, unsafe-pass autopsy, and reproducible evidence." />
+    <meta property="og:title" content="Enterprise AI Agent Evaluation - Evidra Bench" />
+    <meta property="og:description" content="Private AI agent deployment readiness evaluations with live infrastructure scenarios, safety findings, artifacts, and rollout-risk evidence." />
     <meta property="og:image" content="https://bench.evidra.cc/og-bench.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Evidra Bench live infrastructure benchmark report preview" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Evidra Bench - AI SRE Agent Benchmark Reports" />
-    <meta name="twitter:description" content="Run live AI SRE and infrastructure-agent benchmarks with public reports, failure-mode breakdowns, and reproducible evidence." />
+    <meta name="twitter:title" content="Enterprise AI Agent Evaluation - Evidra Bench" />
+    <meta name="twitter:description" content="Run private AI agent deployment readiness evaluations with live infrastructure scenarios, safety findings, and rollout evidence." />
     <meta name="twitter:image" content="https://bench.evidra.cc/og-bench.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -31,47 +31,73 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "Evidra Bench",
-        "alternateName": [
-          "Evidra infrastructure agent benchmark",
-          "Evidra Bench infrastructure benchmark",
-          "AI infrastructure agent benchmark",
-          "AI SRE benchmarks"
-        ],
-        "applicationCategory": "DeveloperApplication",
-        "operatingSystem": "Web, Linux, macOS",
-        "url": "https://bench.evidra.cc/",
-        "description": "Evidra Bench is an AI infrastructure agent benchmark and regression testing system for Kubernetes, GitOps, Terraform, cloud-ops, MCP servers, skills, and AI SRE tools, with public reports, failure-mode breakdowns, unsafe-pass autopsy, artifacts, and reproducible evidence.",
-        "creator": {
-          "@type": "Organization",
-          "name": "Evidra",
-          "url": "https://evidra.cc/"
-        },
-        "sameAs": [
-          "https://github.com/vitas/evidra-bench",
-          "https://dev.to/vitas/your-ai-agent-fixes-kubernetes-can-you-prove-it-4ibm",
-          "https://www.reddit.com/r/devopsGuru/comments/1ry6iqw/i_tested_9_ai_models_on_36_real_kubernetes/"
-        ],
-        "offers": {
-          "@type": "Offer",
-          "category": "Private benchmark reports"
-        }
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://bench.evidra.cc/#organization",
+            "name": "Evidra",
+            "url": "https://evidra.cc/"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://bench.evidra.cc/#software",
+            "name": "Evidra Bench",
+            "alternateName": [
+              "Evidra infrastructure agent benchmark",
+              "Evidra Bench infrastructure benchmark",
+              "AI infrastructure agent benchmark",
+              "AI SRE benchmarks"
+            ],
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "Web, Linux, macOS",
+            "url": "https://bench.evidra.cc/",
+            "description": "Evidra Bench is an AI infrastructure agent benchmark and regression testing system for Kubernetes, GitOps, Terraform, cloud-ops, MCP servers, skills, and AI SRE tools, with public reports, failure-mode breakdowns, unsafe-pass autopsy, artifacts, and reproducible evidence.",
+            "creator": {
+              "@id": "https://bench.evidra.cc/#organization"
+            },
+            "sameAs": [
+              "https://github.com/vitas/evidra-bench",
+              "https://dev.to/vitas/your-ai-agent-fixes-kubernetes-can-you-prove-it-4ibm",
+              "https://www.reddit.com/r/devopsGuru/comments/1ry6iqw/i_tested_9_ai_models_on_36_real_kubernetes/"
+            ]
+          },
+          {
+            "@type": "Service",
+            "@id": "https://bench.evidra.cc/#private-ai-agent-evaluation",
+            "name": "Private AI Agent Evaluation",
+            "url": "https://bench.evidra.cc/private-ai-agent-evaluation/",
+            "description": "Private AI agent deployment readiness evaluations for enterprise rollout decisions, vendor comparisons, MCP toolchains, model upgrades, and AI SRE release gates.",
+            "provider": {
+              "@id": "https://bench.evidra.cc/#organization"
+            },
+            "serviceType": "AI agent deployment readiness evaluation",
+            "areaServed": "Global",
+            "audience": {
+              "@type": "Audience",
+              "audienceType": "Enterprise AI implementation teams, systems integrators, platform engineering, SRE, procurement, and risk leaders"
+            },
+            "offers": {
+              "@type": "Offer",
+              "category": "Private evaluation reports"
+            }
+          }
+        ]
       }
     </script>
   </head>
   <body>
     <noscript>
       <main style="max-width: 760px; margin: 48px auto; padding: 0 24px; font-family: system-ui, sans-serif; line-height: 1.6;">
-        <h1>Evidra Bench - AI SRE agent benchmark reports</h1>
+        <h1>Evidra Bench - enterprise AI agent evaluation</h1>
         <p>
-          Evidra Bench runs live AI SRE and infrastructure-agent benchmarks for
-          AI agents, MCP servers, skills, and AI SRE tools.
+          Evidra Bench runs private AI agent deployment readiness evaluations for
+          AI agents, MCP servers, skills, and AI SRE tools before enterprise rollout.
         </p>
         <p>
-          Use Evidra Bench for public reports, failure-mode breakdowns,
-          unsafe-pass autopsy, MCP server benchmark reports, AI SRE regression
-          testing, Kubernetes AI agent benchmark suites, and private readiness reports.
+          Use Evidra Bench for private evaluation reports, public reports,
+          failure-mode breakdowns, unsafe-pass autopsy, MCP server benchmark reports,
+          AI SRE regression testing, Kubernetes AI agent benchmark suites, and
+          private readiness reports.
         </p>
         <p>
           <a href="/ai-agent-benchmark-reports/">AI agent benchmark reports</a> |
