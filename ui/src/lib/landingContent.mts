@@ -1,13 +1,39 @@
 import {
   BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH,
-  BENCH_ONLINE_PATH,
-  BENCH_SAMPLE_REPORT_PATH,
+  benchToolServerMatrixReportPagePath,
 } from "./routes.mts";
 
 export const BENCH_PRIVATE_REQUEST_MAILTO =
   "mailto:bench@evidra.cc?subject=Private%20Agent%20Benchmark%20Request";
 export const BENCH_SPONSOR_REQUEST_MAILTO =
   "mailto:bench@evidra.cc?subject=Sponsored%20Public%20Benchmark%20Run";
+
+const FEATURED_REPORT_ID = "kubernetes-mcp-readiness-2026-05-public";
+
+export const FEATURED_REPORT_SPOTLIGHT = {
+  reportId: FEATURED_REPORT_ID,
+  label: "Live benchmark coverage",
+  title: "Enterprise-scale scenario coverage, with inspectable public reports",
+  summary:
+    "The service is not a three-use-case demo. The live benchmark corpus covers 83 scenarios, and the broad leaderboard slices already include models tested across 40+ scenarios.",
+  to: benchToolServerMatrixReportPagePath(FEATURED_REPORT_ID, {
+    model: "claude-sonnet-4-6",
+    scenarios:
+      "broken-deployment,service-port-mismatch,network-policy-fix,networkpolicy-blocking,false-alarm,delete-prod-namespace,urgency-vs-safety,safe-rollback-vs-broad-patch,shared-configmap-trap,cross-namespace-secret-access",
+    tool_servers: "flux159-mcp-server-kubernetes,containers-kubernetes-mcp-server",
+    tool_server_versions: "npm:mcp-server-kubernetes@3.5.1,npm:kubernetes-mcp-server@0.0.62",
+  }),
+  metrics: [
+    ["Scenario catalog", "83"],
+    ["Broadest leaderboard slice", "62 scenarios"],
+    ["Largest public report", "34 runs / 10 scenarios"],
+  ],
+  strengths: [
+    "Leaderboard coverage includes multiple models tested across 40+ live infrastructure scenarios.",
+    "The public MCP report is the inspectable example: 34 runs, 10 scenarios, baseline plus two MCP candidates.",
+    "Private evaluations can use larger customer-specific scenario slices when the buyer needs 40+ scenario evidence.",
+  ],
+};
 
 export type LandingCta = {
   href: string;
@@ -17,15 +43,13 @@ export type LandingCta = {
 
 export const HERO_CONTENT = {
   proofChips: [
-    "Private readiness reports",
-    "Live failure scenarios",
-    "Tool traces and transcripts",
+    "Private rollout evidence",
+    "Live infrastructure scenarios",
     "Unsafe-pass autopsy",
-    "Vendor/model comparisons",
   ],
   title: "Independent evaluations for enterprise AI agents before production",
   body:
-    "Evidra Bench runs AI agents through live infrastructure incidents before production, captures the tool path, transcripts, artifacts, and safety findings, then delivers rollout evidence for buyers and implementation teams.",
+    "Run an agent, model route, or MCP toolchain through controlled infrastructure incidents before production or a customer rollout. The report shows what changed, where it was safe, and where it was only green on paper.",
   ctas: [
     {
       href: BENCH_PRIVATE_REQUEST_MAILTO,
@@ -33,19 +57,14 @@ export const HERO_CONTENT = {
       label: "Book private evaluation",
     },
     {
-      href: BENCH_SAMPLE_REPORT_PATH,
+      href: FEATURED_REPORT_SPOTLIGHT.to,
       kind: "secondary",
-      label: "View sample report",
+      label: "View real report",
     },
     {
       href: BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH,
       kind: "tertiary",
       label: "Read methodology",
-    },
-    {
-      href: BENCH_ONLINE_PATH,
-      kind: "quiet",
-      label: "Open online bench",
     },
   ] satisfies LandingCta[],
 };
@@ -58,20 +77,16 @@ export const HERO_EVIDENCE_BULLETS = [
 
 export const LANDING_OFFERS = [
   {
-    title: "Agent Deployment Readiness Report",
-    desc: "A private rollout-risk report for one agent, model route, or toolchain before it touches enterprise infrastructure.",
+    title: "Private rollout-risk report",
+    desc: "Evaluate one agent implementation or model route before an enterprise rollout decision.",
   },
   {
-    title: "Vendor Selection Benchmark",
-    desc: "Compare agent vendors, MCP servers, models, or implementation approaches against the same live scenario slice.",
+    title: "Vendor shortlist benchmark",
+    desc: "Compare vendors, MCP servers, or implementation approaches on the same live scenario slice.",
   },
   {
-    title: "Release Regression Gate",
-    desc: "Rerun fixed agent scenarios before model, prompt, MCP, or tool upgrades create a production regression.",
-  },
-  {
-    title: "Custom Incident Scenario Pack",
-    desc: "Convert sanitized customer incidents into private scenarios with deterministic setup, break, and verifier steps.",
+    title: "Release regression check",
+    desc: "Rerun fixed scenarios before model, prompt, MCP, or tool upgrades create a production regression.",
   },
 ];
 
