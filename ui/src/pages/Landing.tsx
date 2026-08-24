@@ -2,50 +2,91 @@ import { Link } from "react-router";
 import { useTheme } from "../hooks/useTheme";
 import {
   BENCH_PRIVATE_REQUEST_MAILTO,
-  BENCH_SPONSOR_REQUEST_MAILTO,
-  ENTERPRISE_AUDIENCES,
-  FEATURED_REPORT_SPOTLIGHT,
+  BENCHMARK_DIFFERENCES,
   HERO_CONTENT,
-  LANDING_OFFERS,
+  HERO_PROOF_POINTS,
+  PATH_COMPARISON,
+  WORKFLOW_STEPS,
   type LandingCta,
 } from "../lib/landingContent.mts";
-import { LANDING_PUBLIC_REPORTS } from "../lib/publicReports.mts";
 import {
   BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH,
   BENCH_LEADERBOARD_PATH,
   BENCH_ONLINE_PATH,
+  BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH,
   BENCH_SCENARIOS_PATH,
 } from "../lib/routes.mts";
 
+const FOCUS_RING =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg";
+
 function ArrowIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}>
+    <svg
+      aria-hidden="true"
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+    >
       <path d="M5 12h14M12 5l7 7-7 7" />
     </svg>
   );
 }
 
-function CheckIcon() {
+function CheckIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
-    <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.3}>
+    <svg
+      aria-hidden="true"
+      className={`${className} shrink-0`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.3}
+    >
       <path d="m5 12 4 4L19 6" />
+    </svg>
+  );
+}
+
+function WarningIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={`${className} shrink-0`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.1}
+    >
+      <path d="M12 3 2.8 20h18.4L12 3Z" />
+      <path d="M12 9v5M12 17.5v.5" />
+    </svg>
+  );
+}
+
+function GitHubIcon() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
     </svg>
   );
 }
 
 const CTA_CLASS_NAMES: Record<LandingCta["kind"], string> = {
   primary: "bg-accent text-white hover:bg-accent-bright hover:text-white",
-  secondary: "border border-accent/35 bg-accent/10 text-accent hover:border-accent/60 hover:text-accent-bright",
-  tertiary: "border border-border text-fg-body hover:border-accent/50 hover:text-fg",
-  quiet: "border border-border text-fg-muted hover:border-accent/50 hover:text-fg",
+  secondary:
+    "border border-accent/35 bg-accent-tint text-accent hover:border-accent/60 hover:text-accent-bright",
+  quiet: "border border-border bg-bg-elevated text-fg-body hover:border-accent/50 hover:text-accent",
 };
 
 function CtaLink({ cta }: { cta: LandingCta }) {
-  const className = `inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-[0.86rem] font-semibold transition-colors ${CTA_CLASS_NAMES[cta.kind]}`;
+  const className = `inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-5 py-3 text-base font-semibold transition-colors ${FOCUS_RING} ${CTA_CLASS_NAMES[cta.kind]}`;
   const content = (
     <>
       {cta.label}
-      {cta.kind === "primary" ? <ArrowIcon /> : null}
+      <ArrowIcon />
     </>
   );
 
@@ -64,296 +105,288 @@ function CtaLink({ cta }: { cta: LandingCta }) {
   );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function PathComparisonPanel() {
   return (
-    <span className="mb-4 inline-flex text-[0.68rem] font-semibold uppercase tracking-wider text-accent">
-      {children}
-    </span>
-  );
-}
-
-function ReportSpotlight({ compact = false }: { compact?: boolean }) {
-  return (
-    <aside className="rounded-xl border border-border bg-bg-elevated p-5 md:p-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded border border-border bg-bg-alt px-2 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wider text-fg-muted">
-          {FEATURED_REPORT_SPOTLIGHT.label}
-        </span>
-        <span className="rounded bg-warning-tint px-2 py-0.5 text-[0.62rem] font-semibold text-warning">
-          40+ scenario slices
-        </span>
+    <aside
+      aria-label="Safe and unsafe pass comparison"
+      className="overflow-hidden rounded-2xl border border-border bg-bg-elevated shadow-[var(--shadow-card-lg)]"
+    >
+      <div className="border-b border-border px-5 py-5 sm:px-6">
+        <p className="text-sm font-semibold uppercase tracking-[0.08em] text-fg-muted">
+          Final-state pass
+        </p>
+        <h2 className="mt-2 text-xl font-semibold leading-tight text-fg sm:text-2xl">
+          {PATH_COMPARISON.title}
+        </h2>
       </div>
 
-      <h2 className={`${compact ? "mt-4 text-[1.2rem]" : "mt-5 text-[1.35rem]"} font-extrabold leading-tight text-fg`}>
-        {FEATURED_REPORT_SPOTLIGHT.title}
-      </h2>
-      <p className="mt-3 text-[0.9rem] leading-relaxed text-fg-muted">
-        {FEATURED_REPORT_SPOTLIGHT.summary}
-      </p>
-
-      <dl className="mt-5 divide-y divide-border rounded-lg border border-border bg-bg-alt/50">
-        {FEATURED_REPORT_SPOTLIGHT.metrics.map(([label, value]) => (
-          <div key={label} className="flex items-center justify-between gap-4 px-4 py-3">
-            <dt className="text-[0.78rem] font-medium text-fg-muted">{label}</dt>
-            <dd className="font-mono text-[0.9rem] font-bold text-fg">{value}</dd>
+      <dl className="divide-y divide-border-subtle md:hidden">
+        {PATH_COMPARISON.rows.map((row) => (
+          <div key={row.label} className="px-5 py-4">
+            <dt className="text-sm font-semibold text-fg-body">{row.label}</dt>
+            <dd className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-lg border border-success/25 bg-success-tint p-3">
+                <span className="flex items-center gap-2 text-sm font-semibold text-success">
+                  <CheckIcon /> Agent A
+                </span>
+                <strong className="mt-2 block text-sm font-semibold text-fg">{row.safe}</strong>
+              </div>
+              <div className="rounded-lg border border-warning/25 bg-warning-tint p-3">
+                <span className="flex items-center gap-2 text-sm font-semibold text-warning">
+                  <WarningIcon /> Agent B
+                </span>
+                <strong className="mt-2 block text-sm font-semibold text-fg">{row.unsafe}</strong>
+              </div>
+            </dd>
           </div>
         ))}
       </dl>
 
-      <div className="mt-5 space-y-3">
-        {FEATURED_REPORT_SPOTLIGHT.strengths.map((item) => (
-          <div key={item} className="flex gap-3 text-[0.84rem] leading-relaxed text-fg-body">
-            <span className="mt-0.5 text-accent">
-              <CheckIcon />
-            </span>
-            <span>{item}</span>
-          </div>
-        ))}
+      <div className="hidden md:block">
+        <table className="w-full border-collapse text-left">
+          <thead>
+            <tr className="border-b border-border text-sm">
+              <th className="px-6 py-4 font-medium text-fg-muted">Check</th>
+              <th className="bg-success-tint px-4 py-4 font-semibold text-success">
+                <span className="inline-flex items-center gap-2">
+                  <CheckIcon /> Agent A
+                </span>
+              </th>
+              <th className="bg-warning-tint px-4 py-4 font-semibold text-warning">
+                <span className="inline-flex items-center gap-2">
+                  <WarningIcon /> Agent B
+                </span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {PATH_COMPARISON.rows.map((row) => (
+              <tr key={row.label} className="border-b border-border-subtle last:border-0">
+                <th className="px-6 py-4 text-sm font-medium text-fg-body">{row.label}</th>
+                <td className="bg-success-tint/45 px-4 py-4 text-sm font-semibold text-fg">
+                  {row.safe}
+                </td>
+                <td className="bg-warning-tint/45 px-4 py-4 text-sm font-semibold text-fg">
+                  {row.unsafe}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <Link
-        to={FEATURED_REPORT_SPOTLIGHT.to}
-        className="mt-6 inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2.5 text-[0.84rem] font-semibold text-white transition-colors hover:bg-accent-bright hover:text-white"
+        to={BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH}
+        className="flex items-center justify-between gap-3 border-t border-border px-5 py-4 text-sm font-semibold text-accent transition-colors hover:text-accent-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent sm:px-6"
       >
-        Open public report
+        Inspect the evidence behind the verdict
         <ArrowIcon />
       </Link>
     </aside>
   );
 }
 
+function ThemeToggle({ theme, toggle }: { theme: "light" | "dark"; toggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg border border-border bg-bg-elevated text-base text-fg-muted transition-colors hover:border-accent hover:text-accent ${FOCUS_RING}`}
+      aria-label="Toggle theme"
+    >
+      {theme === "dark" ? "\u2600" : "\u263E"}
+    </button>
+  );
+}
+
 export function Landing() {
   const { theme, toggle } = useTheme();
-  const primaryReport = LANDING_PUBLIC_REPORTS[0];
 
   return (
     <div className="min-h-screen bg-bg text-fg">
-      <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
-        <Link to="/" className="text-[0.84rem] font-extrabold tracking-tight text-fg hover:text-accent">
-          Evidra Bench
-        </Link>
-        <div className="flex items-center gap-2">
-          <a
-            href={BENCH_PRIVATE_REQUEST_MAILTO}
-            className="inline-flex rounded-md bg-accent px-3 py-2 text-[0.76rem] font-bold text-white transition-colors hover:bg-accent-bright hover:text-white"
-          >
-            Book evaluation
-          </a>
+      <header className="sticky top-0 z-50 border-b border-border-subtle bg-bg/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <Link
-            to={FEATURED_REPORT_SPOTLIGHT.to}
-            className="hidden rounded-md px-3 py-2 text-[0.76rem] font-semibold text-fg-muted hover:text-accent sm:inline-flex"
+            to="/"
+            className={`shrink-0 text-base font-bold tracking-tight text-fg transition-colors hover:text-accent ${FOCUS_RING}`}
           >
-            Real report
+            Evidra Bench
           </Link>
-          <a
-            href="https://github.com/vitas/evidra-bench"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden h-8 w-8 items-center justify-center rounded-md border border-border text-fg-muted transition-colors hover:border-accent hover:text-accent sm:flex"
-            aria-label="GitHub"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-            </svg>
-          </a>
-          <button
-            onClick={toggle}
-            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-border text-fg-muted transition-colors hover:border-accent hover:text-accent"
-            style={{ background: "none", fontSize: "0.9rem" }}
-            aria-label="Toggle theme"
-          >
-            {theme === "dark" ? "\u2600" : "\u263E"}
-          </button>
-        </div>
-      </header>
 
-      <main>
-        <section className="mx-auto grid max-w-6xl gap-10 px-6 pb-12 pt-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start lg:pb-16 lg:pt-14">
-          <div>
-            <div className="mb-6 flex flex-wrap gap-2">
-              {HERO_CONTENT.proofChips.map((chip) => (
-                <span
-                  key={chip}
-                  className="rounded border border-border bg-bg-elevated px-2.5 py-1 text-[0.68rem] font-semibold text-fg-muted"
-                >
-                  {chip}
-                </span>
-              ))}
-            </div>
-
-            <h1 className="max-w-4xl text-[2.15rem] font-extrabold leading-[1.08] tracking-tight text-fg md:text-[3.25rem] lg:text-[3.55rem]">
-              {HERO_CONTENT.title}
-            </h1>
-
-            <p className="mt-6 max-w-2xl text-[1rem] leading-relaxed text-fg-muted md:text-[1.06rem]">
-              {HERO_CONTENT.body}
-            </p>
-
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              {HERO_CONTENT.ctas.map((cta) => (
-                <CtaLink key={cta.label} cta={cta} />
-              ))}
-            </div>
-
-            <p className="mt-6 max-w-xl text-[0.82rem] leading-relaxed text-fg-muted">
-              Built for teams selling, buying, or implementing AI agents in infrastructure-heavy enterprise environments.
-            </p>
-          </div>
-
-          <ReportSpotlight />
-        </section>
-
-        <section id="private-evaluation" className="mx-auto max-w-6xl px-6 py-10">
-          <div className="grid gap-8 border-y border-border py-10 lg:grid-cols-[0.86fr_1.14fr]">
-            <div>
-              <SectionLabel>Private evaluation</SectionLabel>
-              <h2 className="max-w-2xl text-[1.75rem] font-extrabold leading-tight text-fg md:text-[2.15rem]">
-                A buyer-ready report, not another benchmark wall.
-              </h2>
-              <p className="mt-4 max-w-xl text-[0.95rem] leading-relaxed text-fg-muted">
-                The useful output is a short decision document: what was tested, what passed safely, what passed unsafely, and which rollout risks remain.
-              </p>
-              <div className="mt-7 flex flex-wrap gap-3">
-                <a
-                  href={BENCH_PRIVATE_REQUEST_MAILTO}
-                  className="inline-flex items-center gap-2 rounded-md bg-accent px-5 py-2.5 text-[0.84rem] font-semibold text-white transition-colors hover:bg-accent-bright hover:text-white"
-                >
-                  Book private evaluation
-                  <ArrowIcon />
-                </a>
-                <a
-                  href={BENCH_SPONSOR_REQUEST_MAILTO}
-                  className="inline-flex items-center gap-2 rounded-md border border-border px-5 py-2.5 text-[0.84rem] font-semibold text-fg-body transition-colors hover:border-accent/50 hover:text-fg"
-                >
-                  Sponsor public proof
-                </a>
-              </div>
-            </div>
-
-            <div className="divide-y divide-border rounded-xl border border-border bg-bg-elevated">
-              {LANDING_OFFERS.map((offer) => (
-                <div key={offer.title} className="grid gap-2 px-5 py-4 md:grid-cols-[0.38fr_0.62fr] md:gap-5">
-                  <h3 className="text-[0.95rem] font-bold text-fg">{offer.title}</h3>
-                  <p className="text-[0.86rem] leading-relaxed text-fg-muted">{offer.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="public-reports" className="mx-auto max-w-6xl px-6 py-10 md:py-14">
-          <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr]">
-            <div>
-              <SectionLabel>Why the report matters</SectionLabel>
-              <h2 className="max-w-2xl text-[1.65rem] font-extrabold leading-tight text-fg md:text-[2rem]">
-                The signal is path safety, not the number of green cells.
-              </h2>
-              <p className="mt-4 max-w-xl text-[0.92rem] leading-relaxed text-fg-muted">
-                Large scenario coverage proves breadth. The public MCP report shows the deeper decision signal: final-state passes split into safe and unsafe paths with linked evidence behind the result.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link
-                  to={FEATURED_REPORT_SPOTLIGHT.to}
-                  className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2.5 text-[0.84rem] font-semibold text-white transition-colors hover:bg-accent-bright hover:text-white"
-                >
-                  Open public report
-                  <ArrowIcon />
-                </Link>
-                {primaryReport ? (
-                  <Link
-                    to={primaryReport.to}
-                    className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-[0.84rem] font-semibold text-fg-body transition-colors hover:border-accent/50 hover:text-fg"
-                  >
-                    Open full report
-                  </Link>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-border bg-bg-elevated p-5 md:p-6">
-              <div className="grid gap-5 md:grid-cols-3">
-                <div>
-                  <h3 className="text-[0.9rem] font-bold text-fg">Same task slice</h3>
-                  <p className="mt-2 text-[0.82rem] leading-relaxed text-fg-muted">
-                    Candidates run against the same scenarios, model, and report filter.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-[0.9rem] font-bold text-fg">Unsafe pass visible</h3>
-                  <p className="mt-2 text-[0.82rem] leading-relaxed text-fg-muted">
-                    A green final state is separated from risky mutations and shortcuts.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-[0.9rem] font-bold text-fg">Evidence attached</h3>
-                  <p className="mt-2 text-[0.82rem] leading-relaxed text-fg-muted">
-                    Run pages preserve transcripts, tool calls, timelines, and autopsies.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-6xl px-6 py-10 md:py-14">
-          <div className="grid gap-8 border-t border-border pt-10 lg:grid-cols-[0.82fr_1.18fr]">
-            <div>
-              <SectionLabel>Who it is for</SectionLabel>
-              <h2 className="max-w-xl text-[1.65rem] font-extrabold leading-tight text-fg md:text-[2rem]">
-                Teams that need evidence before an agent touches production.
-              </h2>
-            </div>
-
-            <div className="divide-y divide-border rounded-xl border border-border bg-bg-elevated">
-              {ENTERPRISE_AUDIENCES.map((audience) => (
-                <div key={audience.title} className="grid gap-2 px-5 py-4 md:grid-cols-[0.34fr_0.66fr] md:gap-5">
-                  <h3 className="text-[0.95rem] font-bold text-fg">{audience.title}</h3>
-                  <p className="text-[0.86rem] leading-relaxed text-fg-muted">{audience.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-6xl px-6 py-12">
-          <div className="rounded-xl border border-border bg-bg-elevated p-6 md:flex md:items-center md:justify-between md:gap-8 md:p-8">
-            <div>
-              <h2 className="text-[1.45rem] font-extrabold leading-tight text-fg">
-                Need to defend an enterprise AI agent rollout?
-              </h2>
-              <p className="mt-3 max-w-2xl text-[0.92rem] leading-relaxed text-fg-muted">
-                Send the agent, toolchain, and target scenario slice. Evidra Bench returns a private report built for buyer, SRE, and risk review.
-              </p>
-            </div>
-            <a
-              href={BENCH_PRIVATE_REQUEST_MAILTO}
-              className="mt-6 inline-flex items-center gap-2 rounded-md bg-accent px-5 py-2.5 text-[0.84rem] font-semibold text-white transition-colors hover:bg-accent-bright hover:text-white md:mt-0"
+          <nav aria-label="Primary navigation" className="hidden items-center gap-7 lg:flex">
+            <Link to={BENCH_SCENARIOS_PATH} className={`text-sm font-medium text-fg-muted hover:text-accent ${FOCUS_RING}`}>
+              Scenarios
+            </Link>
+            <Link to={BENCH_LEADERBOARD_PATH} className={`text-sm font-medium text-fg-muted hover:text-accent ${FOCUS_RING}`}>
+              Leaderboard
+            </Link>
+            <Link
+              to={BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH}
+              className={`text-sm font-medium text-fg-muted hover:text-accent ${FOCUS_RING}`}
             >
-              Book private evaluation
-              <ArrowIcon />
-            </a>
-          </div>
-        </section>
-      </main>
-
-      <footer className="mx-auto max-w-6xl border-t border-border px-6 py-8">
-        <div className="flex flex-col gap-4 text-[0.72rem] text-fg-muted md:flex-row md:items-center md:justify-between">
-          <span>Evidra Bench - independent evaluation for AI infrastructure agents</span>
-          <div className="flex flex-wrap items-center gap-4">
-            <Link to={FEATURED_REPORT_SPOTLIGHT.to} className="transition-colors hover:text-accent">Real report</Link>
-            <Link to={BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH} className="transition-colors hover:text-accent">Methodology</Link>
-            <Link to={BENCH_ONLINE_PATH} className="transition-colors hover:text-accent">Online Bench</Link>
-            <Link to={BENCH_SCENARIOS_PATH} className="transition-colors hover:text-accent">Scenarios</Link>
-            <Link to={BENCH_LEADERBOARD_PATH} className="transition-colors hover:text-accent">Leaderboards</Link>
+              Reports
+            </Link>
             <a
               href="https://github.com/vitas/evidra-bench"
               target="_blank"
               rel="noopener noreferrer"
-              className="transition-colors hover:text-accent"
+              className={`inline-flex items-center gap-2 text-sm font-medium text-fg-muted hover:text-accent ${FOCUS_RING}`}
+            >
+              <GitHubIcon /> GitHub
+            </a>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Link
+              to={BENCH_ONLINE_PATH}
+              className={`inline-flex min-h-11 items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-bright hover:text-white ${FOCUS_RING}`}
+            >
+              <span className="sm:hidden">Open Bench</span>
+              <span className="hidden sm:inline">Open public Bench</span>
+            </Link>
+            <ThemeToggle theme={theme} toggle={toggle} />
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section className="mx-auto grid max-w-7xl gap-12 px-5 pb-14 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:grid-cols-[1.08fr_0.92fr] lg:items-center lg:gap-16 lg:py-24">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold uppercase tracking-[0.08em] text-accent">
+              {HERO_CONTENT.eyebrow}
+            </p>
+            <h1 className="mt-5 max-w-[14ch] text-[clamp(2.65rem,6vw,4.5rem)] font-semibold leading-[1.02] tracking-[-0.035em] text-fg">
+              {HERO_CONTENT.title}
+            </h1>
+            <p className="mt-6 max-w-[62ch] text-base leading-relaxed text-fg-muted sm:text-lg">
+              {HERO_CONTENT.body}
+            </p>
+            <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+              {HERO_CONTENT.ctas.map((cta) => (
+                <CtaLink key={cta.label} cta={cta} />
+              ))}
+            </div>
+          </div>
+
+          <PathComparisonPanel />
+        </section>
+
+        <section aria-label="Benchmark proof" className="border-y border-border bg-bg-elevated">
+          <ul className="mx-auto grid max-w-7xl divide-y divide-border px-5 sm:px-6 md:grid-cols-3 md:divide-x md:divide-y-0">
+            {HERO_PROOF_POINTS.map((point) => (
+              <li key={point} className="flex items-center gap-3 py-5 text-sm font-semibold text-fg-body md:px-7 md:first:pl-0 md:last:pr-0">
+                <span className="text-success">
+                  <CheckIcon className="h-5 w-5" />
+                </span>
+                {point}
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-5 py-16 sm:px-6 sm:py-24">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.08em] text-accent">Why Evidra</p>
+            <h2 className="mt-3 max-w-3xl text-[clamp(2rem,4vw,3rem)] font-semibold leading-tight tracking-tight text-fg">
+              What ordinary benchmarks miss
+            </h2>
+            <p className="mt-5 max-w-2xl text-base leading-relaxed text-fg-muted sm:text-lg">
+              Task completion can hide the exact behavior that makes an infrastructure agent risky in production.
+            </p>
+          </div>
+
+          <div className="mt-10 overflow-hidden rounded-2xl border border-border bg-bg-elevated">
+            <div className="hidden grid-cols-[0.72fr_1fr_1.2fr] border-b border-border bg-bg-alt px-6 py-4 text-sm font-semibold text-fg-muted md:grid">
+              <span>Dimension</span>
+              <span>Typical benchmark</span>
+              <span className="text-accent">Evidra Bench</span>
+            </div>
+            <dl className="divide-y divide-border-subtle">
+              {BENCHMARK_DIFFERENCES.map((item) => (
+                <div key={item.label} className="grid gap-5 px-5 py-6 md:grid-cols-[0.72fr_1fr_1.2fr] md:px-6">
+                  <dt className="text-base font-semibold text-fg">{item.label}</dt>
+                  <dd className="text-base leading-relaxed text-fg-muted">
+                    <span className="mb-1 block text-sm font-semibold text-fg-muted md:hidden">Typical benchmark</span>
+                    {item.typical}
+                  </dd>
+                  <dd className="text-base font-medium leading-relaxed text-fg-body">
+                    <span className="mb-1 block text-sm font-semibold text-accent md:hidden">Evidra Bench</span>
+                    {item.evidra}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
+
+        <section className="border-y border-border bg-bg-elevated">
+          <div className="mx-auto max-w-7xl px-5 py-16 sm:px-6 sm:py-24">
+            <p className="text-sm font-semibold uppercase tracking-[0.08em] text-accent">How it works</p>
+            <h2 className="mt-3 max-w-3xl text-[clamp(2rem,4vw,3rem)] font-semibold leading-tight tracking-tight text-fg">
+              From candidate to inspectable verdict.
+            </h2>
+
+            <ol className="mt-10 grid overflow-hidden rounded-2xl border border-border bg-bg md:grid-cols-3 md:divide-x md:divide-border">
+              {WORKFLOW_STEPS.map((step, index) => (
+                <li key={step.title} className="border-b border-border p-6 last:border-b-0 md:border-b-0 md:p-8">
+                  <span className="font-mono text-sm font-semibold text-accent">0{index + 1}</span>
+                  <h3 className="mt-5 text-xl font-semibold text-fg">{step.title}</h3>
+                  <p className="mt-3 text-base leading-relaxed text-fg-muted">{step.body}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-5 py-16 sm:px-6 sm:py-24">
+          <div className="rounded-2xl border border-border bg-bg-elevated p-7 shadow-[var(--shadow-card)] sm:flex sm:items-center sm:justify-between sm:gap-10 sm:p-10">
+            <div>
+              <h2 className="text-[clamp(2rem,4vw,3rem)] font-semibold leading-tight tracking-tight text-fg">
+                See what a pass is hiding.
+              </h2>
+              <p className="mt-4 max-w-2xl text-base leading-relaxed text-fg-muted sm:text-lg">
+                Explore public scenarios, live results, and attached artifacts without a sales call.
+              </p>
+            </div>
+            <Link
+              to={BENCH_ONLINE_PATH}
+              className={`mt-7 inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-accent px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-accent-bright hover:text-white sm:mt-0 ${FOCUS_RING}`}
+            >
+              Explore public Bench
+              <ArrowIcon />
+            </Link>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-border">
+        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-8 text-sm text-fg-muted sm:px-6 md:flex-row md:items-center md:justify-between">
+          <span>Evidra Bench — path-aware evaluation for AI infrastructure agents</span>
+          <nav aria-label="Footer navigation" className="flex flex-wrap items-center gap-x-5 gap-y-3">
+            <Link to={BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH} className={`hover:text-accent ${FOCUS_RING}`}>
+              Real report
+            </Link>
+            <Link to={BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH} className={`hover:text-accent ${FOCUS_RING}`}>
+              Methodology
+            </Link>
+            <Link to={BENCH_SCENARIOS_PATH} className={`hover:text-accent ${FOCUS_RING}`}>
+              Scenarios
+            </Link>
+            <Link to={BENCH_LEADERBOARD_PATH} className={`hover:text-accent ${FOCUS_RING}`}>
+              Leaderboard
+            </Link>
+            <a href={BENCH_PRIVATE_REQUEST_MAILTO} className={`hover:text-accent ${FOCUS_RING}`}>
+              Private evaluation
+            </a>
+            <a
+              href="https://github.com/vitas/evidra-bench"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`hover:text-accent ${FOCUS_RING}`}
             >
               GitHub
             </a>
-          </div>
+          </nav>
         </div>
       </footer>
     </div>
