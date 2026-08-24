@@ -8,6 +8,13 @@ fail() {
   exit 1
 }
 
+module_go_version="$(awk '$1 == "go" { print $2; exit }' go.mod)"
+docker_go_version="$(sed -n 's/^FROM golang:\([0-9][0-9.]*\)-alpine AS bench-builder$/\1/p' Dockerfile.bench)"
+[[ -n "$docker_go_version" ]] \
+  || fail "Dockerfile.bench should declare the bench-builder Go version"
+[[ "$docker_go_version" == "$module_go_version" ]] \
+  || fail "Dockerfile.bench Go $docker_go_version should match go.mod Go $module_go_version"
+
 for workflow in .github/workflows/*.yml; do
   if grep -q -- 'go-version-file: bench/go.mod' "$workflow" &&
     ! grep -q -- 'cache-dependency-path: bench/go.sum' "$workflow"; then
