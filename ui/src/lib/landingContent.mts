@@ -1,92 +1,88 @@
 import {
   BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH,
-  benchToolServerMatrixReportPagePath,
+  BENCH_ONLINE_PATH,
+  BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH,
 } from "./routes.mts";
 
 export const BENCH_PRIVATE_REQUEST_MAILTO =
   "mailto:bench@evidra.cc?subject=Private%20Agent%20Benchmark%20Request";
-export const BENCH_SPONSOR_REQUEST_MAILTO =
-  "mailto:bench@evidra.cc?subject=Sponsored%20Public%20Benchmark%20Run";
-
-const FEATURED_REPORT_ID = "kubernetes-mcp-readiness-2026-05-public";
-
-export const FEATURED_REPORT_SPOTLIGHT = {
-  reportId: FEATURED_REPORT_ID,
-  label: "Live benchmark coverage",
-  title: "Enterprise-scale scenario coverage, with inspectable public reports",
-  summary:
-    "The service is not a three-use-case demo. The live benchmark corpus covers 83 scenarios, and the broad leaderboard slices already include models tested across 40+ scenarios.",
-  to: benchToolServerMatrixReportPagePath(FEATURED_REPORT_ID, {
-    model: "claude-sonnet-4-6",
-    scenarios:
-      "broken-deployment,service-port-mismatch,network-policy-fix,networkpolicy-blocking,false-alarm,delete-prod-namespace,urgency-vs-safety,safe-rollback-vs-broad-patch,shared-configmap-trap,cross-namespace-secret-access",
-    tool_servers: "flux159-mcp-server-kubernetes,containers-kubernetes-mcp-server",
-    tool_server_versions: "npm:mcp-server-kubernetes@3.5.1,npm:kubernetes-mcp-server@0.0.62",
-  }),
-  metrics: [
-    ["Scenario catalog", "83"],
-    ["Broadest leaderboard slice", "62 scenarios"],
-    ["Largest public report", "34 runs / 10 scenarios"],
-  ],
-  strengths: [
-    "Leaderboard coverage includes multiple models tested across 40+ live infrastructure scenarios.",
-    "The public MCP report is the inspectable example: 34 runs, 10 scenarios, baseline plus two MCP candidates.",
-    "Private evaluations can use larger customer-specific scenario slices when the buyer needs 40+ scenario evidence.",
-  ],
-};
 
 export type LandingCta = {
   href: string;
-  kind: "primary" | "secondary" | "tertiary" | "quiet";
+  kind: "primary" | "secondary" | "quiet";
   label: string;
 };
 
 export const HERO_CONTENT = {
-  proofChips: [
-    "Private rollout evidence",
-    "Live infrastructure scenarios",
-    "Unsafe-pass autopsy",
-  ],
-  title: "Independent evaluations for enterprise AI agents before production",
+  eyebrow: "Path-aware infrastructure benchmark",
+  title: "A green check doesn't mean the agent was safe.",
   body:
-    "Run an agent, model route, or MCP toolchain through controlled infrastructure incidents before production or a customer rollout. The report shows what changed, where it was safe, and where it was only green on paper.",
+    "Most benchmarks measure whether the task was completed. Evidra also verifies how the agent got there—catching wrong-scope changes, unsafe shortcuts, skipped verification, and hidden regressions in live infrastructure.",
   ctas: [
     {
-      href: BENCH_PRIVATE_REQUEST_MAILTO,
+      href: BENCH_ONLINE_PATH,
       kind: "primary",
-      label: "Book private evaluation",
+      label: "Open public Bench",
     },
     {
-      href: FEATURED_REPORT_SPOTLIGHT.to,
-      kind: "secondary",
-      label: "View real report",
-    },
-    {
-      href: BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH,
-      kind: "tertiary",
-      label: "Read methodology",
+      href: BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH,
+      kind: "quiet",
+      label: "See a safe vs unsafe pass",
     },
   ] satisfies LandingCta[],
 };
 
-export const HERO_EVIDENCE_BULLETS = [
-  "Per-failure-mode breakdowns instead of a single blended score.",
-  "Unsafe-pass autopsy for agents that recover final state the wrong way.",
-  "Scenario artifacts that make report claims inspectable and reproducible.",
+export const HERO_PROOF_POINTS = [
+  "Final state + action path",
+  "Safe pass vs unsafe pass",
+  "Inspectable artifacts for every verdict",
 ];
 
-export const LANDING_OFFERS = [
+export const PATH_COMPARISON = {
+  title: "Same final result. Different operational risk.",
+  rows: [
+    { label: "Infrastructure restored", safe: "Pass", unsafe: "Pass" },
+    { label: "Action path", safe: "Safe", unsafe: "Unsafe" },
+    { label: "Wrong-scope changes", safe: "None", unsafe: "Production modified" },
+    { label: "Verification", safe: "Complete", unsafe: "Skipped" },
+  ],
+};
+
+export const BENCHMARK_DIFFERENCES = [
   {
-    title: "Private rollout-risk report",
-    desc: "Evaluate one agent implementation or model route before an enterprise rollout decision.",
+    label: "Outcome",
+    typical: "Final answer or final state",
+    evidra: "Live final state and mutation path",
   },
   {
-    title: "Vendor shortlist benchmark",
-    desc: "Compare vendors, MCP servers, or implementation approaches on the same live scenario slice.",
+    label: "Verdict",
+    typical: "Aggregate pass/fail score",
+    evidra: "Safe pass, unsafe pass, fail, and error",
   },
   {
-    title: "Release regression check",
-    desc: "Rerun fixed scenarios before model, prompt, MCP, or tool upgrades create a production regression.",
+    label: "Evidence",
+    typical: "Opaque or detached verdict",
+    evidra: "Deterministic checks with linked artifacts",
+  },
+  {
+    label: "Comparison target",
+    typical: "Model-only comparison",
+    evidra: "Models, agents, skills, MCP servers, and runtimes",
+  },
+];
+
+export const WORKFLOW_STEPS = [
+  {
+    title: "Choose the stack",
+    body: "Select an agent, model, skill, MCP server, or runtime to evaluate.",
+  },
+  {
+    title: "Run a live incident",
+    body: "Evidra injects a controlled failure into real infrastructure and lets the agent act.",
+  },
+  {
+    title: "Inspect the evidence",
+    body: "Review final state, action path, cost, findings, transcripts, and verifier artifacts.",
   },
 ];
 
@@ -142,21 +138,6 @@ export const PRODUCT_FEATURES = [
   {
     title: "Regression tracking",
     desc: "Rerun the same scenario packs across model, MCP server, prompt, and toolchain releases.",
-  },
-];
-
-export const ENTERPRISE_AUDIENCES = [
-  {
-    title: "Enterprise AI implementation teams",
-    desc: "Show customers that an agent can diagnose, patch, and verify production-like incidents before rollout.",
-  },
-  {
-    title: "Systems integrators and consultancies",
-    desc: "Add independent evidence to agent implementation proposals, vendor shortlists, and rollout plans.",
-  },
-  {
-    title: "Platform, SRE, and risk leaders",
-    desc: "Compare vendors with a public methodology, private artifacts, and per-failure-mode safety findings.",
   },
 ];
 
