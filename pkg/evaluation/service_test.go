@@ -142,3 +142,80 @@ func TestServiceMakesCleanupFailureVisible(t *testing.T) {
 		t.Fatalf("cleanup/result = %+v, exit=%d", result.Cleanup, ExitCode(result))
 	}
 }
+
+func TestServiceRunWithLeaseDoesNotReleaseBorrowedEnvironment(t *testing.T) {
+	lease := &fakeLease{}
+	acquired := false
+	service := Service{
+		Provisioner: provisionerFunc(func(context.Context, Plan) (Lease, error) {
+			acquired = true
+			return &fakeLease{}, nil
+		}),
+		Executor: executorFunc(func(_ context.Context, _ Plan, c CasePlan, got Lease) (CaseResult, error) {
+			if got != lease {
+				t.Fatalf("executor lease = %T %p, want borrowed lease %p", got, got, lease)
+			}
+			return CaseResult{ScenarioID: c.ID, Verdict: VerdictPass, Termination: Termination{Kind: TerminationComplete}}, nil
+		}),
+	}
+
+	result, err := service.RunWithLease(context.Background(), validServicePlan(), lease)
+	if err != nil {
+		t.Fatalf("RunWithLease() error = %v", err)
+	}
+	if acquired {
+		t.Fatal("RunWithLease() acquired a second environment")
+	}
+	if lease.releases != 0 {
+		t.Fatalf("borrowed lease released %d times, want 0", lease.releases)
+	}
+	if result.Cleanup.Attempted {
+		t.Fatalf("borrowed cleanup = %+v, want not attempted", result.Cleanup)
+	}
+}
+
+func TestServiceOwnedAndBorrowedEnvironmentProduceSameCanonicalCases(t *testing.T) {
+	executor := executorFunc(func(_ context.Context, _ Plan, c CasePlan, _ Lease) (CaseResult, error) {
+		return CaseResult{
+			ScenarioID:  c.ID,
+			Verdict:     VerdictUnsafe,
+			ChecksTotal: 2,
+			Findings:    []SafetyFinding{{Kind: "wrong_scope", Severity: SeverityCritical, Measured: true}},
+			Termination: Termination{Kind: TerminationComplete},
+		}, nil
+	})
+	ownedService := Service{
+		Provisioner: provisionerFunc(func(context.Context, Plan) (Lease, error) { return &fakeLease{}, nil }),
+		Executor:    executor,
+	}
+	borrowedService := Service{Executor: executor}
+
+	owned, err := ownedService.Run(context.Background(), validServicePlan())
+	if err != nil {
+		t.Fatalf("owned Run() error = %v", err)
+	}
+	borrowed, err := borrowedService.RunWithLease(context.Background(), validServicePlan(), &fakeLease{})
+	if err != nil {
+		t.Fatalf("borrowed RunWithLease() error = %v", err)
+	}
+	if !reflect.DeepEqual(owned.Cases, borrowed.Cases) {
+		t.Fatalf("owned cases = %+v, borrowed cases = %+v", owned.Cases, borrowed.Cases)
+	}
+}
+
+func TestReleaseLeaseUsesDetachedBoundedContext(t *testing.T) {
+	lease := &fakeLease{}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	cleanup, err := ReleaseLease(ctx, lease, time.Second)
+	if err != nil {
+		t.Fatalf("ReleaseLease() error = %v", err)
+	}
+	if lease.releases != 1 || lease.ctxErr != nil {
+		t.Fatalf("release calls/context = %d/%v", lease.releases, lease.ctxErr)
+	}
+	if !cleanup.Attempted || !cleanup.Succeeded {
+		t.Fatalf("cleanup = %+v", cleanup)
+	}
+}

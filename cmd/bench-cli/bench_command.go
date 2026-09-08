@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	stderrors "errors"
 	"fmt"
 	"io"
 	"log"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/environment"
+	"github.com/vitas/evidra-bench/pkg/evaluation"
 	"github.com/vitas/evidra-bench/pkg/harness"
 	"github.com/vitas/evidra-bench/pkg/localstore"
 	"github.com/vitas/evidra-bench/pkg/orchestrator"
@@ -154,7 +154,7 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 			return fmt.Errorf("bench: acquire batch lease: %w", err)
 		}
 		defer func() {
-			if releaseErr := batchLease.Release(cmd.Context()); releaseErr != nil {
+			if _, releaseErr := evaluation.ReleaseLease(cmd.Context(), batchLease, config.GracefulStopTimeout); releaseErr != nil {
 				log.Printf("[bench] warning: release batch lease: %v", releaseErr)
 			}
 		}()
@@ -170,6 +170,7 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 		Scenario string `json:"scenario"`
 		Model    string `json:"model"`
 		Repeat   int    `json:"repeat"`
+		Verdict  string `json:"verdict"`
 		Passed   bool   `json:"passed"`
 		Duration string `json:"duration"`
 		Error    string `json:"error,omitempty"`
@@ -194,47 +195,68 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 				label := fmt.Sprintf("[%d/%d] %s model=%s repeat=%d", total, len(runnable)*len(models)*repeats, s.ID, model, rep)
 				writef(cmd.OutOrStdout(), "%s ...\n", label)
 
-				var provisioner batchLeaseProvisioner
-				if batchLease != nil {
-					provisioner = newLocalProvisioner(runCfg)
-				}
-				var runResult *harness.RunResult
-				var runErr error
-				runResult, batchLease, runErr = runWithBatchLeaseRecovery(
-					cmd.Context(), runCfg, s, batchLease, provisioner,
-					func(l *environment.Lease) (*harness.RunResult, error) {
-						return runScenarioOnceWithLease(cmd.Context(), runCfg, s, l)
-					},
-					"bench",
-				)
-
 				r := result{
 					Scenario: s.ID,
 					Model:    model,
 					Repeat:   rep,
 				}
 
-				if runErr != nil {
-					r.Error = runErr.Error()
-					var rfe *RunFailedError
-					if ok := stderrors.As(runErr, &rfe); ok {
-						r.Passed = false
-						failed++
-					} else {
+				if cfg.DryRun {
+					runResult, runErr := runScenarioOnceWithLease(cmd.Context(), runCfg, s, nil)
+					if runErr != nil {
+						r.Error = runErr.Error()
+						r.Verdict = string(evaluation.VerdictIncomplete)
 						errors++
+					} else {
+						r.Passed = runResult.Passed
+						r.Duration = runResult.Duration.Round(time.Millisecond).String()
+						if runResult.Passed {
+							r.Verdict = string(evaluation.VerdictPass)
+							passed++
+						} else {
+							r.Verdict = string(evaluation.VerdictFail)
+							failed++
+						}
 					}
 				} else {
-					r.Passed = runResult.Passed
-					r.Duration = runResult.Duration.Round(time.Millisecond).String()
-					if runResult.Passed {
+					var provisioner batchLeaseProvisioner
+					if batchLease != nil {
+						provisioner = newLocalProvisioner(runCfg)
+					}
+					service := newLegacySingleEvaluationService(runCfg, s)
+					evaluationResult, nextLease, runErr := runWithBatchLeaseRecovery(
+						cmd.Context(), runCfg, s, batchLease, provisioner,
+						func(l *environment.Lease) (evaluation.Result, error) {
+							return runLegacyBenchEvaluation(cmd.Context(), runCfg, s, l, service)
+						},
+						"bench",
+					)
+					batchLease = nextLease
+					caseVerdict := evaluation.VerdictIncomplete
+					if len(evaluationResult.Cases) > 0 {
+						caseResult := evaluationResult.Cases[0]
+						caseVerdict = caseResult.Verdict
+						r.Passed = caseResult.Verdict == evaluation.VerdictPass
+						r.Duration = caseResult.Duration.Round(time.Millisecond).String()
+					}
+					r.Verdict = string(benchEvaluationDisplayVerdict(caseVerdict, runErr))
+					if runErr != nil {
+						r.Error = runErr.Error()
+						errors++
+					} else if len(evaluationResult.Cases) == 0 {
+						r.Error = "evaluation returned no case result"
+						r.Verdict = string(evaluation.VerdictIncomplete)
+						errors++
+					} else if r.Passed {
 						passed++
+					} else if evaluationResult.Cases[0].Verdict == evaluation.VerdictIncomplete {
+						errors++
 					} else {
 						failed++
 					}
 				}
 
-				verdict := runDisplayVerdict(r.Passed, r.Error, s.ID)
-				writef(cmd.OutOrStdout(), "  %s %s %s\n", verdict, r.Duration, r.Error)
+				writef(cmd.OutOrStdout(), "  %s %s %s\n", r.Verdict, r.Duration, r.Error)
 				results = append(results, r)
 			}
 		}
@@ -310,6 +332,16 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 		return fmt.Errorf("bench: %d failed, %d errors out of %d", failed, errors, total)
 	}
 	return nil
+}
+
+func benchEvaluationDisplayVerdict(verdict evaluation.Verdict, runErr error) evaluation.Verdict {
+	if verdict == evaluation.VerdictUnsafe {
+		return verdict
+	}
+	if runErr != nil || verdict == "" {
+		return evaluation.VerdictIncomplete
+	}
+	return verdict
 }
 
 // validateSingleProfile checks that all scenarios resolve to the same execution

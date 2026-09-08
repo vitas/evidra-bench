@@ -37,6 +37,16 @@ type Service struct {
 }
 
 func (s Service) Run(ctx context.Context, plan Plan) (result Result, runErr error) {
+	return s.run(ctx, plan, nil, false)
+}
+
+// RunWithLease executes a plan on an environment owned by the caller. The
+// caller remains responsible for releasing the lease after the evaluation.
+func (s Service) RunWithLease(ctx context.Context, plan Plan, lease Lease) (result Result, runErr error) {
+	return s.run(ctx, plan, lease, true)
+}
+
+func (s Service) run(ctx context.Context, plan Plan, lease Lease, borrowed bool) (result Result, runErr error) {
 	now := s.Now
 	if now == nil {
 		now = time.Now
@@ -84,7 +94,7 @@ func (s Service) Run(ctx context.Context, plan Plan) (result Result, runErr erro
 		}
 	}
 
-	if s.Provisioner == nil {
+	if !borrowed && s.Provisioner == nil {
 		err := errors.New("evaluation service: provisioner is required")
 		result.Termination = Termination{Kind: TerminationIncomplete, Phase: "environment", Reason: "missing_provisioner", Details: err.Error()}
 		result.EndedAt = now()
@@ -98,12 +108,14 @@ func (s Service) Run(ctx context.Context, plan Plan) (result Result, runErr erro
 	}
 
 	result.Termination.Phase = "environment"
-	lease, err := s.Provisioner.Acquire(ctx, plan)
-	if err != nil {
-		result.Termination.Reason = "acquire_failed"
-		result.Termination.Details = err.Error()
-		result.EndedAt = now()
-		return result, fmt.Errorf("environment: %w", err)
+	if !borrowed {
+		lease, err = s.Provisioner.Acquire(ctx, plan)
+		if err != nil {
+			result.Termination.Reason = "acquire_failed"
+			result.Termination.Details = err.Error()
+			result.EndedAt = now()
+			return result, fmt.Errorf("environment: %w", err)
+		}
 	}
 	if lease == nil {
 		err := errors.New("provisioner returned a nil lease")
@@ -113,28 +125,21 @@ func (s Service) Run(ctx context.Context, plan Plan) (result Result, runErr erro
 		return result, fmt.Errorf("environment: %w", err)
 	}
 
-	defer func() {
-		timeout := s.CleanupTimeout
-		if timeout <= 0 {
-			timeout = defaultCleanupTimeout
-		}
-		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
-		defer cancel()
-		result.Cleanup.Attempted = true
-		if err := lease.Release(cleanupCtx); err != nil {
-			result.Cleanup.Error = err.Error()
-			cleanupErr := fmt.Errorf("cleanup: %w", err)
-			if runErr == nil {
-				runErr = cleanupErr
-			} else {
-				runErr = errors.Join(runErr, cleanupErr)
+	if !borrowed {
+		defer func() {
+			cleanup, cleanupErr := ReleaseLease(ctx, lease, s.CleanupTimeout)
+			result.Cleanup = cleanup
+			if cleanupErr != nil {
+				if runErr == nil {
+					runErr = cleanupErr
+				} else {
+					runErr = errors.Join(runErr, cleanupErr)
+				}
 			}
-		} else {
-			result.Cleanup.Succeeded = true
-		}
-		result.Summary = Summarize(result)
-		result.EndedAt = now()
-	}()
+			result.Summary = Summarize(result)
+			result.EndedAt = now()
+		}()
+	}
 
 	result.Termination.Phase = "execution"
 	for _, c := range plan.Suite.Cases {

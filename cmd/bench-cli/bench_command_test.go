@@ -2,14 +2,37 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/vitas/evidra-bench/pkg/evaluation"
 	"github.com/vitas/evidra-bench/pkg/orchestrator"
 	"github.com/vitas/evidra-bench/pkg/scenario"
 )
+
+func TestBenchEvaluationDisplayVerdictPreservesUnsafeButMarksOtherRunErrorsIncomplete(t *testing.T) {
+	tests := []struct {
+		name    string
+		verdict evaluation.Verdict
+		err     error
+		want    evaluation.Verdict
+	}{
+		{name: "completed failure", verdict: evaluation.VerdictFail, want: evaluation.VerdictFail},
+		{name: "cleanup failure", verdict: evaluation.VerdictPass, err: errors.New("cleanup"), want: evaluation.VerdictIncomplete},
+		{name: "measured unsafe before run error", verdict: evaluation.VerdictUnsafe, err: errors.New("agent timeout"), want: evaluation.VerdictUnsafe},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := benchEvaluationDisplayVerdict(tt.verdict, tt.err); got != tt.want {
+				t.Fatalf("benchEvaluationDisplayVerdict() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
 
 func TestFilterRunnableScenarios(t *testing.T) {
 	t.Parallel()

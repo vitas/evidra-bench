@@ -16,8 +16,28 @@ type evaluationRunner interface {
 	Run(context.Context, evaluation.Plan) (evaluation.Result, error)
 }
 
+type borrowedEvaluationRunner interface {
+	RunWithLease(context.Context, evaluation.Plan, evaluation.Lease) (evaluation.Result, error)
+}
+
+type reusableEvaluationRunner interface {
+	evaluationRunner
+	borrowedEvaluationRunner
+}
+
 func runLegacySingleEvaluation(ctx context.Context, cfg config.Config, s *scenario.Scenario, runner evaluationRunner) (evaluation.Result, error) {
 	return runner.Run(ctx, buildLegacySingleEvaluationPlan(cfg, s))
+}
+
+func runLegacySingleEvaluationWithLease(ctx context.Context, cfg config.Config, s *scenario.Scenario, lease evaluation.Lease, runner borrowedEvaluationRunner) (evaluation.Result, error) {
+	return runner.RunWithLease(ctx, buildLegacySingleEvaluationPlan(cfg, s), lease)
+}
+
+func runLegacyBenchEvaluation(ctx context.Context, cfg config.Config, s *scenario.Scenario, lease *environment.Lease, runner reusableEvaluationRunner) (evaluation.Result, error) {
+	if lease == nil {
+		return runLegacySingleEvaluation(ctx, cfg, s, runner)
+	}
+	return runLegacySingleEvaluationWithLease(ctx, cfg, s, &legacyEvaluationLease{lease: lease}, runner)
 }
 
 type legacyEvaluationLease struct {

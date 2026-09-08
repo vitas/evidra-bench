@@ -7,6 +7,7 @@ import (
 
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/environment"
+	"github.com/vitas/evidra-bench/pkg/evaluation"
 	"github.com/vitas/evidra-bench/pkg/harness"
 	"github.com/vitas/evidra-bench/pkg/scenario"
 )
@@ -16,6 +17,27 @@ type fakeLeaseRecoveryProvisioner struct {
 	lastReq       environment.ProvisionRequest
 	lease         *environment.Lease
 	err           error
+}
+
+func TestRunWithBatchLeaseRecoverySupportsCanonicalEvaluationResult(t *testing.T) {
+	initial := &environment.Lease{KubeconfigPath: "/tmp/borrowed"}
+	result, lease, err := runWithBatchLeaseRecovery(
+		context.Background(),
+		config.Default(),
+		&scenario.Scenario{ID: "repair"},
+		initial,
+		nil,
+		func(got *environment.Lease) (evaluation.Result, error) {
+			if got != initial {
+				t.Fatalf("lease = %#v, want %#v", got, initial)
+			}
+			return evaluation.Result{ID: "eval-1"}, nil
+		},
+		"bench",
+	)
+	if err != nil || result.ID != "eval-1" || lease != initial {
+		t.Fatalf("result/lease/error = %+v/%#v/%v", result, lease, err)
+	}
 }
 
 func (f *fakeLeaseRecoveryProvisioner) Recreate(_ context.Context, req environment.ProvisionRequest) (*environment.Lease, error) {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/environment"
+	"github.com/vitas/evidra-bench/pkg/evaluation"
 	"github.com/vitas/evidra-bench/pkg/harness"
 	"github.com/vitas/evidra-bench/pkg/scenario"
 )
@@ -15,15 +16,15 @@ type batchLeaseProvisioner interface {
 	Recreate(ctx context.Context, req environment.ProvisionRequest) (*environment.Lease, error)
 }
 
-func runWithBatchLeaseRecovery(
+func runWithBatchLeaseRecovery[T any](
 	ctx context.Context,
 	cfg config.Config,
 	s *scenario.Scenario,
 	lease *environment.Lease,
 	provisioner batchLeaseProvisioner,
-	run func(*environment.Lease) (*harness.RunResult, error),
+	run func(*environment.Lease) (T, error),
 	logPrefix string,
-) (*harness.RunResult, *environment.Lease, error) {
+) (T, *environment.Lease, error) {
 	result, err := run(lease)
 	if err == nil || lease == nil || provisioner == nil {
 		return result, lease, err
@@ -49,7 +50,7 @@ func runWithBatchLeaseRecovery(
 		return result, lease, err
 	}
 
-	if releaseErr := lease.Release(ctx); releaseErr != nil {
+	if _, releaseErr := evaluation.ReleaseLease(ctx, lease, config.GracefulStopTimeout); releaseErr != nil {
 		log.Printf("[%s] warning: release failed lease: %v", logPrefix, releaseErr)
 	}
 
