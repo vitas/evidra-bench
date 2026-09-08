@@ -12,6 +12,7 @@ import (
 	"github.com/vitas/evidra-bench/pkg/adapter"
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/environment"
+	"github.com/vitas/evidra-bench/pkg/evaluation"
 	"github.com/vitas/evidra-bench/pkg/harness"
 	"github.com/vitas/evidra-bench/pkg/localstore"
 	"github.com/vitas/evidra-bench/pkg/scenario"
@@ -63,23 +64,37 @@ func executeRun(cmd *cobra.Command, cfg config.Config) error {
 			s.ID, s.Environment.Providers, cfg.EnvironmentProvider)
 	}
 
-	result, err := runScenarioOnce(cmd.Context(), cfg, s)
+	// Preserve validation-only behavior while executable runs migrate through
+	// the shared evaluation application service.
+	if cfg.DryRun {
+		result, err := runScenarioOnce(cmd.Context(), cfg, s)
+		if err != nil {
+			return err
+		}
+		writef(cmd.OutOrStdout(), "[PASS] scenario=%s duration=%s exit_code=%d\n",
+			result.ScenarioID, result.Duration.Round(time.Millisecond), result.ExitCode)
+		return nil
+	}
+
+	service := newLegacySingleEvaluationService(cfg, s)
+	result, err := runLegacySingleEvaluation(cmd.Context(), cfg, s, service)
+	if len(result.Cases) == 0 {
+		return err
+	}
+	caseResult := result.Cases[0]
+	writef(cmd.OutOrStdout(), "[%s] scenario=%s duration=%s exit_code=%d\n",
+		caseResult.Verdict, caseResult.ScenarioID, caseResult.Duration.Round(time.Millisecond), caseResult.ExitCode)
+	for _, evidence := range caseResult.Evidence {
+		if evidence.Kind == "artifact_dir" {
+			writef(cmd.OutOrStdout(), "artifacts: %s\n", evidence.Path)
+			break
+		}
+	}
 	if err != nil {
 		return err
 	}
-
-	verdict := "PASS"
-	if !result.Passed {
-		verdict = "FAIL"
-	}
-	writef(cmd.OutOrStdout(), "[%s] scenario=%s duration=%s exit_code=%d\n",
-		verdict, result.ScenarioID, result.Duration.Round(time.Millisecond), result.ExitCode)
-	if result.ArtifactDir != "" {
-		writef(cmd.OutOrStdout(), "artifacts: %s\n", result.ArtifactDir)
-	}
-
-	if !result.Passed {
-		return &RunFailedError{ScenarioID: result.ScenarioID}
+	if caseResult.Verdict != evaluation.VerdictPass {
+		return &RunFailedError{ScenarioID: caseResult.ScenarioID}
 	}
 	return nil
 }

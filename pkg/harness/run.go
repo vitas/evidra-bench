@@ -11,6 +11,7 @@ import (
 	"github.com/vitas/evidra-bench/pkg/artifact"
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/environment"
+	"github.com/vitas/evidra-bench/pkg/evaluation"
 	"github.com/vitas/evidra-bench/pkg/localstore"
 	"github.com/vitas/evidra-bench/pkg/report"
 	"github.com/vitas/evidra-bench/pkg/scenario"
@@ -67,6 +68,7 @@ type RunResult struct {
 	Duration    time.Duration
 	ArtifactDir string
 	Checks      *verifier.VerifyResult
+	Case        *evaluation.CaseResult
 }
 
 // Harness orchestrates the benchmark lifecycle.
@@ -103,7 +105,16 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 			return
 		}
 		recorder.Event(recorder.CurrentPhase(), "failed", runErr.Error())
-		artifactDir := h.writeFailedRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, runErr, startTime, time.Now())
+		failedAt := time.Now()
+		phase := recorder.CurrentPhase()
+		artifactDir, safetyAutopsyJSON := h.writeFailedRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, runErr, startTime, failedAt)
+		kind, _ := classifyRunError(runErr, phase)
+		caseResult := buildEvaluationCaseResult(s.ID, runID, agentResult, verifyResult, safetyAutopsyJSON, artifactDir, failedAt.Sub(startTime), evaluation.Termination{
+			Kind:    evaluation.TerminationIncomplete,
+			Phase:   phase,
+			Reason:  kind,
+			Details: runErr.Error(),
+		})
 		if result == nil {
 			result = &RunResult{
 				ScenarioID:  s.ID,
@@ -113,6 +124,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 				Duration:    time.Since(startTime),
 				ArtifactDir: artifactDir,
 				Checks:      verifyResult,
+				Case:        &caseResult,
 			}
 		} else {
 			if result.RunID == "" {
@@ -121,6 +133,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 			if result.ArtifactDir == "" {
 				result.ArtifactDir = artifactDir
 			}
+			result.Case = &caseResult
 		}
 	}()
 
@@ -235,6 +248,8 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		ArtifactDir: artifactDir,
 		Checks:      verifyResult,
 	}
+	caseResult := buildEvaluationCaseResult(s.ID, runID, agentResult, verifyResult, autopsyJSON, artifactDir, endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete})
+	result.Case = &caseResult
 
 	// Step 8: Store result in database.
 	recorder.Event("store", "started", "")

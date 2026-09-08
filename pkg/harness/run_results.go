@@ -88,7 +88,7 @@ func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *a
 	return out.Path, autopsyJSON
 }
 
-func (h *Harness) writeFailedRunArtifacts(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, runErr error, startTime, endTime time.Time) string {
+func (h *Harness) writeFailedRunArtifacts(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, runErr error, startTime, endTime time.Time) (string, json.RawMessage) {
 	exitCode := failedRunExitCode(runErr, agentResultExitCode(agentResult))
 	agentResult = failedAgentResult(agentResult, exitCode)
 	verifyResult = failedVerifyResult(verifyResult)
@@ -102,6 +102,7 @@ func (h *Harness) writeFailedRunArtifacts(req RunRequest, runID string, agentRes
 
 	rec := buildRunRecord(req, runID, agentResult, verifyResult, "", startTime, endTime)
 	autopsyJSON := buildRunErrorAutopsyJSON(rec, runErrArtifact)
+	safetyAutopsyJSON := buildFailureAutopsyJSON(rec, toolCallsJSON, agentResult.Transcript, checksJSON, req.Scenario.Autopsy)
 
 	chaosJSON, chaosLog := chaosArtifacts(chaosRunner)
 	chaosStepCount := 0
@@ -149,7 +150,7 @@ func (h *Harness) writeFailedRunArtifacts(req RunRequest, runID string, agentRes
 
 	rec.ArtifactDir = artifactDir
 	h.persistRun(req, rec, agentResult.Transcript, agentResult.ToolCalls, timelineJSON, autopsyJSON, runErrorJSON, runEventsJSON)
-	return artifactDir
+	return artifactDir, safetyAutopsyJSON
 }
 
 func (h *Harness) reportRun(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, startTime, endTime time.Time) {
