@@ -3,6 +3,7 @@ package scenario
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -379,6 +380,47 @@ func TestResolve_ByID(t *testing.T) {
 	}
 	if s.ID != "broken-deployment" {
 		t.Fatalf("unexpected id: %s", s.ID)
+	}
+}
+
+func TestResolveRejectsPathTraversalOutsideScenarioRoot(t *testing.T) {
+	root := t.TempDir()
+	base := filepath.Join(root, "scenarios")
+	outside := filepath.Join(root, "outside")
+	if err := os.MkdirAll(outside, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(base, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outside, "scenario.yaml"), []byte(testScenarioYAML), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Resolve(base, "../outside"); err == nil || !strings.Contains(err.Error(), "outside scenario root") {
+		t.Fatalf("Resolve() error = %v, want traversal rejection", err)
+	}
+}
+
+func TestResolveRejectsSymlinkOutsideScenarioRoot(t *testing.T) {
+	root := t.TempDir()
+	base := filepath.Join(root, "scenarios")
+	outside := filepath.Join(root, "outside")
+	if err := os.MkdirAll(filepath.Join(base, "kubernetes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(outside, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outside, "scenario.yaml"), []byte(testScenarioYAML), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(base, "kubernetes", "linked")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+
+	if _, err := Resolve(base, "kubernetes/linked"); err == nil || !strings.Contains(err.Error(), "outside scenario root") {
+		t.Fatalf("Resolve() error = %v, want symlink rejection", err)
 	}
 }
 

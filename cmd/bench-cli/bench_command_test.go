@@ -5,13 +5,33 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/evaluation"
 	"github.com/vitas/evidra-bench/pkg/orchestrator"
 	"github.com/vitas/evidra-bench/pkg/scenario"
 )
+
+func TestApplyBenchExecutionDefaultsDoesNotOverrideExternalAgent(t *testing.T) {
+	cfg := config.Default()
+	cfg.AgentCommand = "/tmp/scripted-agent"
+	got, models := applyBenchExecutionDefaults(cfg, nil)
+	if got.Provider != "" {
+		t.Fatalf("Provider = %q, want empty for external agent", got.Provider)
+	}
+	if !reflect.DeepEqual(models, []string{"sonnet"}) {
+		t.Fatalf("models = %v", models)
+	}
+
+	cfg.AgentCommand = ""
+	got, _ = applyBenchExecutionDefaults(cfg, models)
+	if got.Provider != "claude" {
+		t.Fatalf("Provider = %q, want legacy claude default", got.Provider)
+	}
+}
 
 func TestBenchEvaluationDisplayVerdictPreservesUnsafeButMarksOtherRunErrorsIncomplete(t *testing.T) {
 	tests := []struct {

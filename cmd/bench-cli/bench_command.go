@@ -82,12 +82,7 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 	}
 	cfg.ScenariosDir = scenariosDir
 
-	if len(models) == 0 {
-		models = []string{"sonnet"}
-	}
-	if !cfg.DryRun && cfg.Provider == "" {
-		cfg.Provider = "claude"
-	}
+	cfg, models = applyBenchExecutionDefaults(cfg, models)
 
 	allScenarios, err := scenario.LoadAll(scenariosDir)
 	if err != nil {
@@ -332,6 +327,16 @@ func executeBench(cmd *cobra.Command, cfg config.Config, scenarioFilters, models
 		return fmt.Errorf("bench: %d failed, %d errors out of %d", failed, errors, total)
 	}
 	return nil
+}
+
+func applyBenchExecutionDefaults(cfg config.Config, models []string) (config.Config, []string) {
+	if len(models) == 0 {
+		models = []string{"sonnet"}
+	}
+	if !cfg.DryRun && cfg.Provider == "" && cfg.AgentCommand == "" && cfg.Adapter != "a2a" {
+		cfg.Provider = "claude"
+	}
+	return cfg, models
 }
 
 func benchEvaluationDisplayVerdict(verdict evaluation.Verdict, runErr error) evaluation.Verdict {

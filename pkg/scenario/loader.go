@@ -134,7 +134,10 @@ func LoadAll(baseDir string) ([]*Scenario, error) {
 
 // Resolve loads a scenario by relative path or by scenario id.
 func Resolve(baseDir, ref string) (*Scenario, error) {
-	directDir := filepath.Join(baseDir, ref)
+	directDir, err := safeScenarioDir(baseDir, ref)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := os.Stat(filepath.Join(directDir, "scenario.yaml")); err == nil {
 		s, err := Load(directDir)
 		if err != nil {
@@ -154,6 +157,40 @@ func Resolve(baseDir, ref string) (*Scenario, error) {
 		}
 	}
 	return nil, fmt.Errorf("scenario.Resolve: scenario %q not found", ref)
+}
+
+func safeScenarioDir(baseDir, ref string) (string, error) {
+	if filepath.IsAbs(ref) {
+		return "", fmt.Errorf("scenario.Resolve: reference %q is outside scenario root", ref)
+	}
+	baseAbs, err := filepath.Abs(baseDir)
+	if err != nil {
+		return "", fmt.Errorf("scenario.Resolve: resolve scenario root: %w", err)
+	}
+	candidate := filepath.Join(baseAbs, filepath.FromSlash(ref))
+	if !pathWithinRoot(baseAbs, candidate) {
+		return "", fmt.Errorf("scenario.Resolve: reference %q is outside scenario root", ref)
+	}
+
+	realCandidate, err := filepath.EvalSymlinks(candidate)
+	if err == nil {
+		realBase, baseErr := filepath.EvalSymlinks(baseAbs)
+		if baseErr != nil {
+			return "", fmt.Errorf("scenario.Resolve: resolve scenario root symlinks: %w", baseErr)
+		}
+		if !pathWithinRoot(realBase, realCandidate) {
+			return "", fmt.Errorf("scenario.Resolve: reference %q resolves outside scenario root", ref)
+		}
+	}
+	return candidate, nil
+}
+
+func pathWithinRoot(root, candidate string) bool {
+	rel, err := filepath.Rel(root, candidate)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }
 
 func validate(s *Scenario) error {

@@ -126,19 +126,51 @@ func (k *kubectlOps) CreateNamespace(ctx context.Context, kubeconfigPath, ns str
 	return nil
 }
 
-// RunCanary runs a lightweight pod to verify scheduling works.
+// RunCanary runs a lightweight pod to verify scheduling without depending on
+// a cold external registry pull. Kubernetes nodes already carry a pause image
+// for pod sandboxes, so the canary reuses that exact image.
 func (k *kubectlOps) RunCanary(ctx context.Context, kubeconfigPath, ns string) error {
-	delCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
-		"delete", "pod", "bench-canary", "-n", ns, "--ignore-not-found", "--timeout=10s")
-	_, _ = k.Runner.Run(ctx, delCmd)
+	deleteCanary := func() {
+		delCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
+			"delete", "pod", "bench-canary", "-n", ns, "--ignore-not-found", "--timeout=10s")
+		_, _ = k.Runner.Run(ctx, delCmd)
+	}
+	deleteCanary()
 
-	cmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
-		"run", "bench-canary", "-n", ns,
-		"--image=busybox:1.36", "--restart=Never",
-		"--rm", "-i", "--timeout=30s", "--", "echo", "ok")
-	out, err := k.Runner.Run(ctx, cmd)
+	imagesCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
+		"get", "nodes", "-o", `jsonpath={range .items[*].status.images[*]}{range .names[*]}{@}{"\n"}{end}{end}`)
+	imagesOut, err := k.Runner.Run(ctx, imagesCmd)
 	if err != nil {
-		return fmt.Errorf("canary pod failed: %w: %s", err, string(out))
+		return fmt.Errorf("canary pod: list node images: %w: %s", err, string(imagesOut))
+	}
+	pauseImage := preloadedPauseImage(string(imagesOut))
+	if pauseImage == "" {
+		return fmt.Errorf("canary pod: no preloaded pause image found on cluster nodes")
+	}
+
+	defer deleteCanary()
+	createCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
+		"run", "bench-canary", "-n", ns, "--image="+pauseImage, "--restart=Never")
+	createOut, err := k.Runner.Run(ctx, createCmd)
+	if err != nil {
+		return fmt.Errorf("canary pod create failed: %w: %s", err, string(createOut))
+	}
+	waitCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
+		"wait", "--for=condition=Ready", "pod/bench-canary", "-n", ns, "--timeout=30s")
+	waitOut, err := k.Runner.Run(ctx, waitCmd)
+	if err != nil {
+		return fmt.Errorf("canary pod failed: %w: %s", err, string(waitOut))
 	}
 	return nil
+}
+
+func preloadedPauseImage(images string) string {
+	for _, image := range strings.Fields(images) {
+		lower := strings.ToLower(image)
+		if strings.Contains(lower, "/pause:") || strings.Contains(lower, "/pause@") ||
+			strings.Contains(lower, "mirrored-pause:") || strings.HasPrefix(lower, "pause:") {
+			return image
+		}
+	}
+	return ""
 }

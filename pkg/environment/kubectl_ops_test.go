@@ -180,12 +180,21 @@ func TestCreateNamespace_OtherError(t *testing.T) {
 func TestRunCanary_Success(t *testing.T) {
 	t.Parallel()
 	runner := &seqRunner{responses: []seqResponse{
-		{out: []byte("")},   // delete leftover
-		{out: []byte("ok")}, // canary run
+		{out: []byte("")}, // delete leftover
+		{out: []byte("registry.k8s.io/pause:3.10\nnginx:1.27")}, // node images
+		{out: []byte("pod/bench-canary created")},               // create
+		{out: []byte("pod/bench-canary condition met")},         // wait ready
+		{out: []byte("pod/bench-canary deleted")},               // cleanup
 	}}
 	k := &kubectlOps{Runner: runner}
 	if err := k.RunCanary(context.Background(), "/tmp/kc", "bench"); err != nil {
 		t.Fatalf("expected success, got: %v", err)
+	}
+	if len(runner.calls) != 5 {
+		t.Fatalf("calls = %d, want 5: %v", len(runner.calls), runner.calls)
+	}
+	if !contains(runner.calls[2], "registry.k8s.io/pause:3.10") || contains(runner.calls[2], "busybox") {
+		t.Fatalf("canary create command = %q", runner.calls[2])
 	}
 }
 
@@ -193,11 +202,29 @@ func TestRunCanary_Failure(t *testing.T) {
 	t.Parallel()
 	runner := &seqRunner{responses: []seqResponse{
 		{out: []byte("")}, // delete leftover
-		{out: []byte("timeout"), err: fmt.Errorf("exit 1")}, // canary failed
+		{out: []byte("rancher/mirrored-pause:3.6\n")},       // node images
+		{out: []byte("pod/bench-canary created")},           // create
+		{out: []byte("timeout"), err: fmt.Errorf("exit 1")}, // wait failed
+		{out: []byte("pod/bench-canary deleted")},           // cleanup
 	}}
 	k := &kubectlOps{Runner: runner}
 	if err := k.RunCanary(context.Background(), "/tmp/kc", "bench"); err == nil {
 		t.Fatal("expected error for canary failure")
+	}
+	if len(runner.calls) != 5 {
+		t.Fatalf("cleanup not attempted after failure: %v", runner.calls)
+	}
+}
+
+func TestRunCanaryFailsWithoutPreloadedPauseImage(t *testing.T) {
+	t.Parallel()
+	runner := &seqRunner{responses: []seqResponse{
+		{out: []byte("")},
+		{out: []byte("nginx:1.27\n")},
+	}}
+	k := &kubectlOps{Runner: runner}
+	if err := k.RunCanary(context.Background(), "/tmp/kc", "bench"); err == nil || !contains(err.Error(), "preloaded pause") {
+		t.Fatalf("RunCanary() error = %v", err)
 	}
 }
 
