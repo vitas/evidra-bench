@@ -39,8 +39,14 @@ func TestRootUsesEvidraIdentity(t *testing.T) {
 	if cmd.Use != "evidra" {
 		t.Fatalf("root command Use = %q, want evidra", cmd.Use)
 	}
-	if !strings.HasPrefix(buildVersionString(), "evidra ") {
-		t.Fatalf("version string = %q, want Evidra identity", buildVersionString())
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	cmd.SetArgs([]string{"--version"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("version command failed: %v", err)
+	}
+	if !strings.HasPrefix(output.String(), "evidra version ") || strings.Contains(output.String(), "evidra version evidra") {
+		t.Fatalf("version output = %q, want one Evidra identity", output.String())
 	}
 }
 
@@ -295,7 +301,7 @@ func TestBuildVersionString_UsesBuildMetadata(t *testing.T) {
 	date = "2026-03-15T12:00:00Z"
 
 	got := buildVersionString()
-	want := "evidra v0.1.0-3-gabcdef0 (commit: abcdef0, built: 2026-03-15T12:00:00Z)"
+	want := "v0.1.0-3-gabcdef0 (commit: abcdef0, built: 2026-03-15T12:00:00Z)"
 	if got != want {
 		t.Fatalf("buildVersionString() = %q, want %q", got, want)
 	}

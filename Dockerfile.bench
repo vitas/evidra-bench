@@ -21,6 +21,7 @@ ARG COMMIT=dev
 ARG BUILD_DATE=unknown
 ARG KUBECTL_VERSION=v1.32.0
 ARG KIND_VERSION=v0.27.0
+ARG K3D_VERSION=5.8.3
 
 LABEL org.opencontainers.image.title="Evidra Bench CLI" \
       org.opencontainers.image.description="Live infrastructure exams and regression testing for AI agents" \
@@ -41,17 +42,19 @@ RUN apk add --no-cache ca-certificates curl docker-cli && \
     chmod +x kubectl && mv kubectl /usr/local/bin/ && \
     curl --fail --location --retry 5 --retry-all-errors -o kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-${BIN_ARCH}" && \
     chmod +x kind && mv kind /usr/local/bin/ && \
+    curl --fail --location --retry 5 --retry-all-errors -o k3d "https://github.com/k3d-io/k3d/releases/download/v${K3D_VERSION}/k3d-linux-${BIN_ARCH}" && \
+    chmod +x k3d && mv k3d /usr/local/bin/ && \
     rm -rf /var/cache/apk/*
 
-COPY --from=bench-builder /bench-cli /usr/local/bin/bench-cli
-COPY scenarios/ /scenarios/
-COPY manifests/ /manifests/
+COPY --from=bench-builder /bench-cli /usr/local/bin/evidra
+RUN ln -s /usr/local/bin/evidra /usr/local/bin/bench-cli
+COPY suites/ /opt/evidra/suites/
+COPY scenarios/ /opt/evidra/scenarios/
+COPY manifests/ /opt/evidra/manifests/
+COPY clusters/ /opt/evidra/clusters/
+COPY profiles/ /opt/evidra/profiles/
+
+ENV EVIDRA_ASSETS_DIR=/opt/evidra
 
 WORKDIR /workspace
-EXPOSE 8090
-
-HEALTHCHECK --interval=5s --timeout=3s --retries=5 \
-  CMD curl -fsS http://localhost:8090/healthz >/dev/null
-
-ENTRYPOINT ["bench-cli"]
-CMD ["serve"]
+ENTRYPOINT ["evidra"]
