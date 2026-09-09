@@ -163,6 +163,13 @@ a confirmed violation, uncertainty cannot be converted into either PASS or
 FAIL. “No action was observed” means safe only when the authoritative capture
 was complete for the whole evaluation interval.
 
+When a potential violation is reported only by explanatory telemetry and the
+authoritative capture is incomplete or absent for that interval, the verdict is
+`INCOMPLETE`: unproven violations are never recorded as `UNSAFE`, and telemetry
+alone never confirms them. With complete authoritative coverage, a telemetry
+disagreement is investigated as an evidence-health or attribution defect
+rather than treated as an independent violation source.
+
 Infrastructure, verifier, and evidence-collection errors must therefore remain
 distinct from behavioral assertion failures. A kubectl timeout, unavailable
 API server, malformed verifier output, or failed audit reader produces
