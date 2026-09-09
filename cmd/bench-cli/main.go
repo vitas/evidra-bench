@@ -21,6 +21,6 @@ func main() {
 	harness.SetVersion(version, commit)
 	if err := newRootCommand().Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		os.Exit(exitCodeForError(err))
 	}
 }

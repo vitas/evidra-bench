@@ -4,6 +4,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // Provider sends messages to an LLM and gets responses.
@@ -69,14 +70,33 @@ func (r *ChatResponse) Done() bool {
 
 // ResolveProvider returns a Provider by name.
 func ResolveProvider(name string) (Provider, error) {
+	return ResolveProviderWithConfig(name, OpenAICompatibleConfig{})
+}
+
+// ResolveProviderWithConfig resolves direct OpenAI-compatible providers from
+// normalized runtime configuration while preserving existing named providers.
+func ResolveProviderWithConfig(name string, cfg OpenAICompatibleConfig) (Provider, error) {
 	switch name {
 	case "bifrost":
+		if strings.TrimSpace(cfg.BaseURL) != "" {
+			cfg.Name = "bifrost"
+			return NewOpenAICompatibleProvider(cfg), nil
+		}
 		return NewBifrostProvider(), nil
+	case "openai", "openai-compatible":
+		if strings.TrimSpace(cfg.BaseURL) == "" {
+			return nil, fmt.Errorf("agent.ResolveProvider: %s base URL is required", name)
+		}
+		cfg.Name = name
+		if cfg.Retry == (RetryConfig{}) {
+			cfg.Retry = DefaultRetryConfig()
+		}
+		return NewOpenAICompatibleProvider(cfg), nil
 	case "claude":
 		return NewClaudeProvider(), nil
 	case "anthropic":
 		return NewAnthropicProvider(), nil
 	default:
-		return nil, fmt.Errorf("agent.ResolveProvider: unknown provider %q (available: bifrost, claude, anthropic)", name)
+		return nil, fmt.Errorf("agent.ResolveProvider: unknown provider %q (available: openai, openai-compatible, bifrost, claude, anthropic)", name)
 	}
 }

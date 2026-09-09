@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/vitas/evidra-bench/pkg/adapter"
+	"github.com/vitas/evidra-bench/pkg/agent"
 	"github.com/vitas/evidra-bench/pkg/artifact"
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/environment"
@@ -19,6 +20,10 @@ type localHarnessRuntime struct {
 }
 
 func buildLocalHarnessRuntime(cfg config.Config, envProvider environment.ClusterLifecycle, sharedStore *localstore.Store) (*localHarnessRuntime, error) {
+	return buildLocalHarnessRuntimeWithProvider(cfg, envProvider, sharedStore, nil)
+}
+
+func buildLocalHarnessRuntimeWithProvider(cfg config.Config, envProvider environment.ClusterLifecycle, sharedStore *localstore.Store, modelProvider agent.Provider) (*localHarnessRuntime, error) {
 	var agentAdapter adapter.Adapter
 	var err error
 	if cfg.Adapter != "a2a" {
@@ -53,12 +58,13 @@ func buildLocalHarnessRuntime(cfg config.Config, envProvider environment.Cluster
 
 	return &localHarnessRuntime{
 		Deps: harness.Deps{
-			EnvProvider:  envProvider,
-			Bootstrapper: bootstrapper,
-			Adapter:      agentAdapter,
-			Writer:       writer,
-			Reporter:     reporter,
-			Store:        resultsStore,
+			EnvProvider:   envProvider,
+			ModelProvider: modelProvider,
+			Bootstrapper:  bootstrapper,
+			Adapter:       agentAdapter,
+			Writer:        writer,
+			Reporter:      reporter,
+			Store:         resultsStore,
 		},
 		Close: closeFn,
 	}, nil

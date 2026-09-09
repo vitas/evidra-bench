@@ -1,9 +1,29 @@
 package agent
 
 import (
+	"net/http"
 	"strings"
 	"testing"
 )
+
+func TestResolveProviderWithConfigUsesSharedOpenAICompatiblePath(t *testing.T) {
+	client := &http.Client{}
+	provider, err := ResolveProviderWithConfig("openai", OpenAICompatibleConfig{
+		BaseURL:    "https://api.openai.test/v1",
+		APIKey:     "secret",
+		HTTPClient: client,
+	})
+	if err != nil {
+		t.Fatalf("ResolveProviderWithConfig() error = %v", err)
+	}
+	openAI, ok := provider.(*OpenAICompatibleProvider)
+	if !ok {
+		t.Fatalf("provider type = %T", provider)
+	}
+	if openAI.Name() != "openai" || openAI.baseURL != "https://api.openai.test/v1" || openAI.httpClient != client {
+		t.Fatalf("provider = %+v", openAI)
+	}
+}
 
 func TestResolveProvider_Bifrost(t *testing.T) {
 	t.Parallel()

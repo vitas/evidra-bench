@@ -1,11 +1,20 @@
 package main
 
 import (
+	"context"
 	"testing"
 
+	"github.com/vitas/evidra-bench/pkg/agent"
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/localstore"
 )
+
+type harnessModelProvider struct{}
+
+func (*harnessModelProvider) Name() string { return "test" }
+func (*harnessModelProvider) Chat(context.Context, agent.ChatRequest) (*agent.ChatResponse, error) {
+	return &agent.ChatResponse{}, nil
+}
 
 func TestBuildLocalHarnessRuntimeUsesSharedStore(t *testing.T) {
 	t.Parallel()
@@ -32,5 +41,23 @@ func TestBuildLocalHarnessRuntimeUsesSharedStore(t *testing.T) {
 
 	if rt.Deps.Store != shared {
 		t.Fatalf("expected shared store to be reused")
+	}
+}
+
+func TestBuildLocalHarnessRuntimeInjectsModelProvider(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.Default()
+	cfg.RunsDir = t.TempDir()
+	cfg.Adapter = "a2a"
+	want := &harnessModelProvider{}
+
+	rt, err := buildLocalHarnessRuntimeWithProvider(cfg, nil, nil, want)
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	defer rt.Close()
+	if rt.Deps.ModelProvider != want {
+		t.Fatalf("ModelProvider = %T, want injected provider", rt.Deps.ModelProvider)
 	}
 }

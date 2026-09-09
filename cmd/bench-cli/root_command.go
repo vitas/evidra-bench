@@ -21,6 +21,7 @@ with optional Bench reporting for behavioral analysis.`,
 	}
 
 	root.AddCommand(
+		newTestCommand(runOneCommandEvaluation),
 		newRunCommand(&cfg),
 		newScenarioCommand(&cfg),
 		newLabCommand(&cfg),

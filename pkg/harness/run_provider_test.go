@@ -1,6 +1,7 @@
 package harness
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 	"time"
@@ -8,6 +9,29 @@ import (
 	"github.com/vitas/evidra-bench/pkg/agent"
 	"github.com/vitas/evidra-bench/pkg/config"
 )
+
+type injectedModelProvider struct{}
+
+func (*injectedModelProvider) Name() string { return "injected" }
+
+func (*injectedModelProvider) Chat(context.Context, agent.ChatRequest) (*agent.ChatResponse, error) {
+	return &agent.ChatResponse{Content: "done"}, nil
+}
+
+func TestResolveModelProvider_PrefersInjectedDependency(t *testing.T) {
+	t.Parallel()
+
+	want := &injectedModelProvider{}
+	h := New(Deps{ModelProvider: want})
+
+	got, err := h.resolveModelProvider(config.Config{Provider: "not-a-global-provider"})
+	if err != nil {
+		t.Fatalf("resolveModelProvider() error = %v", err)
+	}
+	if got != want {
+		t.Fatalf("resolveModelProvider() = %T %p, want injected provider %p", got, got, want)
+	}
+}
 
 func TestProviderEvidenceDir_IsIsolatedPerRun(t *testing.T) {
 	t.Parallel()

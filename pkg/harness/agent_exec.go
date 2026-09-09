@@ -79,7 +79,7 @@ func (h *Harness) runWithA2A(ctx context.Context, req RunRequest, s *scenario.Sc
 func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenario.Scenario, kubeconfigPath, promptContent string, timeout time.Duration, evidenceDir string, injectChan <-chan agent.Message, memoryResetChan <-chan int) (*adapter.RunResult, error) {
 	cfg := req.Config
 
-	provider, err := agent.ResolveProvider(cfg.Provider)
+	provider, err := h.resolveModelProvider(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +164,13 @@ func (h *Harness) runWithProvider(ctx context.Context, req RunRequest, s *scenar
 		ToolCalls:  providerToolCalls(loopResult.Messages),
 		Metadata:   buildRunMetadata(cfg, loopResult, evidenceDir),
 	}, nil
+}
+
+func (h *Harness) resolveModelProvider(cfg config.Config) (agent.Provider, error) {
+	if h.deps.ModelProvider != nil {
+		return h.deps.ModelProvider, nil
+	}
+	return agent.ResolveProvider(cfg.Provider)
 }
 
 func newProviderToolExecutor(req RunRequest, kubeconfigPath string) *agent.ToolExecutor {

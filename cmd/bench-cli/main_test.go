@@ -18,6 +18,22 @@ func TestMainHelp(t *testing.T) {
 	}
 }
 
+func TestRootExposesOneCommandTestFrontDoor(t *testing.T) {
+	var buf bytes.Buffer
+	cmd := newRootCommand()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"test", "--help"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("test help failed: %v", err)
+	}
+	for _, want := range []string{"--model", "--agent", "--environment", "--output"} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("test help missing %q:\n%s", want, buf.String())
+		}
+	}
+}
+
 func TestRunCommand_MissingScenario(t *testing.T) {
 	cmd := newRootCommand()
 	cmd.SetArgs([]string{"run"})

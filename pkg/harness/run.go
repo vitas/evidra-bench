@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/vitas/evidra-bench/pkg/adapter"
+	"github.com/vitas/evidra-bench/pkg/agent"
 	"github.com/vitas/evidra-bench/pkg/artifact"
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/environment"
@@ -42,12 +43,13 @@ func SetVersion(v, c string) {
 
 // Deps holds all dependencies for the harness.
 type Deps struct {
-	EnvProvider  environment.ClusterLifecycle
-	Bootstrapper *environment.Bootstrapper
-	Adapter      adapter.Adapter
-	Writer       *artifact.Writer
-	Reporter     *report.Reporter
-	Store        *localstore.Store
+	EnvProvider   environment.ClusterLifecycle
+	ModelProvider agent.Provider
+	Bootstrapper  *environment.Bootstrapper
+	Adapter       adapter.Adapter
+	Writer        *artifact.Writer
+	Reporter      *report.Reporter
+	Store         *localstore.Store
 }
 
 // RunRequest describes what to run.
