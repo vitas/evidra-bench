@@ -22,6 +22,7 @@ with optional Bench reporting for behavioral analysis.`,
 
 	root.AddCommand(
 		newTestCommand(runOneCommandEvaluation),
+		newDemoCommand(runOneCommandEvaluation, defaultDemoDiscover),
 		newRunCommand(&cfg),
 		newScenarioCommand(&cfg),
 		newLabCommand(&cfg),

@@ -76,39 +76,7 @@ func newTestCommand(run testRunner) *cobra.Command {
 				return fmt.Errorf("test: evaluation runner is unavailable")
 			}
 
-			result, runErr := run(cmd.Context(), req)
-			if runErr != nil && result.Version == "" {
-				return &cliExitError{Code: 2, Err: runErr}
-			}
-			if err := writeEvaluationOutputs(req.OutputDir, result, req.Suite); err != nil {
-				return &cliExitError{Code: 2, Err: err}
-			}
-			if err := report.RenderEvaluationTerminal(cmd.OutOrStdout(), result); err != nil {
-				return &cliExitError{Code: 2, Err: err}
-			}
-			reportPath, _ := filepath.Abs(filepath.Join(req.OutputDir, "report.html"))
-			writef(cmd.OutOrStdout(), "\nReport: %s\n", reportPath)
-
-			// Best effort: signed evidence bundles for every run produced by the
-			// evaluation. Failures warn on stderr but never change the
-			// evaluation exit code; result.json/report.html already won.
-			bundles, bundleErr := exportEvaluationBundles(req.OutputDir, version)
-			if bundleErr != nil {
-				writef(cmd.ErrOrStderr(), "warning: evidence bundles: %v\n", bundleErr)
-			}
-			if bundles > 0 {
-				bundlesPath, _ := filepath.Abs(filepath.Join(req.OutputDir, "bundles"))
-				writef(cmd.OutOrStdout(), "Evidence bundles: %s (%d run(s); open with: evidra validate --evidence-dir <bundle>)\n", bundlesPath, bundles)
-			}
-
-			code := evaluation.ExitCode(result)
-			if runErr != nil {
-				code = 2
-			}
-			if code != 0 {
-				return &cliExitError{Code: code, Err: runErr}
-			}
-			return nil
+			return finishEvaluation(cmd, req, run)
 		},
 	}
 	flags := cmd.Flags()
@@ -121,6 +89,46 @@ func newTestCommand(run testRunner) *cobra.Command {
 	flags.DurationVar(&req.Timeout, "timeout", req.Timeout, "timeout for each test case")
 	flags.BoolVar(&req.CI, "ci", false, "disable interactive behavior and use stable exit codes")
 	return cmd
+}
+
+// finishEvaluation is the shared terminal contract for `test` and `demo`:
+// execute the injected evaluation, write result.json and report.html, render
+// terminal output, attach best-effort evidence bundles, and map the result to
+// a stable process exit code. Entry points must not duplicate this logic.
+func finishEvaluation(cmd *cobra.Command, req testRequest, run testRunner) error {
+	result, runErr := run(cmd.Context(), req)
+	if runErr != nil && result.Version == "" {
+		return &cliExitError{Code: 2, Err: runErr}
+	}
+	if err := writeEvaluationOutputs(req.OutputDir, result, req.Suite); err != nil {
+		return &cliExitError{Code: 2, Err: err}
+	}
+	if err := report.RenderEvaluationTerminal(cmd.OutOrStdout(), result); err != nil {
+		return &cliExitError{Code: 2, Err: err}
+	}
+	reportPath, _ := filepath.Abs(filepath.Join(req.OutputDir, "report.html"))
+	writef(cmd.OutOrStdout(), "\nReport: %s\n", reportPath)
+
+	// Best effort: signed evidence bundles for every run produced by the
+	// evaluation. Failures warn on stderr but never change the
+	// evaluation exit code; result.json/report.html already won.
+	bundles, bundleErr := exportEvaluationBundles(req.OutputDir, version)
+	if bundleErr != nil {
+		writef(cmd.ErrOrStderr(), "warning: evidence bundles: %v\n", bundleErr)
+	}
+	if bundles > 0 {
+		bundlesPath, _ := filepath.Abs(filepath.Join(req.OutputDir, "bundles"))
+		writef(cmd.OutOrStdout(), "Evidence bundles: %s (%d run(s); open with: evidra validate --evidence-dir <bundle>)\n", bundlesPath, bundles)
+	}
+
+	code := evaluation.ExitCode(result)
+	if runErr != nil {
+		code = 2
+	}
+	if code != 0 {
+		return &cliExitError{Code: code, Err: runErr}
+	}
+	return nil
 }
 
 func writeEvaluationOutputs(outputDir string, result evaluation.Result, suiteID string) error {
