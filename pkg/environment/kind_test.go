@@ -2,6 +2,7 @@ package environment
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -42,6 +43,39 @@ func TestKindProvider_KubeconfigCommand(t *testing.T) {
 	got := strings.Join(cmd.Args, " ")
 	if !strings.Contains(got, "kind get kubeconfig") {
 		t.Fatalf("unexpected command: %s", got)
+	}
+}
+
+func TestKindProvider_ContainerUsesKindNetworkAndInternalKubeconfig(t *testing.T) {
+	runner := &stubRunner{outputs: map[string][]byte{
+		"kind get clusters": {},
+		"kind create cluster --name docker-test --wait 60s": {},
+		"docker network connect kind runner-container":      {},
+		"kind get kubeconfig --internal --name docker-test": []byte("server: https://docker-test-control-plane:6443\n"),
+	}}
+	p := &KindProvider{
+		kubectlOps:    kubectlOps{Runner: runner},
+		ContainerName: "runner-container",
+	}
+
+	handle, err := p.Create(context.Background(), "docker-test", ClusterSpec{})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer func() { _ = os.Remove(handle.KubeconfigPath) }()
+	wantOrder := []string{
+		"kind create cluster --name docker-test --wait 60s",
+		"docker network connect kind runner-container",
+		"kind get kubeconfig --internal --name docker-test",
+	}
+	position := 0
+	for _, command := range runner.seen {
+		if position < len(wantOrder) && command == wantOrder[position] {
+			position++
+		}
+	}
+	if position != len(wantOrder) {
+		t.Fatalf("commands = %v, want ordered subsequence %v", runner.seen, wantOrder)
 	}
 }
 

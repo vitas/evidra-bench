@@ -59,7 +59,6 @@ func newTestCommand(run testRunner) *cobra.Command {
 		Suite:       "kubernetes-demo@1",
 		Environment: "kind",
 		OutputDir:   "./evidra-results",
-		ProjectRoot: ".",
 		Timeout:     5 * time.Minute,
 	}
 	cmd := &cobra.Command{

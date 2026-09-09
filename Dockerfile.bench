@@ -31,7 +31,7 @@ LABEL org.opencontainers.image.title="Evidra Bench CLI" \
       org.opencontainers.image.revision="${COMMIT}" \
       org.opencontainers.image.created="${BUILD_DATE}"
 
-RUN apk add --no-cache ca-certificates curl docker-cli && \
+RUN apk add --no-cache bash ca-certificates curl docker-cli && \
     ARCH=$(uname -m) && \
     case "$ARCH" in \
         x86_64) BIN_ARCH=amd64 ;; \
@@ -54,7 +54,8 @@ COPY manifests/ /opt/evidra/manifests/
 COPY clusters/ /opt/evidra/clusters/
 COPY profiles/ /opt/evidra/profiles/
 
-ENV EVIDRA_ASSETS_DIR=/opt/evidra
+ENV EVIDRA_ASSETS_DIR=/opt/evidra \
+    EVIDRA_CONTAINERIZED=1
 
 WORKDIR /workspace
 ENTRYPOINT ["evidra"]

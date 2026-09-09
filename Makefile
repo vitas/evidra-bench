@@ -6,7 +6,7 @@ GO_VERSION ?= $(shell awk '/^go / { print $$2 }' go.mod)
 GOVULNCHECK_TOOLCHAIN ?= go$(GO_VERSION)
 LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(BUILD_DATE)"
 
-.PHONY: build db-import test test-race fmt lint vuln tidy clean smoke public-smoke public-smoke-test private-review-smoke private-review-smoke-test catalog ui-install ui-dev ui-build ui-docker docker-bench docker-contract
+.PHONY: build db-import test test-race fmt lint vuln tidy clean smoke public-smoke public-smoke-test private-review-smoke private-review-smoke-test catalog ui-install ui-dev ui-build ui-docker docker-bench docker-contract docker-one-command-smoke
 
 build:
 	go build $(LDFLAGS) -o bin/$(BINARY) ./cmd/bench-cli
@@ -70,9 +70,14 @@ docker-bench:
 		--build-arg VERSION=$(VERSION) \
 		--build-arg COMMIT=$(COMMIT) \
 		--build-arg BUILD_DATE=$(BUILD_DATE) \
+		-t ghcr.io/vitas/evidra-bench:latest \
+		-t ghcr.io/vitas/evidra-bench:$(VERSION) \
 		-t ghcr.io/vitas/evidra-bench-cli:latest \
 		-t ghcr.io/vitas/evidra-bench-cli:$(VERSION) \
 		.
 
 docker-contract:
 	bash tests/test_docker_runner_contract.sh
+
+docker-one-command-smoke:
+	bash tests/smoke/run_docker_one_command_smoke.sh

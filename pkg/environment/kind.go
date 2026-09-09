@@ -39,14 +39,19 @@ func (r *ExecRunner) Run(ctx context.Context, cmd *exec.Cmd) ([]byte, error) {
 type KindProvider struct {
 	kubectlOps
 	ReuseExisting bool
+	ContainerName string
 }
 
 // NewKindProvider returns a KindProvider with the default command runner.
 func NewKindProvider() *KindProvider {
 	runner := &ExecRunner{}
-	return &KindProvider{
+	provider := &KindProvider{
 		kubectlOps: kubectlOps{Runner: runner},
 	}
+	if os.Getenv("EVIDRA_CONTAINERIZED") == "1" {
+		provider.ContainerName = strings.TrimSpace(os.Getenv("HOSTNAME"))
+	}
+	return provider
 }
 
 func (p *KindProvider) createCommand(clusterName string) *exec.Cmd {
@@ -107,7 +112,14 @@ func (p *KindProvider) listClustersCommand() *exec.Cmd {
 }
 
 func (p *KindProvider) kubeconfigCommand(clusterName string) *exec.Cmd {
+	if p.ContainerName != "" {
+		return exec.Command("kind", "get", "kubeconfig", "--internal", "--name", clusterName)
+	}
 	return exec.Command("kind", "get", "kubeconfig", "--name", clusterName)
+}
+
+func (p *KindProvider) connectContainerCommand() *exec.Cmd {
+	return exec.Command("docker", "network", "connect", "kind", p.ContainerName)
 }
 
 // Create provisions a kind cluster. When spec.ConfigPath is set, the
@@ -126,6 +138,16 @@ func (p *KindProvider) Create(ctx context.Context, clusterName string, spec Clus
 		defer cleanup()
 		if _, err := p.Runner.Run(ctx, cmd); err != nil {
 			return nil, fmt.Errorf("environment.KindProvider.Create: %w", err)
+		}
+	}
+	if p.ContainerName != "" {
+		out, connectErr := p.Runner.Run(ctx, p.connectContainerCommand())
+		alreadyConnected := strings.Contains(strings.ToLower(string(out)), "already exists") || strings.Contains(strings.ToLower(string(out)), "already connected")
+		if connectErr != nil && !alreadyConnected {
+			if !exists {
+				_, _ = p.Runner.Run(ctx, p.deleteCommand(clusterName))
+			}
+			return nil, fmt.Errorf("environment.KindProvider.Create: connect runner container to kind network: %w: %s", connectErr, strings.TrimSpace(string(out)))
 		}
 	}
 

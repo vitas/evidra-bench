@@ -48,6 +48,9 @@ func TestTestCommand_UsesSimpleDefaultsAndWritesCanonicalReports(t *testing.T) {
 	if captured.Suite != "kubernetes-demo@1" || captured.Environment != "kind" {
 		t.Fatalf("defaults = suite %q environment %q", captured.Suite, captured.Environment)
 	}
+	if captured.ProjectRoot != "" {
+		t.Fatalf("internal project root default = %q, want automatic asset discovery", captured.ProjectRoot)
+	}
 	for _, name := range []string{"result.json", "report.html"} {
 		if _, err := os.Stat(filepath.Join(outputDir, name)); err != nil {
 			t.Fatalf("expected %s: %v", name, err)

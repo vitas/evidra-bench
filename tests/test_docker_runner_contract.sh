@@ -13,6 +13,7 @@ require_text() {
 }
 
 require_text 'ARG K3D_VERSION='
+require_text 'apk add --no-cache bash ca-certificates curl docker-cli'
 require_text 'k3d-linux-${BIN_ARCH}'
 require_text 'COPY --from=bench-builder /bench-cli /usr/local/bin/evidra'
 require_text 'ln -s /usr/local/bin/evidra /usr/local/bin/bench-cli'
@@ -22,6 +23,8 @@ require_text 'COPY manifests/ /opt/evidra/manifests/'
 require_text 'COPY clusters/ /opt/evidra/clusters/'
 require_text 'COPY profiles/ /opt/evidra/profiles/'
 require_text 'ENV EVIDRA_ASSETS_DIR=/opt/evidra'
+require_text 'EVIDRA_CONTAINERIZED=1'
+require_text 'EVIDRA_CONTAINERIZED=1'
 require_text 'ENTRYPOINT ["evidra"]'
 
 if grep -Fq 'CMD ["serve"]' "$dockerfile"; then

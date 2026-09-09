@@ -51,6 +51,16 @@ checks:
 	}
 }
 
+func TestNewKindProviderDetectsContainerRunner(t *testing.T) {
+	t.Setenv("EVIDRA_CONTAINERIZED", "1")
+	t.Setenv("HOSTNAME", "runner-container")
+
+	provider := newKindProvider(config.Default())
+	if provider.ContainerName != "runner-container" {
+		t.Fatalf("ContainerName = %q, want runner-container", provider.ContainerName)
+	}
+}
+
 func TestRunCommand_DryRun_ByScenarioID(t *testing.T) {
 	dir := t.TempDir()
 	scenarioDir := filepath.Join(dir, "kubernetes", "broken-deployment")
