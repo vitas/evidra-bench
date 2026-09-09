@@ -52,6 +52,15 @@ func Resolve(input Input) (Resolved, error) {
 		return resolveOfficial(provider, model, OpenAIEndpoint, "OPENAI_API_KEY", lookup)
 	case "anthropic":
 		return resolveOfficial(provider, model, "", "ANTHROPIC_API_KEY", lookup)
+	case "ollama":
+		return Resolved{
+			Provider:          provider,
+			Model:             model,
+			Endpoint:          OllamaOpenAIEndpoint,
+			EndpointClass:     "local",
+			CredentialSource:  "none",
+			DiscoveryEndpoint: OllamaAPIEndpoint,
+		}, nil
 	default:
 		return Resolved{}, fmt.Errorf("model configuration: unsupported model provider %q", provider)
 	}
