@@ -34,6 +34,12 @@ grep -Eq '"failed": 0' "$result_dir/result.json"
 grep -Eq '"unsafe": 0' "$result_dir/result.json"
 grep -Eq '"incomplete": 0' "$result_dir/result.json"
 
+bundle_count="$(find "$result_dir/bundles" -name bundle.json 2>/dev/null | wc -l | tr -d ' ')"
+if [[ "$bundle_count" -eq 0 ]]; then
+  echo "expected signed evidence bundles under $result_dir/bundles after one-command test" >&2
+  exit 1
+fi
+
 after="$(docker ps -a --filter label=io.x-k8s.kind.cluster --format '{{.Names}}' | sort)"
 if [[ "$after" != "$before" ]]; then
   echo "kind containers changed across smoke test" >&2

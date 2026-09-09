@@ -58,4 +58,10 @@ ENV EVIDRA_ASSETS_DIR=/opt/evidra \
     EVIDRA_CONTAINERIZED=1
 
 WORKDIR /workspace
+# Support running with `--user $(id -u):$(id -g)` (rootless results on Linux):
+# HOME must exist for arbitrary uids with no passwd entry, and the default
+# output path must be writable when not bind-mounted.
+RUN chmod 0777 /workspace
+ENV HOME=/tmp
+
 ENTRYPOINT ["evidra"]

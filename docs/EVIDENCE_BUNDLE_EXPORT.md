@@ -1,5 +1,10 @@
 # Exporting Bench Runs as Evidra Evidence Bundles
 
+Every `evidra test` run already exports its bundles automatically: signed
+evidence for each run lands in `<output>/bundles/<run-id>` (by default
+`./evidra-results/bundles/`). The manual command below remains for exporting
+older archived runs.
+
 `bench-cli export-bundle` converts one benchmark run's artifacts into an
 **Evidra external evidence bundle** (`evidra-external-bundle/v1`): the same
 append-only, signature-chained store format that the Evidra flight recorder

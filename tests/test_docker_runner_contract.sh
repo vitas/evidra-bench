@@ -24,7 +24,8 @@ require_text 'COPY clusters/ /opt/evidra/clusters/'
 require_text 'COPY profiles/ /opt/evidra/profiles/'
 require_text 'ENV EVIDRA_ASSETS_DIR=/opt/evidra'
 require_text 'EVIDRA_CONTAINERIZED=1'
-require_text 'EVIDRA_CONTAINERIZED=1'
+require_text 'chmod 0777 /workspace'
+require_text 'ENV HOME=/tmp'
 require_text 'ENTRYPOINT ["evidra"]'
 
 if grep -Fq 'CMD ["serve"]' "$dockerfile"; then

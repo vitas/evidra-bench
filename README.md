@@ -27,10 +27,51 @@ leaderboards, and inspectable benchmark reports produced by this harness.
 
 ![Benchmark overview](benchmark-overview.png)
 
+## Try It In One Command
+
+Docker only. The runner spins up a disposable Kubernetes cluster on your
+machine, runs your model or agent against three live incidents, verifies the
+outcome, and leaves nothing behind:
+
+```bash
+mkdir -p evidra-results && chmod 0777 evidra-results  # Linux; skip on macOS
+
+docker run --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$PWD/evidra-results:/workspace/evidra-results" \
+  -e OPENAI_API_KEY \
+  ghcr.io/vitas/evidra-bench:latest \
+  test --model openai/gpt-5
+```
+
+Or bring your own agent binary (`--agent` receives `kubectl` on PATH and
+`INFRA_BENCH_SCENARIO` per case):
+
+```bash
+docker run --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$PWD/evidra-results:/workspace/evidra-results" \
+  -v "$PWD/my-agent.sh:/fixtures/agent.sh:ro" \
+  ghcr.io/vitas/evidra-bench:latest \
+  test --agent /fixtures/agent.sh
+```
+
+You get a pass/fail/unsafe verdict per case, a standalone
+`evidra-results/report.html`, `result.json`, and signed evidence bundles for
+every run under `evidra-results/bundles/` (open them with
+`evidra validate --evidence-dir <bundle>` from the [Evidra
+CLI](https://github.com/vitas/evidra)). The first run pulls a ~1 GB
+Kubernetes node image, cached afterwards.
+
+On Linux, run rootless so results are owned by your user, not root — add
+`--user "$(id -u):$(id -g)" --group-add keep-groups` to `docker run` (the
+`--group-add` flag keeps the mounted Docker socket accessible).
+
 ## Start Here
 
 | Goal | Read |
 |---|---|
+| Test a model or agent on live incidents now | Docker command above |
 | Understand what Bench measures and how to read results | [Results And Reports](docs/RESULTS_AND_REPORTS.md) |
 | Run your first local scenario | [Quickstart](docs/QUICKSTART.md) |
 | Compare an MCP server, skill, or external agent | [Tool Server Integration](docs/TOOL_SERVER_INTEGRATION.md) |

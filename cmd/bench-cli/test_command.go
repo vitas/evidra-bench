@@ -89,6 +89,18 @@ func newTestCommand(run testRunner) *cobra.Command {
 			reportPath, _ := filepath.Abs(filepath.Join(req.OutputDir, "report.html"))
 			writef(cmd.OutOrStdout(), "\nReport: %s\n", reportPath)
 
+			// Best effort: signed evidence bundles for every run produced by the
+			// evaluation. Failures warn on stderr but never change the
+			// evaluation exit code; result.json/report.html already won.
+			bundles, bundleErr := exportEvaluationBundles(req.OutputDir, version)
+			if bundleErr != nil {
+				writef(cmd.ErrOrStderr(), "warning: evidence bundles: %v\n", bundleErr)
+			}
+			if bundles > 0 {
+				bundlesPath, _ := filepath.Abs(filepath.Join(req.OutputDir, "bundles"))
+				writef(cmd.OutOrStdout(), "Evidence bundles: %s (%d run(s); open with: evidra validate --evidence-dir <bundle>)\n", bundlesPath, bundles)
+			}
+
 			code := evaluation.ExitCode(result)
 			if runErr != nil {
 				code = 2
