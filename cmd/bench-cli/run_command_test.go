@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/vitas/evidra-bench/pkg/config"
+	"github.com/vitas/evidra-bench/pkg/environment"
 	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
@@ -55,7 +58,7 @@ func TestNewKindProviderDetectsContainerRunner(t *testing.T) {
 	t.Setenv("EVIDRA_CONTAINERIZED", "1")
 	t.Setenv("HOSTNAME", "runner-container")
 
-	provider := newKindProvider(config.Default())
+	provider := newKindProvider(config.Default(), environment.ContainerNetworkNative)
 	if provider.ContainerName != "runner-container" {
 		t.Fatalf("ContainerName = %q, want runner-container", provider.ContainerName)
 	}
@@ -65,9 +68,69 @@ func TestNewK3dProviderDetectsContainerRunner(t *testing.T) {
 	t.Setenv("EVIDRA_CONTAINERIZED", "1")
 	t.Setenv("HOSTNAME", "runner-container")
 
-	provider := newK3dProvider(config.Default())
+	provider := newK3dProvider(config.Default(), environment.ContainerNetworkNative)
 	if provider.ContainerName != "runner-container" {
 		t.Fatalf("ContainerName = %q, want runner-container", provider.ContainerName)
+	}
+}
+
+func TestResolveRunnerNetworkModeDetectsOnceAndWiresProviders(t *testing.T) {
+	t.Setenv("EVIDRA_CONTAINERIZED", "1")
+	t.Setenv("HOSTNAME", "runner-x")
+	calls := 0
+	original := containerNetworkProbe
+	containerNetworkProbe = func(_ context.Context, _ environment.CommandRunner, name string) (environment.ContainerNetworkMode, error) {
+		calls++
+		if name != "runner-x" {
+			t.Errorf("probe container name = %q, want runner-x", name)
+		}
+		return environment.ContainerNetworkHost, nil
+	}
+	defer func() { containerNetworkProbe = original }()
+
+	mode, err := resolveRunnerNetworkMode()
+	if err != nil || mode != environment.ContainerNetworkHost {
+		t.Fatalf("resolveRunnerNetworkMode() = %q, %v", mode, err)
+	}
+	if calls != 1 {
+		t.Fatalf("probe calls = %d, want 1", calls)
+	}
+	if got := newKindProvider(config.Default(), mode).NetworkMode; got != environment.ContainerNetworkHost {
+		t.Fatalf("kind NetworkMode = %q", got)
+	}
+	if got := newK3dProvider(config.Default(), mode).NetworkMode; got != environment.ContainerNetworkHost {
+		t.Fatalf("k3d NetworkMode = %q", got)
+	}
+	if existing := newKindProvider(config.Default(), mode).ContainerName; existing != "runner-x" {
+		t.Fatalf("kind ContainerName = %q, want runner-x", existing)
+	}
+}
+
+func TestResolveRunnerNetworkModeNativeWithoutContainerization(t *testing.T) {
+	t.Setenv("EVIDRA_CONTAINERIZED", "")
+	original := containerNetworkProbe
+	probed := false
+	containerNetworkProbe = func(context.Context, environment.CommandRunner, string) (environment.ContainerNetworkMode, error) {
+		probed = true
+		return environment.ContainerNetworkNative, nil
+	}
+	defer func() { containerNetworkProbe = original }()
+	mode, err := resolveRunnerNetworkMode()
+	if err != nil || mode != environment.ContainerNetworkNative || probed {
+		t.Fatalf("mode = %q, err = %v, probed = %v", mode, err, probed)
+	}
+}
+
+func TestResolveRunnerNetworkModeFailureIsActionable(t *testing.T) {
+	t.Setenv("EVIDRA_CONTAINERIZED", "1")
+	t.Setenv("HOSTNAME", "runner-x")
+	original := containerNetworkProbe
+	containerNetworkProbe = func(context.Context, environment.CommandRunner, string) (environment.ContainerNetworkMode, error) {
+		return "", errors.New("cannot inspect runner container: docker socket missing")
+	}
+	defer func() { containerNetworkProbe = original }()
+	if _, err := resolveRunnerNetworkMode(); err == nil || !strings.Contains(err.Error(), "runner container") {
+		t.Fatalf("err = %v", err)
 	}
 }
 

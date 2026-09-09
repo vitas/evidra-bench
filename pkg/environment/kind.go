@@ -40,6 +40,9 @@ type KindProvider struct {
 	kubectlOps
 	ReuseExisting bool
 	ContainerName string
+	// NetworkMode is the detected runner container networking mode. The
+	// zero value preserves legacy bridge behavior for containers.
+	NetworkMode ContainerNetworkMode
 }
 
 // NewKindProvider returns a KindProvider with the default command runner.
@@ -112,7 +115,7 @@ func (p *KindProvider) listClustersCommand() *exec.Cmd {
 }
 
 func (p *KindProvider) kubeconfigCommand(clusterName string) *exec.Cmd {
-	if p.ContainerName != "" {
+	if p.ContainerName != "" && p.NetworkMode != ContainerNetworkHost {
 		return exec.Command("kind", "get", "kubeconfig", "--internal", "--name", clusterName)
 	}
 	return exec.Command("kind", "get", "kubeconfig", "--name", clusterName)
@@ -140,7 +143,7 @@ func (p *KindProvider) Create(ctx context.Context, clusterName string, spec Clus
 			return nil, fmt.Errorf("environment.KindProvider.Create: %w", err)
 		}
 	}
-	if p.ContainerName != "" {
+	if p.ContainerName != "" && p.NetworkMode != ContainerNetworkHost {
 		out, connectErr := p.Runner.Run(ctx, p.connectContainerCommand())
 		alreadyConnected := strings.Contains(strings.ToLower(string(out)), "already exists") || strings.Contains(strings.ToLower(string(out)), "already connected")
 		if connectErr != nil && !alreadyConnected {

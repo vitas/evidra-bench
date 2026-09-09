@@ -9,6 +9,48 @@ import (
 	"testing"
 )
 
+func TestK3dProvider_HostNetworkKeepsPublishedLocalPort(t *testing.T) {
+	runner := &stubRunner{outputs: map[string][]byte{
+		"k3d cluster list --no-headers":               {},
+		"k3d cluster create host-test --no-lb --wait": {},
+		"k3d kubeconfig get host-test": []byte(`apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: preserved
+    server: https://host.docker.internal:49123
+  name: k3d-host-test
+kind: Config
+`),
+	}}
+	p := &K3dProvider{
+		kubectlOps:    kubectlOps{Runner: runner},
+		ContainerName: "runner-container",
+		NetworkMode:   ContainerNetworkHost,
+	}
+
+	handle, err := p.Create(context.Background(), "host-test", ClusterSpec{})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer func() { _ = os.Remove(handle.KubeconfigPath) }()
+
+	for _, command := range runner.seen {
+		if strings.Contains(command, "network connect") {
+			t.Fatalf("host networking must not attach to bridge networks: %v", runner.seen)
+		}
+	}
+	written, err := os.ReadFile(handle.KubeconfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(written), "server: https://127.0.0.1:49123") {
+		t.Fatalf("host mode must localize the published API port, got: %s", written)
+	}
+	if !strings.Contains(string(written), "certificate-authority-data: preserved") {
+		t.Fatalf("credentials must be preserved: %s", written)
+	}
+}
+
 func TestK3dProvider_CreateCommand(t *testing.T) {
 	t.Parallel()
 	p := NewK3dProvider()

@@ -86,16 +86,64 @@ func TestKindProvider_ImplementsClusterLifecycle(t *testing.T) {
 
 type stubRunner struct {
 	outputs map[string][]byte
+	errs    map[string]error
 	seen    []string
 }
 
 func (s *stubRunner) Run(_ context.Context, cmd *exec.Cmd) ([]byte, error) {
 	key := strings.Join(cmd.Args, " ")
 	s.seen = append(s.seen, key)
+	if err, ok := s.errs[key]; ok {
+		return s.outputs[key], err
+	}
 	if out, ok := s.outputs[key]; ok {
 		return out, nil
 	}
 	return nil, nil
+}
+
+func TestKindProvider_HostNetworkSkipsAttachAndInternalKubeconfig(t *testing.T) {
+	runner := &stubRunner{outputs: map[string][]byte{
+		"kind get clusters": {},
+		"kind create cluster --name docker-test --wait 60s": {},
+		"kind get kubeconfig --name docker-test":            []byte("apiVersion: v1\nserver: https://127.0.0.1:51234\n"),
+	}}
+	p := &KindProvider{
+		kubectlOps:    kubectlOps{Runner: runner},
+		ContainerName: "runner-container",
+		NetworkMode:   ContainerNetworkHost,
+	}
+
+	handle, err := p.Create(context.Background(), "docker-test", ClusterSpec{})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer func() { _ = os.Remove(handle.KubeconfigPath) }()
+
+	for _, command := range runner.seen {
+		if strings.Contains(command, "network connect") || strings.Contains(command, "--internal") {
+			t.Fatalf("host networking must not attach or request internal kubeconfig: %v", runner.seen)
+		}
+	}
+	if !containsExact(runner.seen, "kind get kubeconfig --name docker-test") {
+		t.Fatalf("host mode must fetch the host-published kubeconfig: %v", runner.seen)
+	}
+	written, err := os.ReadFile(handle.KubeconfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(written), "https://127.0.0.1:51234") {
+		t.Fatalf("kubeconfig rewritten unexpectedly: %s", written)
+	}
+}
+
+func containsExact(commands []string, want string) bool {
+	for _, command := range commands {
+		if command == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestKindProvider_Create_ReusesExistingCluster(t *testing.T) {

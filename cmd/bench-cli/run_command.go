@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -188,24 +190,50 @@ func runScenarioOnceWithLease(ctx context.Context, cfg config.Config, s *scenari
 
 // newLocalProvisioner builds a LocalProvisioner from the current config.
 // The asset root is derived from the absolute ScenariosDir parent (repo root).
+// Runner container networking is detected once here, before providers are
+// constructed, so host-network runners are never told to join bridge
+// networks and an inspection failure blocks provisioning before any cluster
+// is created.
 func newLocalProvisioner(cfg config.Config) *environment.LocalProvisioner {
-	providers := map[string]environment.ClusterLifecycle{
-		"kind": newKindProvider(cfg),
-		"k3d":  newK3dProvider(cfg),
-	}
 	assetsRoot := filepath.Dir(cfg.ScenariosDir)
+	mode, err := resolveRunnerNetworkMode()
+	if err != nil {
+		failing := &environment.FailingClusterLifecycle{Err: err}
+		return environment.NewLocalProvisioner(map[string]environment.ClusterLifecycle{
+			"kind": failing,
+			"k3d":  failing,
+		}, &environment.ExecRunner{}, assetsRoot)
+	}
+	providers := map[string]environment.ClusterLifecycle{
+		"kind": newKindProvider(cfg, mode),
+		"k3d":  newK3dProvider(cfg, mode),
+	}
 	return environment.NewLocalProvisioner(providers, &environment.ExecRunner{}, assetsRoot)
 }
 
-func newKindProvider(cfg config.Config) *environment.KindProvider {
+// containerNetworkProbe is the injectable seam for runner inspection tests.
+var containerNetworkProbe = environment.DetectContainerNetworkMode
+
+func resolveRunnerNetworkMode() (environment.ContainerNetworkMode, error) {
+	if os.Getenv("EVIDRA_CONTAINERIZED") != "1" {
+		return environment.ContainerNetworkNative, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	return containerNetworkProbe(ctx, &environment.ExecRunner{}, strings.TrimSpace(os.Getenv("HOSTNAME")))
+}
+
+func newKindProvider(cfg config.Config, mode environment.ContainerNetworkMode) *environment.KindProvider {
 	p := environment.NewKindProvider()
 	p.ReuseExisting = cfg.ReuseCluster
+	p.NetworkMode = mode
 	return p
 }
 
-func newK3dProvider(cfg config.Config) *environment.K3dProvider {
+func newK3dProvider(cfg config.Config, mode environment.ContainerNetworkMode) *environment.K3dProvider {
 	p := environment.NewK3dProvider()
 	p.ReuseExisting = cfg.ReuseCluster
+	p.NetworkMode = mode
 	return p
 }
 

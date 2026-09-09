@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,6 +19,9 @@ type K3dProvider struct {
 	kubectlOps
 	ReuseExisting bool
 	ContainerName string
+	// NetworkMode is the detected runner container networking mode. The
+	// zero value preserves legacy bridge behavior for containers.
+	NetworkMode ContainerNetworkMode
 }
 
 // NewK3dProvider returns a K3dProvider with the default command runner.
@@ -104,7 +108,7 @@ func (p *K3dProvider) Create(ctx context.Context, clusterName string, spec Clust
 			return nil, fmt.Errorf("environment.K3dProvider.Create: %w: %s", err, strings.TrimSpace(string(out)))
 		}
 	}
-	if p.ContainerName != "" {
+	if p.ContainerName != "" && p.NetworkMode != ContainerNetworkHost {
 		out, connectErr := p.Runner.Run(ctx, p.connectContainerCommand(clusterName))
 		alreadyConnected := strings.Contains(strings.ToLower(string(out)), "already exists") || strings.Contains(strings.ToLower(string(out)), "already connected")
 		if connectErr != nil && !alreadyConnected {
@@ -121,7 +125,13 @@ func (p *K3dProvider) Create(ctx context.Context, clusterName string, spec Clust
 		return nil, fmt.Errorf("environment.K3dProvider.Create: get kubeconfig: %w", err)
 	}
 	if p.ContainerName != "" {
-		out, err = rewriteK3dKubeconfigServer(out, clusterName)
+		if p.NetworkMode == ContainerNetworkHost {
+			// Host-network runners share the host namespace: keep the
+			// published dynamic port, normalize only the host.
+			out, err = localizeK3dKubeconfigServer(out)
+		} else {
+			out, err = rewriteK3dKubeconfigServer(out, clusterName)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("environment.K3dProvider.Create: prepare container kubeconfig: %w", err)
 		}
@@ -174,7 +184,7 @@ func (p *K3dProvider) clusterExists(ctx context.Context, clusterName string) (bo
 // Destroy tears down the k3d cluster and removes the kubeconfig file.
 func (p *K3dProvider) Destroy(ctx context.Context, handle *Handle) error {
 	var disconnectErr error
-	if p.ContainerName != "" {
+	if p.ContainerName != "" && p.NetworkMode != ContainerNetworkHost {
 		disconnectErr = p.disconnectContainer(ctx, handle.ClusterName)
 	}
 	cmd := p.deleteCommand(handle.ClusterName)
@@ -219,6 +229,45 @@ func rewriteK3dKubeconfigServer(data []byte, clusterName string) ([]byte, error)
 			continue
 		}
 		server.Value = fmt.Sprintf("https://k3d-%s-server-0:6443", clusterName)
+		rewritten++
+	}
+	if rewritten == 0 {
+		return nil, fmt.Errorf("kubeconfig has no cluster server")
+	}
+	return yaml.Marshal(&document)
+}
+
+// localizeK3dKubeconfigServer rewrites only the host component of every
+// cluster server URL to 127.0.0.1, preserving the dynamically published API
+// port and all credentials. Used when the runner shares the host network
+// namespace, where k3d may emit host.docker.internal or 0.0.0.0.
+func localizeK3dKubeconfigServer(data []byte) ([]byte, error) {
+	var document yaml.Node
+	if err := yaml.Unmarshal(data, &document); err != nil {
+		return nil, fmt.Errorf("parse kubeconfig: %w", err)
+	}
+	if len(document.Content) == 0 {
+		return nil, fmt.Errorf("kubeconfig is empty")
+	}
+	clusters := yamlMapValue(document.Content[0], "clusters")
+	if clusters == nil || clusters.Kind != yaml.SequenceNode {
+		return nil, fmt.Errorf("kubeconfig has no clusters")
+	}
+	rewritten := 0
+	for _, entry := range clusters.Content {
+		server := yamlMapValue(yamlMapValue(entry, "cluster"), "server")
+		if server == nil || server.Kind != yaml.ScalarNode {
+			continue
+		}
+		parsed, err := url.Parse(server.Value)
+		if err != nil {
+			return nil, fmt.Errorf("kubeconfig server %q: %w", server.Value, err)
+		}
+		if parsed.Port() == "" {
+			return nil, fmt.Errorf("kubeconfig server %q has no explicit API port", server.Value)
+		}
+		parsed.Host = "127.0.0.1:" + parsed.Port()
+		server.Value = parsed.String()
 		rewritten++
 	}
 	if rewritten == 0 {
