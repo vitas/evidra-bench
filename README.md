@@ -6,7 +6,7 @@
 [![Go](https://img.shields.io/badge/go-1.25.11%2B-00ADD8.svg)](go.mod)
 [![Bench](https://img.shields.io/badge/bench-live%20reports-4b5563.svg)](https://bench.evidra.cc)
 
-Evidra Bench runs live regression tests for infrastructure agents. It puts a
+Evidra Bench is a live regression benchmark for infrastructure agents. It puts a
 model or agent into disposable Kubernetes incidents, lets it use real tools,
 and catches failed or unsafe behavior before that configuration gets production
 access.
