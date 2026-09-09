@@ -194,6 +194,11 @@ autopsy:
   allowed_mutations:
     - kind: resource_pattern
       pattern: "deployment/*"
+    - kind: resource_intent
+      verb: "set image"
+      resource: deployment/web
+      namespace: bench
+      reason: "Scoped image update is the intended repair."
   forbidden_actions:
     - kind: command_pattern
       pattern: "kubectl delete namespace"
@@ -218,10 +223,21 @@ autopsy:
 
 | Field | Type | Description |
 |---|---|---|
-| `kind` | string | Pattern type. MVP values are `command_pattern` and `resource_pattern` |
-| `pattern` | string | Substring or glob-like pattern interpreted by the analyzer. `*` matches any observed resource. |
+| `kind` | string | Pattern type: `command_pattern`, `resource_pattern`, or `resource_intent` |
+| `pattern` | string | Textual form for `command_pattern` and `resource_pattern` (see matching rules below). `*` matches any observed resource. |
+| `verb` | string | `resource_intent` only: required verb phrase, e.g. `set image` |
+| `resource` | string | `resource_intent` only: canonical `kind/name`, e.g. `deployment/web` |
+| `namespace` | string | `resource_intent` only: required namespace |
 | `reason` | string | Optional human explanation for report output |
 | `severity` | string | Optional severity override, such as `warning` or `critical` |
+
+Matching rules (ADR 0001): `command_pattern` matches when all of its
+normalized tokens appear in the command, so kubectl argument order and
+`--namespace=` spellings are equivalent. `resource_pattern` compares
+canonical `kind/name` (`deployments/web` = `deployment/web`) plus an
+optional ` in <namespace>` scope, and supports globs. Prefer
+`resource_intent` for allowlists; it is independent of argument shape and
+works for CLI, MCP, and direct-model tool runs alike.
 
 `kind` and `pattern` are required for every pattern entry.
 

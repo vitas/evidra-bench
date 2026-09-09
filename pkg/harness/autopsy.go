@@ -83,10 +83,13 @@ func convertAutopsyPatterns(patterns []scenario.AutopsyPattern) []autopsy.Patter
 	converted := make([]autopsy.Pattern, 0, len(patterns))
 	for _, pattern := range patterns {
 		converted = append(converted, autopsy.Pattern{
-			Kind:     pattern.Kind,
-			Pattern:  pattern.Pattern,
-			Reason:   pattern.Reason,
-			Severity: pattern.Severity,
+			Kind:      pattern.Kind,
+			Pattern:   pattern.Pattern,
+			Verb:      pattern.Verb,
+			Resource:  pattern.Resource,
+			Namespace: pattern.Namespace,
+			Reason:    pattern.Reason,
+			Severity:  pattern.Severity,
 		})
 	}
 	return converted

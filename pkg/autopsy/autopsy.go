@@ -67,10 +67,15 @@ type Hints struct {
 
 // Pattern describes an expected command/resource pattern for deterministic analysis.
 type Pattern struct {
-	Kind     string
-	Pattern  string
-	Reason   string
-	Severity string
+	Kind string
+	// Pattern carries the textual form for command_pattern and
+	// resource_pattern kinds ("kubectl set image ..." / "Deployment/api in ns").
+	Pattern   string
+	Verb      string
+	Resource  string
+	Namespace string
+	Reason    string
+	Severity  string
 }
 
 // Report is the machine-readable failure autopsy artifact.
@@ -470,30 +475,204 @@ func matchingPattern(step bench.TimelineStep, patterns []Pattern) (Pattern, bool
 func patternMatchesStep(pattern Pattern, step bench.TimelineStep) bool {
 	switch pattern.Kind {
 	case "command_pattern":
-		return strings.Contains(normalizeCommand(step.Command), normalizeCommand(pattern.Pattern))
+		return commandTokensMatch(pattern.Pattern, step.Command)
 	case "resource_pattern":
-		return patternMatchesValue(pattern.Pattern, step.Resource)
+		return resourcePatternMatches(pattern.Pattern, step)
+	case "resource_intent":
+		return resourceIntentMatches(pattern, step)
 	default:
 		return false
 	}
 }
 
-func patternMatchesValue(patternValue, value string) bool {
-	patternValue = strings.TrimSpace(patternValue)
-	value = strings.TrimSpace(value)
-	if patternValue == "" || value == "" {
+// resourceKindAliases folds the plural and short forms kubectl accepts down
+// to the canonical kind used in scenario hints.
+var resourceKindAliases = map[string]string{
+	"deploy":      "deployment",
+	"deployments": "deployment",
+	"svc":         "service",
+	"services":    "service",
+	"po":          "pod",
+	"pods":        "pod",
+	"cm":          "configmap",
+	"configmaps":  "configmap",
+	"ns":          "namespace",
+	"namespaces":  "namespace",
+	"secrets":     "secret",
+	"nodes":       "node",
+}
+
+// canonicalResourceToken normalizes "Deployment/api", "deployments/api", or a
+// bare kind word into "deployment/api" / "deployment".
+func canonicalResourceToken(token string) string {
+	kind, name, hasName := strings.Cut(strings.TrimSpace(token), "/")
+	kind = strings.ToLower(kind)
+	if alias, ok := resourceKindAliases[kind]; ok {
+		kind = alias
+	}
+	if !hasName {
+		return kind
+	}
+	return kind + "/" + strings.ToLower(name)
+}
+
+// tokenizeCommand lower-cases, whitespace-folds, and canonicalizes namespace
+// flag spellings (--namespace[= ]x -> -n x) into a token slice.
+func tokenizeCommand(cmd string) []string {
+	words := strings.Fields(cmd)
+	out := make([]string, 0, len(words))
+	for i := 0; i < len(words); i++ {
+		w := strings.ToLower(words[i])
+		switch {
+		case w == "--namespace":
+			out = append(out, "-n")
+			if i+1 < len(words) {
+				out = append(out, strings.ToLower(words[i+1]))
+				i++
+			}
+		case strings.HasPrefix(w, "--namespace="):
+			out = append(out, "-n", strings.TrimPrefix(w, "--namespace="))
+		default:
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
+// commandTokensMatch holds when every pattern token (with multiplicity)
+// occurs among the command tokens. Argument order and extra positional
+// arguments no longer change the result, matching kubectl's actual grammar.
+func commandTokensMatch(pattern, command string) bool {
+	want := tokenizeCommand(pattern)
+	if len(want) == 0 {
 		return false
 	}
-	if patternValue == "*" {
+	counts := map[string]int{}
+	for _, token := range tokenizeCommand(command) {
+		counts[token]++
+	}
+	need := map[string]int{}
+	for _, token := range want {
+		need[token]++
+	}
+	for token, count := range need {
+		if counts[token] < count {
+			return false
+		}
+	}
+	return true
+}
+
+// stepResourceIdentity resolves the canonical "kind/name" and namespace a
+// timeline step acted on. kubectl steps derive both from the command tokens;
+// MCP mutation steps carry a pseudo command and parsed fields.
+func stepResourceIdentity(step bench.TimelineStep) (string, string) {
+	tokens := tokenizeCommand(step.Command)
+	resource := ""
+	for _, token := range tokens {
+		if strings.HasPrefix(token, "-") || strings.Contains(token, "=") {
+			continue
+		}
+		if strings.Contains(token, "/") {
+			resource = canonicalResourceToken(token)
+			break
+		}
+	}
+	if resource == "" && step.Resource != "" {
+		head, _, _ := strings.Cut(strings.ToLower(step.Resource), " in ")
+		resource = canonicalResourceToken(head)
+	}
+	namespace := step.Namespace
+	if namespace == "" {
+		for i := 0; i+1 < len(tokens); i++ {
+			if tokens[i] == "-n" || tokens[i] == "in" {
+				namespace = tokens[i+1]
+				break
+			}
+		}
+	}
+	return resource, namespace
+}
+
+// resourcePatternMatches compares a scenario string like "Deployment/api in
+// bench-staging" (namespace optional) against the step's canonical identity.
+// The resource part also accepts globs ("service/*") as before.
+func resourcePatternMatches(pattern string, step bench.TimelineStep) bool {
+	resourcePart, namespacePart, hasNamespace := strings.Cut(pattern, " in ")
+	wantResource := canonicalResourceToken(resourcePart)
+	if wantResource == "" {
+		return false
+	}
+	gotResource, gotNamespace := stepResourceIdentity(step)
+	if !resourceTokenPatternMatches(wantResource, gotResource) {
+		return false
+	}
+	if hasNamespace && !strings.EqualFold(strings.TrimSpace(namespacePart), gotNamespace) {
+		return false
+	}
+	return true
+}
+
+// resourceTokenPatternMatches is exact equality unless the scenario uses a
+// glob, keeping "service/*"-style scopes working.
+func resourceTokenPatternMatches(want, got string) bool {
+	if want == got {
 		return true
 	}
-	if ok, err := path.Match(patternValue, value); err == nil && ok {
+	if want == "*" {
+		return got != ""
+	}
+	if strings.ContainsAny(want, "*?[") {
+		if ok, err := path.Match(want, got); err == nil && ok {
+			return true
+		}
+	}
+	return false
+}
+
+// resourceIntentMatches evaluates the structured verb+resource+namespace
+// intent independently of argument spelling.
+func resourceIntentMatches(pattern Pattern, step bench.TimelineStep) bool {
+	wantResource := canonicalResourceToken(pattern.Resource)
+	if wantResource == "" {
+		return false
+	}
+	gotResource, gotNamespace := stepResourceIdentity(step)
+	if !resourceTokenPatternMatches(wantResource, gotResource) {
+		return false
+	}
+	if strings.TrimSpace(pattern.Namespace) != "" &&
+		!strings.EqualFold(pattern.Namespace, gotNamespace) {
+		return false
+	}
+	if strings.TrimSpace(pattern.Verb) != "" &&
+		!containsVerbTokens(tokenizeCommand(step.Command), tokenizeCommand(pattern.Verb)) {
+		return false
+	}
+	return true
+}
+
+// containsVerbTokens accepts the verb phrase as a contiguous token sequence,
+// with a token-level containment fallback so MCP tool names
+// ("resources_create_or_update") satisfy intents ("create_or_update").
+func containsVerbTokens(command, verb []string) bool {
+	if len(verb) == 0 {
 		return true
 	}
-	if ok, err := path.Match(strings.ToLower(patternValue), strings.ToLower(value)); err == nil && ok {
-		return true
+	for start := 0; start+len(verb) <= len(command); start++ {
+		matched := true
+		for offset := range verb {
+			if command[start+offset] != verb[offset] &&
+				!strings.Contains(command[start+offset], verb[offset]) {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return true
+		}
 	}
-	return strings.Contains(strings.ToLower(value), strings.ToLower(patternValue))
+	return false
 }
 
 func severityFromHint(value string, fallback Severity) Severity {

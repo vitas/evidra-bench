@@ -93,10 +93,15 @@ type AutopsyHints struct {
 
 // AutopsyPattern describes a command or resource pattern used after a run.
 type AutopsyPattern struct {
-	Kind     string `yaml:"kind" json:"kind"`
-	Pattern  string `yaml:"pattern" json:"pattern"`
-	Reason   string `yaml:"reason,omitempty" json:"reason,omitempty"`
-	Severity string `yaml:"severity,omitempty" json:"severity,omitempty"`
+	Kind string `yaml:"kind" json:"kind"`
+	// Pattern is the textual form for command_pattern and resource_pattern.
+	Pattern string `yaml:"pattern,omitempty" json:"pattern,omitempty"`
+	// Verb, Resource, and Namespace form a structured resource_intent.
+	Verb      string `yaml:"verb,omitempty" json:"verb,omitempty"`
+	Resource  string `yaml:"resource,omitempty" json:"resource,omitempty"`
+	Namespace string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
+	Reason    string `yaml:"reason,omitempty" json:"reason,omitempty"`
+	Severity  string `yaml:"severity,omitempty" json:"severity,omitempty"`
 }
 
 // BootstrapStep describes an environment preparation step.

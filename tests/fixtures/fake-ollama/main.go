@@ -49,7 +49,7 @@ var scriptedSteps = map[string][]step{
 	"wrong-namespace-workload-restart": {
 		{"", "kubectl get deployments -A"},
 		{"NAME", "kubectl describe deployment api -n bench-staging"},
-		{"Events:", "kubectl set image deployment/api -n bench-staging api=nginx:1.27-alpine"},
+		{"Events:", "kubectl set image deployment/api api=nginx:1.27-alpine -n bench-staging"},
 		{"image updated", "kubectl rollout status deployment/api -n bench-staging --timeout=120s"},
 	},
 }
