@@ -31,7 +31,35 @@ type preparedTestEvaluation struct {
 	ModelProvider agent.Provider
 }
 
-func prepareTestEvaluation(req testRequest, lookupEnv func(string) string) (*preparedTestEvaluation, error) {
+// testRuntimeDeps is the injection seam for the one-command evaluation:
+// production uses the defaults, tests script local-model preparation and the
+// environment adapters so lifecycle order and failure boundaries are provable
+// without Docker, clusters, or inference.
+type testRuntimeDeps struct {
+	LookupEnv      func(string) string
+	Preflights     []evaluation.Preflight
+	PrepareOllama  func(context.Context, modelconfig.Resolved, []string) (modelconfig.PreparedModel, error)
+	NewProvisioner func(config.Config, *suite.Loaded) evaluation.Provisioner
+	NewExecutor    func(config.Config, *suite.Loaded, agent.Provider) evaluation.CaseExecutor
+}
+
+func defaultTestRuntimeDeps(environment string) testRuntimeDeps {
+	return testRuntimeDeps{
+		LookupEnv:  os.Getenv,
+		Preflights: []evaluation.Preflight{localTestPreflight{Environment: environment}},
+		PrepareOllama: func(ctx context.Context, resolved modelconfig.Resolved, required []string) (modelconfig.PreparedModel, error) {
+			return modelconfig.PrepareOllamaModel(ctx, resolved, required)
+		},
+		NewProvisioner: func(cfg config.Config, loaded *suite.Loaded) evaluation.Provisioner {
+			return suiteEvaluationProvisioner{Config: cfg, Suite: loaded}
+		},
+		NewExecutor: func(cfg config.Config, loaded *suite.Loaded, provider agent.Provider) evaluation.CaseExecutor {
+			return suiteEvaluationExecutor{Config: cfg, Suite: loaded, ModelProvider: provider}
+		},
+	}
+}
+
+func prepareTestEvaluation(ctx context.Context, req testRequest, lookupEnv func(string) string, deps testRuntimeDeps) (*preparedTestEvaluation, error) {
 	if req.Environment != "kind" && req.Environment != "k3d" {
 		return nil, fmt.Errorf("test: environment must be kind or k3d, got %q", req.Environment)
 	}
@@ -84,6 +112,20 @@ func prepareTestEvaluation(req testRequest, lookupEnv func(string) string) (*pre
 		cfg.Provider = resolved.Provider
 		cfg.Model = resolved.Model
 		target = resolved.EvaluationTarget()
+		if resolved.Provider == "ollama" {
+			// Local-model preflight: discovery and capability validation run
+			// here, strictly before the evaluation service (and therefore
+			// before any cluster acquisition). A missing model or an
+			// incompatible one fails without creating infrastructure.
+			local, prepErr := deps.PrepareOllama(ctx, resolved, loaded.EvaluationSuite().RequiredModelCapabilities)
+			if prepErr != nil {
+				return nil, fmt.Errorf("test: %w", prepErr)
+			}
+			target.ModelDigest = local.Digest
+			target.ParameterSize = local.ParameterSize
+			target.Quantization = local.Quantization
+			target.CapabilityCheck = local.CapabilityCheck
+		}
 		prepared.ModelProvider, err = agent.ResolveProviderWithConfig(resolved.Provider, agent.OpenAICompatibleConfig{
 			Name:    resolved.Provider,
 			BaseURL: resolved.Endpoint,
@@ -168,21 +210,24 @@ func containsString(values []string, want string) bool {
 }
 
 func runOneCommandEvaluation(ctx context.Context, req testRequest) (evaluation.Result, error) {
-	prepared, err := prepareTestEvaluation(req, os.Getenv)
+	return runOneCommandEvaluationWith(ctx, req, defaultTestRuntimeDeps(req.Environment))
+}
+
+func runOneCommandEvaluationWith(ctx context.Context, req testRequest, deps testRuntimeDeps) (evaluation.Result, error) {
+	if deps.LookupEnv == nil {
+		deps.LookupEnv = os.Getenv
+	}
+	prepared, err := prepareTestEvaluation(ctx, req, deps.LookupEnv, deps)
 	if err != nil {
 		return evaluation.Result{}, err
 	}
+	if deps.NewProvisioner == nil || deps.NewExecutor == nil {
+		return evaluation.Result{}, fmt.Errorf("test: evaluation runtime dependencies are incomplete")
+	}
 	service := evaluation.Service{
-		Preflights: []evaluation.Preflight{localTestPreflight{Environment: req.Environment}},
-		Provisioner: suiteEvaluationProvisioner{
-			Config: prepared.Config,
-			Suite:  prepared.Suite,
-		},
-		Executor: suiteEvaluationExecutor{
-			Config:        prepared.Config,
-			Suite:         prepared.Suite,
-			ModelProvider: prepared.ModelProvider,
-		},
+		Preflights:     deps.Preflights,
+		Provisioner:    deps.NewProvisioner(prepared.Config, prepared.Suite),
+		Executor:       deps.NewExecutor(prepared.Config, prepared.Suite, prepared.ModelProvider),
 		CleanupTimeout: config.GracefulStopTimeout,
 	}
 	return service.Run(ctx, prepared.Plan)

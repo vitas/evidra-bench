@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -84,7 +85,7 @@ func TestPrepareTestEvaluationBuildsCanonicalCredentialFreePlan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prepared, err := prepareTestEvaluation(testRequest{
+	prepared, err := prepareTestEvaluation(context.Background(), testRequest{
 		Model:       "openai/gpt-test",
 		Suite:       "kubernetes-demo@1",
 		Environment: "kind",
@@ -96,7 +97,7 @@ func TestPrepareTestEvaluationBuildsCanonicalCredentialFreePlan(t *testing.T) {
 			return "super-secret"
 		}
 		return ""
-	})
+	}, testRuntimeDeps{})
 	if err != nil {
 		t.Fatalf("prepareTestEvaluation() error = %v", err)
 	}
@@ -117,14 +118,14 @@ func TestPrepareTestEvaluationBuildsCanonicalCredentialFreePlan(t *testing.T) {
 
 func TestPrepareTestEvaluationRejectsUnsupportedEnvironmentBeforeProvisioning(t *testing.T) {
 	root, _ := filepath.Abs(filepath.Join("..", ".."))
-	_, err := prepareTestEvaluation(testRequest{
+	_, err := prepareTestEvaluation(context.Background(), testRequest{
 		Agent:       "./agent",
 		Suite:       "kubernetes-demo@1",
 		Environment: "minikube",
 		OutputDir:   t.TempDir(),
 		ProjectRoot: root,
 		Timeout:     defaultTestCaseTimeout,
-	}, func(string) string { return "" })
+	}, func(string) string { return "" }, testRuntimeDeps{})
 	if err == nil || !strings.Contains(err.Error(), "kind or k3d") {
 		t.Fatalf("error = %v", err)
 	}

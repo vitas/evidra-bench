@@ -59,10 +59,10 @@ type EnvironmentPlan struct {
 }
 
 type TargetPlan struct {
-	Kind     TargetKind `json:"kind"`
-	Provider string     `json:"provider,omitempty"`
-	Model    string     `json:"model,omitempty"`
-	Adapter  string     `json:"adapter,omitempty"`
+	Kind             TargetKind `json:"kind"`
+	Provider         string     `json:"provider,omitempty"`
+	Model            string     `json:"model,omitempty"`
+	Adapter          string     `json:"adapter,omitempty"`
 	CommandIdentity  string     `json:"command_identity,omitempty"`
 	EndpointClass    string     `json:"endpoint_class,omitempty"`
 	CredentialSource string     `json:"credential_source,omitempty"`
