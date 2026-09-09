@@ -44,6 +44,9 @@ type SuitePlan struct {
 	ID     string     `json:"id"`
 	Digest string     `json:"digest"`
 	Cases  []CasePlan `json:"cases"`
+	// RequiredModelCapabilities lists model capabilities the suite declares
+	// (see suite.SupportedModelCapabilities). Preflight enforces them.
+	RequiredModelCapabilities []string `json:"required_model_capabilities,omitempty"`
 }
 
 type CasePlan struct {
@@ -56,13 +59,21 @@ type EnvironmentPlan struct {
 }
 
 type TargetPlan struct {
-	Kind             TargetKind `json:"kind"`
-	Provider         string     `json:"provider,omitempty"`
-	Model            string     `json:"model,omitempty"`
-	Adapter          string     `json:"adapter,omitempty"`
+	Kind     TargetKind `json:"kind"`
+	Provider string     `json:"provider,omitempty"`
+	Model    string     `json:"model,omitempty"`
+	Adapter  string     `json:"adapter,omitempty"`
 	CommandIdentity  string     `json:"command_identity,omitempty"`
 	EndpointClass    string     `json:"endpoint_class,omitempty"`
 	CredentialSource string     `json:"credential_source,omitempty"`
+	// Local model identity captured by discovery preflight. All optional and
+	// credential-free; they participate in the tested-configuration
+	// fingerprint because different weights or quantizations of the same tag
+	// are different configurations.
+	ModelDigest     string `json:"model_digest,omitempty"`
+	ParameterSize   string `json:"parameter_size,omitempty"`
+	Quantization    string `json:"quantization,omitempty"`
+	CapabilityCheck string `json:"capability_check,omitempty"`
 }
 
 type Limits struct {

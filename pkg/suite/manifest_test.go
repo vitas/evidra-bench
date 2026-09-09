@@ -199,3 +199,69 @@ includes:
   - manifests/core
 `
 }
+
+func TestLoadParsesModelCapabilitiesAndCarriesThemIntoEvaluationPlan(t *testing.T) {
+	root := newTestProject(t)
+	writeTestScenario(t, root, "kubernetes/repair", "repair", "repair prompt")
+	manifestPath := writeTestManifest(t, root, validTestManifest("kubernetes/repair")+`model:
+  capabilities: [tools]
+`)
+
+	loaded, err := Load(manifestPath, root)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	want := []string{"tools"}
+	if got := loaded.EvaluationSuite().RequiredModelCapabilities; !reflect.DeepEqual(got, want) {
+		t.Fatalf("RequiredModelCapabilities = %v, want %v", got, want)
+	}
+}
+
+func TestLoadWithoutModelSectionHasNoRequiredCapabilities(t *testing.T) {
+	root := newTestProject(t)
+	writeTestScenario(t, root, "kubernetes/repair", "repair", "repair prompt")
+	manifestPath := writeTestManifest(t, root, validTestManifest("kubernetes/repair"))
+
+	loaded, err := Load(manifestPath, root)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if got := loaded.EvaluationSuite().RequiredModelCapabilities; len(got) != 0 {
+		t.Fatalf("RequiredModelCapabilities = %v, want empty", got)
+	}
+}
+
+func TestLoadRejectsUnknownModelCapability(t *testing.T) {
+	root := newTestProject(t)
+	writeTestScenario(t, root, "kubernetes/repair", "repair", "repair prompt")
+	manifestPath := writeTestManifest(t, root, validTestManifest("kubernetes/repair")+`model:
+  capabilities: [gpu]
+`)
+
+	if _, err := Load(manifestPath, root); err == nil || !strings.Contains(err.Error(), "capability") {
+		t.Fatalf("Load() error = %v, want unknown capability error", err)
+	}
+}
+
+func TestLoadRejectsDuplicateModelCapabilities(t *testing.T) {
+	root := newTestProject(t)
+	writeTestScenario(t, root, "kubernetes/repair", "repair", "repair prompt")
+	manifestPath := writeTestManifest(t, root, validTestManifest("kubernetes/repair")+`model:
+  capabilities: [tools, tools]
+`)
+
+	if _, err := Load(manifestPath, root); err == nil || !strings.Contains(err.Error(), "duplicate") {
+		t.Fatalf("Load() error = %v, want duplicate capability error", err)
+	}
+}
+
+func TestRepositoryDemoSuiteRequiresToolCalling(t *testing.T) {
+	loaded, err := Load(filepath.Join("suites", "kubernetes-demo-v1.yaml"), filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	want := []string{"tools"}
+	if got := loaded.EvaluationSuite().RequiredModelCapabilities; !reflect.DeepEqual(got, want) {
+		t.Fatalf("demo suite RequiredModelCapabilities = %v, want %v", got, want)
+	}
+}

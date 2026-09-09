@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/vitas/evidra-bench/pkg/evaluation"
@@ -21,6 +22,7 @@ type Manifest struct {
 	ID          string              `yaml:"id"`
 	Revision    int                 `yaml:"revision"`
 	Environment EnvironmentContract `yaml:"environment"`
+	Model       ModelContract       `yaml:"model"`
 	Cases       []string            `yaml:"cases"`
 	Includes    []string            `yaml:"includes"`
 	Limitations []string            `yaml:"limitations"`
@@ -30,6 +32,17 @@ type EnvironmentContract struct {
 	Profile   scenario.ExecutionProfile `yaml:"profile"`
 	Providers []string                  `yaml:"providers"`
 }
+
+// ModelContract declares what the suite requires from the model under test.
+// The vocabulary is intentionally closed; capabilities gate preflight, not
+// execution semantics.
+type ModelContract struct {
+	Capabilities []string `yaml:"capabilities"`
+}
+
+// SupportedModelCapabilities is the closed vocabulary accepted by suite
+// manifests. Anything outside it must fail loading, never be ignored.
+var SupportedModelCapabilities = []string{"tools"}
 
 type Loaded struct {
 	Manifest  Manifest
@@ -45,7 +58,17 @@ func (l *Loaded) EvaluationSuite() evaluation.SuitePlan {
 	for _, s := range l.Scenarios {
 		cases = append(cases, evaluation.CasePlan{ID: s.ID})
 	}
-	return evaluation.SuitePlan{ID: l.Identity, Digest: l.Digest, Cases: cases}
+	var capabilities []string
+	for _, capability := range l.Manifest.Model.Capabilities {
+		capabilities = append(capabilities, strings.TrimSpace(capability))
+	}
+	slices.Sort(capabilities)
+	return evaluation.SuitePlan{
+		ID:                        l.Identity,
+		Digest:                    l.Digest,
+		Cases:                     cases,
+		RequiredModelCapabilities: capabilities,
+	}
 }
 
 // Load validates a suite manifest, resolves its cases through the shared
@@ -143,6 +166,20 @@ func validateManifest(manifest Manifest) error {
 	}
 	if len(manifest.Includes) == 0 {
 		return fmt.Errorf("at least one shared asset include is required")
+	}
+	seenCapabilities := make(map[string]struct{}, len(manifest.Model.Capabilities))
+	for _, capability := range manifest.Model.Capabilities {
+		normalized := strings.TrimSpace(capability)
+		if normalized == "" {
+			return fmt.Errorf("model capability must not be empty")
+		}
+		if !slices.Contains(SupportedModelCapabilities, normalized) {
+			return fmt.Errorf("unknown model capability %q (supported: %s)", normalized, strings.Join(SupportedModelCapabilities, ", "))
+		}
+		if _, ok := seenCapabilities[normalized]; ok {
+			return fmt.Errorf("duplicate model capability %q", normalized)
+		}
+		seenCapabilities[normalized] = struct{}{}
 	}
 	return nil
 }

@@ -66,3 +66,59 @@ func TestPlanFingerprintIsStableAndContainsNoCredentials(t *testing.T) {
 		}
 	}
 }
+
+func TestPlanFingerprintIncludesLocalModelIdentityFields(t *testing.T) {
+	base := Plan{
+		Suite: SuitePlan{
+			ID:     "kubernetes-demo@1",
+			Digest: "sha256:abc",
+			Cases:  []CasePlan{{ID: "broken-deployment"}},
+		},
+		Environment: EnvironmentPlan{Provider: "kind", Profile: "default"},
+		Target: TargetPlan{
+			Kind:     TargetModel,
+			Provider: "ollama",
+			Model:    "qwen3:8b",
+		},
+		Limits:   Limits{CaseTimeout: time.Minute},
+		Attempts: 1,
+	}
+	if err := base.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+	baseFP, err := base.Fingerprint()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	withIdentity := base
+	withIdentity.Target.ModelDigest = "sha256:deadbeef"
+	withIdentity.Target.ParameterSize = "8B"
+	withIdentity.Target.Quantization = "Q4_K_M"
+	withIdentity.Target.CapabilityCheck = "behavioral_tool_call"
+	identityFP, err := withIdentity.Fingerprint()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if identityFP == baseFP {
+		t.Fatal("fingerprint must change when local model identity fields change")
+	}
+
+	encoded, err := withIdentity.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"model_digest":"sha256:deadbeef"`, `"parameter_size":"8B"`, `"quantization":"Q4_K_M"`, `"capability_check":"behavioral_tool_call"`} {
+		if !strings.Contains(string(encoded), want) {
+			t.Fatalf("serialized plan missing %s: %s", want, encoded)
+		}
+	}
+
+	omitted, err := base.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(omitted), `"model_digest"`) {
+		t.Fatalf("identity fields must be omitted when unset: %s", omitted)
+	}
+}

@@ -4,6 +4,8 @@ revision: 1
 environment:
   profile: default
   providers: [kind, k3d]
+model:
+  capabilities: [tools]
 cases:
   - kubernetes/broken-deployment
   - kubernetes/false-alarm
