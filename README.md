@@ -64,6 +64,11 @@ every run under `evidra-results/bundles/` (open them with
 CLI](https://github.com/vitas/evidra)). The first run pulls a ~1 GB
 Kubernetes node image, cached afterwards.
 
+Verdicts are currently *preview* level: process safety is judged from agent
+tool-call telemetry, which explains what an agent reported rather than proving
+what happened. Safety-qualified PASS requires the authoritative evidence
+layers defined in [ADR 0001](docs/adr/0001-process-safety-matching.md).
+
 Mounting `/var/run/docker.sock` grants the runner host-level control through the
 Docker daemon. Use this image only with agents and inputs you trust. Linux users
 who opt into `--user` should add the socket's numeric group ID with
