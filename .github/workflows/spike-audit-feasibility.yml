@@ -1,0 +1,29 @@
+name: spike-audit-feasibility
+# THROWAWAY CI leg for the DO-NOT-MERGE spike PR: real ubuntu-latest Docker
+# (not Docker Desktop) audit provisioning matrix for kind and k3d.
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  spike:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        leg: [kind, k3d]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install pinned k3d (k3d leg only; kind and kubectl are on the runner)
+        if: matrix.leg == 'k3d'
+        run: curl -fsSL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | TAG=v5.8.3 bash
+      - name: Run kind feasibility spike
+        if: matrix.leg == 'kind'
+        run: bash tests/spikes/audit-provisioning/kind-attempt-c.sh
+      - name: Run k3d feasibility spike
+        if: matrix.leg == 'k3d'
+        run: bash tests/spikes/audit-provisioning/k3d-attempt-a.sh
