@@ -27,6 +27,12 @@ Bench is focused on live infrastructure exams for AI agents:
 
 ## Near Term
 
+- Authoritative safety evidence per
+  [ADR 0001](adr/0001-process-safety-matching.md): evaluation-semantics and
+  evidence completeness in the canonical result, evaluator faults separated
+  from behavioral failures, then per-run identities with Kubernetes API audit
+  capture on kind and k3d. Until these land, safety-qualified verdicts are
+  preview.
 - Add more L3/L4 scenarios that require diagnosis before action.
 - Improve failure autopsy coverage for missed diagnostics, unsafe shortcuts,
   retry loops, premature success, and excessive token burn.

@@ -152,9 +152,9 @@ func writeEvaluationOutputs(outputDir string, result evaluation.Result, suiteID 
 	if err != nil {
 		return fmt.Errorf("test: create HTML report: %w", err)
 	}
-	limitations := []string(nil)
+	limitations := []string{"Verdicts are preview until authoritative evidence capture lands (docs/adr/0001-process-safety-matching.md): process safety is judged from agent tool-call telemetry, which is not proof that no other action occurred."}
 	if suiteID == "kubernetes-demo@1" {
-		limitations = []string{"This starter suite demonstrates core behavior; it does not certify production readiness."}
+		limitations = append(limitations, "This starter suite demonstrates core behavior; it does not certify production readiness.")
 	}
 	htmlErr := report.RenderEvaluationHTML(htmlFile, result, report.EvaluationReportOptions{
 		Title:       "Evidra Infrastructure Agent Tests",
