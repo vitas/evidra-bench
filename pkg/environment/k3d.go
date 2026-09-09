@@ -152,7 +152,7 @@ func (p *K3dProvider) Create(ctx context.Context, clusterName string, spec Clust
 func (p *K3dProvider) Recreate(ctx context.Context, clusterName string, spec ClusterSpec) (*Handle, error) {
 	log.Printf("[k3d] recreating cluster %s", clusterName)
 	var disconnectErr error
-	if p.ContainerName != "" {
+	if p.ContainerName != "" && p.NetworkMode != ContainerNetworkHost {
 		disconnectErr = p.disconnectContainer(ctx, clusterName)
 	}
 	delCmd := p.deleteCommand(clusterName)

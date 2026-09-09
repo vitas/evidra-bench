@@ -84,8 +84,14 @@ grep -q '^  demo$' README.md ||
 grep -q -- '--network host' README.md ||
   fail "README should document host networking for reaching the local runtime"
 
+grep -q 'docker run --rm -it --network host' README.md ||
+  fail "README demo command should allocate an interactive terminal for model selection"
+
 grep -q -- '--model ollama/qwen3:8b' docs/QUICKSTART.md ||
   fail "Quickstart should include a first-class local-model test path"
+
+grep -q 'docker run --rm -it --network host' docs/QUICKSTART.md ||
+  fail "Quickstart demo command should allocate an interactive terminal for model selection"
 
 grep -qi 'never downloaded automatically\|never downloads' README.md docs/QUICKSTART.md ||
   true

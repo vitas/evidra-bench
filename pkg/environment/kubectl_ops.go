@@ -123,6 +123,12 @@ func (k *kubectlOps) CreateNamespace(ctx context.Context, kubeconfigPath, ns str
 	if err != nil && !strings.Contains(string(out), "already exists") {
 		return fmt.Errorf("create namespace %s: %w: %s", ns, err, string(out))
 	}
+	waitCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
+		"wait", "--for=create", "serviceaccount/default", "-n", ns, "--timeout=30s")
+	waitOut, err := k.Runner.Run(ctx, waitCmd)
+	if err != nil {
+		return fmt.Errorf("create namespace %s: default service account not ready: %w: %s", ns, err, string(waitOut))
+	}
 	return nil
 }
 
@@ -166,6 +172,12 @@ func (k *kubectlOps) runCanary(ctx context.Context, kubeconfigPath, ns, fallback
 		"wait", "--for=condition=Ready", "pod/bench-canary", "-n", ns, "--timeout=30s")
 	waitOut, err := k.Runner.Run(ctx, waitCmd)
 	if err != nil {
+		describeCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
+			"describe", "pod", "bench-canary", "-n", ns)
+		describeOut, describeErr := k.Runner.Run(ctx, describeCmd)
+		if describeErr == nil && strings.TrimSpace(string(describeOut)) != "" {
+			return fmt.Errorf("canary pod failed: %w: %s\n%s", err, string(waitOut), string(describeOut))
+		}
 		return fmt.Errorf("canary pod failed: %w: %s", err, string(waitOut))
 	}
 	return nil

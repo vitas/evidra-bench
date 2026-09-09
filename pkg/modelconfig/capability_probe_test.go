@@ -72,6 +72,29 @@ func TestProbeToolCallingFailureModes(t *testing.T) {
 			want:     "malformed",
 		},
 		{
+			name: "multiple tool calls",
+			provider: &scriptedProbeProvider{response: &agent.ChatResponse{ToolCalls: []agent.ToolCall{
+				{ID: "call_1", Name: probeToolName, Arguments: `{"city":"Paris"}`},
+				{ID: "call_2", Name: probeToolName, Arguments: `{"city":"Paris"}`},
+			}}},
+			want: "exactly one",
+		},
+		{
+			name:     "missing required argument",
+			provider: &scriptedProbeProvider{response: toolCallArguments(probeToolName, `{}`)},
+			want:     "city",
+		},
+		{
+			name:     "wrong argument type",
+			provider: &scriptedProbeProvider{response: toolCallArguments(probeToolName, `{"city":7}`)},
+			want:     "city",
+		},
+		{
+			name:     "wrong argument value",
+			provider: &scriptedProbeProvider{response: toolCallArguments(probeToolName, `{"city":"London"}`)},
+			want:     "Paris",
+		},
+		{
 			name:     "provider error",
 			provider: &scriptedProbeProvider{err: errors.New("connection reset")},
 			want:     "connection reset",

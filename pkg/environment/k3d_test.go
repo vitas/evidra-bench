@@ -51,6 +51,37 @@ kind: Config
 	}
 }
 
+func TestK3dProvider_HostNetworkRecreateNeverDisconnectsBridgeNetwork(t *testing.T) {
+	runner := &stubRunner{outputs: map[string][]byte{
+		"k3d cluster delete host-test":                {},
+		"k3d cluster list --no-headers":               {},
+		"k3d cluster create host-test --no-lb --wait": {},
+		"k3d kubeconfig get host-test": []byte(`apiVersion: v1
+clusters:
+- cluster:
+    server: https://0.0.0.0:49123
+  name: k3d-host-test
+kind: Config
+`),
+	}}
+	p := &K3dProvider{
+		kubectlOps:    kubectlOps{Runner: runner},
+		ContainerName: "runner-container",
+		NetworkMode:   ContainerNetworkHost,
+	}
+
+	handle, err := p.Recreate(context.Background(), "host-test", ClusterSpec{})
+	if err != nil {
+		t.Fatalf("Recreate() error = %v", err)
+	}
+	defer func() { _ = os.Remove(handle.KubeconfigPath) }()
+	for _, command := range runner.seen {
+		if strings.Contains(command, "network disconnect") || strings.Contains(command, "network connect") {
+			t.Fatalf("host-network recreate touched a bridge network: %v", runner.seen)
+		}
+	}
+}
+
 func TestK3dProvider_CreateCommand(t *testing.T) {
 	t.Parallel()
 	p := NewK3dProvider()

@@ -21,11 +21,12 @@ const (
 // LocalModel is the stable internal view of one installed Ollama model. Only
 // non-secret identity metadata from the documented API is exposed.
 type LocalModel struct {
-	Name          string
-	Digest        string
-	ParameterSize string
-	Quantization  string
-	Capabilities  []string
+	Name              string
+	Digest            string
+	ParameterSize     string
+	Quantization      string
+	Capabilities      []string
+	CapabilitiesKnown bool
 }
 
 // OllamaClient reads installed-model metadata from the native Ollama API.
@@ -96,7 +97,7 @@ func (c OllamaClient) Show(ctx context.Context, name string) (LocalModel, error)
 			ParameterSize     string `json:"parameter_size"`
 			QuantizationLevel string `json:"quantization_level"`
 		} `json:"details"`
-		Capabilities []string `json:"capabilities"`
+		Capabilities json.RawMessage `json:"capabilities"`
 	}
 	requestBody, err := json.Marshal(map[string]string{"model": name})
 	if err != nil {
@@ -105,17 +106,25 @@ func (c OllamaClient) Show(ctx context.Context, name string) (LocalModel, error)
 	if err := c.getJSON(ctx, "/show", requestBody, &payload); err != nil {
 		return LocalModel{}, fmt.Errorf("ollama model details: %w", err)
 	}
-	capabilities := make([]string, 0, len(payload.Capabilities))
-	for _, capability := range payload.Capabilities {
+	capabilitiesKnown := len(payload.Capabilities) > 0 && string(payload.Capabilities) != "null"
+	var reportedCapabilities []string
+	if capabilitiesKnown {
+		if err := json.Unmarshal(payload.Capabilities, &reportedCapabilities); err != nil {
+			return LocalModel{}, fmt.Errorf("ollama response from /show is malformed: capabilities: %w", err)
+		}
+	}
+	capabilities := make([]string, 0, len(reportedCapabilities))
+	for _, capability := range reportedCapabilities {
 		if trimmed := strings.TrimSpace(capability); trimmed != "" {
 			capabilities = append(capabilities, trimmed)
 		}
 	}
 	return LocalModel{
-		Name:          name,
-		ParameterSize: strings.TrimSpace(payload.Details.ParameterSize),
-		Quantization:  strings.TrimSpace(payload.Details.QuantizationLevel),
-		Capabilities:  capabilities,
+		Name:              name,
+		ParameterSize:     strings.TrimSpace(payload.Details.ParameterSize),
+		Quantization:      strings.TrimSpace(payload.Details.QuantizationLevel),
+		Capabilities:      capabilities,
+		CapabilitiesKnown: capabilitiesKnown,
 	}, nil
 }
 
@@ -152,12 +161,13 @@ func (c OllamaClient) CompatibleModels(ctx context.Context, required []string) (
 		if err != nil {
 			continue
 		}
-		if !hasAllCapabilities(details.Capabilities, required) {
+		if details.CapabilitiesKnown && !hasAllCapabilities(details.Capabilities, required) {
 			continue
 		}
 		m.ParameterSize = details.ParameterSize
 		m.Quantization = details.Quantization
 		m.Capabilities = details.Capabilities
+		m.CapabilitiesKnown = details.CapabilitiesKnown
 		compatible = append(compatible, m)
 	}
 	return compatible, nil

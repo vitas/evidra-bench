@@ -86,6 +86,7 @@ func TestLocalModelPreparationCompletesBeforeClusterAcquisition(t *testing.T) {
 				ParameterSize:   "8.4B",
 				Quantization:    "Q4_K_M",
 				CapabilityCheck: modelconfig.CapabilityCheckBehavioralProbe,
+				ProbeUsage:      &agent.Usage{PromptTokens: 7, CompletionTokens: 3},
 			}, nil
 		},
 		NewProvisioner: func(config.Config, *suite.Loaded) evaluation.Provisioner {
@@ -119,6 +120,12 @@ func TestLocalModelPreparationCompletesBeforeClusterAcquisition(t *testing.T) {
 	if result.Target.ModelDigest != "sha256:abc" || result.Target.Quantization != "Q4_K_M" ||
 		result.Target.ParameterSize != "8.4B" || result.Target.CapabilityCheck != modelconfig.CapabilityCheckBehavioralProbe {
 		t.Fatalf("result target = %+v, want prepared local model identity", result.Target)
+	}
+	if len(result.Preflight) != 1 || result.Preflight[0].Kind != "model_capability" ||
+		result.Preflight[0].Method != modelconfig.CapabilityCheckBehavioralProbe ||
+		!result.Preflight[0].Usage.Known || result.Preflight[0].Usage.PromptTokens != 7 ||
+		result.Preflight[0].Usage.CompletionTokens != 3 {
+		t.Fatalf("preflight evidence = %+v", result.Preflight)
 	}
 }
 

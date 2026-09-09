@@ -29,6 +29,7 @@ type preparedTestEvaluation struct {
 	Suite         *suite.Loaded
 	Config        config.Config
 	ModelProvider agent.Provider
+	Preflight     []evaluation.PreflightEvidence
 }
 
 // testRuntimeDeps is the injection seam for the one-command evaluation:
@@ -66,21 +67,9 @@ func prepareTestEvaluation(ctx context.Context, req testRequest, lookupEnv func(
 	if req.Timeout <= 0 {
 		return nil, fmt.Errorf("test: timeout must be positive")
 	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("test: resolve working directory: %w", err)
-	}
-	root, err := resolveTestAssetsRoot(req.ProjectRoot, lookupEnv, cwd, "/opt/evidra")
+	loaded, root, err := loadTestSuite(req, lookupEnv)
 	if err != nil {
 		return nil, err
-	}
-	manifestPath, err := testSuiteManifest(req.Suite)
-	if err != nil {
-		return nil, err
-	}
-	loaded, err := suite.Load(filepath.Join(root, manifestPath), root)
-	if err != nil {
-		return nil, fmt.Errorf("test: load suite: %w", err)
 	}
 	if !containsString(loaded.Manifest.Environment.Providers, req.Environment) {
 		return nil, fmt.Errorf("test: suite %s does not support environment %s", loaded.Identity, req.Environment)
@@ -125,6 +114,20 @@ func prepareTestEvaluation(ctx context.Context, req testRequest, lookupEnv func(
 			target.ParameterSize = local.ParameterSize
 			target.Quantization = local.Quantization
 			target.CapabilityCheck = local.CapabilityCheck
+			if local.CapabilityCheck != "" {
+				evidence := evaluation.PreflightEvidence{
+					Kind:   "model_capability",
+					Method: local.CapabilityCheck,
+				}
+				if local.ProbeUsage != nil {
+					evidence.Usage = evaluation.Usage{
+						Known:            local.ProbeUsage.PromptTokens > 0 || local.ProbeUsage.CompletionTokens > 0,
+						PromptTokens:     local.ProbeUsage.PromptTokens,
+						CompletionTokens: local.ProbeUsage.CompletionTokens,
+					}
+				}
+				prepared.Preflight = append(prepared.Preflight, evidence)
+			}
 		}
 		prepared.ModelProvider, err = agent.ResolveProviderWithConfig(resolved.Provider, agent.OpenAICompatibleConfig{
 			Name:    resolved.Provider,
@@ -150,6 +153,26 @@ func prepareTestEvaluation(ctx context.Context, req testRequest, lookupEnv func(
 		},
 	}
 	return prepared, nil
+}
+
+func loadTestSuite(req testRequest, lookupEnv func(string) string) (*suite.Loaded, string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, "", fmt.Errorf("test: resolve working directory: %w", err)
+	}
+	root, err := resolveTestAssetsRoot(req.ProjectRoot, lookupEnv, cwd, "/opt/evidra")
+	if err != nil {
+		return nil, "", err
+	}
+	manifestPath, err := testSuiteManifest(req.Suite)
+	if err != nil {
+		return nil, "", err
+	}
+	loaded, err := suite.Load(filepath.Join(root, manifestPath), root)
+	if err != nil {
+		return nil, "", fmt.Errorf("test: load suite: %w", err)
+	}
+	return loaded, root, nil
 }
 
 func oneCommandClusterName(processID int, now time.Time) string {
@@ -230,7 +253,9 @@ func runOneCommandEvaluationWith(ctx context.Context, req testRequest, deps test
 		Executor:       deps.NewExecutor(prepared.Config, prepared.Suite, prepared.ModelProvider),
 		CleanupTimeout: config.GracefulStopTimeout,
 	}
-	return service.Run(ctx, prepared.Plan)
+	result, runErr := service.Run(ctx, prepared.Plan)
+	result.Preflight = append(result.Preflight, prepared.Preflight...)
+	return result, runErr
 }
 
 type localTestPreflight struct {

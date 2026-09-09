@@ -33,6 +33,7 @@ type PreparedModel struct {
 	ParameterSize   string
 	Quantization    string
 	CapabilityCheck string
+	ProbeUsage      *agent.Usage
 }
 
 // ProbeResult records the outcome of one behavioral probe for evidence.
@@ -75,19 +76,21 @@ func ProbeToolCalling(ctx context.Context, provider agent.Provider, model string
 	if len(response.ToolCalls) == 0 {
 		return ProbeResult{}, fmt.Errorf("capability probe: model %q did not call the probe tool", model)
 	}
-	var probeCall *agent.ToolCall
-	for i := range response.ToolCalls {
-		if response.ToolCalls[i].Name == probeToolName {
-			probeCall = &response.ToolCalls[i]
-			break
-		}
+	if len(response.ToolCalls) != 1 {
+		return ProbeResult{}, fmt.Errorf("capability probe: model %q must call exactly one probe tool, got %d calls", model, len(response.ToolCalls))
 	}
-	if probeCall == nil {
-		return ProbeResult{}, fmt.Errorf("capability probe: model %q returned the wrong tool (called %q)", model, response.ToolCalls[0].Name)
+	probeCall := response.ToolCalls[0]
+	if probeCall.Name != probeToolName {
+		return ProbeResult{}, fmt.Errorf("capability probe: model %q returned the wrong tool (called %q)", model, probeCall.Name)
 	}
-	var arguments map[string]any
+	var arguments struct {
+		City string `json:"city"`
+	}
 	if err := json.Unmarshal([]byte(probeCall.Arguments), &arguments); err != nil {
 		return ProbeResult{}, fmt.Errorf("capability probe: model %q returned malformed tool arguments: %w", model, err)
+	}
+	if arguments.City != "Paris" {
+		return ProbeResult{}, fmt.Errorf("capability probe: model %q must set city to Paris, got %q", model, arguments.City)
 	}
 	return ProbeResult{Method: CapabilityCheckBehavioralProbe, Usage: response.Usage}, nil
 }
@@ -139,7 +142,7 @@ func prepareOllamaModel(ctx context.Context, client OllamaClient, newProvider fu
 		prepared.Quantization = details.Quantization
 	}
 
-	if len(details.Capabilities) > 0 {
+	if details.CapabilitiesKnown {
 		if hasAllCapabilities(details.Capabilities, required) {
 			prepared.CapabilityCheck = CapabilityCheckOllamaShow
 			return prepared, nil
@@ -165,5 +168,7 @@ func prepareOllamaModel(ctx context.Context, client OllamaClient, newProvider fu
 		return PreparedModel{}, fmt.Errorf("ollama model %q does not support tool calling: %w", name, err)
 	}
 	prepared.CapabilityCheck = result.Method
+	usage := result.Usage
+	prepared.ProbeUsage = &usage
 	return prepared, nil
 }

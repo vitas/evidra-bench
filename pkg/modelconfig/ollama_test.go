@@ -80,6 +80,9 @@ func TestOllamaClientShowReadsCapabilitiesAndDetails(t *testing.T) {
 	if !containsString(details.Capabilities, "tools") || len(details.Capabilities) != 3 {
 		t.Fatalf("capabilities = %v", details.Capabilities)
 	}
+	if !details.CapabilitiesKnown {
+		t.Fatal("capabilities field was present and must be marked known")
+	}
 }
 
 func TestOllamaClientShowWithoutCapabilitiesField(t *testing.T) {
@@ -95,6 +98,35 @@ func TestOllamaClientShowWithoutCapabilitiesField(t *testing.T) {
 	}
 	if len(details.Capabilities) != 0 {
 		t.Fatalf("capabilities = %v, want empty for old runtimes", details.Capabilities)
+	}
+	if details.CapabilitiesKnown {
+		t.Fatal("omitted capabilities field must remain unknown")
+	}
+}
+
+func TestOllamaClientCompatibleModelsKeepsUnknownCapabilityCandidates(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/tags":
+			_, _ = w.Write([]byte(`{"models":[{"name":"old-tools:1","digest":"sha256:old"}]}`))
+		case "/api/show":
+			_, _ = w.Write([]byte(`{"details":{"parameter_size":"7B"}}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	client := OllamaClient{BaseURL: server.URL + "/api", HTTPClient: server.Client()}
+	models, err := client.CompatibleModels(context.Background(), []string{"tools"})
+	if err != nil {
+		t.Fatalf("CompatibleModels() error = %v", err)
+	}
+	if len(models) != 1 || models[0].Name != "old-tools:1" {
+		t.Fatalf("unknown-capability model was discarded: %+v", models)
+	}
+	if models[0].CapabilitiesKnown {
+		t.Fatalf("candidate must remain marked unknown: %+v", models[0])
 	}
 }
 

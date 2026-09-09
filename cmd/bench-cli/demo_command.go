@@ -4,10 +4,13 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
 	"github.com/vitas/evidra-bench/pkg/modelconfig"
@@ -18,19 +21,31 @@ import (
 // inference runs later through the shared evaluation pipeline.
 type demoDiscover func(ctx context.Context, required []string) ([]modelconfig.LocalModel, error)
 
+type demoCapabilities func(context.Context, testRequest) ([]string, error)
+
 var defaultDemoDiscover demoDiscover = func(ctx context.Context, required []string) ([]modelconfig.LocalModel, error) {
 	client := modelconfig.OllamaClient{BaseURL: modelconfig.OllamaAPIEndpoint}
 	return client.CompatibleModels(ctx, required)
 }
 
-// demoSuiteCapabilities mirrors the model contract declared by the demo
-// suite manifest (suites/kubernetes-demo-v1.yaml).
-var demoSuiteCapabilities = []string{"tools"}
+var defaultDemoCapabilities demoCapabilities = func(_ context.Context, req testRequest) ([]string, error) {
+	loaded, _, err := loadTestSuite(req, os.Getenv)
+	if err != nil {
+		return nil, err
+	}
+	return loaded.EvaluationSuite().RequiredModelCapabilities, nil
+}
 
 // newDemoCommand builds the thin local-model entry point. It resolves a
 // model, then delegates to exactly the same testRunner and completion logic
 // as `evidra test`; it contains no evaluation behavior of its own.
-func newDemoCommand(run testRunner, discover demoDiscover) *cobra.Command {
+func newDemoCommand(run testRunner, discover demoDiscover, interactive func(io.Reader) bool, capabilities demoCapabilities) *cobra.Command {
+	if interactive == nil {
+		interactive = inputIsTerminal
+	}
+	if capabilities == nil {
+		capabilities = defaultDemoCapabilities
+	}
 	req := testRequest{
 		Suite:       "kubernetes-demo@1",
 		Environment: "kind",
@@ -55,7 +70,11 @@ same pipeline, report, and exit-code contract as "evidra test".`,
 			}
 			model = strings.TrimSpace(model)
 			if model == "" {
-				resolved, err := chooseDemoModel(cmd, req.CI, discover)
+				required, err := capabilities(cmd.Context(), req)
+				if err != nil {
+					return &cliExitError{Code: 2, Err: fmt.Errorf("demo: resolve suite capabilities: %w", err)}
+				}
+				resolved, err := chooseDemoModel(cmd, req.CI, interactive(cmd.InOrStdin()), required, discover)
 				if err != nil {
 					return &cliExitError{Code: 2, Err: err}
 				}
@@ -83,14 +102,17 @@ func normalizeDemoModel(model string) string {
 	return "ollama/" + model
 }
 
-func chooseDemoModel(cmd *cobra.Command, ci bool, discover demoDiscover) (string, error) {
+func chooseDemoModel(cmd *cobra.Command, ci, interactive bool, required []string, discover demoDiscover) (string, error) {
 	if ci {
 		return "", fmt.Errorf("demo: --model is required in --ci mode; nothing is guessed or downloaded automatically")
+	}
+	if !interactive {
+		return "", fmt.Errorf("demo: --model is required when input is non-interactive")
 	}
 	if discover == nil {
 		discover = defaultDemoDiscover
 	}
-	models, err := discover(cmd.Context(), demoSuiteCapabilities)
+	models, err := discover(cmd.Context(), required)
 	if err != nil {
 		return "", fmt.Errorf("demo: %w; start Ollama with `ollama serve` or pass --model explicitly", err)
 	}
@@ -124,4 +146,12 @@ func chooseDemoModel(cmd *cobra.Command, ci bool, discover demoDiscover) (string
 		}
 		return models[index-1].Name, nil
 	}
+}
+
+func inputIsTerminal(input io.Reader) bool {
+	file, ok := input.(*os.File)
+	if !ok {
+		return false
+	}
+	return isatty.IsTerminal(file.Fd()) || isatty.IsCygwinTerminal(file.Fd())
 }

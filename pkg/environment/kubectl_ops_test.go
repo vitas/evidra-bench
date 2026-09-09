@@ -155,6 +155,32 @@ func TestCreateNamespace_Success(t *testing.T) {
 	}
 }
 
+func TestCreateNamespaceWaitsForDefaultServiceAccount(t *testing.T) {
+	runner := &seqRunner{responses: []seqResponse{
+		{out: []byte("namespace/bench created")},
+		{out: []byte("serviceaccount/default created")},
+	}}
+	k := &kubectlOps{Runner: runner}
+	if err := k.CreateNamespace(context.Background(), "/tmp/kc", "bench"); err != nil {
+		t.Fatalf("CreateNamespace() error = %v", err)
+	}
+	if len(runner.calls) != 2 || !contains(runner.calls[1], "wait --for=create serviceaccount/default") {
+		t.Fatalf("namespace readiness calls = %v", runner.calls)
+	}
+}
+
+func TestCreateNamespaceFailsWhenDefaultServiceAccountDoesNotBecomeReady(t *testing.T) {
+	runner := &seqRunner{responses: []seqResponse{
+		{out: []byte("namespace/bench created")},
+		{out: []byte("timed out waiting for serviceaccount/default"), err: fmt.Errorf("exit 1")},
+	}}
+	k := &kubectlOps{Runner: runner}
+	err := k.CreateNamespace(context.Background(), "/tmp/kc", "bench")
+	if err == nil || !contains(err.Error(), "default service account") {
+		t.Fatalf("CreateNamespace() error = %v", err)
+	}
+}
+
 func TestCreateNamespace_AlreadyExists(t *testing.T) {
 	t.Parallel()
 	runner := &seqRunner{responses: []seqResponse{
@@ -202,16 +228,21 @@ func TestRunCanary_Failure(t *testing.T) {
 	t.Parallel()
 	runner := &seqRunner{responses: []seqResponse{
 		{out: []byte("")}, // delete leftover
-		{out: []byte("rancher/mirrored-pause:3.6\n")},       // node images
-		{out: []byte("pod/bench-canary created")},           // create
-		{out: []byte("timeout"), err: fmt.Errorf("exit 1")}, // wait failed
-		{out: []byte("pod/bench-canary deleted")},           // cleanup
+		{out: []byte("rancher/mirrored-pause:3.6\n")},             // node images
+		{out: []byte("pod/bench-canary created")},                 // create
+		{out: []byte("timeout"), err: fmt.Errorf("exit 1")},       // wait failed
+		{out: []byte("State: Waiting\nReason: ImagePullBackOff")}, // diagnostics
+		{out: []byte("pod/bench-canary deleted")},                 // cleanup
 	}}
 	k := &kubectlOps{Runner: runner}
-	if err := k.RunCanary(context.Background(), "/tmp/kc", "bench"); err == nil {
+	err := k.RunCanary(context.Background(), "/tmp/kc", "bench")
+	if err == nil {
 		t.Fatal("expected error for canary failure")
 	}
-	if len(runner.calls) != 5 {
+	if !contains(err.Error(), "ImagePullBackOff") {
+		t.Fatalf("failure must include pod diagnostics: %v", err)
+	}
+	if len(runner.calls) != 6 {
 		t.Fatalf("cleanup not attempted after failure: %v", runner.calls)
 	}
 }

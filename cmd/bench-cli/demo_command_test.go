@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 
@@ -28,7 +29,9 @@ func demoResult() evaluation.Result {
 
 func executeDemo(t *testing.T, spy *demoRunnerSpy, discover demoDiscover, stdin string, args ...string) (string, error) {
 	t.Helper()
-	cmd := newDemoCommand(spy.run, discover)
+	cmd := newDemoCommand(spy.run, discover, func(io.Reader) bool { return true }, func(context.Context, testRequest) ([]string, error) {
+		return []string{"tools"}, nil
+	})
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -36,6 +39,27 @@ func executeDemo(t *testing.T, spy *demoRunnerSpy, discover demoDiscover, stdin 
 	cmd.SetArgs(args)
 	err := cmd.Execute()
 	return out.String(), err
+}
+
+func TestDemoDiscoveryUsesCapabilitiesResolvedFromSuite(t *testing.T) {
+	spy := &demoRunnerSpy{result: demoResult()}
+	var discoveredWith []string
+	cmd := newDemoCommand(spy.run, func(_ context.Context, required []string) ([]modelconfig.LocalModel, error) {
+		discoveredWith = append([]string(nil), required...)
+		return []modelconfig.LocalModel{{Name: "model:1"}}, nil
+	}, func(io.Reader) bool { return true }, func(_ context.Context, req testRequest) ([]string, error) {
+		if req.Suite != "kubernetes-demo@1" {
+			t.Fatalf("suite = %q", req.Suite)
+		}
+		return []string{"suite-owned-capability"}, nil
+	})
+	cmd.SetArgs([]string{"--output", t.TempDir()})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(discoveredWith, ",") != "suite-owned-capability" {
+		t.Fatalf("discovery capabilities = %v", discoveredWith)
+	}
 }
 
 func TestDemoCommandExplicitOllamaModelUsesSharedRunner(t *testing.T) {
@@ -150,6 +174,25 @@ func TestDemoCommandRequiresExplicitModelInCI(t *testing.T) {
 	}
 	if prompted {
 		t.Fatal("CI mode must not probe interactively")
+	}
+}
+
+func TestChooseDemoModelRejectsNonInteractiveSelectionBeforeDiscovery(t *testing.T) {
+	discovered := false
+	spy := &demoRunnerSpy{}
+	cmd := newDemoCommand(spy.run, func(context.Context, []string) ([]modelconfig.LocalModel, error) {
+		discovered = true
+		return []modelconfig.LocalModel{{Name: "a:1"}, {Name: "b:2"}}, nil
+	}, func(io.Reader) bool { return false }, func(context.Context, testRequest) ([]string, error) {
+		return []string{"tools"}, nil
+	})
+	cmd.SetArgs([]string{"--output", t.TempDir()})
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "non-interactive") || !strings.Contains(err.Error(), "--model") {
+		t.Fatalf("error = %v, want non-interactive --model guidance", err)
+	}
+	if discovered {
+		t.Fatal("non-interactive demo without --model must not perform discovery")
 	}
 }
 

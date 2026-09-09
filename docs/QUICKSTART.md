@@ -82,7 +82,7 @@ your only compatible installed model automatically and asks once when several
 are installed:
 
 ```bash
-docker run --rm --network host \
+docker run --rm -it --network host \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$PWD/evidra-results:/workspace/evidra-results" \
   ghcr.io/vitas/evidra-bench:latest \

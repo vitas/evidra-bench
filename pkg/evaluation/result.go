@@ -13,18 +13,28 @@ const (
 )
 
 type Result struct {
-	Version         string          `json:"version"`
-	ID              string          `json:"id"`
-	PlanFingerprint string          `json:"plan_fingerprint"`
-	Suite           SuitePlan       `json:"suite"`
-	Environment     EnvironmentPlan `json:"environment"`
-	Target          TargetPlan      `json:"target"`
-	StartedAt       time.Time       `json:"started_at"`
-	EndedAt         time.Time       `json:"ended_at"`
-	Termination     Termination     `json:"termination"`
-	Cleanup         CleanupResult   `json:"cleanup"`
-	Cases           []CaseResult    `json:"cases"`
-	Summary         Summary         `json:"summary"`
+	Version         string              `json:"version"`
+	ID              string              `json:"id"`
+	PlanFingerprint string              `json:"plan_fingerprint"`
+	Suite           SuitePlan           `json:"suite"`
+	Environment     EnvironmentPlan     `json:"environment"`
+	Target          TargetPlan          `json:"target"`
+	StartedAt       time.Time           `json:"started_at"`
+	EndedAt         time.Time           `json:"ended_at"`
+	Termination     Termination         `json:"termination"`
+	Cleanup         CleanupResult       `json:"cleanup"`
+	Preflight       []PreflightEvidence `json:"preflight,omitempty"`
+	Cases           []CaseResult        `json:"cases"`
+	Summary         Summary             `json:"summary"`
+}
+
+// PreflightEvidence records checks performed before infrastructure
+// acquisition. It is run evidence and deliberately does not participate in
+// the evaluation plan fingerprint.
+type PreflightEvidence struct {
+	Kind   string `json:"kind"`
+	Method string `json:"method"`
+	Usage  Usage  `json:"usage"`
 }
 
 type CaseResult struct {
