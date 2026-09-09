@@ -83,7 +83,7 @@ func ResolveProviderWithConfig(name string, cfg OpenAICompatibleConfig) (Provide
 			return NewOpenAICompatibleProvider(cfg), nil
 		}
 		return NewBifrostProvider(), nil
-	case "openai", "openai-compatible":
+	case "openai", "openai-compatible", "ollama":
 		if strings.TrimSpace(cfg.BaseURL) == "" {
 			return nil, fmt.Errorf("agent.ResolveProvider: %s base URL is required", name)
 		}
@@ -97,6 +97,6 @@ func ResolveProviderWithConfig(name string, cfg OpenAICompatibleConfig) (Provide
 	case "anthropic":
 		return NewAnthropicProvider(), nil
 	default:
-		return nil, fmt.Errorf("agent.ResolveProvider: unknown provider %q (available: openai, openai-compatible, bifrost, claude, anthropic)", name)
+		return nil, fmt.Errorf("agent.ResolveProvider: unknown provider %q (available: openai, openai-compatible, ollama, bifrost, claude, anthropic)", name)
 	}
 }

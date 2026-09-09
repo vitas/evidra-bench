@@ -1,7 +1,10 @@
 package agent
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -22,6 +25,64 @@ func TestResolveProviderWithConfigUsesSharedOpenAICompatiblePath(t *testing.T) {
 	}
 	if openAI.Name() != "openai" || openAI.baseURL != "https://api.openai.test/v1" || openAI.httpClient != client {
 		t.Fatalf("provider = %+v", openAI)
+	}
+}
+
+func TestResolveProviderOllamaSharesOpenAICompatibleInference(t *testing.T) {
+	var sawModel string
+	var sawTools int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/chat/completions" || r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		var payload struct {
+			Model string          `json:"model"`
+			Tools json.RawMessage `json:"tools"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		sawModel = payload.Model
+		if len(payload.Tools) > 0 && string(payload.Tools) != "null" {
+			var tools []any
+			if err := json.Unmarshal(payload.Tools, &tools); err == nil {
+				sawTools = len(tools)
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"pong"}}],"usage":{"prompt_tokens":3,"completion_tokens":2}}`))
+	}))
+	defer server.Close()
+
+	provider, err := ResolveProviderWithConfig("ollama", OpenAICompatibleConfig{
+		BaseURL:    server.URL + "/v1",
+		HTTPClient: server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("ResolveProviderWithConfig(ollama) error = %v", err)
+	}
+	shared, ok := provider.(*OpenAICompatibleProvider)
+	if !ok {
+		t.Fatalf("Ollama bypassed shared OpenAI-compatible provider: %T", provider)
+	}
+	if shared.Name() != "ollama" {
+		t.Fatalf("provider name = %q, want ollama", shared.Name())
+	}
+
+	response, err := provider.Chat(context.Background(), ChatRequest{
+		Model:    "qwen3:8b",
+		Messages: []Message{{Role: "user", Content: "ping"}},
+		Tools:    []ToolDef{{Name: "probe_tool", Description: "probe", Parameters: map[string]any{"type": "object"}}},
+	})
+	if err != nil {
+		t.Fatalf("Chat() error = %v", err)
+	}
+	if response.Content != "pong" {
+		t.Fatalf("response = %+v", response)
+	}
+	if sawModel != "qwen3:8b" || sawTools != 1 {
+		t.Fatalf("server saw model=%q tools=%d, want qwen3:8b and 1 tool", sawModel, sawTools)
 	}
 }
 
