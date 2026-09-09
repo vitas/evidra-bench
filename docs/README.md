@@ -51,7 +51,7 @@ choose one of the two main lanes below.
   MCP servers, skills, and external agent runtimes under fixed scenarios.
 - [Private Report Pack](PRIVATE_REPORT_PACK.md) - paired baseline-versus-MCP
   report-pack workflow.
-- [Export Evidence Bundle](EVIDRA_BUNDLE_EXPORT.md) - convert a run into an
+- [Export Evidence Bundle](EVIDENCE_BUNDLE_EXPORT.md) - convert a run into an
   Evidra external evidence bundle (`evidra-external-bundle/v1`) openable with
   `evidra validate` / `evidra scorecard`.
 - [Lab TUI Guide](LAB_TUI_GUIDE.md) - terminal UI for browsing scenarios,

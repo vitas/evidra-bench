@@ -1,7 +1,7 @@
 // Code copied from samebits.com/evidra pkg/evidence@94f2f72 (external evidence
 // bundle v1 protocol surface). Keep byte-identical to upstream except the
 // package clause; drift is caught by TestCoreBundleFixtureReproducesHashes.
-// Producer spec: docs/EVIDRA_BUNDLE_EXPORT.md.
+// Producer spec: docs/EVIDENCE_BUNDLE_EXPORT.md.
 package evidrawire
 
 import (
@@ -25,12 +25,10 @@ type StoreManifest struct {
 
 const (
 	defaultSegmentMaxBytes int64 = 5_000_000
-	segmentMaxBytesEnv           = "EVIDRA_EVIDENCE_SEGMENT_MAX_BYTES"
 	manifestFileName             = "manifest.json"
 	segmentsDirName              = "segments"
 	lockFileName                 = ".evidra.lock"
 	defaultLockTimeoutMS         = 2000
-	lockTimeoutEnv               = "EVIDRA_EVIDENCE_LOCK_TIMEOUT_MS"
 )
 
 var ErrChainInvalid = errors.New("evidence_chain_invalid")

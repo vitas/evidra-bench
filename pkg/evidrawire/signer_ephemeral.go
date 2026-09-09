@@ -1,7 +1,7 @@
 // Code copied from samebits.com/evidra pkg/evidence@94f2f72 (external evidence
 // bundle v1 protocol surface). Keep byte-identical to upstream except the
 // package clause; drift is caught by TestCoreBundleFixtureReproducesHashes.
-// Producer spec: docs/EVIDRA_BUNDLE_EXPORT.md.
+// Producer spec: docs/EVIDENCE_BUNDLE_EXPORT.md.
 package evidrawire
 
 import (
