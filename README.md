@@ -6,10 +6,10 @@
 [![Go](https://img.shields.io/badge/go-1.25.11%2B-00ADD8.svg)](go.mod)
 [![Bench](https://img.shields.io/badge/bench-live%20reports-4b5563.svg)](https://bench.evidra.cc)
 
-Evidra Bench is an open-source benchmark for AI SRE agents, MCP servers, and
-infrastructure copilots. It runs live Kubernetes, Helm, Argo CD, Terraform, and
-AWS/LocalStack incidents, lets the agent use real tools, then verifies both the
-final infrastructure state and the path the agent took to get there.
+Evidra Bench runs live regression tests for infrastructure agents. It puts a
+model or agent into disposable Kubernetes incidents, lets it use real tools,
+and catches failed or unsafe behavior before that configuration gets production
+access.
 
 Most AI agent benchmarks stop at a score, transcript, or vendor claim. Bench is
 built for the harder questions platform teams ask before an agent touches
@@ -29,13 +29,11 @@ leaderboards, and inspectable benchmark reports produced by this harness.
 
 ## Try It In One Command
 
-Docker only. The runner spins up a disposable Kubernetes cluster on your
-machine, runs your model or agent against three live incidents, verifies the
-outcome, and leaves nothing behind:
+Docker is the only prerequisite. The runner creates a disposable kind cluster,
+runs your model against three live incidents, verifies the outcome, writes
+local reports, and removes the cluster:
 
 ```bash
-mkdir -p evidra-results && chmod 0777 evidra-results  # Linux; skip on macOS
-
 docker run --rm \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$PWD/evidra-results:/workspace/evidra-results" \
@@ -43,6 +41,9 @@ docker run --rm \
   ghcr.io/vitas/evidra-bench:latest \
   test --model openai/gpt-5
 ```
+
+This runs locally without an Evidra account, login, central database, or result
+upload. Your provider charges still apply to the model you select.
 
 Or bring your own agent binary (`--agent` receives `kubectl` on PATH and
 `INFRA_BENCH_SCENARIO` per case):
@@ -56,16 +57,18 @@ docker run --rm \
   test --agent /fixtures/agent.sh
 ```
 
-You get a pass/fail/unsafe verdict per case, a standalone
+You get a PASS / FAIL / UNSAFE verdict per case, a standalone
 `evidra-results/report.html`, `result.json`, and signed evidence bundles for
 every run under `evidra-results/bundles/` (open them with
 `evidra validate --evidence-dir <bundle>` from the [Evidra
 CLI](https://github.com/vitas/evidra)). The first run pulls a ~1 GB
 Kubernetes node image, cached afterwards.
 
-On Linux, run rootless so results are owned by your user, not root — add
-`--user "$(id -u):$(id -g)" --group-add keep-groups` to `docker run` (the
-`--group-add` flag keeps the mounted Docker socket accessible).
+Mounting `/var/run/docker.sock` grants the runner host-level control through the
+Docker daemon. Use this image only with agents and inputs you trust. Linux users
+who opt into `--user` should add the socket's numeric group ID with
+`--group-add "$(stat -c '%g' /var/run/docker.sock)"` and pre-create a writable
+results directory.
 
 ## Start Here
 

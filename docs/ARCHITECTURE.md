@@ -340,10 +340,11 @@ and secret wiring belong in a private infrastructure repository.
 | Image | Dockerfile | Purpose |
 |---|---|---|
 | Bench UI | `ui/Dockerfile` | Static React UI served by nginx |
-| Bench runner | `Dockerfile.bench` | `bench-cli serve` plus infrastructure tooling and scenarios |
+| Bench runner | `Dockerfile.bench` | `evidra test` plus infrastructure tooling and versioned suite assets; advanced commands such as `evidra serve` remain explicit |
 
-The runner image uses the host Docker socket to create kind clusters as sibling
-containers. It is not Docker-in-Docker.
+The runner image uses the host Docker socket to create kind or k3d clusters as
+sibling containers. It is not Docker-in-Docker. Containerized runs attach the
+runner to the cluster's Docker network and use an internal API-server address.
 
 ## Documentation Map
 

@@ -14,61 +14,86 @@ tags:
 
 # Quickstart
 
-This guide gets you from a fresh clone to one validated local scenario. Use it
-before running batch benchmarks, hosted report workflows, or remote runners.
+This guide gets you from Docker to a local infrastructure-agent report. No
+Evidra account, source checkout, central server, or upload is required.
 
 ## Prerequisites
 
-- Go 1.25.11+
-- `kubectl`
-- `kind` or `k3d` for live Kubernetes scenarios
-- `helm` for Helm scenarios
-- Node.js 22+ only if you want to build the UI
+- Docker with access to `/var/run/docker.sock`
+- a provider credential, or an external agent executable
 
-## Build The CLI
+The Docker socket gives the runner host-level control through the Docker
+daemon. Run only agents and test inputs you trust.
+
+## Run The Starter Suite
+
+The default environment is kind. From any working directory:
+
+```bash
+docker run --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$PWD/evidra-results:/workspace/evidra-results" \
+  -e OPENAI_API_KEY \
+  ghcr.io/vitas/evidra-bench:latest \
+  test --model openai/gpt-5
+```
+
+The first run downloads the Kubernetes node image. Later runs reuse Docker's
+cache. The runner cleans up its disposable cluster even when a case fails.
+
+To use k3d instead, add `--environment k3d`:
+
+```bash
+docker run --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$PWD/evidra-results:/workspace/evidra-results" \
+  -e OPENAI_API_KEY \
+  ghcr.io/vitas/evidra-bench:latest \
+  test --model openai/gpt-5 --environment k3d
+```
+
+Both environments use the same evaluation plan, scenarios, harness, verifier,
+result model, and reporting pipeline.
+
+## Test An External Agent
+
+Mount the agent executable into the runner and pass its container path:
+
+```bash
+docker run --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$PWD/evidra-results:/workspace/evidra-results" \
+  -v "$PWD/my-agent.sh:/fixtures/agent.sh:ro" \
+  ghcr.io/vitas/evidra-bench:latest \
+  test --agent /fixtures/agent.sh
+```
+
+The agent receives `kubectl` on `PATH`, `KUBECONFIG`,
+`INFRA_BENCH_SCENARIO`, `INFRA_BENCH_PROMPT`, and a writable workspace.
+
+## Read The Result
+
+The terminal prints PASS / FAIL / UNSAFE for each case. Local outputs include:
+
+- `evidra-results/report.html` — standalone report opened directly in a browser;
+- `evidra-results/result.json` — canonical machine-readable result;
+- `evidra-results/runs/` — transcripts, verifier data, timelines, and autopsies;
+- `evidra-results/bundles/` — portable signed evidence bundles when export succeeds.
+
+Exit codes are stable for automation:
+
+- `0`: required cases passed;
+- `1`: a behavioral failure or unsafe result;
+- `2`: the evaluation could not complete.
+
+## Advanced Native Setup
+
+For scenario authoring, advanced commands, or service development, clone the
+repository and install Go 1.25.11+, `kubectl`, kind or k3d, and Helm:
 
 ```bash
 make build
-```
-
-The binary is written to `bin/bench-cli`.
-
-## Confirm Scenarios Load
-
-```bash
 bin/bench-cli scenario list
-```
-
-Use the catalog to choose a scenario by ID. For the current inventory, see
-[Scenario Catalog](SCENARIO_CATALOG.md).
-
-## Validate Without A Cluster
-
-Dry-run mode validates scenario YAML and command wiring without provisioning a
-cluster:
-
-```bash
-bin/bench-cli run \
-  --scenario kubernetes/broken-deployment \
-  --dry-run
-```
-
-## Configure A Provider
-
-Bench can route model requests through the generic `bifrost` provider path.
-Point it at an OpenAI-compatible endpoint:
-
-```bash
-export INFRA_BENCH_BIFROST_URL=http://localhost:9090/v1
-export INFRA_BENCH_BIFROST_AUTH_BEARER="$PROVIDER_API_KEY"
-```
-
-You can also point directly at a provider endpoint when it exposes an
-OpenAI-compatible API.
-
-## Run One Live Scenario
-
-```bash
 bin/bench-cli run \
   --scenario kubernetes/broken-deployment \
   --provider bifrost \
@@ -76,24 +101,8 @@ bin/bench-cli run \
   --reuse-cluster
 ```
 
-A live run provisions or reuses infrastructure, injects the scenario failure,
-executes the selected agent adapter, records artifacts, and verifies final
-state.
-
-## Inspect Local Artifacts
-
-Local artifacts are written under `runs/`, which is intentionally ignored by
-git. A run can include:
-
-- transcript
-- tool calls
-- timeline
-- scorecard
-- verifier output
-- failure autopsy
-- run review
-
-Do not commit raw run artifacts or private transcripts.
+A native live run uses the same underlying execution components as
+`evidra test` in the Docker image.
 
 ## Choose The Next Command
 
@@ -106,17 +115,17 @@ Do not commit raw run artifacts or private transcripts.
 | Start the local Bench API/control plane | `bin/bench-cli serve` | [Bench Service Setup](guides/bench-service-setup.md) |
 | Compare prompt or skill variants | `bin/bench-cli skill-delta` | [Tool Server Integration](TOOL_SERVER_INTEGRATION.md) |
 
-Hosted runners are an advanced API/control-plane workflow. Start with one
-local run, then move to [Bench Service Setup](guides/bench-service-setup.md)
+Hosted runners are an advanced API/control-plane workflow. Start with the
+local Docker test, then move to [Bench Service Setup](guides/bench-service-setup.md)
 and [Runner Architecture](RUNNER_ARCHITECTURE.md).
 
 ## Next Reading
 
-- [Results And Reports](RESULTS_AND_REPORTS.md) - understand scoring,
-  unsafe passes, evidence, reproducibility, and report structure.
-- [Tool Server Integration](TOOL_SERVER_INTEGRATION.md) - compare MCP servers,
+- [Results And Reports](RESULTS_AND_REPORTS.md) — understand scoring, unsafe
+  behavior, evidence, reproducibility, and report structure.
+- [Tool Server Integration](TOOL_SERVER_INTEGRATION.md) — compare MCP servers,
   skills, and external agents.
-- [Scenario Authoring Guide](SCENARIO_AUTHORING_GUIDE.md) - write or review
+- [Scenario Authoring Guide](SCENARIO_AUTHORING_GUIDE.md) — write or review
   scenarios.
-- [Threat Model](THREAT_MODEL.md) - understand runner, credential, and artifact
+- [Threat Model](THREAT_MODEL.md) — understand runner, credential, and artifact
   boundaries before live evaluations.

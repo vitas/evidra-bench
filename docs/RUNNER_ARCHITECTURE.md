@@ -40,13 +40,22 @@ flowchart LR
   runner --> api
 ```
 
-The Docker image in this repo is the Bench runtime image. In hosted
-deployments, `bench-api` usually runs with `BENCH_CONTROL_PLANE_ONLY=true`, so
-it does not create local kind clusters. Remote runners create their own
-clusters or attach to a configured execution environment.
+The Docker image in this repo serves both the local test runner and advanced
+hosted commands. It defaults to CLI help; `evidra test` is the local-first
+entry point, while `evidra serve` must be selected explicitly. In hosted
+deployments, the API usually runs with `BENCH_CONTROL_PLANE_ONLY=true`, so it
+does not create local kind clusters. Remote runners create their own clusters
+or attach to a configured execution environment.
 
-The runner image uses the host Docker socket to create kind clusters as sibling
-containers. It is not Docker-in-Docker.
+The runner image uses the host Docker socket to create kind or k3d clusters as
+sibling containers. It is not Docker-in-Docker. For kind, the runner joins the
+internal kind Docker network and uses kind's internal kubeconfig. For k3d, it
+joins the cluster-specific Docker network and rewrites the generated kubeconfig
+to the internal API-server DNS name. Kubernetes access therefore does not
+depend on the runner container's loopback interface.
+
+Mounting the Docker socket grants the runner host-level control through the
+daemon and must be treated as a privileged execution boundary.
 
 ## Job Lifecycle
 

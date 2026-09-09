@@ -3,6 +3,12 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 image="${EVIDRA_DOCKER_SMOKE_IMAGE:-evidra-bench:smoke}"
+provider="${1:-kind}"
+
+case "$provider" in
+  kind|k3d) ;;
+  *) echo "unsupported smoke-test environment: $provider" >&2; exit 2 ;;
+esac
 
 command -v docker >/dev/null || { echo "missing dependency: docker" >&2; exit 2; }
 docker info >/dev/null
@@ -18,14 +24,19 @@ result_dir="$(mktemp -d)"
 chmod 0777 "$result_dir"
 trap 'rm -rf "$result_dir"' EXIT
 
-before="$(docker ps -a --filter label=io.x-k8s.kind.cluster --format '{{.Names}}' | sort)"
+if [[ "$provider" == "kind" ]]; then
+  cluster_label="io.x-k8s.kind.cluster"
+else
+  cluster_label="k3d.cluster"
+fi
+before="$(docker ps -a --filter "label=$cluster_label" --format '{{.Names}}' | sort)"
 
 docker run --rm \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$result_dir:/workspace/evidra-results" \
   -v "$repo_root/tests/fixtures/scripted-agent/good.sh:/fixtures/good.sh:ro" \
   "$image" \
-  test --agent /fixtures/good.sh --ci --timeout 6m
+  test --agent /fixtures/good.sh --environment "$provider" --ci --timeout 6m
 
 test -s "$result_dir/result.json"
 test -s "$result_dir/report.html"
@@ -40,11 +51,11 @@ if [[ "$bundle_count" -eq 0 ]]; then
   exit 1
 fi
 
-after="$(docker ps -a --filter label=io.x-k8s.kind.cluster --format '{{.Names}}' | sort)"
+after="$(docker ps -a --filter "label=$cluster_label" --format '{{.Names}}' | sort)"
 if [[ "$after" != "$before" ]]; then
-  echo "kind containers changed across smoke test" >&2
+  echo "$provider containers changed across smoke test" >&2
   diff -u <(printf '%s\n' "$before") <(printf '%s\n' "$after") || true
   exit 1
 fi
 
-echo "Docker one-command smoke: PASS"
+echo "Docker one-command smoke ($provider): PASS"

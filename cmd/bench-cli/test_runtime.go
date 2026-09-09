@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -62,7 +63,7 @@ func prepareTestEvaluation(req testRequest, lookupEnv func(string) string) (*pre
 	cfg.ScenariosDir = filepath.Join(root, "scenarios")
 	cfg.RunsDir = filepath.Join(req.OutputDir, "runs")
 	cfg.Timeout = req.Timeout
-	cfg.ClusterName = fmt.Sprintf("evidra-test-%d-%d", os.Getpid(), time.Now().UnixNano())
+	cfg.ClusterName = oneCommandClusterName(os.Getpid(), time.Now())
 	cfg.Adapter = "cli"
 
 	prepared := &preparedTestEvaluation{Suite: loaded, Config: cfg}
@@ -107,6 +108,10 @@ func prepareTestEvaluation(req testRequest, lookupEnv func(string) string) (*pre
 		},
 	}
 	return prepared, nil
+}
+
+func oneCommandClusterName(processID int, now time.Time) string {
+	return fmt.Sprintf("evidra-%d-%s", processID, strconv.FormatInt(now.UnixNano(), 36))
 }
 
 func resolveTestAssetsRoot(explicit string, lookupEnv func(string) string, cwd, imageRoot string) (string, error) {

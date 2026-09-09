@@ -6,9 +6,20 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vitas/evidra-bench/pkg/evaluation"
 )
+
+func TestOneCommandClusterNameFitsK3dLimit(t *testing.T) {
+	name := oneCommandClusterName(2_147_483_647, time.Unix(0, 1_788_950_959_197_737_251))
+	if len(name) > 32 {
+		t.Fatalf("cluster name %q has %d characters, want at most 32", name, len(name))
+	}
+	if !strings.HasPrefix(name, "evidra-") {
+		t.Fatalf("cluster name = %q, want evidra- prefix", name)
+	}
+}
 
 func writeSuiteSentinel(t *testing.T, root string) {
 	t.Helper()

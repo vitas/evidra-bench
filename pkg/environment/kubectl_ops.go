@@ -130,6 +130,10 @@ func (k *kubectlOps) CreateNamespace(ctx context.Context, kubeconfigPath, ns str
 // a cold external registry pull. Kubernetes nodes already carry a pause image
 // for pod sandboxes, so the canary reuses that exact image.
 func (k *kubectlOps) RunCanary(ctx context.Context, kubeconfigPath, ns string) error {
+	return k.runCanary(ctx, kubeconfigPath, ns, "")
+}
+
+func (k *kubectlOps) runCanary(ctx context.Context, kubeconfigPath, ns, fallbackImage string) error {
 	deleteCanary := func() {
 		delCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
 			"delete", "pod", "bench-canary", "-n", ns, "--ignore-not-found", "--timeout=10s")
@@ -144,6 +148,9 @@ func (k *kubectlOps) RunCanary(ctx context.Context, kubeconfigPath, ns string) e
 		return fmt.Errorf("canary pod: list node images: %w: %s", err, string(imagesOut))
 	}
 	pauseImage := preloadedPauseImage(string(imagesOut))
+	if pauseImage == "" {
+		pauseImage = fallbackImage
+	}
 	if pauseImage == "" {
 		return fmt.Errorf("canary pod: no preloaded pause image found on cluster nodes")
 	}

@@ -3,6 +3,7 @@ package environment
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -44,9 +45,100 @@ func TestK3dProvider_KubeconfigCommand(t *testing.T) {
 	}
 }
 
+func TestK3dProvider_ContainerUsesClusterNetworkAndInternalKubeconfig(t *testing.T) {
+	runner := &stubRunner{outputs: map[string][]byte{
+		"k3d cluster list --no-headers":                           {},
+		"k3d cluster create docker-test --no-lb --wait":           {},
+		"docker network connect k3d-docker-test runner-container": {},
+		"k3d kubeconfig get docker-test": []byte(`apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: preserved
+    server: https://0.0.0.0:49123
+  name: k3d-docker-test
+kind: Config
+`),
+	}}
+	p := &K3dProvider{
+		kubectlOps:    kubectlOps{Runner: runner},
+		ContainerName: "runner-container",
+	}
+
+	handle, err := p.Create(context.Background(), "docker-test", ClusterSpec{})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer func() { _ = os.Remove(handle.KubeconfigPath) }()
+
+	written, err := os.ReadFile(handle.KubeconfigPath)
+	if err != nil {
+		t.Fatalf("read kubeconfig: %v", err)
+	}
+	if !strings.Contains(string(written), "server: https://k3d-docker-test-server-0:6443") {
+		t.Fatalf("kubeconfig = %s, want internal k3d server", written)
+	}
+	if !strings.Contains(string(written), "certificate-authority-data: preserved") {
+		t.Fatalf("kubeconfig = %s, want existing credentials preserved", written)
+	}
+
+	wantOrder := []string{
+		"k3d cluster create docker-test --no-lb --wait",
+		"docker network connect k3d-docker-test runner-container",
+		"k3d kubeconfig get docker-test",
+	}
+	position := 0
+	for _, command := range runner.seen {
+		if position < len(wantOrder) && command == wantOrder[position] {
+			position++
+		}
+	}
+	if position != len(wantOrder) {
+		t.Fatalf("commands = %v, want ordered subsequence %v", runner.seen, wantOrder)
+	}
+}
+
+func TestK3dProvider_DestroyDisconnectsRunnerBeforeDeletingCluster(t *testing.T) {
+	runner := &stubRunner{outputs: map[string][]byte{}}
+	p := &K3dProvider{
+		kubectlOps:    kubectlOps{Runner: runner},
+		ContainerName: "runner-container",
+	}
+	handle := &Handle{ClusterName: "docker-test", KubeconfigPath: t.TempDir() + "/kubeconfig"}
+
+	if err := p.Destroy(context.Background(), handle); err != nil {
+		t.Fatalf("Destroy() error = %v", err)
+	}
+	want := []string{
+		"docker network disconnect k3d-docker-test runner-container",
+		"k3d cluster delete docker-test",
+	}
+	if strings.Join(runner.seen, "|") != strings.Join(want, "|") {
+		t.Fatalf("commands = %v, want %v", runner.seen, want)
+	}
+}
+
 func TestK3dProvider_ImplementsProvider(t *testing.T) {
 	t.Parallel()
 	var _ ClusterLifecycle = (*K3dProvider)(nil)
+}
+
+func TestK3dProvider_RunCanaryUsesK3sPauseImageWhenNodeImagesAreEmpty(t *testing.T) {
+	t.Parallel()
+	runner := &seqRunner{responses: []seqResponse{
+		{out: []byte("")},
+		{out: []byte("")},
+		{out: []byte("pod/bench-canary created")},
+		{out: []byte("pod/bench-canary condition met")},
+		{out: []byte("pod/bench-canary deleted")},
+	}}
+	p := &K3dProvider{kubectlOps: kubectlOps{Runner: runner}}
+
+	if err := p.RunCanary(context.Background(), "/tmp/kc", "bench"); err != nil {
+		t.Fatalf("RunCanary() error = %v", err)
+	}
+	if !strings.Contains(runner.calls[2], "docker.io/rancher/mirrored-pause:3.6") {
+		t.Fatalf("canary create command = %q, want preloaded k3s pause image", runner.calls[2])
+	}
 }
 
 func TestK3dProvider_Create_ReusesExistingCluster(t *testing.T) {
@@ -154,6 +246,29 @@ func TestK3dProvider_Create_FallsBackToPlainClusterWhenSpecEmpty(t *testing.T) {
 		if strings.Contains(cmd, "--config") {
 			t.Fatalf("unexpected --config flag for empty spec: %s", cmd)
 		}
+	}
+}
+
+func TestK3dProvider_CreateIncludesCommandOutputOnFailure(t *testing.T) {
+	t.Parallel()
+
+	runner := &k3dRunner{results: map[string]struct {
+		out []byte
+		err error
+	}{
+		"k3d cluster create bench-cli --no-lb --wait": {
+			out: []byte("specific k3d failure"),
+			err: errors.New("exit status 1"),
+		},
+	}}
+	p := &K3dProvider{kubectlOps: kubectlOps{Runner: runner}}
+
+	_, err := p.Create(context.Background(), "bench-cli", ClusterSpec{})
+	if err == nil {
+		t.Fatal("Create() error = nil, want failure")
+	}
+	if !strings.Contains(err.Error(), "specific k3d failure") {
+		t.Fatalf("Create() error = %v, want command output", err)
 	}
 }
 
