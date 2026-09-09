@@ -34,6 +34,16 @@ func TestRootExposesOneCommandTestFrontDoor(t *testing.T) {
 	}
 }
 
+func TestRootUsesEvidraIdentity(t *testing.T) {
+	cmd := newRootCommand()
+	if cmd.Use != "evidra" {
+		t.Fatalf("root command Use = %q, want evidra", cmd.Use)
+	}
+	if !strings.HasPrefix(buildVersionString(), "evidra ") {
+		t.Fatalf("version string = %q, want Evidra identity", buildVersionString())
+	}
+}
+
 func TestRunCommand_MissingScenario(t *testing.T) {
 	cmd := newRootCommand()
 	cmd.SetArgs([]string{"run"})
@@ -285,7 +295,7 @@ func TestBuildVersionString_UsesBuildMetadata(t *testing.T) {
 	date = "2026-03-15T12:00:00Z"
 
 	got := buildVersionString()
-	want := "bench-cli v0.1.0-3-gabcdef0 (commit: abcdef0, built: 2026-03-15T12:00:00Z)"
+	want := "evidra v0.1.0-3-gabcdef0 (commit: abcdef0, built: 2026-03-15T12:00:00Z)"
 	if got != want {
 		t.Fatalf("buildVersionString() = %q, want %q", got, want)
 	}

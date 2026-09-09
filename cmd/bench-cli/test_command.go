@@ -109,8 +109,6 @@ func newTestCommand(run testRunner) *cobra.Command {
 	flags.StringVar(&req.OutputDir, "output", req.OutputDir, "directory for local reports and evidence")
 	flags.DurationVar(&req.Timeout, "timeout", req.Timeout, "timeout for each test case")
 	flags.BoolVar(&req.CI, "ci", false, "disable interactive behavior and use stable exit codes")
-	flags.StringVar(&req.ProjectRoot, "project-root", req.ProjectRoot, "directory containing Evidra suite assets")
-	_ = flags.MarkHidden("project-root")
 	return cmd
 }
 

@@ -74,6 +74,15 @@ func TestTestCommand_RejectsMissingTargetBeforeRunner(t *testing.T) {
 	}
 }
 
+func TestTestCommandDoesNotExposeProjectRoot(t *testing.T) {
+	cmd := newTestCommand(func(context.Context, testRequest) (evaluation.Result, error) {
+		return completedTestResult(evaluation.VerdictPass), nil
+	})
+	if flag := cmd.Flags().Lookup("project-root"); flag != nil {
+		t.Fatalf("test command exposes internal flag --%s", flag.Name)
+	}
+}
+
 func TestTestCommand_MapsBehavioralAndIncompleteExitCodes(t *testing.T) {
 	for _, tc := range []struct {
 		name   string

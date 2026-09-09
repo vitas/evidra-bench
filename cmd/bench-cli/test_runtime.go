@@ -37,9 +37,13 @@ func prepareTestEvaluation(req testRequest, lookupEnv func(string) string) (*pre
 	if req.Timeout <= 0 {
 		return nil, fmt.Errorf("test: timeout must be positive")
 	}
-	root, err := filepath.Abs(req.ProjectRoot)
+	cwd, err := os.Getwd()
 	if err != nil {
-		return nil, fmt.Errorf("test: resolve project root: %w", err)
+		return nil, fmt.Errorf("test: resolve working directory: %w", err)
+	}
+	root, err := resolveTestAssetsRoot(req.ProjectRoot, lookupEnv, cwd, "/opt/evidra")
+	if err != nil {
+		return nil, err
 	}
 	manifestPath, err := testSuiteManifest(req.Suite)
 	if err != nil {
@@ -103,6 +107,41 @@ func prepareTestEvaluation(req testRequest, lookupEnv func(string) string) (*pre
 		},
 	}
 	return prepared, nil
+}
+
+func resolveTestAssetsRoot(explicit string, lookupEnv func(string) string, cwd, imageRoot string) (string, error) {
+	if lookupEnv == nil {
+		lookupEnv = os.Getenv
+	}
+	if root := strings.TrimSpace(explicit); root != "" {
+		return validateTestAssetsRoot(root)
+	}
+	if root := strings.TrimSpace(lookupEnv("EVIDRA_ASSETS_DIR")); root != "" {
+		return validateTestAssetsRoot(root)
+	}
+	if root := strings.TrimSpace(imageRoot); root != "" && hasTestSuiteAssets(root) {
+		return filepath.Abs(root)
+	}
+	if root := strings.TrimSpace(cwd); root != "" && hasTestSuiteAssets(root) {
+		return filepath.Abs(root)
+	}
+	return "", fmt.Errorf("test: suite assets not found; run from the Evidra source tree or set EVIDRA_ASSETS_DIR")
+}
+
+func validateTestAssetsRoot(root string) (string, error) {
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return "", fmt.Errorf("test: resolve suite assets: %w", err)
+	}
+	if !hasTestSuiteAssets(abs) {
+		return "", fmt.Errorf("test: suite assets not found under %s", abs)
+	}
+	return abs, nil
+}
+
+func hasTestSuiteAssets(root string) bool {
+	info, err := os.Stat(filepath.Join(root, "suites", "kubernetes-demo-v1.yaml"))
+	return err == nil && info.Mode().IsRegular()
 }
 
 func testSuiteManifest(id string) (string, error) {

@@ -14,7 +14,7 @@ var (
 )
 
 func buildVersionString() string {
-	return fmt.Sprintf("bench-cli %s (commit: %s, built: %s)", version, commit, date)
+	return fmt.Sprintf("evidra %s (commit: %s, built: %s)", version, commit, date)
 }
 
 func main() {

@@ -10,7 +10,7 @@ func newRootCommand() *cobra.Command {
 	cfg := config.Default()
 
 	root := &cobra.Command{
-		Use:   "bench-cli",
+		Use:   "evidra",
 		Short: "Run infrastructure-agent benchmark scenarios",
 		Long: `bench-cli provisions disposable Kubernetes environments, injects
 failures, executes real agents, and verifies outcomes.
