@@ -20,7 +20,8 @@ Evidra account, source checkout, central server, or upload is required.
 ## Prerequisites
 
 - Docker with access to `/var/run/docker.sock`
-- a provider credential, or an external agent executable
+- a provider credential, an already-installed local Ollama model, or an
+  external agent executable
 
 The Docker socket gives the runner host-level control through the Docker
 daemon. Run only agents and test inputs you trust.
@@ -54,6 +55,44 @@ docker run --rm \
 
 Both environments use the same evaluation plan, scenarios, harness, verifier,
 result model, and reporting pipeline.
+
+## Run A Local Ollama Model
+
+Local models are first-class `evidra test` targets, not a demo-only path. With
+Ollama already running (`ollama serve`) and a tool-calling model installed
+(`ollama pull qwen3:8b`), launch the runner with `--network host` so it can
+reach the fixed local endpoint `127.0.0.1:11434`:
+
+```bash
+docker run --rm --network host \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$PWD/evidra-results:/workspace/evidra-results" \
+  ghcr.io/vitas/evidra-bench:latest \
+  test --model ollama/qwen3:8b --ci
+```
+
+Before creating any cluster, the runner discovers installed models, reads their
+metadata, and validates tool calling; a missing or incompatible model aborts
+immediately with an actionable error. Models are never downloaded
+automatically, and the suite never falls back to a paid provider. Verdicts,
+reports, and evidence are identical to any other provider.
+
+`demo` is the thinnest entry point into the exact same evaluation: it selects
+your only compatible installed model automatically and asks once when several
+are installed:
+
+```bash
+docker run --rm --network host \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$PWD/evidra-results:/workspace/evidra-results" \
+  ghcr.io/vitas/evidra-bench:latest \
+  demo
+```
+
+On macOS, Docker Desktop host networking must be enabled in Settings, and the
+Ollama runtime itself has to be reachable from the Docker VM's loopback;
+otherwise use the native `bin/bench-cli` build from the Advanced Native Setup
+section below, which reaches Ollama on your Mac directly.
 
 ## Test An External Agent
 

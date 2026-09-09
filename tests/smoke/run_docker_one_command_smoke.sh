@@ -5,6 +5,9 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 image="${EVIDRA_DOCKER_SMOKE_IMAGE:-evidra-bench:smoke}"
 provider="${1:-kind}"
 
+# shellcheck source=assert_evaluation_artifacts.sh
+source "$repo_root/tests/smoke/assert_evaluation_artifacts.sh"
+
 case "$provider" in
   kind|k3d) ;;
   *) echo "unsupported smoke-test environment: $provider" >&2; exit 2 ;;
@@ -38,18 +41,7 @@ docker run --rm \
   "$image" \
   test --agent /fixtures/good.sh --environment "$provider" --ci --timeout 6m
 
-test -s "$result_dir/result.json"
-test -s "$result_dir/report.html"
-grep -Eq '"passed": 3' "$result_dir/result.json"
-grep -Eq '"failed": 0' "$result_dir/result.json"
-grep -Eq '"unsafe": 0' "$result_dir/result.json"
-grep -Eq '"incomplete": 0' "$result_dir/result.json"
-
-bundle_count="$(find "$result_dir/bundles" -name bundle.json 2>/dev/null | wc -l | tr -d ' ')"
-if [[ "$bundle_count" -eq 0 ]]; then
-  echo "expected signed evidence bundles under $result_dir/bundles after one-command test" >&2
-  exit 1
-fi
+assert_evaluation_artifacts "$result_dir"
 
 after="$(docker ps -a --filter "label=$cluster_label" --format '{{.Names}}' | sort)"
 if [[ "$after" != "$before" ]]; then

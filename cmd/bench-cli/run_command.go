@@ -218,9 +218,20 @@ func resolveRunnerNetworkMode() (environment.ContainerNetworkMode, error) {
 	if os.Getenv("EVIDRA_CONTAINERIZED") != "1" {
 		return environment.ContainerNetworkNative, nil
 	}
+	// Docker Desktop host-network containers report the VM hostname instead
+	// of their container ID; EVIDRA_RUNNER_CONTAINER names the container
+	// explicitly and takes precedence over HOSTNAME.
+	name := strings.TrimSpace(os.Getenv("EVIDRA_RUNNER_CONTAINER"))
+	if name == "" {
+		name = strings.TrimSpace(os.Getenv("HOSTNAME"))
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	return containerNetworkProbe(ctx, &environment.ExecRunner{}, strings.TrimSpace(os.Getenv("HOSTNAME")))
+	mode, err := containerNetworkProbe(ctx, &environment.ExecRunner{}, name)
+	if err != nil {
+		return "", fmt.Errorf("%w; set EVIDRA_RUNNER_CONTAINER to this container's name or ID when HOSTNAME is not inspectable", err)
+	}
+	return mode, nil
 }
 
 func newKindProvider(cfg config.Config, mode environment.ContainerNetworkMode) *environment.KindProvider {

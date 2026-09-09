@@ -48,14 +48,28 @@ does not create local kind clusters. Remote runners create their own clusters
 or attach to a configured execution environment.
 
 The runner image uses the host Docker socket to create kind or k3d clusters as
-sibling containers. It is not Docker-in-Docker. For kind, the runner joins the
-internal kind Docker network and uses kind's internal kubeconfig. For k3d, it
-joins the cluster-specific Docker network and rewrites the generated kubeconfig
-to the internal API-server DNS name. Kubernetes access therefore does not
-depend on the runner container's loopback interface.
+sibling containers. It is not Docker-in-Docker. Container-to-cluster networking
+is detected once from the live runner container (`docker inspect
+{{.HostConfig.NetworkMode}}`, overridable via `EVIDRA_RUNNER_CONTAINER` when
+`HOSTNAME` is not inspectable) instead of being assumed:
+
+- In bridge mode, the runner uses kind's internal kubeconfig over the
+  internal kind Docker network. For k3d it joins the
+  cluster-specific Docker network and rewrites the generated kubeconfig to
+  the internal API-server DNS name. Kubernetes access therefore does not depend
+  on the runner container's loopback interface.
+- In host-network mode (`docker run --network host`, the documented way to
+  reach a local Ollama runtime at `127.0.0.1:11434`), the runner never attaches
+  to any bridge network: kind fetches the host-published kubeconfig without
+  `--internal`, and k3d keeps its dynamically published API port while only the
+  server host is normalized to `127.0.0.1`. Cluster teardown uses the normal
+  `kind delete` / `k3d cluster delete` lifecycle; no network-attach leftovers
+  are expected either way.
 
 Mounting the Docker socket grants the runner host-level control through the
-daemon and must be treated as a privileged execution boundary.
+daemon and must be treated as a privileged execution boundary. Host networking
+additionally exposes every host-published container port to the runner, so run
+local-model workloads only with trusted suite inputs.
 
 ## Job Lifecycle
 

@@ -52,6 +52,18 @@ scenario
 Bench owns setup and verification. The selected adapter owns how the agent acts
 between failure injection and final checks.
 
+Local models are first-class targets of this lifecycle, not a demo-only path.
+When `evidra test --model ollama/<model>` (or the thin `evidra demo` entry
+point) resolves a local model, the CLI discovers installed models through the
+Ollama runtime's native API, validates the capability requirements declared by
+the suite (metadata first, one bounded behavioral probe only when metadata is
+ambiguous), and records model digest, parameter size, quantization, and the
+capability check in the canonical target identity. Capability validation
+happens before cluster provisioning, so a missing or incompatible model
+aborts without acquiring infrastructure. Ollama itself is used only for
+discovery and metadata; all inference, local or remote, flows through the
+shared OpenAI-compatible provider client. No model download, no cloud fallback.
+
 ## Execution Modes
 
 ### Single Run

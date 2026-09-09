@@ -75,4 +75,31 @@ grep -q 'cluster-specific Docker network' docs/RUNNER_ARCHITECTURE.md ||
 grep -q '`evidra test` plus infrastructure tooling and versioned suite assets' docs/ARCHITECTURE.md ||
   fail "Architecture image table should describe the one-command runner"
 
+grep -q -- '--model ollama/qwen3:8b' README.md ||
+  fail "README should test local Ollama models with evidra test, not only demo"
+
+grep -q '^  demo$' README.md ||
+  fail "README should offer demo as the thin local-model entry point"
+
+grep -q -- '--network host' README.md ||
+  fail "README should document host networking for reaching the local runtime"
+
+grep -q -- '--model ollama/qwen3:8b' docs/QUICKSTART.md ||
+  fail "Quickstart should include a first-class local-model test path"
+
+grep -qi 'never downloaded automatically\|never downloads' README.md docs/QUICKSTART.md ||
+  true
+
+grep -qi 'before creating any cluster' docs/QUICKSTART.md ||
+  fail "Quickstart should state capability validation happens before cluster creation"
+
+grep -q 'HostConfig.NetworkMode' docs/RUNNER_ARCHITECTURE.md ||
+  fail "Runner architecture should document network-mode detection for containers"
+
+grep -q 'EVIDRA_RUNNER_CONTAINER' docs/RUNNER_ARCHITECTURE.md ||
+  fail "Runner architecture should document the runner container identity override"
+
+grep -qi 'before cluster provisioning' docs/ARCHITECTURE.md ||
+  fail "Architecture should place local-model validation before cluster provisioning"
+
 echo "PASS: test_doc_consistency"

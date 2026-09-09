@@ -70,6 +70,43 @@ who opt into `--user` should add the socket's numeric group ID with
 `--group-add "$(stat -c '%g' /var/run/docker.sock)"` and pre-create a writable
 results directory.
 
+### Already Installed A Local Model? Test It First-Class
+
+Local models are not a demo-only sidequest: `evidra test` accepts Ollama models
+like any other provider, with the same suites, verdicts, reports, and exit
+codes. The runner discovers what you already have installed and validates tool
+calling **before** it creates any cluster, so a missing or incompatible model
+fails in seconds instead of provisioning infrastructure first. Nothing is ever
+downloaded automatically and paid providers are never used as a silent
+fallback. Start Ollama as usual (`ollama serve`, `ollama pull qwen3:8b`), then
+let the runner share the host network so it can reach the local runtime:
+
+```bash
+docker run --rm --network host \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$PWD/evidra-results:/workspace/evidra-results" \
+  ghcr.io/vitas/evidra-bench:latest \
+  test --model ollama/qwen3:8b --ci
+```
+
+The absolute fastest start is the same evaluation through the `demo` entry
+point, which picks your only compatible installed model automatically (and
+asks once when several qualify):
+
+```bash
+docker run --rm --network host \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$PWD/evidra-results:/workspace/evidra-results" \
+  ghcr.io/vitas/evidra-bench:latest \
+  demo
+```
+
+Ollama is used only to discover installed models and read their metadata;
+inference goes through the same OpenAI-compatible client as every other model.
+Custom OpenAI-compatible endpoints work through `test --endpoint` on any
+network. Host networking exposes the runner to host-published ports, so use it
+with trusted inputs (see the socket warning above).
+
 ## Start Here
 
 | Goal | Read |

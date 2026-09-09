@@ -112,3 +112,33 @@ jobs:
       - name: Race detector
         working-directory: bench
         run: go test -race ./... -count=1
+
+  docker-local-model-smoke:
+    name: Docker local-model smoke (fake Ollama)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EVIDRA_DOCKER_SMOKE_IMAGE: evidra-bench:local-model-ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          path: bench
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: bench/go.mod
+          cache: true
+          cache-dependency-path: bench/go.sum
+
+      - name: Build runner image
+        run: docker build -f bench/Dockerfile.bench -t evidra-bench:local-model-ci bench
+
+      - name: Smoke kind with fake Ollama
+        working-directory: bench
+        run: bash tests/smoke/run_docker_local_model_smoke.sh kind
+
+      - name: Smoke k3d with fake Ollama
+        working-directory: bench
+        run: bash tests/smoke/run_docker_local_model_smoke.sh k3d

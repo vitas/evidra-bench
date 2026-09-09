@@ -33,4 +33,20 @@ if grep -Fq 'CMD ["serve"]' "$dockerfile"; then
   exit 1
 fi
 
+local_smoke="$repo_root/tests/smoke/run_docker_local_model_smoke.sh"
+[[ -x "$local_smoke" ]] || { echo "local-model smoke must exist and be executable" >&2; exit 1; }
+grep -Fq -- '--network host' "$local_smoke" || { echo "local-model smoke must use host networking" >&2; exit 1; }
+grep -Fq 'test --model ollama/' "$local_smoke" || { echo "local-model smoke must exercise first-class evidra test --model ollama/" >&2; exit 1; }
+grep -Fq 'ollama/absent-model' "$local_smoke" || { echo "local-model smoke must prove preflight blocks missing models before cluster creation" >&2; exit 1; }
+
+fixture_main="$repo_root/tests/fixtures/fake-ollama/main.go"
+[[ -f "$fixture_main" ]] || { echo "fake-ollama fixture missing" >&2; exit 1; }
+for route in /api/tags /api/show /v1/chat/completions; do
+  grep -Fq ""$route"" "$fixture_main" || { echo "fake-ollama fixture must implement $route" >&2; exit 1; }
+done
+if grep -Fq '"/api/pull"' "$fixture_main"; then
+  echo "fake-ollama fixture must not implement /api/pull" >&2
+  exit 1
+fi
+
 echo 'Docker runner contract: PASS'

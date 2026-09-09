@@ -77,12 +77,13 @@ func TestNewK3dProviderDetectsContainerRunner(t *testing.T) {
 func TestResolveRunnerNetworkModeDetectsOnceAndWiresProviders(t *testing.T) {
 	t.Setenv("EVIDRA_CONTAINERIZED", "1")
 	t.Setenv("HOSTNAME", "runner-x")
+	t.Setenv("EVIDRA_RUNNER_CONTAINER", "explicit-runner")
 	calls := 0
 	original := containerNetworkProbe
 	containerNetworkProbe = func(_ context.Context, _ environment.CommandRunner, name string) (environment.ContainerNetworkMode, error) {
 		calls++
-		if name != "runner-x" {
-			t.Errorf("probe container name = %q, want runner-x", name)
+		if name != "explicit-runner" {
+			t.Errorf("probe container name = %q, want explicit-runner", name)
 		}
 		return environment.ContainerNetworkHost, nil
 	}
