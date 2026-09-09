@@ -55,7 +55,7 @@ Select the run either directly with --run-dir or by --run <run-id>
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(),
+			writef(cmd.OutOrStdout(),
 				"bundle written to %s (%d entries, %d tool calls; verify with: evidra validate --evidence-dir %s)\n",
 				res.BundlePath, res.Entries, res.ToolCalls, res.BundlePath)
 			return nil
