@@ -39,7 +39,15 @@ fixture_ready=0
 
 cleanup() {
   docker rm -f "$fixture_name" "$runner_name" >/dev/null 2>&1 || true
-  rm -rf "$work_dir"
+  # The runner process writes root-owned artifacts into the bind-mounted
+  # results dir; delete them with root inside a throwaway container so the
+  # cleanup cannot fail the job on Linux (CI runs as an unprivileged uid).
+  results_dir="$work_dir/results"
+  if [[ -d "$results_dir" ]]; then
+    docker run --rm -v "$results_dir:/mnt" alpine:3.22 \
+      find /mnt -mindepth 1 -delete >/dev/null 2>&1 || true
+  fi
+  rm -rf "$work_dir" 2>/dev/null || true
 }
 trap cleanup EXIT
 
