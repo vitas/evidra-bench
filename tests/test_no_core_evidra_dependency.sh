@@ -40,9 +40,14 @@ fail_found "bench CLI special evidra mode flag registrations" \
   grep -R -nE --exclude='*_test.go' '(StringVar|BoolVar|StringSliceVar|StringP|BoolP)[^(]*\([^)]*"(evidra-bin|evidra-evidence-dir|proxy-mode|smart-prescribe|trace|evidra)"' \
     cmd pkg internal
 
-fail_found "active code still exposes Evidra-named bench API contract" \
+# Policy: Bench may carry Evidra branding and its own EVIDRA_*-named runtime
+# configuration (e.g. EVIDRA_ASSETS_DIR, EVIDRA_CONTAINERIZED); what must never
+# exist is knowledge of the Evidra CORE runtime contract — signing keys, core
+# store/environment settings, API URLs, tenant headers. These are the concrete
+# core-side surfaces that used to leak into bench's special modes.
+fail_found "active code exposes the Evidra core runtime contract" \
   grep -R -nE --exclude='*_test.go' --exclude='*.test.mts' --exclude='*.test.ts' --exclude='*.test.tsx' \
-    '(EVIDRA_[A-Z0-9_]+|VITE_EVIDRA_API|--evidra-url|--evidra-api-key|EvidraURL|EvidraAPIKey|X-Evidra-Tenant|evidra_url|evidra_api_key)' \
+    '(EVIDRA_(SIGNING|EVIDENCE|RETRY_TRACKER|MODE|API|URL|SERVER|TOKEN|ENVIRONMENT|HOST|PORT)[A-Z0-9_]*|VITE_EVIDRA_API|--evidra-url|--evidra-api-key|EvidraURL|EvidraAPIKey|X-Evidra-Tenant|evidra_url|evidra_api_key)' \
     cmd pkg internal profiles scripts ui/src ui/Dockerfile .github Dockerfile.bench
 
 fail_found "active Evidra protocol verifier surface" \
