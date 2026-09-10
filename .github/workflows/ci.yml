@@ -113,6 +113,52 @@ jobs:
         working-directory: bench
         run: go test -race ./... -count=1
 
+  docker-one-command-smoke:
+    name: Docker one-command smoke (${{ matrix.provider }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: [kind, k3d]
+    env:
+      EVIDRA_SMOKE_IMAGE: evidra-bench:one-command-ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          path: bench
+
+      - name: Build runner image
+        run: docker build -f bench/Dockerfile.bench -t evidra-bench:one-command-ci bench
+
+      - name: Smoke (${{ matrix.provider }})
+        working-directory: bench
+        run: bash tests/smoke/run_docker_one_command_smoke.sh ${{ matrix.provider }}
+
+  qualification-smoke:
+    name: Qualification smoke (${{ matrix.provider }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: [kind, k3d]
+    env:
+      EVIDRA_SMOKE_IMAGE: evidra-bench:qualification-ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          path: bench
+
+      - name: Build runner image
+        run: docker build -f bench/Dockerfile.bench -t evidra-bench:qualification-ci bench
+
+      - name: Smoke (${{ matrix.provider }})
+        working-directory: bench
+        run: bash tests/smoke/run_qualification_smoke.sh ${{ matrix.provider }}
+
   docker-local-model-smoke:
     name: Docker local-model smoke (fake Ollama)
     runs-on: ubuntu-latest

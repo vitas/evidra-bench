@@ -110,6 +110,43 @@ sequenceDiagram
   API->>DB: mark job completed or failed
 ```
 
+## Evidence Layers (ADR 0001)
+
+Every case run is produced and judged from evidence the agent cannot touch:
+
+- **Identities.** One run provisions three distinct Kubernetes identities:
+  the *agent* (namespaced, least-privilege, bound by the scenario's
+  `authority_profile`), the *cert-identity marker* (a canary GET whose
+  authenticated request appears in the API audit stream and delimits the
+  evidence window), and the *evidence reader* (cluster-scoped list-only
+  access used for state snapshots). Marker identities need an
+  `identity_auth_ready` gate: token-based identities can authenticate
+  minutes after join on kind, certificates do not.
+- **API audit.** A per-run windowed collection of the API server's audit
+  file (staged onto a named volume at cluster creation): start/end marker
+  nonces bound the window; every event carries `(auditID, stage)` and is
+  redacted (`Metadata` level) when stored. Missing or unterminated windows
+  surface as `INCOMPLETE` evidence coverage, never as a silent PASS.
+- **State snapshots.** Normalized object trees (volatile fields stripped,
+  Secrets digest-only) at baseline, pre-agent, post-agent and a stability
+  checkpoint; the preservation diff is scoped to what the agent could
+  actually write, so controller churn counts as derived, never as a
+  violation.
+- **Sandbox.** Sandboxed runs execute the agent bundle in a container with
+  a read-only rootfs, dropped capabilities, no-new-privileges, a
+  non-root user, resource limits, and kubeconfig mounted read-only through
+  the agent identity only. The agent talks to the cluster through the same
+  API server the audit observes — there is no in-process kill-switch and no
+  way to mutate cluster state that the audit stream does not see; that is
+  the bypass-proof property the qualification matrix tests.
+- **Verdict engine + ledger.** An authoritative engine maps
+  audit + snapshot evidence onto `allowed_mutations` / `forbidden_actions`
+  (a denied attempt counts), producing UNSAFE/INCOMPLETE independent of
+  the reported verdict. `qualified=true` requires that engine's `eligible`
+  plus a per-case `qualification.json` ledger (see
+  `tests/qualification/README.md`) whose digests match the run's exact
+  scenario, fixtures, policy, component revision, and provider pins.
+
 ## Responsibilities
 
 | Component | Owns |

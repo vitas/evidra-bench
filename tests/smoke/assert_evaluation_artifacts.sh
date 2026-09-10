@@ -24,15 +24,29 @@ assert_evaluation_artifacts() {
     return 1
   fi
 
-  # ADR 0001 Phase 5: the api_audit source must report COMPLETE coverage
-  # with both window markers observed, while qualification stays honestly
-  # false until Phase 10 assembles the verdict engine.
+  # ADR 0001 Phase 5+: the api_audit source must report COMPLETE coverage
+  # with both window markers observed.
   grep -Eq '"coverage": *"complete"' "$result_dir/result.json" ||
     { echo "expected api_audit coverage complete in result.json" >&2; return 1; }
   grep -Eq '"name": *"api_audit"' "$result_dir/result.json" ||
     { echo "expected api_audit source entry in result.json" >&2; return 1; }
+  # ADR 0001 Phase 10+: these smokes execute the agent UNCONFINED (scripted
+  # --agent), so qualified=false is a structural truth, not a preview
+  # disclaimer: confinement is a hard prerequisite of qualification. Assert
+  # the labeling itself, so an accidental flip without a sandbox would fail
+  # the smoke loudly.
   grep -Eq '"qualified": *false' "$result_dir/result.json" ||
-    { echo "qualification must remain false before Phase 10" >&2; return 1; }
+    { echo "unconstrained runs must never report qualified=true" >&2; return 1; }
+  grep -Eq '"unconfined": *true' "$result_dir/result.json" ||
+    { echo "expected unconfined runtime labeling in result.json" >&2; return 1; }
+  grep -Eq 'agent_unconfined' "$result_dir/result.json" ||
+    { echo "expected agent_unconfined gap for --agent runs" >&2; return 1; }
+  # ADR 0001 Phase 11: cohort stamp — every current-binary run belongs to
+  # safety-evidence.v1; nothing in this repo may emit unstamped results.
+  grep -Eq '"semantics_version": *"safety-evidence.v1"' "$result_dir/result.json" ||
+    { echo "expected safety-evidence.v1 semantics stamp" >&2; return 1; }
+  grep -Eq '"engine"' "$result_dir/result.json" ||
+    { echo "expected authoritative engine block under safety in result.json" >&2; return 1; }
   local audit_files
   audit_files="$(find "$result_dir/runs" -name audit.jsonl 2>/dev/null | wc -l | tr -d ' ')"
   if [[ "$audit_files" -lt "$bundle_count" ]]; then

@@ -64,10 +64,17 @@ every run under `evidra-results/bundles/` (open them with
 CLI](https://github.com/vitas/evidra)). The first run pulls a ~1 GB
 Kubernetes node image, cached afterwards.
 
-Verdicts are currently *preview* level: process safety is judged from agent
-tool-call telemetry, which explains what an agent reported rather than proving
-what happened. Safety-qualified PASS requires the authoritative evidence
-layers defined in [ADR 0001](docs/adr/0001-process-safety-matching.md).
+Verdicts read *qualified* only when the authoritative evidence layers of
+[ADR 0001](docs/adr/0001-process-safety-matching.md) back them: complete
+API-audit and state-snapshot coverage, a confined sandbox execution, and a
+per-case qualification ledger whose input digests match the run exactly.
+Reports carry the state per case — `PASS · qualified`, or `· gated` /
+`· preview` when the grant or the confinement is missing; the gaps list
+names what is absent. Gated and preview verdicts are real measurements of
+task outcome and safety findings, but must not be quoted as proof of
+process safety. Result documents are cohort-stamped
+(`semantics_version: safety-evidence.v1`); pre-ADR bundles stay readable,
+never comparable (`bench-cli compare-bundles` enforces the split).
 
 Mounting `/var/run/docker.sock` grants the runner host-level control through the
 Docker daemon. Use this image only with agents and inputs you trust. Linux users

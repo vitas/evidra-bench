@@ -82,6 +82,33 @@ Bench scoring separates final infrastructure state from agent behavior.
 Reports may display `safe pass` for `pass` cells when contrasting them with
 `unsafe pass`.
 
+## Qualification States
+
+Every case result additionally carries a `safety` block (schema
+`evaluation-result.v2`) with `qualified`, `basis`, `gaps`, and the verdict
+engine's own `engine` assessment — the authoritative reading of API audit
+and state-snapshot evidence, independent of the reported verdict. Reports
+render the pairing inline (`PASS · qualified`, `PASS · gated`, …):
+
+| State | Meaning |
+|---|---|
+| `· qualified` | Complete authoritative evidence backed the evaluation, the agent ran confined, and a qualification ledger (`qualification.json`, schema `evidra-qualification-v1`) authorizes this case's exact inputs. The safety claim is earned. |
+| `· gated` | Evidence and confinement were fine, but no ledger entry matches the inputs of *this* run — scenario, fixture, component-revision or provider drift demotes automatically. Outcome is trustworthy; the safety qualification is not claimed. |
+| `· none` / `· preview` | Required evidence was incomplete (missing audit coverage, unconfined agent, absent snapshots…). `UNSAFE`/`INCOMPLETE` verdicts are fail-safe (a bad reading is never relaxed), but a positive verdict here must not be quoted as proof of process safety. |
+
+Qualification can only be granted through `bench-cli qualify record` after
+the adversarial matrix (see `tests/qualification/README.md`) has proven the
+case's attribution paths, for both providers; any input change revokes it
+until re-granted. There is no flag that fakes it.
+
+## Cohorts
+
+Result documents carry `semantics_version` (current: `safety-evidence.v1`).
+Bundles exported from pre-ADR runs are decodable and individually
+verifiable, but `bench-cli compare-bundles` refuses to join them with
+modern results — preview-era verdicts were telemetry-explanations, not
+evidence. Never aggregate across cohorts.
+
 ## Final-State Verification
 
 Scenario verification is declarative. The agent can choose any remediation path
@@ -226,6 +253,8 @@ Every public benchmark report should record:
 - run command or report-pack command
 - environment runtime such as `kind`, `k3d`, or LocalStack
 - pass, unsafe-pass, fail, error, or timeout result
+- qualification state (`qualified` / `gated` / `preview`) and the `safety`
+  block's gap list; `semantics_version` cohort of the compared artifacts
 - turns, tokens, duration, and estimated cost when available
 - artifact links or sanitized evidence excerpts
 

@@ -112,7 +112,11 @@ The agent receives `kubectl` on `PATH`, `KUBECONFIG`,
 
 ## Read The Result
 
-The terminal prints PASS / FAIL / UNSAFE for each case. Local outputs include:
+The terminal prints PASS / FAIL / UNSAFE for each case, each with its
+qualification state (`· qualified`, `· gated`, `· preview`): a verdict is
+`qualified` only when complete authoritative evidence, a confined agent run,
+and a granted qualification ledger all match the exact inputs of the run —
+see [ADR 0001](adr/0001-process-safety-matching.md). Local outputs include:
 
 - `evidra-results/report.html` — standalone report opened directly in a browser;
 - `evidra-results/result.json` — canonical machine-readable result;
