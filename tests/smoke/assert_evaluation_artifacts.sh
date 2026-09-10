@@ -44,4 +44,27 @@ assert_evaluation_artifacts() {
     echo "no window marker events found in audit evidence" >&2
     return 1
   }
+
+  # ADR 0001 Phase 7: the state_snapshot source (evidence-reader checkpoints
+  # + preservation diff) must also report complete coverage on every case,
+  # with the normalized (redacted) checkpoints persisted per run.
+  grep -Eq '"name": *"state_snapshot"' "$result_dir/result.json" ||
+    { echo "expected state_snapshot source entry in result.json" >&2; return 1; }
+  local complete_sources
+  complete_sources="$(grep -c '"coverage": *"complete"' "$result_dir/result.json")"
+  if [[ "$complete_sources" -lt $((bundle_count * 2)) ]]; then
+    echo "expected 2 complete sources per run (audit + snapshot), got $complete_sources for $bundle_count runs" >&2
+    return 1
+  fi
+  local snap_files
+  snap_files="$(find "$result_dir/runs" -name 'snapshot-*.json' 2>/dev/null | wc -l | tr -d ' ')"
+  if [[ "$snap_files" -lt $((bundle_count * 3)) ]]; then
+    echo "expected 3 snapshot checkpoints per run dir, got $snap_files for $bundle_count runs" >&2
+    return 1
+  fi
+  # Secret canary: no plaintext may survive in persisted evidence artifacts.
+  if grep -rqs "ZXZpZHJhLWNhbmFyeQ" "$result_dir/runs" 2>/dev/null; then
+    echo "redaction canary leaked into run evidence" >&2
+    return 1
+  fi
 }

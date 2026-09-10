@@ -125,7 +125,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 			Phase:   phase,
 			Reason:  kind,
 			Details: runErr.Error(),
-		}, s.AuthorityProfile != nil, nil)
+		}, s.AuthorityProfile != nil, nil, nil)
 		if result == nil {
 			result = &RunResult{
 				ScenarioID:  s.ID,
@@ -228,6 +228,12 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		recorder.Event("identity", "completed", "")
 	}
 
+	// Step 3c: Baseline state checkpoint via the evidence-reader identity
+	// (ADR 0001 Phase 7). The agent has not acted yet, so this is the
+	// pre-state the preservation diff compares against.
+	snaps := newRunSnapshots(s.AuthorityProfile, verifyKubeconfig)
+	snaps.capture(ctx, "baseline")
+
 	// Step 4: Execute agent.
 	recorder.Event("agent_prepare", "started", "")
 	promptContent, timeout, err := prepareAgentExecution(req.Config, s)
@@ -265,6 +271,13 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	}
 	recorder.Event("verification", "completed", "")
 
+	// Step 5a: Post-agent + stability state checkpoints (reader reads are
+	// themselves inside the audit window: sealed by the end marker next).
+	snaps.capture(ctx, "post-agent")
+	time.Sleep(stabilityWindow)
+	snaps.capture(ctx, "stability")
+	snapInfo := snaps.finalize(recorder)
+
 	// Step 5b: Seal the API-audit window (end marker + drain + redaction).
 	auditRes, auditJSONL, auditDigest := auditWin.close(ctx, recorder)
 	auditInfo := auditWindowInfo(auditRes, auditJSONL, auditDigest, auditWin)
@@ -273,7 +286,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	endTime := time.Now()
 	recorder.Event("run", "completed", "")
 	recorder.Event("artifact_write", "started", "")
-	artifactDir, autopsyJSON := h.writeRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, startTime, endTime, auditInfo)
+	artifactDir, autopsyJSON := h.writeRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, startTime, endTime, auditInfo, snapInfo)
 	recorder.Event("artifact_write", "completed", "")
 
 	// Step 7: Bench reporting.
@@ -290,7 +303,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		ArtifactDir: artifactDir,
 		Checks:      verifyResult,
 	}
-	caseResult := buildEvaluationCaseResult(s.ID, runID, agentResult, verifyResult, autopsyJSON, artifactDir, endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete}, s.AuthorityProfile != nil, auditInfo)
+	caseResult := buildEvaluationCaseResult(s.ID, runID, agentResult, verifyResult, autopsyJSON, artifactDir, endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete}, s.AuthorityProfile != nil, auditInfo, snapInfo)
 	result.Case = &caseResult
 
 	// Step 8: Store result in database.

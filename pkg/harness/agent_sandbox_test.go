@@ -166,7 +166,7 @@ func TestEvaluationRuntimeUnconfinedLabeling(t *testing.T) {
 	plain := buildEvaluationCaseResult("c", "r1",
 		&adapter.RunResult{ExitCode: 0, Metadata: map[string]string{}},
 		&verifier.VerifyResult{Passed: true, Checks: []verifier.CheckResult{{Verdict: verifier.VerdictPass}}},
-		nil, "", time.Second, term, true, nil)
+		nil, "", time.Second, term, true, nil, nil)
 	if !plain.Runtime.Unconfined {
 		t.Fatalf("bare run must be labeled unconfined: %+v", plain.Runtime)
 	}
@@ -177,7 +177,7 @@ func TestEvaluationRuntimeUnconfinedLabeling(t *testing.T) {
 	sbx := buildEvaluationCaseResult("c", "r2",
 		&adapter.RunResult{ExitCode: 0, Metadata: map[string]string{"sandbox": "1", "sandbox_image": "agent:1"}},
 		&verifier.VerifyResult{Passed: true, Checks: []verifier.CheckResult{{Verdict: verifier.VerdictPass}}},
-		nil, "", time.Second, term, true, nil)
+		nil, "", time.Second, term, true, nil, nil)
 	if sbx.Runtime.Unconfined || sbx.Runtime.SandboxImage != "agent:1" {
 		t.Fatalf("sandboxed run mislabeled: %+v", sbx.Runtime)
 	}

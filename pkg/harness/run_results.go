@@ -19,7 +19,7 @@ import (
 	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
-func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, startTime, endTime time.Time, auditInfo *AuditWindowInfo) (string, json.RawMessage) {
+func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, startTime, endTime time.Time, auditInfo *AuditWindowInfo, snapInfo *SnapshotInfo) (string, json.RawMessage) {
 	s := req.Scenario
 	checksJSON, _ := json.Marshal(verifyResult)
 	toolCallsJSON := marshalToolCallsJSON(agentResult.ToolCalls)
@@ -83,6 +83,9 @@ func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *a
 	if auditInfo != nil {
 		bundle.Audit = auditInfo.BundleSummary()
 	}
+	if snapInfo != nil {
+		bundle.Snapshots = snapInfo.BundleSummary()
+	}
 	if h.deps.Writer == nil {
 		return "", autopsyJSON
 	}
@@ -95,6 +98,14 @@ func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *a
 		path := filepath.Join(out.Path, "audit.jsonl")
 		if err := os.WriteFile(path, auditInfo.JSONL, 0o600); err != nil {
 			log.Printf("[harness] warning: audit evidence write failed: %v", err)
+		}
+	}
+	if snapInfo != nil {
+		for name, data := range snapInfo.Artifacts {
+			path := filepath.Join(out.Path, name)
+			if err := os.WriteFile(path, data, 0o600); err != nil {
+				log.Printf("[harness] warning: snapshot evidence write failed (%s): %v", name, err)
+			}
 		}
 	}
 	return out.Path, autopsyJSON

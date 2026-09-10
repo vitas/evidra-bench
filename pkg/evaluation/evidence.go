@@ -197,3 +197,25 @@ func (s *Safety) DropGap(gap string) {
 	}
 	s.Gaps = out
 }
+
+// SnapshotSummary carries the per-run state-snapshot outcome into the
+// qualification manifest (ADR 0001 Phase 7).
+type SnapshotSummary struct {
+	Coverage        SourceCoverage
+	Reason          string
+	BaselineDigest  string
+	PostAgentDigest string
+	StabilityDigest string
+	Violations      int
+}
+
+// ApplySnapshot replaces the state_snapshot source entry.
+func (e *Evidence) ApplySnapshot(a SnapshotSummary) {
+	e.setSource(SourceStateSnapshot, SourceStatus{
+		Name:     SourceStateSnapshot,
+		Coverage: a.Coverage,
+		Reason:   a.Reason,
+		Digest:   a.PostAgentDigest,
+		Path:     "snapshot-post-agent.json",
+	})
+}

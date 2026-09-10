@@ -27,33 +27,33 @@ type Config struct {
 	AgentImage     string
 	AgentBundleDir string
 	// Sandbox resource ceilings (empty = docker defaults).
-	SandboxMemory string
-	SandboxCPUs   string
-	RunsDir             string
-	KubeconfigPath      string
-	Timeout             time.Duration
-	ReuseCluster        bool
-	ClusterName         string
-	DryRun              bool
-	BenchURL            string
-	BenchAPIKey         string
-	EvidenceDir         string
-	Model               string
-	Provider            string
-	MemoryWindow        int
-	SystemPromptFile    string
-	ContractVersion     string
-	SkillFile           string // local skill prompt file; runner host must already have this path
-	SkillID             string // stable skill identity for comparison/filtering
-	SkillVersion        string // stable skill version for comparison/filtering
-	SkillSource         string // source label such as local-file, local-temp, or registry name
-	SkillSHA256         string // optional expected sha256 for the skill file
-	MCPServer           string // MCP server command
-	ToolServerID        string // stable MCP server identity for comparison/filtering
-	ToolServerVersion   string // stable MCP server version for comparison/filtering
-	ReportID            string // stable public/private report campaign identifier
-	Parallel            int    // number of parallel workers (0 or 1 = sequential, >1 requires --database-url)
-	DatabaseURL         string // PostgreSQL connection string for River job queue (env: BENCH_DATABASE_URL)
+	SandboxMemory     string
+	SandboxCPUs       string
+	RunsDir           string
+	KubeconfigPath    string
+	Timeout           time.Duration
+	ReuseCluster      bool
+	ClusterName       string
+	DryRun            bool
+	BenchURL          string
+	BenchAPIKey       string
+	EvidenceDir       string
+	Model             string
+	Provider          string
+	MemoryWindow      int
+	SystemPromptFile  string
+	ContractVersion   string
+	SkillFile         string // local skill prompt file; runner host must already have this path
+	SkillID           string // stable skill identity for comparison/filtering
+	SkillVersion      string // stable skill version for comparison/filtering
+	SkillSource       string // source label such as local-file, local-temp, or registry name
+	SkillSHA256       string // optional expected sha256 for the skill file
+	MCPServer         string // MCP server command
+	ToolServerID      string // stable MCP server identity for comparison/filtering
+	ToolServerVersion string // stable MCP server version for comparison/filtering
+	ReportID          string // stable public/private report campaign identifier
+	Parallel          int    // number of parallel workers (0 or 1 = sequential, >1 requires --database-url)
+	DatabaseURL       string // PostgreSQL connection string for River job queue (env: BENCH_DATABASE_URL)
 }
 
 // ResolveSystemPromptFile returns the system prompt file path from flag, env, or empty.

@@ -221,10 +221,18 @@ func (s *Store) Window(start, end Event) WindowResult {
 			}
 		}
 		if !found {
-			// Only ops that BEGAN inside the window can make that window
-			// incomplete. Long-lived streams (controller watches) opened
-			// before the markers legitimately have no terminal event —
-			// every real mutation still gets its own terminal audit.
+			// Long-lived STREAMING ops (watches, exec/attach/portforward
+			// holds) have no meaningful terminal stage: on client-side
+			// close the apiserver frequently skips the ResponseComplete
+			// flush (cancel-vs-flush race — empirically the dominant audit
+			// "gap" on busy clusters). Penalizing them would make coverage
+			// a coin flip while hiding nothing: no mutation is ever
+			// expressed through these verbs/subresources, and the
+			// pre-window variant of this was a proven false-positive
+			// source (121 controller watches). Tolerated wholesale.
+			// Only non-streaming ops that BEGAN inside the window can make
+			// that window incomplete: a plain get/list/mutation whose
+			// terminal stage never arrived is a lost observation.
 			if len(group) > 0 {
 				first := group[0]
 				if !first.EffectiveTimestamp().Before(lo) && !first.EffectiveTimestamp().After(hi) {

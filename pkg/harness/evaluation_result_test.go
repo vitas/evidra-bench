@@ -35,6 +35,7 @@ func TestBuildEvaluationCaseResultUsesCompletedRunEvidence(t *testing.T) {
 		evaluation.Termination{Kind: evaluation.TerminationComplete},
 		true,
 		nil,
+		nil,
 	)
 
 	if got.Verdict != evaluation.VerdictUnsafe {
@@ -62,6 +63,7 @@ func TestBuildEvaluationCaseResultMarksRunErrorIncomplete(t *testing.T) {
 		time.Second,
 		evaluation.Termination{Kind: evaluation.TerminationIncomplete, Phase: "agent_run", Reason: "timeout"},
 		true,
+		nil,
 		nil,
 	)
 
@@ -96,6 +98,7 @@ func TestBuildEvaluationCaseResultDoesNotLetIncompleteMaskMeasuredUnsafeAction(t
 		evaluation.Termination{Kind: evaluation.TerminationIncomplete, Phase: "agent_run", Reason: "timeout"},
 		true,
 		nil,
+		nil,
 	)
 
 	if got.Verdict != evaluation.VerdictUnsafe {
@@ -107,7 +110,7 @@ func TestBuildEvaluationCaseResultV2StaticSafety(t *testing.T) {
 	complete := evaluation.Termination{Kind: evaluation.TerminationComplete}
 	withProfile := buildEvaluationCaseResult("s", "r1",
 		&adapter.RunResult{ExitCode: 0, ToolCalls: []adapter.ToolCallRecord{{Tool: "kubectl"}}},
-		&verifier.VerifyResult{Passed: true}, nil, "", time.Second, complete, true, nil)
+		&verifier.VerifyResult{Passed: true}, nil, "", time.Second, complete, true, nil, nil)
 	if withProfile.Safety.Qualified {
 		t.Fatal("Phase 2 must never qualify a case")
 	}
@@ -138,7 +141,7 @@ func TestBuildEvaluationCaseResultV2StaticSafety(t *testing.T) {
 	}
 
 	noProfile := buildEvaluationCaseResult("s", "r2",
-		&adapter.RunResult{ExitCode: 0}, nil, json.RawMessage(nil), "", time.Second, complete, false, nil)
+		&adapter.RunResult{ExitCode: 0}, nil, json.RawMessage(nil), "", time.Second, complete, false, nil, nil)
 	if !containsString(noProfile.Safety.Gaps, "authority_profile_missing") {
 		t.Fatalf("missing profile must add permanent gap: %v", noProfile.Safety.Gaps)
 	}
@@ -167,7 +170,7 @@ func TestBuildEvaluationCaseResultErroredCheckIsIncomplete(t *testing.T) {
 	}}
 	got := buildEvaluationCaseResult("case", "run-7",
 		&adapter.RunResult{ExitCode: 0}, vr, json.RawMessage(nil), "runs/run-7", time.Second,
-		evaluation.Termination{Kind: evaluation.TerminationComplete}, true, nil)
+		evaluation.Termination{Kind: evaluation.TerminationComplete}, true, nil, nil)
 	if got.Verdict != evaluation.VerdictIncomplete {
 		t.Fatalf("verdict = %q, want INCOMPLETE", got.Verdict)
 	}
@@ -188,7 +191,7 @@ func TestBuildEvaluationCaseResultErroredCheckIsIncomplete(t *testing.T) {
 	}
 	unsafe := buildEvaluationCaseResult("case", "run-8",
 		&adapter.RunResult{ExitCode: 0}, vr, report, "runs/run-8", time.Second,
-		evaluation.Termination{Kind: evaluation.TerminationComplete}, true, nil)
+		evaluation.Termination{Kind: evaluation.TerminationComplete}, true, nil, nil)
 	if unsafe.Verdict != evaluation.VerdictUnsafe {
 		t.Fatalf("verdict = %q, want UNSAFE dominating evaluator error", unsafe.Verdict)
 	}
