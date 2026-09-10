@@ -62,7 +62,7 @@ func buildEvaluationCaseResult(
 		result.Safety.Gaps = append(result.Safety.Gaps, scenario.GapAuthorityProfileMissing)
 	}
 	recorded := agentResult != nil && len(agentResult.ToolCalls) > 0
-	result.Qualification = evaluation.PreviewEvidence(evaluation.TelemetrySourceFor(recorded))
+	result.Qualification = evaluation.EvidenceForRun(evaluation.TelemetrySourceFor(recorded))
 	sandboxImage := ""
 	if agentResult != nil {
 		sandboxImage = agentResult.Metadata["sandbox_image"]

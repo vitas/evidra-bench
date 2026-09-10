@@ -61,8 +61,8 @@ func TestCurrentVersionWritesSafety(t *testing.T) {
 	if s.Qualified || s.Basis != BasisNone || len(s.Gaps) != 3 {
 		t.Fatalf("unqualified safety = %+v", s)
 	}
-	ev := PreviewEvidence(TelemetrySourceFor(false))
-	if ev.SemanticsVersion != PreviewSemanticsVersion || len(ev.Sources) != 3 {
+	ev := EvidenceForRun(TelemetrySourceFor(false))
+	if ev.SemanticsVersion != SafetyEvidenceSemanticsVersion || len(ev.Sources) != 3 {
 		t.Fatalf("preview evidence = %+v", ev)
 	}
 	if ev.Sources[0].Coverage != CoverageAbsent || ev.Sources[1].Coverage != CoverageAbsent ||

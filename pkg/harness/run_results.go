@@ -10,6 +10,8 @@ import (
 
 	"github.com/oklog/ulid/v2"
 
+	"github.com/vitas/evidra-bench/pkg/evaluation"
+
 	"github.com/vitas/evidra-bench/pkg/adapter"
 	"github.com/vitas/evidra-bench/pkg/artifact"
 	bench "github.com/vitas/evidra-bench/pkg/bench"
@@ -79,6 +81,7 @@ func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *a
 		ChaosLog:       chaosLog,
 		Metadata:       agentResult.Metadata,
 	}
+	bundle.Metadata = stampSemantics(bundle.Metadata)
 
 	if auditInfo != nil {
 		bundle.Audit = auditInfo.BundleSummary()
@@ -164,6 +167,7 @@ func (h *Harness) writeFailedRunArtifacts(req RunRequest, runID string, agentRes
 			ChaosLog:       chaosLog,
 			Metadata:       agentResult.Metadata,
 		}
+		bundle.Metadata = stampSemantics(bundle.Metadata)
 		out, err := h.deps.Writer.Write(bundle)
 		if err != nil {
 			log.Printf("[harness] warning: failed-run artifact write failed: %v", err)
@@ -392,4 +396,16 @@ func buildTimelineJSON(toolCallsJSON json.RawMessage) json.RawMessage {
 		return nil
 	}
 	return data
+}
+
+// stampSemantics records the result-semantics cohort on the run document
+// (ADR 0001 Phase 11): every new run is stamped safety-evidence.v1.
+// Exporters and comparers refuse to mix cohorts; documents without the key
+// are legacy preview-v1 — readable, never comparable.
+func stampSemantics(meta map[string]string) map[string]string {
+	if meta == nil {
+		meta = map[string]string{}
+	}
+	meta["semantics_version"] = evaluation.SafetyEvidenceSemanticsVersion
+	return meta
 }

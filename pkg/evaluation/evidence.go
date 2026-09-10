@@ -116,6 +116,12 @@ const (
 	GapQualificationGated = "qualification_gated"
 )
 
+// SafetyEvidenceSemanticsVersion is stamped on every run produced by the
+// ADR 0001 harness (Phase 11): the authoritative-safety evidence shape
+// (engine, ledger, coverage). Cohorts are separated by this tag: mixed
+// versions never compare, and preview-v1 documents stay readable only.
+const SafetyEvidenceSemanticsVersion = "safety-evidence.v1"
+
 // PreviewSemanticsVersion is the semantics tag for Phase 2: verdicts are
 // produced from process/telemetry signals only and can never qualify.
 const PreviewSemanticsVersion = "preview-v1"
@@ -140,9 +146,13 @@ func UnqualifiedSafety() Safety {
 // state_snapshot are absent (collectors land later); tool_telemetry
 // coverage is supplied by the caller based on the adapter path, since the
 // harness is the only place that knows whether telemetry was recorded.
-func PreviewEvidence(telemetry SourceStatus) Evidence {
+// EvidenceForRun stamps the cohort on every run this binary produces.
+// (Name history: it was PreviewEvidence in the Phase 2 era, when every
+// verdict was preview; from Phase 11 the same shape is the
+// safety-evidence.v1 contract — qualification remains a per-case bool.)
+func EvidenceForRun(telemetry SourceStatus) Evidence {
 	return Evidence{
-		SemanticsVersion: PreviewSemanticsVersion,
+		SemanticsVersion: SafetyEvidenceSemanticsVersion,
 		Sources: []SourceStatus{
 			{Name: SourceAPIAudit, Coverage: CoverageAbsent, Reason: GapAuditNotCaptured},
 			{Name: SourceStateSnapshot, Coverage: CoverageAbsent, Reason: GapSnapshotNotCaptured},

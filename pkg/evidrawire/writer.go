@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -31,18 +32,27 @@ type BundleWriter struct {
 	adapter   string
 	signer    *EphemeralSigner
 
-	prev    string
-	count   int
-	segPath string
-	segFile *os.File
-	encoder *json.Encoder
-	created time.Time
+	semantics string
+	prev      string
+	count     int
+	segPath   string
+	segFile   *os.File
+	encoder   *json.Encoder
+	created   time.Time
 }
 
 // NewBundleWriter creates the bundle directory tree under root (which must not
 // exist yet) and prepares it for appends. sessionID/traceID group every entry;
 // adapter names the producing run context (e.g. "evidra-bench/kubernetes").
-func NewBundleWriter(root, sessionID, traceID, adapter, producerVersion string, signer *EphemeralSigner) (*BundleWriter, error) {
+// BundleWriterOption tunes the produced bundle.json (Phase 11 cohort stamp).
+type BundleWriterOption func(*BundleWriter)
+
+// WithSemanticsVersion stamps the result-semantics cohort into bundle.json.
+func WithSemanticsVersion(v string) BundleWriterOption {
+	return func(w *BundleWriter) { w.semantics = strings.TrimSpace(v) }
+}
+
+func NewBundleWriter(root, sessionID, traceID, adapter, producerVersion string, signer *EphemeralSigner, opts ...BundleWriterOption) (*BundleWriter, error) {
 	if sessionID == "" || traceID == "" {
 		return nil, fmt.Errorf("evidrawire.NewBundleWriter: sessionID and traceID are required")
 	}
@@ -58,7 +68,7 @@ func NewBundleWriter(root, sessionID, traceID, adapter, producerVersion string, 
 		return nil, fmt.Errorf("evidrawire.NewBundleWriter: create segment: %w", err)
 	}
 	now := time.Now().UTC()
-	return &BundleWriter{
+	w := &BundleWriter{
 		root:      root,
 		sessionID: sessionID,
 		traceID:   traceID,
@@ -68,7 +78,11 @@ func NewBundleWriter(root, sessionID, traceID, adapter, producerVersion string, 
 		segFile:   f,
 		encoder:   json.NewEncoder(f),
 		created:   now,
-	}, nil
+	}
+	for _, opt := range opts {
+		opt(w)
+	}
+	return w, nil
 }
 
 // Append builds one entry from params (Type, Actor, Payload are required;
@@ -140,11 +154,12 @@ func (w *BundleWriter) Close(producer BundleProducer, notes string) error {
 		return err
 	}
 	return SaveBundleManifest(w.root, BundleManifest{
-		Spec:       BundleSpecV1,
-		Producer:   producer,
-		TrustLevel: TrustEphemeral,
-		PublicKey:  w.signer.PublicKeyBase64(),
-		CreatedAt:  w.created.Format(time.RFC3339),
-		Notes:      notes,
+		Spec:             BundleSpecV1,
+		Producer:         producer,
+		TrustLevel:       TrustEphemeral,
+		PublicKey:        w.signer.PublicKeyBase64(),
+		CreatedAt:        w.created.Format(time.RFC3339),
+		Notes:            notes,
+		SemanticsVersion: w.semantics,
 	})
 }

@@ -133,7 +133,7 @@ func TestBuildEvaluationCaseResultV2StaticSafety(t *testing.T) {
 	if containsString(withProfile.Safety.Gaps, "authority_profile_missing") {
 		t.Fatal("profile present must not add profile gap")
 	}
-	if withProfile.Qualification.SemanticsVersion != evaluation.PreviewSemanticsVersion {
+	if withProfile.Qualification.SemanticsVersion != evaluation.SafetyEvidenceSemanticsVersion {
 		t.Fatalf("semantics = %q", withProfile.Qualification.SemanticsVersion)
 	}
 	if len(withProfile.Qualification.Sources) != 3 {

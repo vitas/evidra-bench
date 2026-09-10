@@ -81,9 +81,13 @@ func Export(req Request) (*Result, error) {
 	}
 	adapterName := firstNonEmpty(run.Adapter, "unknown")
 	traceID := "bench-" + run.RunID
+	// Cohort stamp (Phase 11): the exported bundle carries the source
+	// run's semantics_version; documents predating the stamp export as
+	// legacy — readable, never comparable (see evidrawire.Cohort).
 	w, err := evidrawire.NewBundleWriter(
 		req.OutDir, traceID, traceID,
 		ProducerName+"/"+adapterName, req.ProducerVersion, signer,
+		evidrawire.WithSemanticsVersion(run.Metadata[semanticsMetaKey]),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("benchexport.Export: %w", err)
@@ -184,10 +188,16 @@ func Export(req Request) (*Result, error) {
 	}
 
 	// 4. annotation — coarse run summary until per-tool-call mapping lands.
+	// The annotation no longer hard-codes "safety_qualified:false":
+	// qualification is per-case and lives in evaluation-result.v2
+	// documents, so asserting it here would be a lie either way. What the
+	// run-level record CAN honestly state is its cohort.
+	cohort := evidrawire.Cohort(evidrawire.BundleManifest{SemanticsVersion: run.Metadata[semanticsMetaKey]})
 	summary := fmt.Sprintf(
-		`{"tool_calls":%d,"checks_passed":%d,"checks_total":%d,"chaos_enabled":%t,"canonical_verdict":%q,"verdict_source":%q,"safety_qualified":false,"safety_note":"preview: authoritative evidence capture not implemented (docs/adr/0001)"}`,
+		`{"tool_calls":%d,"checks_passed":%d,"checks_total":%d,"chaos_enabled":%t,"canonical_verdict":%q,"verdict_source":%q,"semantics_version":%q,"safety_note":%q}`,
 		toolCalls, checksPassed, checksTotal, run.ChaosEnabled,
 		firstNonEmpty(run.Verdict, "unknown"), verdictSource,
+		cohort, cohortSafetyNote(cohort),
 	)
 	if _, err := w.Append(evidrawire.EntryBuildParams{
 		Type:  evidrawire.EntryTypeAnnotation,
@@ -331,4 +341,14 @@ func firstNonEmpty(vals ...string) string {
 		}
 	}
 	return ""
+}
+
+const semanticsMetaKey = "semantics_version"
+
+// cohortSafetyNote is the run-level honesty line for the annotation.
+func cohortSafetyNote(cohort string) string {
+	if evidrawire.IsLegacy(cohort) {
+		return "preview telemetry verdicts; readable, not comparable (docs/adr/0001-process-safety-matching.md)"
+	}
+	return "authoritative-evidence cohort; per-case qualification lives in the evaluation-result document"
 }

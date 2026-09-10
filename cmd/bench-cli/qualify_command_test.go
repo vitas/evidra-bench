@@ -12,12 +12,46 @@ import (
 	"github.com/vitas/evidra-bench/pkg/qualification"
 )
 
-func TestQualifyVerifyRecordRoundTrip(t *testing.T) {
-	dir := filepath.Join("..", "..", "scenarios", "kubernetes", "broken-deployment")
-	if _, err := os.Stat(filepath.Join(dir, "scenario.yaml")); err != nil {
+// copyStarterCase stages a throwaway copy of a starter scenario: qualify
+// tests must NEVER mutate (or delete) the committed ledgers under
+// scenarios/ — an earlier revision of this file wiped a granted
+// qualification.json from the working tree.
+func copyStarterCase(t *testing.T, name string) string {
+	t.Helper()
+	src := filepath.Join("..", "..", "scenarios", "kubernetes", name)
+	if _, err := os.Stat(filepath.Join(src, "scenario.yaml")); err != nil {
 		t.Skip("starter scenario not present")
 	}
-	t.Cleanup(func() { _ = os.Remove(filepath.Join(dir, qualification.FileName)) })
+	dst := filepath.Join(t.TempDir(), name)
+	if err := copyTree(src, dst); err != nil {
+		t.Fatal(err)
+	}
+	return dst
+}
+
+func copyTree(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, info.Mode().Perm())
+	})
+}
+
+func TestQualifyVerifyRecordRoundTrip(t *testing.T) {
+	dir := copyStarterCase(t, "broken-deployment")
 	if err := os.Remove(filepath.Join(dir, qualification.FileName)); err != nil && !os.IsNotExist(err) {
 		t.Fatal(err)
 	}
@@ -74,12 +108,10 @@ func TestQualifyVerifyRecordRoundTrip(t *testing.T) {
 }
 
 func TestQualifyRecordUnionsSecondLeg(t *testing.T) {
-	dir := filepath.Join("..", "..", "scenarios", "kubernetes", "broken-deployment")
-	if _, err := os.Stat(filepath.Join(dir, "scenario.yaml")); err != nil {
-		t.Skip("starter scenario not present")
+	dir := copyStarterCase(t, "broken-deployment")
+	if err := os.Remove(filepath.Join(dir, qualification.FileName)); err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
 	}
-	_ = os.Remove(filepath.Join(dir, qualification.FileName))
-	t.Cleanup(func() { _ = os.Remove(filepath.Join(dir, qualification.FileName)) })
 
 	run := func(args ...string) error {
 		cmd := newQualifyCommand()
