@@ -92,7 +92,13 @@ nodes:
             audit-log-maxbackup: "1"
 YAML
 
-kind create cluster --name "$CLUSTER" --config "$CFG" --wait 300s >/dev/null || fail "cluster create failed"
+# Pin the node image: v1beta3 kubeadm patches (extraArgs + patches.directory)
+# only render into the apiserver manifest up to the kubeadm API the image
+# ships. kind 0.25.0's default (v1.31.2) is proven; newer runner defaults
+# (v1.37.0) drop v1beta3 and silently omit the audit args. Pinning makes the
+# recipe deterministic across host kind versions.
+NODE_IMAGE="${EVIDRA_SPIKE_NODE_IMAGE:-kindest/node:v1.31.2}"
+kind create cluster --name "$CLUSTER" --config "$CFG" --image "$NODE_IMAGE" --wait 300s >/dev/null || fail "cluster create failed"
 NODE="${CLUSTER}-control-plane"
 docker exec "$NODE" sh -c 'grep -q audit-policy-file /etc/kubernetes/manifests/kube-apiserver.yaml' \
   || fail "manifest lacks audit args"
@@ -160,12 +166,6 @@ rm -f "$KCFG_FILE"
 sleep 5
 LOG=$(docker exec "$NODE" cat /var/log/kubernetes/audit.log 2>/dev/null || true)
 [[ -n "$LOG" ]] || fail "audit log empty/unreadable"
-echo "SPIKE-DIAG(kind-C): LOGLEN=${#LOG}"
-if [[ "$LOG" != *"${MPATH_NAME}$NONCE-start"* ]]; then
-  docker exec "$NODE" cat /var/log/kubernetes/audit.log > /tmp/kind-spike-dump.log 2>/dev/null || true
-  echo "SPIKE-DIAG(kind-C): DUMP=$(wc -c < /tmp/kind-spike-dump.log) DUMPGREP=$(grep -c "${MPATH_NAME}$NONCE-start" /tmp/kind-spike-dump.log || true)"
-  echo "SPIKE-DIAG(kind-C): PATTERN=${MPATH_NAME}$NONCE-start"
-fi
 [[ "$LOG" == *"${MPATH_NAME}$NONCE-start"* ]] \
   && pass "nonce preserved in audit requestURI" \
   || fail "nonce not visible in requestURI"
