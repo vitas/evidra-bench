@@ -164,7 +164,7 @@ func writeEvaluationOutputs(outputDir string, result evaluation.Result, suiteID 
 	if err != nil {
 		return fmt.Errorf("test: create HTML report: %w", err)
 	}
-	limitations := []string{"Verdicts are preview until authoritative evidence capture lands (docs/adr/0001-process-safety-matching.md): process safety is judged from agent tool-call telemetry, which is not proof that no other action occurred."}
+	limitations := []string{"A verdict is qualified only when its case carries an authorized qualification ledger (docs/adr/0001-process-safety-matching.md): the engine judged complete, audit + snapshot evidence AND a confined sandbox execution. Ungranted or drifted cases read \u00b7 preview or \u00b7 gated and must not be quoted as authoritative."}
 	if suiteID == "kubernetes-demo@1" {
 		limitations = append(limitations, "This starter suite demonstrates core behavior; it does not certify production readiness.")
 	}

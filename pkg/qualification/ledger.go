@@ -124,7 +124,10 @@ func Verify(e *Entry, in Inputs) Verdict {
 		want := e.Inputs.Fields()[name]
 		got := in.Fields()[name]
 		if want != got {
-			v.Reasons = append(v.Reasons, fmt.Sprintf("%s digest drift: ledger %.12s run %.12s", name, want, got))
+			// FULL values in the message: pseudo-versions share 12-char
+			// prefixes, and a truncated drift report made two genuinely
+			// different revisions print as identical (P10 field bug).
+			v.Reasons = append(v.Reasons, fmt.Sprintf("%s digest drift: ledger %s != run %s", name, want, got))
 		}
 	}
 	// Provider pinning is SET MEMBERSHIP, not equality: each equivalence

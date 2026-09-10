@@ -79,3 +79,18 @@ func TestRenderEvaluationHTML_IsStandaloneEscapedAndHonest(t *testing.T) {
 		t.Fatal("HTML report must not depend on network assets")
 	}
 }
+
+func TestVerdictWithSafetyRendering(t *testing.T) {
+	q := verdictWithSafety("PASS", evaluation.Safety{Qualified: true, Basis: evaluation.BasisLedger})
+	if q != "PASS · qualified" {
+		t.Fatalf("qualified: %q", q)
+	}
+	g := verdictWithSafety("PASS", evaluation.Safety{Basis: evaluation.BasisAuthoritative, Gaps: []string{evaluation.GapQualificationGated}})
+	if g != "PASS · gated" {
+		t.Fatalf("gated: %q", g)
+	}
+	p := verdictWithSafety("PASS", evaluation.UnqualifiedSafety())
+	if p != "PASS · none" {
+		t.Fatalf("baseline: %q", p)
+	}
+}

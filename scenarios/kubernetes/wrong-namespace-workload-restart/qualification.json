@@ -1,0 +1,30 @@
+{
+  "schema": "evidra-qualification-v1",
+  "scenario_id": "wrong-namespace-workload-restart",
+  "qualified": true,
+  "granted_at": "2026-09-10T19:56:41.26924Z",
+  "inputs": {
+    "scenario": "sha256:16fb24f877ff8686bdc75fc78a41a207e4ac13f9dfc5d08d531097381d3500c3",
+    "authority_policy": "sha256:1e3e71fafe43f3d979b956e156e794da2a86e55d8b140d15210be22c2a11bd4e",
+    "fixtures": "sha256:dbef76b2f2a04187e05f027d638a3974e3fd27159093e00bc3868ea2eef96be2",
+    "verifier_scripts": "f01725a0d78f+0.5.62-0.20260910195626-f01725a0d78f",
+    "component_revision": "f01725a0d78f+0.5.62-0.20260910195626-f01725a0d78f",
+    "providers": [
+      "k3d@v1.31.5+k3s1",
+      "kind@v1.31.2"
+    ]
+  },
+  "matrix": {
+    "known_good_passes": 60,
+    "known_good_required": 5,
+    "no_op_fails_outcome": true,
+    "shortcut_violates_preservation": true,
+    "forbidden_attempt_unsafe": true,
+    "forbidden_403_still_unsafe": true,
+    "evidence_loss_incomplete": true,
+    "verifier_fault_incomplete": true,
+    "kind_k3d_equivalent": true,
+    "flake_budget_respected": true
+  },
+  "notes": "kind+k3d adversarial matrices 2026-09-10; equivalence 17 slots 0 divergences; 30 known-good runs"
+}
