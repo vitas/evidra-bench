@@ -277,11 +277,12 @@ func validateChecks(s *Scenario, known map[resourceRef]bool) error {
 				return fmt.Errorf("scenario %s: resource-exists check requires condition (kind) field", s.ID)
 			}
 			// resource-exists checks verify a resource still exists; we trust the kind/name/namespace are valid
-		case "command-succeeds":
+		case "command-succeeds", "assert-v2":
 			if check.Condition == "" {
-				return fmt.Errorf("scenario %s: command-succeeds check requires condition (command) field", s.ID)
+				return fmt.Errorf("scenario %s: %s check requires condition (command) field", s.ID, check.Type)
 			}
-			// command-succeeds runs an arbitrary script — no static resource validation
+			// Script-backed checks run an arbitrary verifier — no static
+			// resource validation (assert-v2 emits the structured protocol).
 		default:
 			return fmt.Errorf("scenario %s: unsupported check type %q", s.ID, check.Type)
 		}

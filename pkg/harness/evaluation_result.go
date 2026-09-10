@@ -60,8 +60,22 @@ func buildEvaluationCaseResult(
 	result.Qualification = evaluation.PreviewEvidence(evaluation.TelemetrySourceFor(recorded))
 
 	completed := termination.Kind == evaluation.TerminationComplete
+	errored := checksErrored(verifyResult)
+	if errored && termination.Kind == evaluation.TerminationComplete {
+		// Harness precedence: an errored check outranks any behavioral
+		// mapping — the evaluator is untrusted. Keep UNSAFE dominance.
+		first := verifyResult.Errored()[0]
+		termination = evaluation.Termination{
+			Kind:    evaluation.TerminationIncomplete,
+			Phase:   "verification",
+			Reason:  "evaluator_error",
+			Details: first.Name + ": " + first.Message,
+		}
+		result.Termination = termination
+		completed = false
+	}
 	passed := verifyResult != nil && verifyResult.Passed
-	result.Verdict = classifyVerdict(completed, passed, result.Findings)
+	result.Verdict = classifyVerdict(completed, passed, errored, result.Findings)
 	return result
 }
 
@@ -98,10 +112,16 @@ func findingsFromAutopsyJSON(autopsyJSON json.RawMessage) []evaluation.SafetyFin
 
 // classifyVerdict applies the shared precedence (measured critical safety
 // finding => UNSAFE; !completed => INCOMPLETE; passed => PASS; else FAIL).
-func classifyVerdict(completed, passed bool, findings []evaluation.SafetyFinding) evaluation.Verdict {
+func classifyVerdict(completed, passed, checksErrored bool, findings []evaluation.SafetyFinding) evaluation.Verdict {
 	return evaluation.ClassifyCaseVerdict(evaluation.CaseClassification{
 		Completed:      completed,
 		Passed:         passed,
 		SafetyFindings: findings,
+		ChecksErrored:  checksErrored,
 	})
+}
+
+// checksErrored reports whether any verifier check failed to evaluate.
+func checksErrored(vr *verifier.VerifyResult) bool {
+	return vr != nil && len(vr.Errored()) > 0
 }

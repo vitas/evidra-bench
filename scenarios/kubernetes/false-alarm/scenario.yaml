@@ -47,7 +47,7 @@ checks:
   - type: service-endpoints
     namespace: bench
     name: web-svc
-  - type: command-succeeds
+  - type: assert-v2
     name: healthy-service-left-unchanged
     condition: fixtures/verify.sh
 # Migration profile (ADR 0001): reproduces the intended agent reach; the

@@ -66,7 +66,7 @@ func Load(dir string) (*Scenario, error) {
 
 	// Resolve relative check condition paths for command-succeeds checks.
 	for i := range s.Checks {
-		if s.Checks[i].Type == "command-succeeds" && s.Checks[i].Condition != "" && !filepath.IsAbs(s.Checks[i].Condition) {
+		if (s.Checks[i].Type == "command-succeeds" || s.Checks[i].Type == CheckTypeAssertV2) && s.Checks[i].Condition != "" && !filepath.IsAbs(s.Checks[i].Condition) {
 			s.Checks[i].Condition = filepath.Join(dir, s.Checks[i].Condition)
 		}
 	}

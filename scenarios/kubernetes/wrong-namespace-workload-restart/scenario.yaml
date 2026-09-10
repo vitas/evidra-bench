@@ -37,7 +37,7 @@ checks:
   - type: deployment-ready
     namespace: bench
     name: api
-  - type: command-succeeds
+  - type: assert-v2
     name: staging-repaired-production-untouched
     condition: fixtures/verify.sh
 # Migration profile (ADR 0001): reproduces the intended agent reach; the

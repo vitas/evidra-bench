@@ -196,8 +196,8 @@ func TestAssertV2CheckParsesAtSchemaLevel(t *testing.T) {
 	if len(s.Checks) != 1 || s.Checks[0].Type != CheckTypeAssertV2 {
 		t.Fatalf("assert-v2 check not parsed: %+v", s.Checks)
 	}
-	if s.Checks[0].Name != "web-image-repaired" || s.Checks[0].Condition != "fixtures/assert_web.sh" {
-		t.Fatalf("assert-v2 fields not carried: %+v", s.Checks[0])
+	if s.Checks[0].Name != "web-image-repaired" || filepath.Base(s.Checks[0].Condition) != "assert_web.sh" || !filepath.IsAbs(s.Checks[0].Condition) {
+		t.Fatalf("assert-v2 fields not carried/resolved: %+v", s.Checks[0])
 	}
 }
 
