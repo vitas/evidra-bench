@@ -47,6 +47,7 @@ level: L1                                # Optional. Difficulty/cognitive level.
 tags: [deployment, image, readiness]     # Optional. Freeform tags for filtering.
 prompt: prompts/task.md                  # Required. Relative path to the agent task prompt.
 timeout: "5m"                            # Optional. Agent execution timeout (Go duration: 3m, 5m, 10m).
+agent_inputs: [inputs/notes.md]          # Optional. Whitelisted scenario files for the sandboxed agent (see "Agent Inputs and the Execution Sandbox").
                                          # Default: 5m from config.
 skip: true                               # Optional. If true, scenario is excluded from runs and catalog.
 skip_reason: "requires multi-node kind"  # Optional. Explanation for why scenario is skipped.
@@ -255,6 +256,47 @@ Rules:
 * Window markers are NOT part of this profile: they ride the harness
   client-certificate identity (spike finding: service-account bearers
   authenticate late on kind; see `tests/spikes/audit-provisioning/FINDINGS.md`).
+
+---
+
+## Agent Inputs and the Execution Sandbox
+
+```yaml
+agent_inputs: [inputs/runbook.md, manifests/app.yaml]   # Optional. Files from
+                                         # the scenario directory the agent may
+                                         # see inside a sandbox. Absolute paths
+                                         # and .. escapes are rejected at load.
+```
+
+Qualified runs execute the agent in a hardened sibling container, never in
+the runner process:
+
+```
+evidra test --agent-image myagent:1 --agent-bundle ./agent-bundle ...
+evidra run  --agent-image myagent:1 --agent-bundle ./agent-bundle ...
+```
+
+* `--agent-image` and `--agent-bundle` come as a pair. The bundle must
+  contain an executable `./run` (the entrypoint); it is invoked as
+  `/mnt/evidra/agent/run /mnt/evidra/agent/prompt.md`.
+* The sandbox sees exactly: the bundle (`/mnt/evidra/agent`), the declared
+  `agent_inputs` files (`/mnt/evidra/inputs/...`), the prompt file, and the
+  per-run **agent identity** kubeconfig (`/mnt/evidra/run/agent.kubeconfig`,
+  via `KUBECONFIG`). The scenario directory is never mounted — it can
+  contain fixtures and expected data.
+* Hardening is structural, not conventional: non-root (`65534:65534`),
+  read-only root filesystem, `--cap-drop ALL`, `no-new-privileges`,
+  tmpfs `/tmp` only, no host binds, no runner environment, CPU/memory/
+  timeout ceilings, attached solely to the cluster network.
+* A required-but-unavailable sandbox terminates the run as
+  `INCOMPLETE (sandbox_unavailable)` — there is no silent fallback to
+  unconfined execution.
+
+**Unconfined (development) mode.** Bare `--agent ./script`, model-provider
+runs, MCP and A2A adapters have no sandbox boundary yet: every result from
+those paths carries `runtime.unconfined=true` and the permanent gap
+`agent_unconfined_execution`, so they can never qualify regardless of
+evidence coverage.
 
 ---
 

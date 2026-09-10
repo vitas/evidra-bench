@@ -91,6 +91,7 @@ func (a *App) runScenario() tea.Cmd {
 			Scenario:       s,
 			KubeconfigPath: lease.KubeconfigPath,
 			Audit:          lease.Audit,
+			ClusterNetwork: lease.ClusterNetwork,
 			ExtraEnv:       lease.ExtraEnv,
 		})
 		return RunFinishedMsg{Result: result, Err: err}

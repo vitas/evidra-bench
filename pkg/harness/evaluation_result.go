@@ -59,6 +59,16 @@ func buildEvaluationCaseResult(
 	}
 	recorded := agentResult != nil && len(agentResult.ToolCalls) > 0
 	result.Qualification = evaluation.PreviewEvidence(evaluation.TelemetrySourceFor(recorded))
+	sandboxImage := ""
+	if agentResult != nil {
+		sandboxImage = agentResult.Metadata["sandbox_image"]
+	}
+	result.Runtime = evaluation.RuntimeInfo{Unconfined: sandboxImage == "", SandboxImage: sandboxImage}
+	if result.Runtime.Unconfined {
+		// Unconfined execution is a permanent basis gap: no evidence layer
+		// can certify what the agent did with runner privileges.
+		result.Safety.Gaps = append(result.Safety.Gaps, evaluation.GapAgentUnconfined)
+	}
 	if sum := auditInfo.EvaluationSummary(); sum != nil {
 		result.Qualification.ApplyAudit(*sum)
 		if sum.Coverage == evaluation.CoverageComplete {

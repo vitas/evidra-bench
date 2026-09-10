@@ -96,6 +96,9 @@ const (
 	GapAuditNotCaptured       = "api_audit_not_captured"
 	GapSnapshotNotCaptured    = "state_snapshot_not_captured"
 	GapTelemetryNotSufficient = "tool_telemetry_not_sufficient"
+	// GapAgentUnconfined marks runs whose agent executed outside the
+	// hardened sandbox (ADR 0001 Phase 6): permanent until re-run confined.
+	GapAgentUnconfined = "agent_unconfined_execution"
 )
 
 // PreviewSemanticsVersion is the semantics tag for Phase 2: verdicts are

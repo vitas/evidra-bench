@@ -173,6 +173,7 @@ func (p *K3dProvider) Create(ctx context.Context, clusterName string, spec Clust
 	handle := &Handle{
 		ClusterName:    clusterName,
 		KubeconfigPath: kubeconfigPath,
+		ClusterNetwork: "k3d-" + clusterName,
 	}
 	if spec.Audit.Enabled {
 		handle.Audit = &AuditAccess{

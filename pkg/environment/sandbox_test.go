@@ -1,0 +1,212 @@
+package environment
+
+import (
+	"archive/tar"
+	"bytes"
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+// fakeDocker installs a logging docker stub on PATH for the test duration.
+// Behavior switches are files in dir: fail-start, exec-code.
+func fakeDocker(t *testing.T, dir string) (logPath string, calls *string) {
+	t.Helper()
+	bin := filepath.Join(dir, "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	logPath = filepath.Join(dir, "docker.calls")
+	script := `#!/bin/sh
+echo "docker $*" >> "` + logPath + `"
+case "$1" in
+  version) echo "27.0.0" ;;
+  volume)
+    if [ "$2" = create ]; then echo "$3"; fi ;;
+  run)
+    for a in "$@"; do [ "$a" = -d ] && { [ -f ` + dir + `/fail-start ] && exit 1; echo abc123; exit 0; }; done
+    exit 0 ;;
+  exec)
+    code=0; [ -f ` + dir + `/exec-code ] && code=$(cat ` + dir + `/exec-code)
+    echo "agent stdout line"
+    exit "$code" ;;
+esac
+exit 0
+`
+	stub := filepath.Join(bin, "docker")
+	if err := os.WriteFile(stub, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
+	return logPath, nil
+}
+
+func readCalls(t *testing.T, logPath string) string {
+	t.Helper()
+	b, err := os.ReadFile(logPath)
+	if os.IsNotExist(err) {
+		return ""
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
+func testSpec(t *testing.T) SandboxSpec {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "bundle"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "bundle", "run"), []byte("#!/bin/sh\necho hi\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	kc := filepath.Join(dir, "kc")
+	if err := os.WriteFile(kc, []byte("kubeconfig-content"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return SandboxSpec{
+		RunID: "run42", Image: "agent:1", BundleDir: filepath.Join(dir, "bundle"),
+		PromptContent: "do the thing", Kubeconfig: kc,
+		ExtraFiles: map[string]string{"notes.txt": "whitelisted input"},
+		Network:    "bench-network", Memory: "512m", CPUs: "1.0",
+		Timeout: 30 * time.Second,
+	}
+}
+
+func TestSandboxHardeningProfile(t *testing.T) {
+	dir := t.TempDir()
+	logPath, _ := fakeDocker(t, dir)
+	s := &DockerSandbox{}
+	spec := testSpec(t)
+	if _, err := s.Run(context.Background(), spec, []string{"/mnt/evidra/agent/run"}); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	calls := readCalls(t, logPath)
+	var startLine string
+	for _, l := range strings.Split(calls, "\n") {
+		if strings.HasPrefix(l, "docker run -d") {
+			startLine = l
+		}
+	}
+	if startLine == "" {
+		t.Fatalf("no detached run call in:\n%s", calls)
+	}
+	for _, want := range []string{
+		"--read-only", "--cap-drop ALL", "--security-opt no-new-privileges",
+		"--user 65534:65534", "--network bench-network", "--tmpfs",
+		"--memory 512m", "--cpus 1.0",
+		"-v evidra-agent-run42:/mnt/evidra:ro",
+		"-e KUBECONFIG=/mnt/evidra/run/agent.kubeconfig",
+	} {
+		if !strings.Contains(startLine, want) {
+			t.Errorf("hardening flag %q missing from:\n%s", want, startLine)
+		}
+	}
+	if strings.Contains(startLine, "-v /") {
+		t.Errorf("sandbox must never bind-mount host paths:\n%s", startLine)
+	}
+	// Cleanup: container removed + volume dropped.
+	if !strings.Contains(calls, "docker rm -f evidra-sbx-run42") || !strings.Contains(calls, "docker volume rm evidra-agent-run42") {
+		t.Fatalf("cleanup missing in:\n%s", calls)
+	}
+}
+
+func TestSandboxStagingUsesNamedVolumeTar(t *testing.T) {
+	dir := t.TempDir()
+	logPath, _ := fakeDocker(t, dir)
+	s := &DockerSandbox{}
+	if _, err := s.Run(context.Background(), testSpec(t), []string{"true"}); err != nil {
+		t.Fatal(err)
+	}
+	calls := readCalls(t, logPath)
+	if !strings.Contains(calls, "docker volume create evidra-agent-run42") {
+		t.Fatalf("no volume create:\n%s", calls)
+	}
+	var staged bool
+	for _, l := range strings.Split(calls, "\n") {
+		if strings.Contains(l, "docker run --rm -i -v evidra-agent-run42:/mnt/evidra") && strings.Contains(l, "tar x -C") {
+			staged = true
+		}
+	}
+	if !staged {
+		t.Fatalf("no tar staging call:\n%s", calls)
+	}
+}
+
+func TestSandboxCleanupOnStartFailure(t *testing.T) {
+	dir := t.TempDir()
+	logPath, _ := fakeDocker(t, dir)
+	if err := os.WriteFile(filepath.Join(dir, "fail-start"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := &DockerSandbox{}
+	if _, err := s.Run(context.Background(), testSpec(t), []string{"true"}); err == nil {
+		t.Fatal("expected start failure")
+	}
+	calls := readCalls(t, logPath)
+	if !strings.Contains(calls, "docker volume rm evidra-agent-run42") {
+		t.Fatalf("volume not cleaned after failed start:\n%s", calls)
+	}
+}
+
+func TestSandboxExitCodePassthrough(t *testing.T) {
+	dir := t.TempDir()
+	fakeDocker(t, dir)
+	if err := os.WriteFile(filepath.Join(dir, "exec-code"), []byte("3"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := &DockerSandbox{}
+	res, err := s.Run(context.Background(), testSpec(t), []string{"agent"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.ExitCode != 3 {
+		t.Fatalf("ExitCode = %d, want 3 (res %+v)", res.ExitCode, res)
+	}
+	if !strings.Contains(res.Stdout, "agent stdout line") {
+		t.Fatalf("stdout = %q", res.Stdout)
+	}
+}
+
+func TestSandboxBuildTarLayout(t *testing.T) {
+	s := &DockerSandbox{}
+	data, err := s.buildTar(testSpec(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := tar.NewReader(bytes.NewReader(data))
+	entries := map[string]int64{}
+	for {
+		h, err := tr.Next()
+		if err != nil {
+			break
+		}
+		entries[h.Name] = h.Mode
+	}
+	if entries["agent/run"]&0o111 == 0 {
+		t.Fatalf("entrypoint must keep exec bit: %v", entries)
+	}
+	if _, ok := entries["agent/prompt.md"]; !ok {
+		t.Fatalf("prompt not staged: %v", entries)
+	}
+	if _, ok := entries["run/agent.kubeconfig"]; !ok {
+		t.Fatalf("kubeconfig not staged: %v", entries)
+	}
+	if _, ok := entries["inputs/notes.txt"]; !ok {
+		t.Fatalf("whitelisted input not staged: %v", entries)
+	}
+}
+
+func TestClusterNetworkName(t *testing.T) {
+	if got := ClusterNetworkName("kind", "bench"); got != "bench-network" {
+		t.Fatalf("kind network = %q", got)
+	}
+	if got := ClusterNetworkName("k3d", "bench"); got != "k3d-bench" {
+		t.Fatalf("k3d network = %q", got)
+	}
+}

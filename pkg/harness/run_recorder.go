@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/vitas/evidra-bench/pkg/environment"
 	"time"
 )
 
@@ -101,6 +102,9 @@ func classifyRunError(err error, phase string) (kind string, retryable bool) {
 	}
 	if errors.Is(err, context.Canceled) {
 		return "context_canceled", true
+	}
+	if errors.Is(err, environment.ErrSandboxUnavailable) {
+		return "sandbox_unavailable", true
 	}
 	var infraErr *InfraError
 	if errors.As(err, &infraErr) {

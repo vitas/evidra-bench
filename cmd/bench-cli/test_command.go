@@ -16,15 +16,17 @@ import (
 )
 
 type testRequest struct {
-	Model       string
-	Endpoint    string
-	Agent       string
-	Suite       string
-	Environment string
-	OutputDir   string
-	ProjectRoot string
-	Timeout     time.Duration
-	CI          bool
+	Model          string
+	Endpoint       string
+	Agent          string
+	AgentImage     string
+	AgentBundleDir string
+	Suite          string
+	Environment    string
+	OutputDir      string
+	ProjectRoot    string
+	Timeout        time.Duration
+	CI             bool
 }
 
 type testRunner func(context.Context, testRequest) (evaluation.Result, error)
@@ -83,6 +85,8 @@ func newTestCommand(run testRunner) *cobra.Command {
 	flags.StringVar(&req.Model, "model", "", "model to test (for example openai/gpt-5)")
 	flags.StringVar(&req.Endpoint, "endpoint", "", "OpenAI-compatible API base URL")
 	flags.StringVar(&req.Agent, "agent", "", "external agent command")
+	flags.StringVar(&req.AgentImage, "agent-image", "", "run the agent inside a hardened sandbox built from this image")
+	flags.StringVar(&req.AgentBundleDir, "agent-bundle", "", "agent bundle directory (entrypoint ./run + declared files) staged into the sandbox")
 	flags.StringVar(&req.Suite, "suite", req.Suite, "versioned test suite")
 	flags.StringVar(&req.Environment, "environment", req.Environment, "local Kubernetes environment (kind or k3d)")
 	flags.StringVar(&req.OutputDir, "output", req.OutputDir, "directory for local reports and evidence")

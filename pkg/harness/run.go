@@ -50,6 +50,9 @@ type Deps struct {
 	Writer        *artifact.Writer
 	Reporter      *report.Reporter
 	Store         *localstore.Store
+	// Sandbox overrides the docker-CLI sandbox runner (tests); nil uses the
+	// production DockerSandbox.
+	Sandbox environment.SandboxRunner
 }
 
 // RunRequest describes what to run.
@@ -62,6 +65,9 @@ type RunRequest struct {
 	// Audit exposes provisioned API-audit capture on the leased cluster
 	// (nil = the cluster has no audit; coverage is then honestly absent).
 	Audit *environment.AuditAccess
+	// ClusterNetwork is the docker network of the provisioned cluster
+	// (agent sandbox attaches there; "" = unknown = sandbox unavailable).
+	ClusterNetwork string
 }
 
 // RunResult holds the outcome of a harness run.

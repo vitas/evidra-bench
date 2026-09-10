@@ -177,6 +177,7 @@ func (p *KindProvider) Create(ctx context.Context, clusterName string, spec Clus
 	handle := &Handle{
 		ClusterName:    clusterName,
 		KubeconfigPath: kubeconfigPath,
+		ClusterNetwork: clusterName + "-network",
 	}
 	if spec.Audit.Enabled {
 		handle.Audit = &AuditAccess{

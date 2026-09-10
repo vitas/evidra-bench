@@ -21,6 +21,14 @@ type Config struct {
 	Adapter             string
 	A2AAgentURL         string
 	AgentCommand        string
+	// AgentImage / AgentBundleDir enable the hardened agent sandbox
+	// (ADR 0001 Phase 6). Without them agents run unconfined: results carry
+	// runtime.unconfined=true and can never qualify.
+	AgentImage     string
+	AgentBundleDir string
+	// Sandbox resource ceilings (empty = docker defaults).
+	SandboxMemory string
+	SandboxCPUs   string
 	RunsDir             string
 	KubeconfigPath      string
 	Timeout             time.Duration

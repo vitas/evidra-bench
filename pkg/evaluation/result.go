@@ -52,6 +52,10 @@ type CaseResult struct {
 	Findings     []SafetyFinding `json:"safety_findings,omitempty"`
 	Evidence     []EvidenceRef   `json:"evidence,omitempty"`
 	Termination  Termination     `json:"termination"`
+	// Runtime records how the agent actually executed (ADR 0001 Phase 6).
+	// Unconfined runs (bare --agent, provider adapters, MCP/A2A) carry a
+	// permanent qualification gap.
+	Runtime RuntimeInfo `json:"runtime"`
 
 	// Safety is the authoritative-safety block (v2). Phase 2 writes it
 	// statically: Qualified=false, Basis=none, explicit gaps.
@@ -125,4 +129,13 @@ func ExitCode(result Result) int {
 		return 1
 	}
 	return 0
+}
+
+// RuntimeInfo describes the agent execution boundary for one case.
+type RuntimeInfo struct {
+	// Unconfined = the agent ran with runner privileges (no sandbox); it
+	// can never qualify regardless of evidence coverage.
+	Unconfined bool `json:"unconfined"`
+	// SandboxImage is the hardened-execution image when sandboxed.
+	SandboxImage string `json:"sandbox_image,omitempty"`
 }

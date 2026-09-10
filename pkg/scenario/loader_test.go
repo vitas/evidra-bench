@@ -578,3 +578,19 @@ func TestValidate_MissingBreakAndStages(t *testing.T) {
 		t.Fatal("expected error for missing break and stages")
 	}
 }
+
+func TestValidateAgentInputsRejectsEscapes(t *testing.T) {
+	base := Scenario{ID: "whitelist"}
+	valid := base
+	valid.AgentInputs = []string{"inputs/notes.txt", "manifests/app.yaml"}
+	if err := ValidateAgentInputs(&valid); err != nil {
+		t.Fatalf("valid inputs rejected: %v", err)
+	}
+	for _, bad := range []string{"/etc/passwd", "../secrets/token", "..", "a/../../b"} {
+		s := base
+		s.AgentInputs = []string{bad}
+		if err := ValidateAgentInputs(&s); err == nil {
+			t.Fatalf("escape accepted: %q", bad)
+		}
+	}
+}

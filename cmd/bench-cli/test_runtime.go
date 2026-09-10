@@ -85,6 +85,12 @@ func prepareTestEvaluation(ctx context.Context, req testRequest, lookupEnv func(
 
 	prepared := &preparedTestEvaluation{Suite: loaded, Config: cfg}
 	var target evaluation.TargetPlan
+	if strings.TrimSpace(req.AgentImage) != "" {
+		cfg.AgentImage = strings.TrimSpace(req.AgentImage)
+	}
+	if strings.TrimSpace(req.AgentBundleDir) != "" {
+		cfg.AgentBundleDir = strings.TrimSpace(req.AgentBundleDir)
+	}
 	if strings.TrimSpace(req.Agent) != "" {
 		cfg.AgentCommand = req.Agent
 		digest := sha256.Sum256([]byte(req.Agent))
@@ -329,6 +335,7 @@ func (e suiteEvaluationExecutor) Execute(ctx context.Context, _ evaluation.Plan,
 		Scenario:       s,
 		KubeconfigPath: localLease.lease.KubeconfigPath,
 		Audit:          localLease.lease.Audit,
+		ClusterNetwork: localLease.lease.ClusterNetwork,
 		ExtraEnv:       localLease.lease.ExtraEnv,
 	})
 	if result != nil && result.Case != nil {

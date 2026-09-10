@@ -19,6 +19,9 @@ import (
 )
 
 func (h *Harness) executeSingleAgent(ctx context.Context, req RunRequest, s *scenario.Scenario, kubeconfigPath, promptContent string, timeout time.Duration, evidenceDir string) (*adapter.RunResult, error) {
+	if req.Config.AgentImage != "" || req.Config.AgentBundleDir != "" {
+		return h.runAgentSandboxed(ctx, req, s, kubeconfigPath, promptContent, timeout)
+	}
 	if req.Config.Adapter == "a2a" {
 		return h.runWithA2A(ctx, req, s, promptContent, timeout)
 	}

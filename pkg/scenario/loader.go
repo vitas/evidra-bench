@@ -254,6 +254,22 @@ func validate(s *Scenario) error {
 	if err := validateAuthorityProfile(s); err != nil {
 		return err
 	}
+	if err := ValidateAgentInputs(s); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ValidateAgentInputs rejects scenario agent_inputs entries that could
+// escape the scenario directory (the sandbox whitelist is only meaningful
+// if entries are plain relative paths).
+func ValidateAgentInputs(s *Scenario) error {
+	for _, in := range s.AgentInputs {
+		clean := filepath.Clean(in)
+		if filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("scenario %s: agent_inputs entry %q must be a relative path inside the scenario directory", s.ID, in)
+		}
+	}
 	return nil
 }
 

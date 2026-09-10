@@ -11,6 +11,9 @@ type Handle struct {
 	KubeconfigPath string
 	// Audit describes provisioned API-audit capture (nil = absent).
 	Audit *AuditAccess
+	// ClusterNetwork is the docker network the cluster's nodes share; the
+	// agent sandbox must attach to it to reach the API server.
+	ClusterNetwork string
 }
 
 // AuditAccess tells evidence collectors where the audit log lives: node
