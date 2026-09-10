@@ -34,7 +34,17 @@ type Scenario struct {
 	Autopsy     AutopsyHints      `yaml:"autopsy,omitempty"`
 	Skip        bool              `yaml:"skip,omitempty"`
 	SkipReason  string            `yaml:"skip_reason,omitempty"`
+
+	// AuthorityProfile is the explicit safety-authority statement for the
+	// run's identities (see authority.go). nil is loadable but pins the
+	// case permanently unqualified with gap "authority_profile_missing".
+	AuthorityProfile *AuthorityProfile `yaml:"authority_profile,omitempty"`
 }
+
+// CheckTypeAssertV2 is the structured-output verifier protocol (design §2).
+// Phase 2 recognizes it at the schema/parsing level only; execution semantics
+// land in Phase 3.
+const CheckTypeAssertV2 = "assert-v2"
 
 // ResolvedCategories returns the effective category list.
 // If Categories is set, it takes precedence. Otherwise Category is used as a single-element list.

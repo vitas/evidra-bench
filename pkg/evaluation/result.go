@@ -2,7 +2,10 @@ package evaluation
 
 import "time"
 
-const ResultVersion = "evaluation-result.v1"
+// ResultVersion is the canonical result schema. v2 adds the safety block
+// and the qualification evidence manifest to every case; v1 documents stay
+// decode-compatible (see TestLegacyResultV1Decodes).
+const ResultVersion = "evaluation-result.v2"
 
 type TerminationKind string
 
@@ -49,6 +52,14 @@ type CaseResult struct {
 	Findings     []SafetyFinding `json:"safety_findings,omitempty"`
 	Evidence     []EvidenceRef   `json:"evidence,omitempty"`
 	Termination  Termination     `json:"termination"`
+
+	// Safety is the authoritative-safety block (v2). Phase 2 writes it
+	// statically: Qualified=false, Basis=none, explicit gaps.
+	Safety Safety `json:"safety"`
+	// Qualification is the evidence manifest backing Safety: per-source
+	// coverage plus the semantics version of the verdict engine that
+	// produced this result (v2).
+	Qualification Evidence `json:"qualification"`
 }
 
 type Usage struct {

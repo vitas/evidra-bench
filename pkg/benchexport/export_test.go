@@ -144,3 +144,102 @@ func splitLines(data []byte) [][]byte {
 	}
 	return out
 }
+
+// exportEntries runs Export and returns parsed entries.
+func exportEntries(t *testing.T, bundle artifact.RunBundle) []evidrawire.EvidenceEntry {
+	t.Helper()
+	runDir := writeRun(t, bundle, "", "")
+	out := filepath.Join(t.TempDir(), "bundle")
+	if _, err := Export(Request{RunDir: runDir, OutDir: out, ProducerVersion: "test"}); err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	raw, err := os.ReadFile(filepath.Join(out, "segments", "evidence-000001.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var entries []evidrawire.EvidenceEntry
+	for _, line := range splitLines(raw) {
+		var e evidrawire.EvidenceEntry
+		if err := json.Unmarshal(line, &e); err != nil {
+			t.Fatal(err)
+		}
+		entries = append(entries, e)
+	}
+	if len(entries) != 5 {
+		t.Fatalf("entries = %d", len(entries))
+	}
+	return entries
+}
+
+// TestCanonicalVerdictOverridesExitCode pins the honesty requirement:
+// exit-0 runs judged UNSAFE or INCOMPLETE must never export as success,
+// and the canonical verdict + provenance must be visible to consumers.
+func TestCanonicalVerdictOverridesExitCode(t *testing.T) {
+	cases := []struct {
+		verdict  string
+		wantWire evidrawire.Verdict
+	}{
+		{"PASS", evidrawire.VerdictSuccess},
+		{"FAIL", evidrawire.VerdictFailure},
+		{"UNSAFE", evidrawire.VerdictFailure},
+		{"INCOMPLETE", evidrawire.VerdictError},
+	}
+	for _, c := range cases {
+		bundle := sampleBundle("01CANONICAL"+c.verdict, c.verdict == "PASS", 0)
+		bundle.Verdict = c.verdict
+		entries := exportEntries(t, bundle)
+		var rp evidrawire.ReportPayload
+		if err := json.Unmarshal(entries[2].Payload, &rp); err != nil {
+			t.Fatal(err)
+		}
+		if rp.Verdict != c.wantWire {
+			t.Fatalf("%s exit-0: wire verdict = %q, want %q", c.verdict, rp.Verdict, c.wantWire)
+		}
+		if rp.ExitCode == nil || *rp.ExitCode != 0 {
+			t.Fatalf("%s: exit code not preserved: %+v", c.verdict, rp.ExitCode)
+		}
+		var sp evidrawire.SessionStartPayload
+		if err := json.Unmarshal(entries[0].Payload, &sp); err != nil {
+			t.Fatal(err)
+		}
+		if sp.Labels["verdict"] != c.verdict || sp.Labels["verdict_source"] != "evaluation-verdict" {
+			t.Fatalf("%s: labels = %+v", c.verdict, sp.Labels)
+		}
+	}
+}
+
+// TestLegacyExitCodeFallbackIsLabeled pins that a run.json without a
+// canonical verdict still exports (exit-code derivation) but the weaker
+// provenance is stated explicitly.
+func TestLegacyExitCodeFallbackIsLabeled(t *testing.T) {
+	bundle := sampleBundle("01LEGACYRUN00000000000000001", true, 0)
+	entries := exportEntries(t, bundle)
+	var rp evidrawire.ReportPayload
+	if err := json.Unmarshal(entries[2].Payload, &rp); err != nil {
+		t.Fatal(err)
+	}
+	if rp.Verdict != evidrawire.VerdictSuccess {
+		t.Fatalf("legacy exit-0 wire verdict = %q", rp.Verdict)
+	}
+	var sp evidrawire.SessionStartPayload
+	if err := json.Unmarshal(entries[0].Payload, &sp); err != nil {
+		t.Fatal(err)
+	}
+	if sp.Labels["verdict_source"] != "legacy-exit-code" {
+		t.Fatalf("legacy provenance not labeled: %+v", sp.Labels)
+	}
+	if sp.Labels["verdict"] != "INCOMPLETE" {
+		t.Fatalf("missing canonical verdict must surface as INCOMPLETE label, got %q", sp.Labels["verdict"])
+	}
+	var ann evidrawire.AnnotationPayload
+	if err := json.Unmarshal(entries[3].Payload, &ann); err != nil {
+		t.Fatal(err)
+	}
+	var summary map[string]any
+	if err := json.Unmarshal([]byte(ann.Value), &summary); err != nil {
+		t.Fatalf("annotation not JSON: %v", err)
+	}
+	if summary["safety_qualified"] != false {
+		t.Fatalf("exports must never claim qualification: %v", summary)
+	}
+}

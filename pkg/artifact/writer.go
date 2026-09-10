@@ -11,13 +11,18 @@ import (
 
 // RunBundle holds all data for a single benchmark run.
 type RunBundle struct {
-	RunID          string            `json:"run_id"`
-	ScenarioID     string            `json:"scenario_id"`
-	Adapter        string            `json:"adapter"`
-	StartTime      time.Time         `json:"start_time"`
-	EndTime        time.Time         `json:"end_time"`
-	ExitCode       int               `json:"exit_code"`
-	Passed         bool              `json:"passed"`
+	RunID      string    `json:"run_id"`
+	ScenarioID string    `json:"scenario_id"`
+	Adapter    string    `json:"adapter"`
+	StartTime  time.Time `json:"start_time"`
+	EndTime    time.Time `json:"end_time"`
+	ExitCode   int       `json:"exit_code"`
+	Passed     bool      `json:"passed"`
+	// Verdict is the canonical evaluation verdict for the run
+	// (PASS/FAIL/UNSAFE/INCOMPLETE) when written through the harness.
+	// Empty on legacy run.json documents; consumers then fall back to
+	// exit-code derivation and mark the export as legacy.
+	Verdict        string            `json:"verdict,omitempty"`
 	Prompt         string            `json:"prompt,omitempty"`
 	Transcript     string            `json:"transcript,omitempty"`
 	Stdout         string            `json:"stdout,omitempty"`

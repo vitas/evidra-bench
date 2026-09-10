@@ -251,6 +251,9 @@ func validate(s *Scenario) error {
 	if err := validateAutopsyHints(s); err != nil {
 		return err
 	}
+	if err := validateAuthorityProfile(s); err != nil {
+		return err
+	}
 	return nil
 }
 
