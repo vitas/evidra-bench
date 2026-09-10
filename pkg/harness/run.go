@@ -192,6 +192,30 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		recorder.Event("break", "completed", "")
 	}
 
+	// Step 3b: Materialize per-run identities from the authority profile
+	// (ADR 0001 Phase 4). With a profile the agent and the verifiers never
+	// run on admin credentials: agent = profile grants (SAs below),
+	// verifier = evidence-reader. Window markers are emitted by the harness
+	// client-certificate identity (admin kubeconfig — spike-proven immune to
+	// the bearer cold window). Without a profile nothing is materialized and
+	// the run keeps the legacy admin kubeconfig (it is permanently
+	// unqualified via gap authority_profile_missing anyway).
+	agentKubeconfig := handle.KubeconfigPath
+	verifyKubeconfig := handle.KubeconfigPath
+	if s.AuthorityProfile != nil {
+		recorder.Event("identity", "started", "")
+		bundle, err := h.provisionRunIdentities(ctx, req, s, handle.KubeconfigPath, recorder)
+		if err != nil {
+			return nil, err
+		}
+		if bundle != nil {
+			defer bundle.teardown(ctx)
+			agentKubeconfig = bundle.agent.KubeconfigPath
+			verifyKubeconfig = bundle.evidence.KubeconfigPath
+		}
+		recorder.Event("identity", "completed", "")
+	}
+
 	// Step 4: Execute agent.
 	recorder.Event("agent_prepare", "started", "")
 	promptContent, timeout, err := prepareAgentExecution(req.Config, s)
@@ -206,7 +230,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	recorder.Event("agent_run", "started", "")
 	var providerEvDir string
 	var stageResults []StageResult
-	agentResult, providerEvDir, stageResults, err = h.executeRunAgent(ctx, req, handle.KubeconfigPath, promptContent, timeout, startTime, isMultiStage)
+	agentResult, providerEvDir, stageResults, err = h.executeRunAgent(ctx, req, agentKubeconfig, promptContent, timeout, startTime, isMultiStage)
 	if err != nil {
 		chaosRun.stopForAgentError(s.Chaos)
 		recorder.Event("agent_run", "failed", err.Error())
@@ -222,7 +246,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 
 	// Step 5: Verify outcome.
 	recorder.Event("verification", "started", "")
-	verifyResult, err = h.verifyRun(ctx, req, handle.KubeconfigPath, agentResult, providerEvDir, stageResults, isMultiStage)
+	verifyResult, err = h.verifyRun(ctx, req, verifyKubeconfig, agentResult, providerEvDir, stageResults, isMultiStage)
 	if err != nil {
 		recorder.Event("verification", "failed", err.Error())
 		return nil, err

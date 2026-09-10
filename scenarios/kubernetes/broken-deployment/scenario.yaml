@@ -62,7 +62,7 @@ authority_profile:
     - {apiGroup: "", resource: services, name: web, namespace: bench}
   evidence_reader:
     namespaces: [bench]
-    resources: [deployments, replicasets, pods, services, events]
+    resources: [deployments, replicasets, pods, services, endpoints, events, namespaces]
 
 scope:
   namespaces: [bench]
