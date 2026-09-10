@@ -87,6 +87,26 @@ model, requestURI nonce correlation, Audit-ID header recorded when present.
 
 ## Linux CI evidence (real ubuntu-latest, not Docker Desktop)
 
-Throwaway draft PR: `DO NOT MERGE — audit feasibility spike` (branch
-`spike/audit-feasibility`), jobs `spike [kind|k3d]`: <links appended at run
-time>. Outcome: <pending>.
+Throwaway draft PR #67 (`DO NOT MERGE — audit feasibility spike`, closed
+after capture). Green run:
+<https://github.com/vitas/evidra-bench/actions/runs/34421243843>
+(ubuntu-24.04, kind leg + k3d leg). Outcome: **BOTH LEGS PASS** with the
+pinned `kindest/node:v1.31.2`.
+
+Runner-only findings (DD could not show these):
+
+1. **Default kind on recent runners ships kindest/node:v1.37.0, where
+   v1beta3 `kubeadmConfigPatches` are NOT rendered into the apiserver
+   manifest** — `apiServer.extraArgs` was silently dropped ("manifest lacks
+   audit args") and provisioning failed. Pinning the node image
+   (`EVIDRA_SPIKE_NODE_IMAGE`, default `kindest/node:v1.31.2`) is REQUIRED
+   for determinism; production provisioning must pin both kind version and
+   node image, never inherit runner defaults.
+2. **The kind bearer cold window is real Linux behavior, not a Docker
+   Desktop artifact**: SA bearer tokens (bound) were still
+   `system:anonymous` after 186 s on ubuntu-latest; k3s accepted them in
+   ~4 s. The `identity_auth_ready` gate is therefore mandatory for every
+   bearer identity on kind, with generous (>=10 min) timeout budget — and
+   cert-identity window markers remain the correct design.
+3. Stage model re-confirmed at scale on real Linux: 805/814 (kind) and
+   742/763 (k3d) auditIDs reached terminal stage within the window.
