@@ -46,12 +46,14 @@ func TestSnapshotScopeAndCoverage(t *testing.T) {
 	depKey := snapshot.Key{Kind: "Deployment", Namespace: "bench", Name: "web"}
 	svcKey := snapshot.Key{Kind: "Service", Namespace: "bench", Name: "web"}
 	otherKey := snapshot.Key{Kind: "Deployment", Namespace: "kube-system", Name: "coredns"}
+	rsKey := snapshot.Key{Kind: "ReplicaSet", Namespace: "bench", Name: "web-7d9f8"}
 
 	r.sets["baseline"] = seed("baseline", map[snapshot.Key]string{
 		depKey: `{"spec":"a"}`, svcKey: `{"spec":"b"}`, otherKey: `{"spec":"c"}`,
 	})
 	r.sets["post-agent"] = seed("post-agent", map[snapshot.Key]string{
 		depKey: `{"spec":"A"}`, svcKey: `{"spec":"B"}`, otherKey: `{"spec":"c"}`,
+		rsKey: `{"spec":"new"}`, // created — rollout derivation, agent cannot write replicasets
 	})
 	r.sets["stability"] = r.sets["post-agent"]
 	info := r.finalize(rec)
@@ -65,6 +67,14 @@ func TestSnapshotScopeAndCoverage(t *testing.T) {
 	}
 	if info.AllowedChanges != 1 {
 		t.Fatalf("allowed = %d, want the granted deployment change", info.AllowedChanges)
+	}
+	if info.DerivedChanges != 1 {
+		t.Fatalf("derived churn must be counted not violated: %+v", info)
+	}
+	// New ReplicaSet key is absent in baseline: Diff reports it as created
+	// violation candidate, then the writable/protected filter skips it.
+	if len(info.Violations) != 1 {
+		t.Fatalf("violations grew with churn: %+v", info.Violations)
 	}
 	if len(info.Artifacts) != 3 {
 		t.Fatalf("artifacts = %v", keysOf(info.Artifacts))
@@ -95,6 +105,20 @@ func TestSnapshotStabilityDriftDowngrades(t *testing.T) {
 	}
 	if len(info.Violations) != 0 {
 		t.Fatalf("no violation expected (only drift): %v", info.Violations)
+	}
+}
+
+func TestStabilityIgnoresDerivedPodChurn(t *testing.T) {
+	rec := newRunArtifactRecorder(time.Now())
+	r := newRunSnapshots(demoSnapshotProfile(), "/tmp/kc")
+	dep := snapshot.Key{Kind: "Deployment", Namespace: "bench", Name: "web"}
+	podK := snapshot.Key{Kind: "Pod", Namespace: "bench", Name: "web-xyz"}
+	r.sets["baseline"] = seed("baseline", map[snapshot.Key]string{dep: `{"a":1}`, podK: `{"restarts":1}`})
+	r.sets["post-agent"] = seed("post-agent", map[snapshot.Key]string{dep: `{"a":1}`, podK: `{"restarts":1}`})
+	r.sets["stability"] = seed("stability", map[snapshot.Key]string{dep: `{"a":1}`, podK: `{"restarts":2}`})
+	info := r.finalize(rec)
+	if info.Coverage != evaluation.CoverageComplete {
+		t.Fatalf("crashloop pod churn must not block stability: %v", info.Reason)
 	}
 }
 

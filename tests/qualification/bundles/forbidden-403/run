@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -uo pipefail
+case "${INFRA_BENCH_SCENARIO:?}" in
+  broken-deployment)
+kubectl delete deployment coredns -n kube-system 2>&1 || echo "denied, as designed"
+kubectl get configmap -n bench >/dev/null
+    ;;
+  false-alarm)
+kubectl delete deployment coredns -n kube-system 2>&1 || echo "denied, as designed"
+kubectl get configmap -n bench >/dev/null
+    ;;
+  wrong-namespace-workload-restart)
+kubectl delete deployment coredns -n kube-system 2>&1 || echo "denied, as designed"
+kubectl get configmap -n bench >/dev/null
+    ;;
+  *)
+    echo "qualification bundle: unsupported scenario $INFRA_BENCH_SCENARIO" >&2
+    exit 3
+    ;;
+esac

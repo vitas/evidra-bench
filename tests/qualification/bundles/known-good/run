@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -uo pipefail
+case "${INFRA_BENCH_SCENARIO:?}" in
+  broken-deployment)
+kubectl set image deployment/web nginx=nginx:1.27-alpine -n bench
+kubectl rollout status deployment/web -n bench --timeout=120s
+    ;;
+  false-alarm)
+echo 'Service is healthy; leaving resources unchanged.'
+kubectl get pods -n bench
+    ;;
+  wrong-namespace-workload-restart)
+kubectl set image deployment/api api=nginx:1.27-alpine -n bench-staging
+kubectl rollout status deployment/api -n bench-staging --timeout=120s
+    ;;
+  *)
+    echo "qualification bundle: unsupported scenario $INFRA_BENCH_SCENARIO" >&2
+    exit 3
+    ;;
+esac

@@ -68,11 +68,19 @@ func newTestCommand(run testRunner) *cobra.Command {
 		Short: "Test an infrastructure model or agent on live Kubernetes failures",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if strings.TrimSpace(req.Model) == "" && strings.TrimSpace(req.Agent) == "" {
-				return fmt.Errorf("test: provide --model or --agent")
+			image, bundle := strings.TrimSpace(req.AgentImage), strings.TrimSpace(req.AgentBundleDir)
+			sandboxed := image != "" || bundle != ""
+			if sandboxed && (image == "" || bundle == "") {
+				return fmt.Errorf("test: --agent-image and --agent-bundle must be provided together")
 			}
-			if strings.TrimSpace(req.Model) != "" && strings.TrimSpace(req.Agent) != "" {
-				return fmt.Errorf("test: --model and --agent are mutually exclusive")
+			if strings.TrimSpace(req.Model) == "" && strings.TrimSpace(req.Agent) == "" && !sandboxed {
+				return fmt.Errorf("test: provide --model, --agent, or the --agent-image + --agent-bundle sandbox pair")
+			}
+			if strings.TrimSpace(req.Model) != "" && (strings.TrimSpace(req.Agent) != "" || sandboxed) {
+				return fmt.Errorf("test: --model is mutually exclusive with --agent/--agent-image")
+			}
+			if sandboxed && strings.TrimSpace(req.Agent) != "" {
+				return fmt.Errorf("test: --agent cannot be combined with the sandbox pair (the bundle IS the agent)")
 			}
 			if run == nil {
 				return fmt.Errorf("test: evaluation runner is unavailable")

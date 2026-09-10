@@ -295,3 +295,19 @@ func TestKindProvider_Create_FallsBackToLegacyKubernetesConfig(t *testing.T) {
 		t.Fatalf("expected kind create with --config for legacy cilium config, got commands: %v", runner.seen)
 	}
 }
+
+func TestRegistryMirrorPatch(t *testing.T) {
+	t.Setenv("EVIDRA_REGISTRY_MIRROR", "")
+	if got := registryMirrorPatch(); got != "" {
+		t.Fatalf("unset must emit nothing: %q", got)
+	}
+	t.Setenv("EVIDRA_REGISTRY_MIRROR", "https://docker.m.daocloud.io")
+	got := registryMirrorPatch()
+	if !strings.Contains(got, "containerdConfigPatches:") || !strings.Contains(got, `endpoint = ["https://docker.m.daocloud.io"]`) {
+		t.Fatalf("patch shape: %q", got)
+	}
+	t.Setenv("EVIDRA_REGISTRY_MIRROR", "https://evil\") ; rm")
+	if bad := registryMirrorPatch(); bad != "" {
+		t.Fatalf("must reject injection-shaped endpoints, got %q", bad)
+	}
+}

@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -35,6 +37,8 @@ import (
 // ErrSandboxUnavailable marks a run whose required sandbox could not be
 // provided; the harness maps it to INCOMPLETE (sandbox_unavailable) — the
 // run is never silently downgraded to unconfined execution.
+var envNameRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
 var ErrSandboxUnavailable = errors.New("sandbox unavailable")
 
 // SandboxSpec describes one sandboxed agent execution.
@@ -46,10 +50,14 @@ type SandboxSpec struct {
 	PromptContent string            // run prompt, staged as /agent/prompt.md
 	Kubeconfig    string            // per-run identity kubeconfig (host-visible path content read now)
 	ExtraFiles    map[string]string // staged name -> content (whitelisted inputs)
-	Network       string            // cluster docker network name
-	Memory        string            // e.g. "512m"; empty = docker default
-	CPUs          string            // e.g. "1.0"; empty = unlimited-ish
-	Timeout       time.Duration
+	// AgentEnv passes EXPLICIT named env vars into the sandbox (no runner
+	// inheritance — this map is the whole channel; the harness sends e.g.
+	// INFRA_BENCH_SCENARIO, which fixture agents legitimately need).
+	AgentEnv map[string]string
+	Network  string // cluster docker network name
+	Memory   string // e.g. "512m"; empty = docker default
+	CPUs     string // e.g. "1.0"; empty = unlimited-ish
+	Timeout  time.Duration
 }
 
 // SandboxRunner executes sandbox commands and reports the result.
@@ -178,8 +186,31 @@ func (s *DockerSandbox) Run(ctx context.Context, spec SandboxSpec, argv []string
 		"--tmpfs", "/tmp:rw,size=64m",
 		"-v", vol + ":/mnt/evidra:ro",
 	}, resourceFlags(spec)...)
-	args = append(args, "-e", "KUBECONFIG=/mnt/evidra/run/agent.kubeconfig", "-e", "HOME=/tmp",
-		spec.Image, "sleep", "2147483647")
+	args = append(args, "-e", "KUBECONFIG=/mnt/evidra/run/agent.kubeconfig", "-e", "HOME=/tmp")
+	{
+		keys := make([]string, 0, len(spec.AgentEnv))
+		for k := range spec.AgentEnv {
+			if !envNameRe.MatchString(k) {
+				continue // refuse junk names, never silently pass weird keys
+			}
+			switch k {
+			case "KUBECONFIG", "HOME", "PATH":
+				continue // reserved: the sandbox identity contract, never overridable
+			}
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			args = append(args, "-e", k+"="+spec.AgentEnv[k])
+		}
+	}
+	// The container is a parking lot, NOT the agent: its argv must survive
+	// arbitrary ENTRYPOINTs (the bench image ships ENTRYPOINT [evidra],
+	// which ate `sleep` and killed the sandbox in the Phase 9 matrix).
+	// `sh` is the only image requirement; a missing sh fails startup
+	// honestly as sandbox-unavailable rather than misattributing.
+	args = append(args,
+		"--entrypoint", "", spec.Image, "sh", "-c", "sleep 2147483647")
 	if out, err := s.docker(ctx, args...); err != nil {
 		s.cleanup(ctx, vol, name)
 		return nil, fmt.Errorf("%w: start %s: %v: %s", ErrSandboxUnavailable, spec.Image, err, truncate(string(out), 300))
@@ -262,13 +293,23 @@ func (s *DockerSandbox) docker(ctx context.Context, args ...string) (string, err
 	return string(out), err
 }
 
-// ClusterNetworkName derives the docker network of a provisioned cluster
-// from the provider kind (deterministic in both providers).
-func ClusterNetworkName(provider, cluster string) string {
-	switch provider {
-	case "k3d":
-		return "k3d-" + cluster
-	default:
-		return cluster + "-network"
+// (No ClusterNetworkName string-builder: kind shares the "kind" network
+// across clusters — DockerNetworkOf(inspect) is the only correct answer.)
+
+// DockerNetworkOf returns the docker network a container is attached to
+// (first one). Empirically required: kind clusters share the "kind"
+// network regardless of cluster name, so string-building the network name
+// from the cluster name is simply wrong; inspecting a node never is.
+// Empty string on any failure (=> sandbox unavailable, honestly).
+func DockerNetworkOf(container string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	//nolint:gosec // fixed argv.
+	cmd := exec.CommandContext(ctx, "docker", "inspect", "-f",
+		"{{range $k, $_ := .NetworkSettings.Networks}}{{$k}}{{end}}", container)
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
 	}
+	return strings.TrimSpace(string(out))
 }

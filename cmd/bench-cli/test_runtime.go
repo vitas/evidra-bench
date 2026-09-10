@@ -91,12 +91,21 @@ func prepareTestEvaluation(ctx context.Context, req testRequest, lookupEnv func(
 	if strings.TrimSpace(req.AgentBundleDir) != "" {
 		cfg.AgentBundleDir = strings.TrimSpace(req.AgentBundleDir)
 	}
-	if strings.TrimSpace(req.Agent) != "" {
-		cfg.AgentCommand = req.Agent
-		digest := sha256.Sum256([]byte(req.Agent))
+	if agentCmd := strings.TrimSpace(req.Agent); agentCmd != "" {
+		cfg.AgentCommand = agentCmd
+		digest := sha256.Sum256([]byte(agentCmd))
 		target = evaluation.TargetPlan{
 			Kind:            evaluation.TargetAgent,
 			Adapter:         "cli",
+			CommandIdentity: "sha256:" + hex.EncodeToString(digest[:]),
+		}
+	} else if cfg.AgentImage != "" && cfg.AgentBundleDir != "" {
+		// Sandboxed agent target (ADR 0001 Phase 6/9): the bundle IS the
+		// agent; the target identity hashes the pair contract.
+		digest := sha256.Sum256([]byte(cfg.AgentImage + "\x00" + cfg.AgentBundleDir))
+		target = evaluation.TargetPlan{
+			Kind:            evaluation.TargetAgent,
+			Adapter:         "sandbox",
 			CommandIdentity: "sha256:" + hex.EncodeToString(digest[:]),
 		}
 	} else {

@@ -86,7 +86,7 @@ func (p *KindProvider) createCommandWithConfig(clusterName string, k8s scenario.
 	if err != nil {
 		return nil, nil, fmt.Errorf("write kind config: %w", err)
 	}
-	if _, err := tmpFile.WriteString(configYAML); err != nil {
+	if _, err := tmpFile.WriteString(configYAML + registryMirrorPatch()); err != nil {
 		_ = tmpFile.Close()
 		_ = os.Remove(tmpFile.Name())
 		return nil, nil, fmt.Errorf("write kind config: %w", err)
@@ -174,10 +174,14 @@ func (p *KindProvider) Create(ctx context.Context, clusterName string, spec Clus
 		return nil, fmt.Errorf("environment.KindProvider.Create: write kubeconfig: %w", err)
 	}
 
+	PreloadFixtureImages(ctx, clusterName+"-control-plane")
+
 	handle := &Handle{
 		ClusterName:    clusterName,
 		KubeconfigPath: kubeconfigPath,
-		ClusterNetwork: clusterName + "-network",
+		// kind may run the cluster on the shared "kind" network (or a
+		// custom one); ask the node container instead of guessing.
+		ClusterNetwork: DockerNetworkOf(clusterName + "-control-plane"),
 	}
 	if spec.Audit.Enabled {
 		handle.Audit = &AuditAccess{
@@ -241,7 +245,7 @@ func (p *KindProvider) createCommandWithAudit(ctx context.Context, clusterName s
 		_ = RemoveAuditVolume(ctx, p.Runner, clusterName)
 		return nil, func() {}, fmt.Errorf("write kind audit config: %w", err)
 	}
-	if _, err := tmpFile.WriteString(configYAML); err != nil {
+	if _, err := tmpFile.WriteString(configYAML + registryMirrorPatch()); err != nil {
 		_ = tmpFile.Close()
 		_ = os.Remove(tmpFile.Name())
 		_ = RemoveAuditVolume(ctx, p.Runner, clusterName)
@@ -362,4 +366,22 @@ func hasFeature(features []string, name string) bool {
 		}
 	}
 	return false
+}
+
+// registryMirrorPatch renders the kind containerdConfigPatches block for
+// EVIDRA_REGISTRY_MIRROR (e.g. https://docker.m.daocloud.io). Purpose: the
+// sandboxed nodes of air-gapped or registry-throttled dev networks still
+// resolve fixture images. Empty unless the env var is set — production
+// defaults stay bit-identical.
+func registryMirrorPatch() string {
+	endpoint := strings.TrimSpace(os.Getenv("EVIDRA_REGISTRY_MIRROR"))
+	if endpoint == "" {
+		return ""
+	}
+	if !strings.HasPrefix(endpoint, "https://") || strings.ContainsAny(endpoint, " \n\t\"") {
+		return ""
+	}
+	return "containerdConfigPatches:\n- |-\n" +
+		"  [plugins.\"io.containerd.grpc.v1.cri\".registry.mirrors.\"docker.io\"]\n" +
+		"    endpoint = [\"" + endpoint + "\"]\n"
 }

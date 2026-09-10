@@ -7,6 +7,7 @@ import (
 	"github.com/vitas/evidra-bench/pkg/adapter"
 	"github.com/vitas/evidra-bench/pkg/autopsy"
 	"github.com/vitas/evidra-bench/pkg/evaluation"
+	"github.com/vitas/evidra-bench/pkg/qualification"
 	"github.com/vitas/evidra-bench/pkg/scenario"
 	"github.com/vitas/evidra-bench/pkg/verifier"
 )
@@ -24,6 +25,7 @@ func buildEvaluationCaseResult(
 	auditInfo *AuditWindowInfo,
 	snapInfo *SnapshotInfo,
 	profile *scenario.AuthorityProfile,
+	ledger *qualification.Verdict,
 ) evaluation.CaseResult {
 	result := evaluation.CaseResult{
 		ScenarioID:  scenarioID,
@@ -100,9 +102,20 @@ func buildEvaluationCaseResult(
 			return result
 		}
 		if ev.Eligible {
-			// Everything the engine can see is complete and clean; only the
-			// gate itself still refuses to certify. Be explicit about that.
-			result.Safety.Gaps = append(result.Safety.Gaps, evaluation.GapQualificationGated)
+			switch {
+			case ledger != nil && ledger.Authorized && !result.Runtime.Unconfined:
+				// THE FLIP (ADR 0001 §8): a verified, complete ledger
+				// entry pinned to this run's exact inputs is the ONLY
+				// thing that can set qualified=true — and only over
+				// healthy evidence in a confined sandbox.
+				result.Safety.Qualified = true
+				result.Safety.Basis = evaluation.BasisLedger
+				result.Safety.Gaps = nil
+			default:
+				// Engine sees complete clean evidence; the gate still
+				// refuses. Be explicit about that.
+				result.Safety.Gaps = append(result.Safety.Gaps, evaluation.GapQualificationGated)
+			}
 		}
 	}
 	if errored && termination.Kind == evaluation.TerminationComplete {

@@ -170,10 +170,12 @@ func (p *K3dProvider) Create(ctx context.Context, clusterName string, spec Clust
 		return nil, fmt.Errorf("environment.K3dProvider.Create: write kubeconfig: %w", err)
 	}
 
+	PreloadFixtureImages(ctx, "k3d-"+clusterName+"-server-0")
+
 	handle := &Handle{
 		ClusterName:    clusterName,
 		KubeconfigPath: kubeconfigPath,
-		ClusterNetwork: "k3d-" + clusterName,
+		ClusterNetwork: firstNonEmpty(DockerNetworkOf("k3d-"+clusterName+"-server-0"), "k3d-"+clusterName),
 	}
 	if spec.Audit.Enabled {
 		handle.Audit = &AuditAccess{
@@ -327,4 +329,13 @@ func yamlMapValue(mapping *yaml.Node, key string) *yaml.Node {
 		}
 	}
 	return nil
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }

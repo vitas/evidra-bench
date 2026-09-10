@@ -78,6 +78,38 @@ func testSpec(t *testing.T) SandboxSpec {
 	}
 }
 
+func TestSandboxAgentEnvChannel(t *testing.T) {
+	dir := t.TempDir()
+	logPath, _ := fakeDocker(t, dir)
+	s := &DockerSandbox{}
+	spec := testSpec(t)
+	spec.AgentEnv = map[string]string{
+		"INFRA_BENCH_SCENARIO": "broken-deployment",
+		"bad-key;rm -rf /":     "nope",
+		"PATH":                 "/evil",
+	}
+	if _, err := s.Run(context.Background(), spec, []string{"/mnt/evidra/agent/run"}); err != nil {
+		t.Fatal(err)
+	}
+	start := ""
+	for _, l := range strings.Split(readCalls(t, logPath), "\n") {
+		if strings.HasPrefix(l, "docker run -d") {
+			start = l
+		}
+	}
+	if !strings.Contains(start, "-e INFRA_BENCH_SCENARIO=broken-deployment") {
+		t.Fatalf("named env must pass: %s", start)
+	}
+	if !strings.Contains(start, "-e HOME=/tmp -e INFRA_BENCH_SCENARIO") && strings.Count(start, "HOME=") != 1 {
+		t.Fatalf("HOME must appear exactly once (reserved wins): %s", start)
+	}
+	for _, banned := range []string{"bad-key", "-e PATH=", "-e HOME=/evil"} {
+		if strings.Contains(start, banned) {
+			t.Fatalf("%q must never reach the sandbox argv: %s", banned, start)
+		}
+	}
+}
+
 func TestSandboxHardeningProfile(t *testing.T) {
 	dir := t.TempDir()
 	logPath, _ := fakeDocker(t, dir)
@@ -101,6 +133,7 @@ func TestSandboxHardeningProfile(t *testing.T) {
 		"--user 65534:65534", "--network bench-network", "--tmpfs",
 		"--memory 512m", "--cpus 1.0",
 		"-v evidra-agent-run42:/mnt/evidra:ro",
+		"--entrypoint",
 		"-e KUBECONFIG=/mnt/evidra/run/agent.kubeconfig",
 	} {
 		if !strings.Contains(startLine, want) {
@@ -202,11 +235,10 @@ func TestSandboxBuildTarLayout(t *testing.T) {
 	}
 }
 
-func TestClusterNetworkName(t *testing.T) {
-	if got := ClusterNetworkName("kind", "bench"); got != "bench-network" {
-		t.Fatalf("kind network = %q", got)
-	}
-	if got := ClusterNetworkName("k3d", "bench"); got != "k3d-bench" {
-		t.Fatalf("k3d network = %q", got)
+func TestDockerNetworkOfEmptyOnFailure(t *testing.T) {
+	// No such container -> "" (sandbox unavailable is honest, guessed
+	// network names are what bit us).
+	if got := DockerNetworkOf("evidra-does-not-exist-xyz"); got != "" {
+		t.Fatalf("inspect of missing container must yield empty, got %q", got)
 	}
 }

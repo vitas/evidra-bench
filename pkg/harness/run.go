@@ -125,7 +125,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 			Phase:   phase,
 			Reason:  kind,
 			Details: runErr.Error(),
-		}, s.AuthorityProfile != nil, nil, nil, s.AuthorityProfile)
+		}, s.AuthorityProfile != nil, nil, nil, s.AuthorityProfile, nil)
 		if result == nil {
 			result = &RunResult{
 				ScenarioID:  s.ID,
@@ -278,6 +278,11 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	snaps.capture(ctx, "stability")
 	snapInfo := snaps.finalize(recorder)
 
+	// Step 5c: qualification-ledger verification against THIS run's exact
+	// inputs — digests recomputed, never trusted (ADR 0001 §8).
+	qualVerdict, qualInputs := ComputeQualification(ctx, s, handle.KubeconfigPath, req.Config.EnvironmentProvider, "")
+	recorder.Event("qualification", ledgerEventKind(qualVerdict), ledgerEventDetail(qualVerdict, qualInputs))
+
 	// Step 5b: Seal the API-audit window (end marker + drain + redaction).
 	auditRes, auditJSONL, auditDigest := auditWin.close(ctx, recorder)
 	auditInfo := auditWindowInfo(auditRes, auditJSONL, auditDigest, auditWin)
@@ -303,7 +308,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		ArtifactDir: artifactDir,
 		Checks:      verifyResult,
 	}
-	caseResult := buildEvaluationCaseResult(s.ID, runID, agentResult, verifyResult, autopsyJSON, artifactDir, endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete}, s.AuthorityProfile != nil, auditInfo, snapInfo, s.AuthorityProfile)
+	caseResult := buildEvaluationCaseResult(s.ID, runID, agentResult, verifyResult, autopsyJSON, artifactDir, endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete}, s.AuthorityProfile != nil, auditInfo, snapInfo, s.AuthorityProfile, qualVerdict)
 	result.Case = &caseResult
 
 	// Step 8: Store result in database.

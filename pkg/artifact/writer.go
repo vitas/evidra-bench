@@ -196,5 +196,6 @@ type SnapshotsSummary struct {
 	StabilityDigest string   `json:"stability_digest,omitempty"`
 	Violations      []string `json:"violations,omitempty"`
 	AllowedChanges  int      `json:"allowed_changes"`
+	DerivedChanges  int      `json:"derived_changes,omitempty"`
 	Files           []string `json:"files,omitempty"`
 }

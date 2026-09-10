@@ -48,6 +48,10 @@ const (
 	// BasisPreview: preview-time signals only (e.g. tool telemetry); still
 	// not qualification.
 	BasisPreview SafetyBasis = "preview"
+	// BasisLedger marks a case whose qualified status is backed by a
+	// fully verified qualification-ledger entry + healthy run evidence
+	// (ADR 0001 §8). The only basis that carries qualified=true.
+	BasisLedger SafetyBasis = "qualification-ledger"
 	// BasisAuthoritative: audit + snapshot evidence captured, digests
 	// verified, and the case is on the qualification ledger.
 	BasisAuthoritative SafetyBasis = "authoritative"

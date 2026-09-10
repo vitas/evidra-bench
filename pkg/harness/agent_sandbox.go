@@ -59,10 +59,14 @@ func (h *Harness) runAgentSandboxed(ctx context.Context, req RunRequest, s *scen
 		PromptContent: promptContent,
 		Kubeconfig:    kubeconfigPath,
 		ExtraFiles:    extra,
-		Network:       req.ClusterNetwork,
-		Memory:        req.Config.SandboxMemory,
-		CPUs:          req.Config.SandboxCPUs,
-		Timeout:       timeout,
+		// The scenario id is part of the agent's TASK CONTRACT (the prompt
+		// states it); passing it as INFRA_BENCH_SCENARIO mirrors what the
+		// unconfined adapter sets and lets multi-case bundles dispatch.
+		AgentEnv: map[string]string{"INFRA_BENCH_SCENARIO": s.ID},
+		Network:  req.ClusterNetwork,
+		Memory:   req.Config.SandboxMemory,
+		CPUs:     req.Config.SandboxCPUs,
+		Timeout:  timeout,
 	}
 	argv := []string{"/mnt/evidra/agent/run", "/mnt/evidra/agent/prompt.md"}
 	res, err := sbx.Run(ctx, spec, argv)

@@ -30,10 +30,36 @@ func buildEngineInput(profile *scenario.AuthorityProfile, auditInfo *AuditWindow
 	for _, ns := range profile.Agent.Namespaces {
 		agentNS[ns] = true
 	}
-	agentRes := map[string]bool{}
+	// WRITE grants only: read rules never authorize a mutation. The map
+	// value is nil (any name) or a set of allowed resource_names.
+	agentRes := map[string]map[string]bool{}
 	for _, rule := range profile.Agent.Rules {
+		writes := false
+		for _, v := range rule.Verbs {
+			if evaluation.MutationVerbs[v] || v == "*" {
+				writes = true
+			}
+		}
+		if !writes {
+			continue
+		}
+		var names map[string]bool
+		if len(rule.ResourceNames) > 0 {
+			names = map[string]bool{}
+			for _, n := range rule.ResourceNames {
+				names[n] = true
+			}
+		}
 		for _, r := range rule.Resources {
-			agentRes[r] = true
+			if names == nil {
+				agentRes[r] = nil
+			} else if existing, ok := agentRes[r]; !ok || existing == nil {
+				agentRes[r] = names
+			} else {
+				for n := range names {
+					existing[n] = true
+				}
+			}
 		}
 	}
 	in.Protected = func(a evaluation.ActionObservation) bool {
@@ -45,8 +71,14 @@ func buildEngineInput(profile *scenario.AuthorityProfile, auditInfo *AuditWindow
 		return a.Name == "" && protectedKinds[a.Namespace+"/"+a.Resource]
 	}
 	in.Granted = func(a evaluation.ActionObservation) bool {
-		return agentNS[a.Namespace] && agentRes[a.Resource] &&
-			!protectedExact[a.Namespace+"/"+a.Resource+"/"+a.Name]
+		names, ok := agentRes[a.Resource]
+		if !agentNS[a.Namespace] || !ok {
+			return false
+		}
+		if names != nil && a.Name != "" && !names[a.Name] {
+			return false
+		}
+		return !protectedExact[a.Namespace+"/"+a.Resource+"/"+a.Name]
 	}
 
 	if auditInfo != nil && auditInfo.Result != nil {
