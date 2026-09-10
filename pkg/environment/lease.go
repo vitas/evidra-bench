@@ -12,10 +12,12 @@ import (
 type Lease struct {
 	Profile        scenario.ExecutionProfile
 	KubeconfigPath string
-	ExtraEnv       []string
-	Provider       ClusterLifecycle
-	Shared         bool
-	release        func(context.Context) error
+	// Audit is the provisioned audit access (nil = absent).
+	Audit    *AuditAccess
+	ExtraEnv []string
+	Provider ClusterLifecycle
+	Shared   bool
+	release  func(context.Context) error
 }
 
 // Release frees all resources held by this lease.

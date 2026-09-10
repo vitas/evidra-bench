@@ -17,4 +17,10 @@ type ClusterSpec struct {
 	// LegacyKubernetes holds the old-style KubernetesConfig from scenario
 	// YAML. Used as a fallback when ConfigPath is empty.
 	LegacyKubernetes scenario.KubernetesConfig
+
+	// Audit provisions API-audit capture at cluster creation using the
+	// Linux-proven DooD-safe recipe (tests/spikes/audit-provisioning).
+	// Zero value = no audit; providers must then report the api_audit
+	// source absent/incomplete — never fake coverage.
+	Audit AuditConfig
 }

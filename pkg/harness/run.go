@@ -59,6 +59,9 @@ type RunRequest struct {
 	ExtraEnv        []string // Env vars from the profile lease (e.g., AWS_ENDPOINT_URL from aws-localstack)
 	TargetNamespace string   // Override namespace (default: "bench")
 	KubeconfigPath  string   // Pre-provisioned kubeconfig — skip cluster create/destroy if set
+	// Audit exposes provisioned API-audit capture on the leased cluster
+	// (nil = the cluster has no audit; coverage is then honestly absent).
+	Audit *environment.AuditAccess
 }
 
 // RunResult holds the outcome of a harness run.
@@ -116,7 +119,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 			Phase:   phase,
 			Reason:  kind,
 			Details: runErr.Error(),
-		}, s.AuthorityProfile != nil)
+		}, s.AuthorityProfile != nil, nil)
 		if result == nil {
 			result = &RunResult{
 				ScenarioID:  s.ID,
@@ -192,6 +195,9 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		recorder.Event("break", "completed", "")
 	}
 
+	// Step 3a: Open the API-audit window (cert-identity start marker).
+	auditWin := h.startAuditWindow(ctx, req, handle.KubeconfigPath, recorder)
+
 	// Step 3b: Materialize per-run identities from the authority profile
 	// (ADR 0001 Phase 4). With a profile the agent and the verifiers never
 	// run on admin credentials: agent = profile grants (SAs below),
@@ -253,11 +259,15 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	}
 	recorder.Event("verification", "completed", "")
 
+	// Step 5b: Seal the API-audit window (end marker + drain + redaction).
+	auditRes, auditJSONL, auditDigest := auditWin.close(ctx, recorder)
+	auditInfo := auditWindowInfo(auditRes, auditJSONL, auditDigest, auditWin)
+
 	// Step 6: Write artifacts.
 	endTime := time.Now()
 	recorder.Event("run", "completed", "")
 	recorder.Event("artifact_write", "started", "")
-	artifactDir, autopsyJSON := h.writeRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, startTime, endTime)
+	artifactDir, autopsyJSON := h.writeRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, startTime, endTime, auditInfo)
 	recorder.Event("artifact_write", "completed", "")
 
 	// Step 7: Bench reporting.
@@ -274,7 +284,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		ArtifactDir: artifactDir,
 		Checks:      verifyResult,
 	}
-	caseResult := buildEvaluationCaseResult(s.ID, runID, agentResult, verifyResult, autopsyJSON, artifactDir, endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete}, s.AuthorityProfile != nil)
+	caseResult := buildEvaluationCaseResult(s.ID, runID, agentResult, verifyResult, autopsyJSON, artifactDir, endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete}, s.AuthorityProfile != nil, auditInfo)
 	result.Case = &caseResult
 
 	// Step 8: Store result in database.

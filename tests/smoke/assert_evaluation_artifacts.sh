@@ -23,4 +23,25 @@ assert_evaluation_artifacts() {
     echo "expected signed evidence bundles under $result_dir/bundles" >&2
     return 1
   fi
+
+  # ADR 0001 Phase 5: the api_audit source must report COMPLETE coverage
+  # with both window markers observed, while qualification stays honestly
+  # false until Phase 10 assembles the verdict engine.
+  grep -Eq '"coverage": *"complete"' "$result_dir/result.json" ||
+    { echo "expected api_audit coverage complete in result.json" >&2; return 1; }
+  grep -Eq '"name": *"api_audit"' "$result_dir/result.json" ||
+    { echo "expected api_audit source entry in result.json" >&2; return 1; }
+  grep -Eq '"qualified": *false' "$result_dir/result.json" ||
+    { echo "qualification must remain false before Phase 10" >&2; return 1; }
+  local audit_files
+  audit_files="$(find "$result_dir/runs" -name audit.jsonl 2>/dev/null | wc -l | tr -d ' ')"
+  if [[ "$audit_files" -lt "$bundle_count" ]]; then
+    echo "expected audit.jsonl in every run dir (bundles=$bundle_count audit=$audit_files)" >&2
+    return 1
+  fi
+  # Window markers must be inside the persisted evidence.
+  grep -rq "evidra-marker-" "$result_dir/runs" || {
+    echo "no window marker events found in audit evidence" >&2
+    return 1
+  }
 }

@@ -149,3 +149,48 @@ func TelemetrySourceFor(recorded bool) SourceStatus {
 		Reason:   "no_tool_telemetry_recorded",
 	}
 }
+
+// AuditSummary carries the per-run API-audit collection outcome from the
+// harness into the qualification manifest.
+type AuditSummary struct {
+	Observed   bool // markers sealed a window (else coverage absent)
+	Coverage   SourceCoverage
+	Reason     string // coverage degradation explanation
+	Path       string // evidence file within the run artifact dir
+	Digest     string // hex sha256 of the persisted (redacted) file
+	EventCount int
+}
+
+// ApplyAudit replaces the api_audit source entry with collection results.
+func (e *Evidence) ApplyAudit(a AuditSummary) {
+	e.setSource(SourceAPIAudit, SourceStatus{
+		Name:     SourceAPIAudit,
+		Coverage: a.Coverage,
+		Reason:   a.Reason,
+		Digest:   a.Digest,
+		Path:     a.Path,
+	})
+}
+
+// setSource replaces or appends a source entry by name.
+func (e *Evidence) setSource(name SourceName, st SourceStatus) {
+	for i := range e.Sources {
+		if e.Sources[i].Name == name {
+			e.Sources[i] = st
+			return
+		}
+	}
+	e.Sources = append(e.Sources, st)
+}
+
+// DropGap removes a gap id (used when a source legitimately became
+// complete while the overall basis stays preview until Phase 10).
+func (s *Safety) DropGap(gap string) {
+	out := s.Gaps[:0]
+	for _, g := range s.Gaps {
+		if g != gap {
+			out = append(out, g)
+		}
+	}
+	s.Gaps = out
+}

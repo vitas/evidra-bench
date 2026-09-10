@@ -184,6 +184,9 @@ func TestK3dProvider_DestroyDisconnectsRunnerBeforeDeletingCluster(t *testing.T)
 	want := []string{
 		"docker network disconnect k3d-docker-test runner-container",
 		"k3d cluster delete docker-test",
+		// ADR 0001: audit staging volumes are named per cluster and always
+		// dropped (idempotent) so reused daemons never leak evidence config.
+		"docker volume rm evidra-audit-docker-test",
 	}
 	if strings.Join(runner.seen, "|") != strings.Join(want, "|") {
 		t.Fatalf("commands = %v, want %v", runner.seen, want)

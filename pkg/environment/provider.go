@@ -9,6 +9,20 @@ import (
 type Handle struct {
 	ClusterName    string
 	KubeconfigPath string
+	// Audit describes provisioned API-audit capture (nil = absent).
+	Audit *AuditAccess
+}
+
+// AuditAccess tells evidence collectors where the audit log lives: node
+// sibling containers reachable via docker exec from the runner (DooD-safe
+// retrieval proven in the spike; never bind mounts).
+type AuditAccess struct {
+	NodeContainers []string
+	LogPath        string
+	// MarkerUsername is the harness certificate identity the audit server
+	// attributes marker GETs to (kubernetes-admin on kind, system:admin on k3d —
+	// the CN of each provider's admin kubeconfig client certificate).
+	MarkerUsername string
 }
 
 // ClusterLifecycle is the full contract for cluster management.

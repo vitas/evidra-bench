@@ -21,6 +21,7 @@ func buildEvaluationCaseResult(
 	duration time.Duration,
 	termination evaluation.Termination,
 	authorityProfilePresent bool,
+	auditInfo *AuditWindowInfo,
 ) evaluation.CaseResult {
 	result := evaluation.CaseResult{
 		ScenarioID:  scenarioID,
@@ -58,6 +59,14 @@ func buildEvaluationCaseResult(
 	}
 	recorded := agentResult != nil && len(agentResult.ToolCalls) > 0
 	result.Qualification = evaluation.PreviewEvidence(evaluation.TelemetrySourceFor(recorded))
+	if sum := auditInfo.EvaluationSummary(); sum != nil {
+		result.Qualification.ApplyAudit(*sum)
+		if sum.Coverage == evaluation.CoverageComplete {
+			// Honest gap bookkeeping: the audit layer is now captured;
+			// qualification still requires snapshot + Phase 10 assembly.
+			result.Safety.DropGap(evaluation.GapAuditNotCaptured)
+		}
+	}
 
 	completed := termination.Kind == evaluation.TerminationComplete
 	errored := checksErrored(verifyResult)

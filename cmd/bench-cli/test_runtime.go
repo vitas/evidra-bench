@@ -328,6 +328,7 @@ func (e suiteEvaluationExecutor) Execute(ctx context.Context, _ evaluation.Plan,
 		Config:         e.Config,
 		Scenario:       s,
 		KubeconfigPath: localLease.lease.KubeconfigPath,
+		Audit:          localLease.lease.Audit,
 		ExtraEnv:       localLease.lease.ExtraEnv,
 	})
 	if result != nil && result.Case != nil {

@@ -134,12 +134,21 @@ func (p *KindProvider) Create(ctx context.Context, clusterName string, spec Clus
 		return nil, fmt.Errorf("environment.KindProvider.Create: check existing cluster: %w", err)
 	}
 	if !exists || !p.ReuseExisting {
-		cmd, cleanup, err := p.buildCreateCommand(clusterName, spec)
+		var cmd *exec.Cmd
+		var cleanup func()
+		if spec.Audit.Enabled {
+			cmd, cleanup, err = p.createCommandWithAudit(ctx, clusterName, spec)
+		} else {
+			cmd, cleanup, err = p.buildCreateCommand(clusterName, spec)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("environment.KindProvider.Create: %w", err)
 		}
 		defer cleanup()
 		if _, err := p.Runner.Run(ctx, cmd); err != nil {
+			if spec.Audit.Enabled {
+				_ = RemoveAuditVolume(ctx, p.Runner, clusterName)
+			}
 			return nil, fmt.Errorf("environment.KindProvider.Create: %w", err)
 		}
 	}
@@ -165,10 +174,18 @@ func (p *KindProvider) Create(ctx context.Context, clusterName string, spec Clus
 		return nil, fmt.Errorf("environment.KindProvider.Create: write kubeconfig: %w", err)
 	}
 
-	return &Handle{
+	handle := &Handle{
 		ClusterName:    clusterName,
 		KubeconfigPath: kubeconfigPath,
-	}, nil
+	}
+	if spec.Audit.Enabled {
+		handle.Audit = &AuditAccess{
+			NodeContainers: []string{clusterName + "-control-plane"},
+			LogPath:        "/var/log/kubernetes/audit.log",
+			MarkerUsername: "kubernetes-admin",
+		}
+	}
+	return handle, nil
 }
 
 func (p *KindProvider) clusterExists(ctx context.Context, clusterName string) (bool, error) {
@@ -185,11 +202,74 @@ func (p *KindProvider) clusterExists(ctx context.Context, clusterName string) (b
 	return false, nil
 }
 
-// Destroy tears down the kind cluster and removes the kubeconfig file.
+// createCommandWithAudit stages the audit config volume and builds a kind
+// create command with the proven recipe (FINDINGS.md): generated cluster
+// config referencing the volume mountpoint, pinned node image (v1beta3
+// kubeadm patches are silently dropped by newer defaults — a SILENT
+// evidence-loss class we must never eat), and an explicit --wait because
+// evidence quality depends on a fully started control plane.
+func (p *KindProvider) createCommandWithAudit(ctx context.Context, clusterName string, spec ClusterSpec) (*exec.Cmd, func(), error) {
+	policy := AuditPolicyYAML(spec.Audit.PolicyMode)
+	vol, err := StageAuditVolume(ctx, p.Runner, clusterName, policy)
+	if err != nil {
+		return nil, func() {}, err
+	}
+	image := spec.Audit.NodeImage
+	if image == "" {
+		image = DefaultAuditNodeImage
+		if v := strings.TrimSpace(os.Getenv("EVIDRA_AUDIT_NODE_IMAGE")); v != "" {
+			image = v
+		}
+	}
+	configYAML := BuildKindAuditConfig(vol, spec.LegacyKubernetes)
+	if spec.ConfigPath != "" {
+		asset, readErr := os.ReadFile(spec.ConfigPath)
+		if readErr != nil {
+			_ = RemoveAuditVolume(ctx, p.Runner, clusterName)
+			return nil, func() {}, fmt.Errorf("read kind asset %s: %w", spec.ConfigPath, readErr)
+		}
+		merged, mergeErr := MergeKindAuditConfig(asset, vol)
+		if mergeErr != nil {
+			_ = RemoveAuditVolume(ctx, p.Runner, clusterName)
+			return nil, func() {}, mergeErr
+		}
+		configYAML = string(merged)
+	}
+	tmpFile, err := os.CreateTemp("", "kind-audit-config-*.yaml")
+	if err != nil {
+		_ = RemoveAuditVolume(ctx, p.Runner, clusterName)
+		return nil, func() {}, fmt.Errorf("write kind audit config: %w", err)
+	}
+	if _, err := tmpFile.WriteString(configYAML); err != nil {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpFile.Name())
+		_ = RemoveAuditVolume(ctx, p.Runner, clusterName)
+		return nil, func() {}, fmt.Errorf("write kind audit config: %w", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		_ = os.Remove(tmpFile.Name())
+		_ = RemoveAuditVolume(ctx, p.Runner, clusterName)
+		return nil, func() {}, fmt.Errorf("write kind audit config: %w", err)
+	}
+	cmd := exec.Command("kind", "create", "cluster",
+		"--name", clusterName,
+		"--config", tmpFile.Name(),
+		"--image", image,
+		"--wait", "300s",
+	)
+	cleanup := func() { _ = os.Remove(tmpFile.Name()) }
+	return cmd, cleanup, nil
+}
+
+// Destroy tears down the kind cluster, its audit staging volume, and the
+// kubeconfig file.
 func (p *KindProvider) Destroy(ctx context.Context, handle *Handle) error {
 	cmd := p.deleteCommand(handle.ClusterName)
 	if _, err := p.Runner.Run(ctx, cmd); err != nil {
 		return fmt.Errorf("environment.KindProvider.Destroy: %w", err)
+	}
+	if err := RemoveAuditVolume(ctx, p.Runner, handle.ClusterName); err != nil {
+		log.Printf("[kind] audit volume cleanup for %s: %v", handle.ClusterName, err)
 	}
 	_ = os.Remove(handle.KubeconfigPath)
 	return nil

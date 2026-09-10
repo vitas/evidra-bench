@@ -99,13 +99,41 @@ func (p *K3dProvider) Create(ctx context.Context, clusterName string, spec Clust
 			}
 		}
 		var cmd *exec.Cmd
-		if spec.ConfigPath != "" {
-			cmd = p.createCommandWithExplicitConfig(clusterName, spec.ConfigPath)
-		} else {
-			cmd = p.createCommand(clusterName)
+		switch {
+		case spec.Audit.Enabled:
+			if _, err := StageAuditVolume(ctx, p.Runner, clusterName, AuditPolicyYAML(spec.Audit.PolicyMode)); err != nil {
+				return nil, err
+			}
+			base := []string{"cluster", "create", clusterName}
+			if spec.ConfigPath != "" {
+				// k3d merges --config with additive CLI flags; volumes and
+				// k3s args extend the asset rather than replace it.
+				base = append(base, "--config", spec.ConfigPath)
+			} else {
+				base = append(base, "--no-lb", "--wait")
+			}
+			args := append(base, K3dAuditArgs(auditVolumeName(clusterName))...)
+			cmd = exec.Command("k3d", args...)
+		default:
+			if spec.ConfigPath != "" {
+				cmd = p.createCommandWithExplicitConfig(clusterName, spec.ConfigPath)
+			} else {
+				cmd = p.createCommand(clusterName)
+			}
 		}
 		if out, err := p.Runner.Run(ctx, cmd); err != nil {
+			if spec.Audit.Enabled {
+				_ = RemoveAuditVolume(ctx, p.Runner, clusterName)
+			}
 			return nil, fmt.Errorf("environment.K3dProvider.Create: %w: %s", err, strings.TrimSpace(string(out)))
+		}
+		if spec.Audit.Enabled {
+			// k3s only writes the audit log once the directory exists
+			// inside the server container (proven recipe).
+			mkdir := exec.Command("docker", "exec", "k3d-"+clusterName+"-server-0", "mkdir", "-p", "/var/log/kubernetes")
+			if out, err := p.Runner.Run(ctx, mkdir); err != nil {
+				log.Printf("[k3d] audit log dir prep failed (collector will surface coverage): %v: %s", err, strings.TrimSpace(string(out)))
+			}
 		}
 	}
 	if p.ContainerName != "" && p.NetworkMode != ContainerNetworkHost {
@@ -142,10 +170,18 @@ func (p *K3dProvider) Create(ctx context.Context, clusterName string, spec Clust
 		return nil, fmt.Errorf("environment.K3dProvider.Create: write kubeconfig: %w", err)
 	}
 
-	return &Handle{
+	handle := &Handle{
 		ClusterName:    clusterName,
 		KubeconfigPath: kubeconfigPath,
-	}, nil
+	}
+	if spec.Audit.Enabled {
+		handle.Audit = &AuditAccess{
+			NodeContainers: []string{"k3d-" + clusterName + "-server-0"},
+			LogPath:        "/var/log/kubernetes/audit.log",
+			MarkerUsername: "system:admin",
+		}
+	}
+	return handle, nil
 }
 
 // Recreate tears down and re-creates the k3d cluster.
@@ -181,7 +217,8 @@ func (p *K3dProvider) clusterExists(ctx context.Context, clusterName string) (bo
 	return false, nil
 }
 
-// Destroy tears down the k3d cluster and removes the kubeconfig file.
+// Destroy tears down the k3d cluster, its audit staging volume, and the
+// kubeconfig file.
 func (p *K3dProvider) Destroy(ctx context.Context, handle *Handle) error {
 	var disconnectErr error
 	if p.ContainerName != "" && p.NetworkMode != ContainerNetworkHost {
@@ -190,6 +227,9 @@ func (p *K3dProvider) Destroy(ctx context.Context, handle *Handle) error {
 	cmd := p.deleteCommand(handle.ClusterName)
 	if _, err := p.Runner.Run(ctx, cmd); err != nil {
 		return errors.Join(disconnectErr, fmt.Errorf("environment.K3dProvider.Destroy: %w", err))
+	}
+	if err := RemoveAuditVolume(ctx, p.Runner, handle.ClusterName); err != nil {
+		log.Printf("[k3d] audit volume cleanup for %s: %v", handle.ClusterName, err)
 	}
 	_ = os.Remove(handle.KubeconfigPath)
 	return disconnectErr

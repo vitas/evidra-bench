@@ -31,6 +31,10 @@ type RunBundle struct {
 	Timeline       json.RawMessage   `json:"timeline,omitempty"`
 	Checks         json.RawMessage   `json:"checks,omitempty"`
 	Autopsy        json.RawMessage   `json:"autopsy,omitempty"`
+	// Audit is the API-audit collection summary (ADR 0001 Phase 5). The
+	// window evidence itself lives in the run dir as audit.jsonl (redacted
+	// by construction); the digest binds it.
+	Audit *AuditSummary `json:"audit,omitempty"`
 	Scorecard      json.RawMessage   `json:"scorecard,omitempty"`
 	RunError       json.RawMessage   `json:"run_error,omitempty"`
 	RunEvents      json.RawMessage   `json:"run_events,omitempty"`
@@ -167,4 +171,15 @@ func (w *Writer) Write(bundle RunBundle) (*WriteOutput, error) {
 
 func isSafeArtifactDirName(name string) bool {
 	return name != "" && name == filepath.Base(name) && name != "." && name != ".."
+}
+
+// AuditSummary records how the api_audit source was captured for one run.
+type AuditSummary struct {
+	Coverage    string   `json:"coverage"` // complete|incomplete|absent
+	Reasons     []string `json:"reasons,omitempty"`
+	Events      int      `json:"events"`
+	File        string   `json:"file,omitempty"`
+	DigestSHA256 string  `json:"digest_sha256,omitempty"`
+	WindowStart string   `json:"window_start_marker,omitempty"`
+	WindowEnd   string   `json:"window_end_marker,omitempty"`
 }
