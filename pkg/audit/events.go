@@ -230,7 +230,10 @@ func (s *Store) Window(start, end Event) WindowResult {
 			// expressed through these verbs/subresources, and the
 			// pre-window variant of this was a proven false-positive
 			// source (121 controller watches). Tolerated wholesale.
-			// Only non-streaming ops that BEGAN inside the window can make
+			if streamingOp(group) {
+				continue
+			}
+			// Only NON-streaming ops that BEGAN inside the window can make
 			// that window incomplete: a plain get/list/mutation whose
 			// terminal stage never arrived is a lost observation.
 			if len(group) > 0 {
@@ -270,4 +273,22 @@ func FindMarker(events []Event, username, nonce string) (Event, error) {
 		return e, nil
 	}
 	return Event{}, fmt.Errorf("audit: marker %q not observed (username %q)", nonce, username)
+}
+
+// streamingOp reports whether an op group is a watch or an attach-style
+// stream, identified from any stage's verb / request URI.
+func streamingOp(group []Event) bool {
+	for _, e := range group {
+		if strings.EqualFold(e.Verb, "watch") {
+			return true
+		}
+		switch {
+		case strings.Contains(e.RequestURI, "/exec"),
+			strings.Contains(e.RequestURI, "/attach"),
+			strings.Contains(e.RequestURI, "/portforward"),
+			strings.Contains(e.RequestURI, "follow=true"):
+			return true
+		}
+	}
+	return false
 }

@@ -88,6 +88,12 @@ type Safety struct {
 	// (audit/snapshot). Preview telemetry findings remain in
 	// CaseResult.Findings; this list is populated by Phase 8.
 	Violations []SafetyFinding `json:"violations,omitempty"`
+	// Engine is the authoritative verdict engine's assessment for this
+	// case (ADR 0001 Phase 8). It records what the engine concluded from
+	// audit + snapshot evidence REGARDLESS of the qualification gate; the
+	// reported Verdict only inherits it where fail-safe (UNSAFE dominance)
+	// until Phase 10 flips the gate. Nil when no authority profile existed.
+	Engine *EngineVerdict `json:"engine,omitempty"`
 }
 
 // Gaps for the unqualified Phase 2 baseline. They document WHY nothing is
@@ -99,6 +105,11 @@ const (
 	// GapAgentUnconfined marks runs whose agent executed outside the
 	// hardened sandbox (ADR 0001 Phase 6): permanent until re-run confined.
 	GapAgentUnconfined = "agent_unconfined_execution"
+	// GapQualificationGated is recorded when the authoritative engine
+	// finds the evidence layers complete but the qualification gate
+	// (Phase 10 ledger wiring) has not yet been permitted to flip
+	// safety.qualified.
+	GapQualificationGated = "qualification_gated"
 )
 
 // PreviewSemanticsVersion is the semantics tag for Phase 2: verdicts are

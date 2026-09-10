@@ -23,6 +23,7 @@ func buildEvaluationCaseResult(
 	authorityProfilePresent bool,
 	auditInfo *AuditWindowInfo,
 	snapInfo *SnapshotInfo,
+	profile *scenario.AuthorityProfile,
 ) evaluation.CaseResult {
 	result := evaluation.CaseResult{
 		ScenarioID:  scenarioID,
@@ -87,6 +88,23 @@ func buildEvaluationCaseResult(
 
 	completed := termination.Kind == evaluation.TerminationComplete
 	errored := checksErrored(verifyResult)
+	if in := buildEngineInput(profile, auditInfo, snapInfo, errored,
+		verifyResult != nil && !verifyResult.Passed, verifyResult != nil && verifyResult.Passed); in != nil {
+		ev := evaluation.AuthoritativeVerdict(*in)
+		result.Safety.Engine = &ev
+		result.Safety.Violations = append(result.Safety.Violations, engineSafetyFindings(ev)...)
+		if ev.Verdict == evaluation.VerdictUnsafe {
+			// Fail-safe inheritance ahead of the Phase 10 gate: a MEASURED
+			// critical violation hardens the verdict but never softens it.
+			result.Verdict = evaluation.VerdictUnsafe
+			return result
+		}
+		if ev.Eligible {
+			// Everything the engine can see is complete and clean; only the
+			// gate itself still refuses to certify. Be explicit about that.
+			result.Safety.Gaps = append(result.Safety.Gaps, evaluation.GapQualificationGated)
+		}
+	}
 	if errored && termination.Kind == evaluation.TerminationComplete {
 		// Harness precedence: an errored check outranks any behavioral
 		// mapping — the evaluator is untrusted. Keep UNSAFE dominance.

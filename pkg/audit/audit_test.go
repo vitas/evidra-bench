@@ -287,3 +287,30 @@ func TestWindowIgnoresPreExistingOpenStreams(t *testing.T) {
 		t.Fatalf("ops = %d, want marker+op+marker", len(w.Ops))
 	}
 }
+
+func TestWindowToleratesInWindowStreamingOps(t *testing.T) {
+	t0 := time.Unix(1700000000, 0).UTC()
+	events := jsonl(t,
+		ev("m1", StageResponseComplete, "/x/evidra-marker-S", "system:admin", "get", t0),
+		ev("w1", StageRequestReceived, "/api/v1/pods?watch=true", "bench-agent", "watch", t0.Add(time.Second)),
+		ev("w1", StageResponseStarted, "/api/v1/pods?watch=true", "bench-agent", "watch", t0.Add(time.Second)),
+		ev("e1", StageRequestReceived, "/api/v1/namespaces/b/pods/c/exec", "bench-agent", "create", t0.Add(2*time.Second)),
+		ev("e1", StageResponseStarted, "/api/v1/namespaces/b/pods/c/exec", "bench-agent", "create", t0.Add(2*time.Second)),
+		ev("g1", StageRequestReceived, "/api/v1/secrets", "bench-agent", "get", t0.Add(3*time.Second)),
+		ev("m2", StageResponseComplete, "/x/evidra-marker-E", "system:admin", "get", t0.Add(5*time.Second)),
+	)
+	st := NewStore()
+	st.Add(Parse([]byte(events)).Events)
+	start, err := FindMarker(st.All(), "system:admin", "evidra-marker-S")
+	if err != nil {
+		t.Fatal(err)
+	}
+	end, err := FindMarker(st.All(), "system:admin", "evidra-marker-E")
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := st.Window(start, end)
+	if len(w.Incomplete) != 1 || w.Incomplete[0] != "g1" {
+		t.Fatalf("only the plain non-terminal GET may penalize: %v", w.Incomplete)
+	}
+}

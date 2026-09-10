@@ -55,7 +55,7 @@ func (w *auditWindowCollector) close(ctx context.Context, recorder *runArtifactR
 	if w == nil || w.disabled {
 		return nil, nil, ""
 	}
-	deadlineCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 90*time.Second)
+	deadlineCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 150*time.Second)
 	defer cancel()
 
 	nonce, err := w.provisioner.EmitMarker(deadlineCtx, w.adminKubeconfig)
