@@ -25,7 +25,7 @@ func TestHarness_DryRun(t *testing.T) {
 			Title:    "Fix broken deployment",
 			Category: "kubernetes",
 			Prompt:   "prompts/task.md",
-			Checks:   []scenario.Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+			Checks:   []scenario.Check{{Type: "command-succeeds", Name: "noop", Condition: "true"}},
 		},
 	})
 	if err != nil {
@@ -73,7 +73,7 @@ func TestHarness_Run_DoesNotCreateOrDestroyEnvironmentWhenLeaseProvided(t *testi
 			ID:       "broken-deployment",
 			Title:    "Fix broken deployment",
 			Category: "kubernetes",
-			Checks:   []scenario.Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+			Checks:   []scenario.Check{{Type: "command-succeeds", Name: "noop", Condition: "true"}},
 		},
 	})
 	if err != nil {

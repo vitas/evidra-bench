@@ -190,20 +190,56 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		recorder.Event("bootstrap", "completed", "")
 	}
 
-	// Step 3: Inject break (skipped for multi-stage — stages handle their own breaks).
+	// ADR 0001 "Reliable case contract": the sequence between bootstrap
+	// and the agent is a precondition, not a formality. Single-stage
+	// cases (multi-stage scenarios break inside their stages):
+	//
+	//	(a) prove the healthy baseline — every outcome check PASSES after
+	//	    bootstrap, so a later FAIL is the agent's story and not a
+	//	    pre-broken fixture;
+	//	(b) capture checkpoint 1 (healthy-baseline) BEFORE any injection;
+	//	(c) inject the break;
+	//	(d) PROVE the fault materialized — at least one outcome check must
+	//	    FAIL on the broken state before the agent starts. A no-op or
+	//	    silently failed break can never yield a valid (let alone
+	//	    qualified) evaluation: without this, "agent did nothing" and
+	//	    "agent fixed nothing" are indistinguishable.
+	//
+	// Any deviation aborts the run as an environment fault (INCOMPLETE
+	// with reason) before the agent ever sees a prompt.
 	isMultiStage := len(s.Stages) > 0
-	if !isMultiStage {
-		recorder.Event("break", "started", "")
-		if err := h.injectSingleStageBreak(ctx, req, handle.KubeconfigPath); err != nil {
-			recorder.Event("break", "failed", err.Error())
-			return nil, err
+	preflight := func(phase string, wantPass bool) error {
+		// The contract binds fault-injecting single-stage cases: a fixture
+		// not healthy before the break, or a break leaving no observable
+		// fault, invalidates the evaluation itself. Scenarios without a
+		// break (misconfiguration-prompt class) have no baseline→fault
+		// delta to prove; the verdict engine governs those.
+		if isMultiStage || len(s.Checks) == 0 || s.Break.Type == "" {
+			return nil
 		}
-		recorder.Event("break", "completed", "")
+		recorder.Event(phase, "started", "")
+		res, err := h.verifyRunPhase(ctx, req, handle.KubeconfigPath, nil, nil, false, phase)
+		if err != nil {
+			recorder.Event(phase, "failed", err.Error())
+			return err
+		}
+		if errs := res.Errored(); len(errs) > 0 {
+			msg := phase + ": evaluator unhealthy while checking precondition: " + errs[0].Name + ": " + errs[0].Message
+			recorder.Event(phase, "failed", msg)
+			return &InfraError{Err: fmt.Errorf("harness.Run: %s", msg)}
+		}
+		if res.Passed != wantPass {
+			msg := fmt.Sprintf("%s: precondition violated: checks passed=%v, want pass=%v",
+				phase, res.Passed, wantPass)
+			recorder.Event(phase, "failed", msg)
+			return &InfraError{Err: fmt.Errorf("harness.Run: %s", msg)}
+		}
+		recorder.Event(phase, "completed", "")
+		return nil
 	}
-
-	// Step 3a: Open the API-audit window (cert-identity start marker).
-	auditWin := h.startAuditWindow(ctx, req, handle.KubeconfigPath, recorder)
-
+	if err := preflight("preflight_baseline", true); err != nil {
+		return nil, err
+	}
 	// Step 3b: Materialize per-run identities from the authority profile
 	// (ADR 0001 Phase 4). With a profile the agent and the verifiers never
 	// run on admin credentials: agent = profile grants (SAs below),
@@ -228,11 +264,31 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		recorder.Event("identity", "completed", "")
 	}
 
-	// Step 3c: Baseline state checkpoint via the evidence-reader identity
-	// (ADR 0001 Phase 7). The agent has not acted yet, so this is the
-	// pre-state the preservation diff compares against.
+	// Checkpoint 1 (ADR 0001): healthy baseline, BEFORE fault injection.
 	snaps := newRunSnapshots(s.AuthorityProfile, verifyKubeconfig)
 	snaps.capture(ctx, "baseline")
+
+	// Step 3: Inject break (skipped for multi-stage — stages handle their own breaks).
+	if !isMultiStage {
+		recorder.Event("break", "started", "")
+		if err := h.injectSingleStageBreak(ctx, req, handle.KubeconfigPath); err != nil {
+			recorder.Event("break", "failed", err.Error())
+			return nil, err
+		}
+		recorder.Event("break", "completed", "")
+	}
+
+	if err := preflight("preflight_fault", false); err != nil {
+		return nil, err
+	}
+	// Checkpoint 2 (ADR 0001): broken state, immediately before the agent
+	// starts. The preservation diff baselines on this checkpoint:
+	// legitimate-but-in-flight churn of the fault itself is not blamed on
+	// the agent, while anything the agent changes shows up cleanly.
+	snaps.capture(ctx, "pre-agent")
+
+	// Step 3a: Open the API-audit window (cert-identity start marker).
+	auditWin := h.startAuditWindow(ctx, req, handle.KubeconfigPath, recorder)
 
 	// Step 4: Execute agent.
 	recorder.Event("agent_prepare", "started", "")

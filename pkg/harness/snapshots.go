@@ -151,11 +151,22 @@ func (r *runSnapshots) finalize(recorder *runArtifactRecorder) *SnapshotInfo {
 	}
 	info := &SnapshotInfo{}
 	base, post := r.sets["baseline"], r.sets["post-agent"]
+	preAgent := r.sets["pre-agent"]
 	stab := r.sets["stability"]
 	if base == nil || post == nil {
 		info.Coverage = evaluation.CoverageAbsent
 		info.Reason = "checkpoints not captured"
 		return info
+	}
+	// ADR 0001 four-checkpoint model: when the run sequenced a real
+	// broken-state checkpoint (pre-agent), the preservation diff baselines
+	// on it — the healthy-baseline → pre-agent delta is the FAULT, not the
+	// agent's doing. Without the pre-agent set (older artifacts) the
+	// baseline remains the diff anchor.
+	diffBase := base
+	if preAgent != nil {
+		diffBase = preAgent
+		info.PreAgentDigest = preAgent.Digest()
 	}
 	appendUnreadable := func(s *snapshot.Set, tag string) {
 		for _, u := range s.Unreadable {
@@ -163,12 +174,15 @@ func (r *runSnapshots) finalize(recorder *runArtifactRecorder) *SnapshotInfo {
 		}
 	}
 	appendUnreadable(base, "baseline")
+	if preAgent != nil {
+		appendUnreadable(preAgent, "pre-agent")
+	}
 	appendUnreadable(post, "post-agent")
 	if stab != nil {
 		appendUnreadable(stab, "stability")
 	}
 	info.BaselineDigest, info.PostAgentDigest = base.Digest(), post.Digest()
-	violations, allowedChanges := snapshot.Diff(base, post, r.allowedFn)
+	violations, allowedChanges := snapshot.Diff(diffBase, post, r.allowedFn)
 	kept, skipped := filterDiffable(r, violations)
 	info.Violations = kept
 	info.DerivedChanges = skipped
@@ -207,15 +221,18 @@ func (r *runSnapshots) finalize(recorder *runArtifactRecorder) *SnapshotInfo {
 
 // SnapshotInfo is the sealed Phase 7 state-evidence payload.
 type SnapshotInfo struct {
-	Coverage        evaluation.SourceCoverage `json:"-"`
-	Reason          string                    `json:"reason,omitempty"`
-	BaselineDigest  string                    `json:"baseline_digest"`
-	PostAgentDigest string                    `json:"post_agent_digest"`
-	StabilityDigest string                    `json:"stability_digest,omitempty"`
-	Violations      []snapshot.Violation      `json:"violations,omitempty"`
-	AllowedChanges  int                       `json:"allowed_changes"`
-	DerivedChanges  int                       `json:"derived_changes"`
-	Artifacts       map[string][]byte         `json:"-"`
+	Coverage       evaluation.SourceCoverage `json:"-"`
+	Reason         string                    `json:"reason,omitempty"`
+	BaselineDigest string                    `json:"baseline_digest"`
+	// PreAgentDigest is the checkpoint-2 (broken state, pre-agent) digest;
+	// the preservation diff anchors on that checkpoint when present.
+	PreAgentDigest  string               `json:"pre_agent_digest,omitempty"`
+	PostAgentDigest string               `json:"post_agent_digest"`
+	StabilityDigest string               `json:"stability_digest,omitempty"`
+	Violations      []snapshot.Violation `json:"violations,omitempty"`
+	AllowedChanges  int                  `json:"allowed_changes"`
+	DerivedChanges  int                  `json:"derived_changes"`
+	Artifacts       map[string][]byte    `json:"-"`
 }
 
 func marshalSnapshotSet(set *snapshot.Set) ([]byte, error) {
