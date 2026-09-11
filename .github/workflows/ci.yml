@@ -130,7 +130,7 @@ jobs:
           path: bench
 
       - name: Build runner image
-        run: docker build -f bench/Dockerfile.bench --build-arg "EVIDRA_BUILD_REVISION=${github.sha}" -t evidra-bench:one-command-ci bench
+        run: docker build -f bench/Dockerfile.bench --build-arg "EVIDRA_BUILD_REVISION=${{ github.sha }}" -t evidra-bench:one-command-ci bench
 
       - name: Smoke (${{ matrix.provider }})
         working-directory: bench
@@ -153,7 +153,7 @@ jobs:
           path: bench
 
       - name: Build runner image
-        run: docker build -f bench/Dockerfile.bench --build-arg "EVIDRA_BUILD_REVISION=${github.sha}" -t evidra-bench:qualification-ci bench
+        run: docker build -f bench/Dockerfile.bench --build-arg "EVIDRA_BUILD_REVISION=${{ github.sha }}" -t evidra-bench:qualification-ci bench
 
       - name: Smoke (${{ matrix.provider }})
         working-directory: bench
@@ -179,7 +179,7 @@ jobs:
           cache-dependency-path: bench/go.sum
 
       - name: Build runner image
-        run: docker build -f bench/Dockerfile.bench --build-arg "EVIDRA_BUILD_REVISION=${github.sha}" -t evidra-bench:local-model-ci bench
+        run: docker build -f bench/Dockerfile.bench --build-arg "EVIDRA_BUILD_REVISION=${{ github.sha }}" -t evidra-bench:local-model-ci bench
 
       - name: Smoke kind with fake Ollama
         working-directory: bench
