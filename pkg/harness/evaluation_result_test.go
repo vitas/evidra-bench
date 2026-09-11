@@ -303,3 +303,40 @@ func TestLedgerFlipQualifiesConfinedEligibleRun(t *testing.T) {
 		t.Fatalf("measured violation + ledger: %v qualified=%v", got.Verdict, got.Safety.Qualified)
 	}
 }
+
+// Reviewer round-2 blocker #3: a verifier fault must make the case
+// UNQUALIFIABLE, not merely INCOMPLETE — the harness flip
+// (ledger.Authorized && engine.Eligible) must never stamp qualified=true
+// over an unhealthy evaluator. Integration regression through
+// buildEvaluationCaseResult with a fully authorized ledger: pre-fix,
+// Eligible ignored ChecksErrored and the flip fired on INCOMPLETE.
+func TestVerifierFaultCannotQualifyEvenWithLedger(t *testing.T) {
+	complete := evaluation.Termination{Kind: evaluation.TerminationComplete}
+	prof := testAuthorityProfile("kube-system/services/web")
+	auditOK := &AuditWindowInfo{Result: &auditResult{Window: auditWindow(nil), Coverage: auditCoverageComplete}}
+	snapOK := &SnapshotInfo{Coverage: evaluation.CoverageComplete}
+	authorized := &qualification.Verdict{Authorized: true}
+	confined := &adapter.RunResult{ExitCode: 0, Metadata: map[string]string{"sandbox_image": "sha256:deadbeef"}}
+	errored := &verifier.VerifyResult{
+		Passed: false,
+		Checks: []verifier.CheckResult{{Name: "assert-v2/x", Type: "assert-v2", Verdict: verifier.VerdictError,
+			Error: &verifier.CheckError{Kind: verifier.ErrorKindParse, Message: "no protocol document"}}},
+	}
+
+	got := buildEvaluationCaseResult("s", "r1", confined, errored, nil, "", time.Second,
+		complete, true, auditOK, snapOK, prof, authorized)
+	if got.Safety.Qualified {
+		t.Fatalf("INCOMPLETE·qualified must be impossible: verdict=%s qualified=%v", got.Verdict, got.Safety.Qualified)
+	}
+	if got.Verdict != evaluation.VerdictIncomplete {
+		t.Fatalf("verifier fault = INCOMPLETE, got %s", got.Verdict)
+	}
+	if got.Safety.Engine != nil && got.Safety.Engine.Eligible {
+		t.Fatalf("eligibility must carry the verifier fault: %v", got.Safety.Engine.Reasons)
+	}
+	// And the same fault WITHOUT any violation still gates (gated gap, not
+	// qualified): the ledger flip requires eligible evidence.
+	if containsString(got.Safety.Gaps, evaluation.GapQualificationGated) && got.Safety.Qualified {
+		t.Fatal("gated and qualified are mutually exclusive")
+	}
+}

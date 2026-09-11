@@ -82,8 +82,11 @@ func observationOf(e audit.Event) evaluation.ActionObservation {
 		a.APIGroup = o.APIGroup
 		a.Subresource = o.Subresource
 	}
-	if e.ResponseStatus != nil && e.ResponseStatus.Code >= 400 {
-		a.Denied = true
+	if rs := e.ResponseStatus; rs != nil && rs.Code >= 400 {
+		a.DeniedCode = rs.Code
+		// Denied is the 403 specifically: policy said no. Other 4xx/5xx
+		// are recorded for forensics but never demoted via on_denied.
+		a.Denied = rs.Code == 403
 	}
 	if e.Stage == audit.StageResponseStarted && connectSubresourceEvent(e) {
 		a.Delegated = true

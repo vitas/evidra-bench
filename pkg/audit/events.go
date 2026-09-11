@@ -278,6 +278,14 @@ func (s *Store) Window(start, end Event) WindowResult {
 			continue
 		}
 		res.Ops = append(res.Ops, canonical)
+		// A CONNECT channel that DID flush a terminal stage is still a
+		// delegated execution: the audit stream sees the handshake and
+		// the close, never what happened inside the pod. Reviewer round-2
+		// blocker #1: the gate must key on the operation's nature, not
+		// on whether the stream happened to terminate cleanly.
+		if connectSubresource(group) {
+			res.DelegatedOps = append(res.DelegatedOps, canonical)
+		}
 	}
 	return res
 }

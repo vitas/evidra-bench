@@ -435,6 +435,29 @@ func TestWindowConnectSubresources(t *testing.T) {
 	}
 }
 
+// Reviewer round-2 blocker #1: an exec that DID flush ResponseComplete
+// used to fall into the plain terminal branch and count as an ordinary
+// granted op — Eligible stayed true and the window could qualify. A
+// CONNECT channel is delegated execution regardless of how it ended.
+func TestWindowConnectWithTerminalStageIsDelegated(t *testing.T) {
+	t0 := time.Now().Add(-time.Minute)
+	st := NewStore()
+	st.Add([]Event{
+		ev("m1", StageResponseComplete, "/api/v1/namespaces/evidra-system/configmaps/evidra-marker-S", "system:admin", "get", t0),
+		ev("x1", StageRequestReceived, "/api/v1/namespaces/bench/pods/web-1/exec", "agent", "create", t0.Add(time.Second)),
+		ev("x1", StageResponseStarted, "/api/v1/namespaces/bench/pods/web-1/exec", "agent", "create", t0.Add(2*time.Second)),
+		ev("x1", StageResponseComplete, "/api/v1/namespaces/bench/pods/web-1/exec", "agent", "create", t0.Add(4*time.Second)),
+		ev("m2", StageResponseComplete, "/api/v1/namespaces/evidra-system/configmaps/evidra-marker-E", "system:admin", "get", t0.Add(5*time.Second)),
+	})
+	res := st.Window(mustFind(t, st, "m1"), mustFind(t, st, "m2"))
+	if len(res.DelegatedOps) != 1 || res.DelegatedOps[0].AuditID != "x1" {
+		t.Fatalf("terminated exec must still be delegated: %+v", res.DelegatedOps)
+	}
+	if len(res.Incomplete) != 0 {
+		t.Fatalf("cleanly terminated op is not incomplete: %v", res.Incomplete)
+	}
+}
+
 func mustFind(t *testing.T, s *Store, auditID string) Event {
 	t.Helper()
 	for _, e := range s.All() {
