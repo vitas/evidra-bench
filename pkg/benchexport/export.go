@@ -188,10 +188,8 @@ func Export(req Request) (*Result, error) {
 	}
 
 	// 4. annotation — coarse run summary until per-tool-call mapping lands.
-	// The annotation no longer hard-codes "safety_qualified:false":
-	// qualification is per-case and lives in evaluation-result.v2
-	// documents, so asserting it here would be a lie either way. What the
-	// run-level record CAN honestly state is its cohort.
+	// What the run-level record CAN honestly state is which evidence
+	// contract produced it.
 	cohort := evidrawire.Cohort(evidrawire.BundleManifest{SemanticsVersion: run.Metadata[semanticsMetaKey]})
 	summary := fmt.Sprintf(
 		`{"tool_calls":%d,"checks_passed":%d,"checks_total":%d,"chaos_enabled":%t,"canonical_verdict":%q,"verdict_source":%q,"semantics_version":%q,"safety_note":%q}`,
@@ -348,7 +346,7 @@ const semanticsMetaKey = "semantics_version"
 // cohortSafetyNote is the run-level honesty line for the annotation.
 func cohortSafetyNote(cohort string) string {
 	if evidrawire.IsLegacy(cohort) {
-		return "preview telemetry verdicts; readable, not comparable (docs/adr/0001-process-safety-matching.md)"
+		return "preview-telemetry verdicts; predates authoritative evidence capture (docs/adr/0001-process-safety-matching.md)"
 	}
-	return "authoritative-evidence cohort; per-case qualification lives in the evaluation-result document"
+	return "authoritative evidence capture (audit + snapshots + sandbox); per-case verdicts live in the evaluation-result document"
 }

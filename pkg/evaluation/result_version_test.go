@@ -54,7 +54,7 @@ func TestLegacyResultV1Decodes(t *testing.T) {
 // TestCurrentVersionWritesSafety pins that the writer side emits v2 with the
 // honest unqualified block.
 func TestCurrentVersionWritesSafety(t *testing.T) {
-	if ResultVersion != "evaluation-result.v2" {
+	if ResultVersion != "evaluation-result.v3" {
 		t.Fatalf("ResultVersion = %q", ResultVersion)
 	}
 	s := InitialSafety()

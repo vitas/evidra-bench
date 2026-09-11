@@ -93,9 +93,10 @@ const (
 
 // SafetyEvidenceSemanticsVersion is stamped on every run produced by the
 // ADR 0001 harness: the authoritative-safety evidence shape (engine,
-// coverage). Cohorts are separated by this tag: mixed versions never
-// compare, and preview-v1 documents stay readable only.
-const SafetyEvidenceSemanticsVersion = "safety-evidence.v1"
+// coverage). The tag is provenance bookkeeping kept after the
+// certification-era cohort gate was dropped — readers may still filter
+// on it; nothing refuses to join cohorts anymore.
+const SafetyEvidenceSemanticsVersion = "safety-evidence.v2"
 
 // PreviewSemanticsVersion is the semantics tag for Phase 2: verdicts are
 // produced from process/telemetry signals only and can never qualify.

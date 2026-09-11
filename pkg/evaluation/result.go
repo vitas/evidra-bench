@@ -2,10 +2,11 @@ package evaluation
 
 import "time"
 
-// ResultVersion is the canonical result schema. v2 adds the safety block
-// and the qualification evidence manifest to every case; v1 documents stay
-// decode-compatible (see TestLegacyResultV1Decodes).
-const ResultVersion = "evaluation-result.v2"
+// ResultVersion is the canonical result schema. v3 replaces the
+// certification-era safety block (drops qualified/basis) and renames the
+// evidence manifest field; older documents stay decode-compatible — the
+// removed fields simply read as zero (see TestLegacyResultV1Decodes).
+const ResultVersion = "evaluation-result.v3"
 
 type TerminationKind string
 

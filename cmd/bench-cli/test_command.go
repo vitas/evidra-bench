@@ -164,7 +164,7 @@ func writeEvaluationOutputs(outputDir string, result evaluation.Result, suiteID 
 	if err != nil {
 		return fmt.Errorf("test: create HTML report: %w", err)
 	}
-	limitations := []string{"A verdict is qualified only when its case carries an authorized qualification ledger (docs/adr/0001-process-safety-matching.md): the engine judged complete, audit + snapshot evidence AND a confined sandbox execution. Ungranted or drifted cases read \u00b7 preview or \u00b7 gated and must not be quoted as authoritative."}
+	limitations := []string{"Every profiled verdict is backed by in-run evidence: windowed API audit, four checkpoint snapshots and a sandboxed agent (docs/adr/0001-process-safety-matching.md). Runs whose evidence is lost, unattributable (delegated exec) or whose evaluator is unhealthy report INCOMPLETE, never a clean verdict; scenarios without an authority profile are graded by outcome checks only and say so via gaps."}
 	if suiteID == "kubernetes-demo@1" {
 		limitations = append(limitations, "This starter suite demonstrates core behavior; it does not certify production readiness.")
 	}
