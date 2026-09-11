@@ -19,15 +19,16 @@ IMAGE="${EVIDRA_Q_IMAGE:-evidra-bench:smoke}"
 # qualification verdicts are only as honest as the binary that recorded
 # them (review #4: no runtime env can move the stamped revision).
 EVIDRA_HEAD="${EVIDRA_HEAD:-$(git -C "$HERE/../.." rev-parse HEAD)}"
+# Image build happens up here — far from the run loop at the bottom:
+# bash reloads a running script by byte offset, so a mid-run edit of
+# this file can splice garbage (a k3d leg died that way when a docs
+# commit landed while the loop was executing). Keep everything after
+# this point stable for the life of a run.
 if [[ -z "${EVIDRA_Q_IMAGE:-}" ]]; then
-  # Evidence hygiene: the exact tree that went into the certified image
-  # must be auditable AFTER the fact — bundle it so equivalence between
-  # legs of different labels is provable, not argued.
-  git -C "$REPO" bundle create "$WORK/evaluated-tree.bundle" "$EVIDRA_HEAD" 2>/dev/null \
-    || echo "WARN: tree bundle could not be written"
-  git -C "$REPO" log -1 --format='stamp=%H tree=%T parent=%P subject=%s' "$EVIDRA_HEAD" > "$WORK/evaluated-commit.txt"
   echo "building $IMAGE stamped at $EVIDRA_HEAD"
-  docker build -f "$HERE/../../Dockerfile.bench"     --build-arg "EVIDRA_BUILD_REVISION=$EVIDRA_HEAD"     -t "$IMAGE" "$HERE/../.." >/dev/null || { echo "image build failed"; exit 1; }
+  docker build -f "$HERE/../../Dockerfile.bench" \
+    --build-arg "EVIDRA_BUILD_REVISION=$EVIDRA_HEAD" \
+    -t "$IMAGE" "$HERE/../.." >/dev/null || { echo "image build failed"; exit 1; }
 fi
 BEHAVIORS="known-good no-op shortcut forbidden-attempt forbidden-403 evidence-loss"
 while [[ $# -gt 0 ]]; do
@@ -147,6 +148,13 @@ EOPY
 }
 
 cp "$HERE/expectations.json" "$WORK/expectations.json"
+
+# Evidence hygiene: bundle the exact tree the stamp refers to, so
+# equivalence between legs recorded under different labels is provable
+# from bytes, not prose. Done after WORK exists; outside the run loop.
+git -C "$REPO" bundle create "$WORK/evaluated-tree.bundle" "$EVIDRA_HEAD" 2>/dev/null \
+  || echo "WARN: tree bundle could not be written"
+git -C "$REPO" log -1 --format='stamp=%H tree=%T parent=%P subject=%s' "$EVIDRA_HEAD" > "$WORK/evaluated-commit.txt"
 
 FAILED=0
 for beh in $BEHAVIORS; do
