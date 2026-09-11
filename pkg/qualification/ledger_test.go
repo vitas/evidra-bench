@@ -194,3 +194,18 @@ func TestBuildRevisionIsImmutable(t *testing.T) {
 		t.Fatal("fallback must still report something")
 	}
 }
+
+func TestProviderPinCanonicalizes(t *testing.T) {
+	for _, in := range [][2]string{
+		{"kind", "v1.31.2"},
+		{"kind", "kind@v1.31.2"},
+	} {
+		if got := ProviderPin(in[0], in[1]); got != "kind@v1.31.2" {
+			t.Fatalf("ProviderPin(%q,%q) = %q", in[0], in[1], got)
+		}
+	}
+	// k3d versions legitimately contain '@': only the provider prefix is stripped.
+	if got := ProviderPin("k3d", "k3d@v1.31.5+k3s1"); got != "k3d@v1.31.5+k3s1" {
+		t.Fatalf("k3d pin broken: %q", got)
+	}
+}

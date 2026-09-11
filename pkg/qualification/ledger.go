@@ -300,6 +300,18 @@ func BuildRevision() string {
 	return short
 }
 
+// ProviderPin assembles the canonical "<provider>@<version>" ledger pin.
+// The run side passes a bare gitVersion, P10-era operators passed the
+// already-prefixed form; both must land on one shape, or a correctly
+// pinned ledger silently gates (field-caught in re-qualification).
+func ProviderPin(provider, version string) string {
+	v := strings.TrimSpace(version)
+	if stripped, ok := strings.CutPrefix(v, provider+"@"); ok {
+		v = stripped
+	}
+	return provider + "@" + v
+}
+
 // providersCover: every live pin must be in the recorded set.
 func providersCover(recorded, live []string) bool {
 	if len(live) == 0 {

@@ -32,7 +32,7 @@ func ComputeQualification(ctx context.Context, s *scenario.Scenario, adminKubeco
 		Scenario:       mustHash(qualification.HashFile(scenarioFile)),
 		Fixtures:       hashFixtures(s),
 		ComponentRevis: qualification.BuildRevision(),
-		Providers:      []string{provider + "@" + versionOrProbe(ctx, adminKubeconfig, providerVersion)},
+		Providers:      []string{qualification.ProviderPin(provider, versionOrProbe(ctx, adminKubeconfig, providerVersion))},
 	}
 	if profileYAML, err := yaml.Marshal(s.AuthorityProfile); err == nil {
 		in.AuthorityPolicy = qualification.HashBytes(profileYAML)
