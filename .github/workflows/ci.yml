@@ -138,6 +138,35 @@ jobs:
         run: bash tests/smoke/run_docker_one_command_smoke.sh ${{ matrix.provider }}
 
 
+  case-contract-smoke:
+    name: Case-contract smoke (${{ matrix.provider }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - provider: kind
+            when: true
+          - provider: k3d
+            when: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ matrix.when }}
+    env:
+      EVIDRA_CONTRACT_IMAGE: evidra-bench:contract-ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          path: bench
+
+      - name: Build runner image
+        run: docker build -f bench/Dockerfile.bench -t evidra-bench:contract-ci bench
+
+      - name: Smoke (${{ matrix.provider }})
+        working-directory: bench
+        run: bash tests/contract/run_case_contract_smoke.sh ${{ matrix.provider }}
+
+
   docker-local-model-smoke:
     name: Docker local-model smoke (fake Ollama)
     runs-on: ubuntu-latest
