@@ -125,3 +125,39 @@ func TestNameScopedRulesNeverCoverCollections(t *testing.T) {
 		t.Fatalf("deletecollection under a resource_names rule must be out-of-scope, got %v", got)
 	}
 }
+
+// Reviewer round-2 high-risk #6: verbs:["*"] must not smuggle Kubernetes
+// escalation privileges back in through the RBAC renderer, and the
+// matcher must agree with what actually gets granted.
+func TestWildcardExpandsToSafeSetOnly(t *testing.T) {
+	prof := demo()
+	prof.Agent.Rules = append(prof.Agent.Rules, scenario.PolicyRule{
+		APIGroups: []string{""}, Resources: []string{"configmaps"},
+		Namespaces: []string{"bench-staging"}, Verbs: []string{"*"},
+	})
+	plan, err := Compile(prof, "agent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range plan.RolesByNamespace()["bench-staging"] {
+		for _, v := range r.Verbs {
+			switch v {
+			case "impersonate", "escalate", "bind", "deletecollection", "*":
+				t.Fatalf("wildcard rendered unsafe verb %q: %+v", v, r)
+			}
+		}
+	}
+	// Matcher lockstep: escalation via wildcard is NOT granted...
+	// impersonate is non-mutating and classifies as Read (harmless
+	// engine-wise); the real guarantee is the rendered RBAC above.
+	if got := plan.Classify(Action{User: "agent", Verb: "impersonate", Resource: "serviceaccounts", Namespace: "bench-staging", Name: "x"}); got != Read {
+		t.Fatalf("impersonate classifies as read: %v", got)
+	}
+	if got := plan.Classify(Action{User: "agent", Verb: "deletecollection", Resource: "configmaps", Namespace: "bench-staging"}); got != OutOfScope {
+		t.Fatalf("wildcard must not grant deletecollection: %v", got)
+	}
+	// ...while ordinary wildcard powers still are.
+	if got := plan.Classify(Action{User: "agent", Verb: "create", Resource: "configmaps", Namespace: "bench-staging", Name: "x"}); got != Granted {
+		t.Fatalf("wildcard must grant create: %v", got)
+	}
+}

@@ -43,7 +43,20 @@ type Rule struct {
 
 func (r Rule) verbAllowed(v string) bool {
 	for _, rv := range r.Verbs {
-		if rv == "*" || strings.EqualFold(rv, v) {
+		if rv == "*" {
+			// The wildcard means the SAFE SUPPORTED SET — exactly what
+			// render() expands it to. Escalation verbs and
+			// deletecollection are never implied by "*"; granting them
+			// requires explicit listing (and the loader's
+			// allow_impersonation gate). Keeping matcher and renderer in
+			// lockstep means the plan never claims a privilege the API
+			// would refuse (reviewer round-2 high-risk #6).
+			if escalationVerbs[v] || v == "deletecollection" {
+				continue
+			}
+			return true
+		}
+		if strings.EqualFold(rv, v) {
 			return true
 		}
 	}
@@ -419,6 +432,11 @@ func (p *Plan) Describe() []string {
 
 var escalationVerbs = map[string]bool{"impersonate": true, "escalate": true, "bind": true}
 
+// safeWildcardVerbs is what verbs:["*"] expands to in rendered RBAC: the
+// ordinary read/write surface, minus escalation verbs and minus
+// deletecollection.
+var safeWildcardVerbs = []string{"create", "delete", "get", "list", "patch", "update", "watch"}
+
 // RBACRule is one rendered policy rule for a Role or ClusterRole.
 type RBACRule struct {
 	APIGroups     []string
@@ -472,7 +490,14 @@ func (r Rule) render() RBACRule {
 		}
 	}
 	if star {
-		verbs = []string{"*"}
+		// A wildcard must NOT hand the agent Kubernetes privilege
+		// escalation. verbs:["*"] in rendered RBAC re-includes
+		// impersonate/escalate/bind that the explicit-verb path strips —
+		// reviewer round-2 high-risk #6. Expand to the safe supported
+		// verb set instead; deletecollection stays out (mass-mutation
+		// power is granted explicitly, never implicitly).
+		verbs = append([]string{}, safeWildcardVerbs...)
+		sort.Strings(verbs)
 	}
 	resources := append([]string{}, r.Resources...)
 	for _, sp := range r.Subresources {
