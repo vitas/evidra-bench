@@ -24,7 +24,7 @@ EVIDRA_COMMIT="${EVIDRA_COMMIT:-$(git -C "$HERE/../.." rev-parse HEAD)}"
 # into the binary, and the ledger-carrying commit can never equal the
 # commit its ledger records (reviewer round-2 blocker #2). Override
 # EVIDRA_HEAD only for forensics on an older tree.
-EVIDRA_HEAD="${EVIDRA_HEAD:-$(git -C "$HERE/../.." ./tools/code-revision.sh)}"
+EVIDRA_HEAD="${EVIDRA_HEAD:-$(bash "$HERE/../../tools/code-revision.sh")}"
 # Image build happens up here — far from the run loop at the bottom:
 # bash reloads a running script by byte offset, so a mid-run edit of
 # this file can splice garbage (a k3d leg died that way when a docs
