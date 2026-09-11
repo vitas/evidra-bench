@@ -18,3 +18,18 @@ tree, stamped with the digest above):
 
 The legs' commit attestations are kept verbatim; bundles for full tree
 forensics live in the runner work dirs (/tmp/qGkind, /tmp/qGk3d).
+
+## Confirmation on the ledger-carrying tree (no PRE_RECORD)
+
+Run leg: commit `a2c5714255f9` (this tree — it already carries the three
+ledgers), image stamped `code-02fb086cc35a` — and `git diff a2c5714
+8e49d09` over `*.go,go.mod,go.sum` is empty: the binary's code is
+byte-identical to what both matrices certified. This is the property the
+digest identity buys: **the artifact satisfies its own ledger on the
+committed tree**, without softening anything (EVIDRA_Q_PRE_RECORD unset).
+
+`observed/` holds all five known-good slots: 15/15 rows
+`qualified=true` with `qualified_pending_record` absent, coverage
+complete, zero MISMATCH. The same assertion now runs in CI on every push
+(qualification smoke, both providers) — the gate-opening is no longer a
+local claim, it is a release-blocking check.

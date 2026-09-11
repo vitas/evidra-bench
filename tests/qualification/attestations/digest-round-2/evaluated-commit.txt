@@ -1,0 +1,2 @@
+commit=a2c5714255f97bf67e08649adef4326df4f0b430 tree=465162bb962a0d05d68aa7a3baaf5272d72fd05c parent=8e49d094ca15a1dde2315795cbe919050d41d830 subject=feat(qualification): ledgers granted ON THIS ARTIFACT — the cycle is broken
+stamp=code-02fb086cc35a821cb4a718e63a35dc7a25279d6d
