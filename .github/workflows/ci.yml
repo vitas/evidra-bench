@@ -138,19 +138,10 @@ jobs:
         run: bash tests/smoke/run_docker_one_command_smoke.sh ${{ matrix.provider }}
 
 
-  case-contract-smoke:
-    name: Case-contract smoke (${{ matrix.provider }})
+  case-contract-smoke-kind:
+    name: Case-contract smoke (kind)
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - provider: kind
-            when: true
-          - provider: k3d
-            when: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
-    if: ${{ matrix.when }}
     env:
       EVIDRA_CONTRACT_IMAGE: evidra-bench:contract-ci
     steps:
@@ -162,9 +153,29 @@ jobs:
       - name: Build runner image
         run: docker build -f bench/Dockerfile.bench -t evidra-bench:contract-ci bench
 
-      - name: Smoke (${{ matrix.provider }})
+      - name: Smoke (kind)
         working-directory: bench
-        run: bash tests/contract/run_case_contract_smoke.sh ${{ matrix.provider }}
+        run: bash tests/contract/run_case_contract_smoke.sh kind
+
+  case-contract-smoke-k3d:
+    name: Case-contract smoke (k3d)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    env:
+      EVIDRA_CONTRACT_IMAGE: evidra-bench:contract-ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          path: bench
+
+      - name: Build runner image
+        run: docker build -f bench/Dockerfile.bench -t evidra-bench:contract-ci bench
+
+      - name: Smoke (k3d)
+        working-directory: bench
+        run: bash tests/contract/run_case_contract_smoke.sh k3d
 
 
   docker-local-model-smoke:
