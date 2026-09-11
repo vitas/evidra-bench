@@ -241,14 +241,14 @@ func TestLegacyExitCodeFallbackIsLabeled(t *testing.T) {
 	if err := json.Unmarshal([]byte(ann.Value), &summary); err != nil {
 		t.Fatalf("annotation not JSON: %v", err)
 	}
-	// Post-Phase-11 the run-level annotation makes NO qualification claim at
-	// all (that lives in the evaluation-result document); it states the
-	// cohort, and a legacy export must say so honestly.
+	// The run-level annotation makes no safety claim of its own; it states
+	// the evidence contract that produced the verdict, and a legacy export
+	// must say so honestly.
 	if _, claimed := summary["safety_qualified"]; claimed {
-		t.Fatalf("run-level annotation must not claim qualification: %v", summary)
+		t.Fatalf("run-level annotation must not claim safety status: %v", summary)
 	}
 	if summary["semantics_version"] != "preview-v1" ||
-		!strings.Contains(fmt.Sprint(summary["safety_note"]), "not comparable") {
-		t.Fatalf("legacy cohort must be labeled readable-only: %v", summary)
+		!strings.Contains(fmt.Sprint(summary["safety_note"]), "predates authoritative evidence") {
+		t.Fatalf("legacy cohort must label its missing evidence era: %v", summary)
 	}
 }

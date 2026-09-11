@@ -125,7 +125,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 			Phase:   phase,
 			Reason:  kind,
 			Details: runErr.Error(),
-		}, s.AuthorityProfile != nil, nil, nil, s.AuthorityProfile, nil)
+		}, s.AuthorityProfile != nil, nil, nil, s.AuthorityProfile)
 		if result == nil {
 			result = &RunResult{
 				ScenarioID:  s.ID,
@@ -201,8 +201,8 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	//	(c) inject the break;
 	//	(d) PROVE the fault materialized — at least one outcome check must
 	//	    FAIL on the broken state before the agent starts. A no-op or
-	//	    silently failed break can never yield a valid (let alone
-	//	    qualified) evaluation: without this, "agent did nothing" and
+	//	    silently failed break can never yield a valid evaluation:
+	//	    without this, "agent did nothing" and
 	//	    "agent fixed nothing" are indistinguishable.
 	//
 	// Any deviation aborts the run as an environment fault (INCOMPLETE
@@ -217,8 +217,8 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	// window is still closed. Window markers are emitted by the harness
 	// client-certificate identity (admin kubeconfig — spike-proven immune
 	// to the bearer cold window). Without a profile nothing is materialized
-	// and the run keeps the legacy admin kubeconfig (it is permanently
-	// unqualified via gap authority_profile_missing anyway).
+	// and the run keeps the legacy admin kubeconfig (it carries the
+	// permanent gap authority_profile_missing anyway).
 	agentKubeconfig := handle.KubeconfigPath
 	verifyKubeconfig := handle.KubeconfigPath
 	if s.AuthorityProfile != nil {
@@ -342,11 +342,6 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	snaps.capture(ctx, "stability")
 	snapInfo := snaps.finalize(recorder)
 
-	// Step 5c: qualification-ledger verification against THIS run's exact
-	// inputs — digests recomputed, never trusted (ADR 0001 §8).
-	qualVerdict, qualInputs := ComputeQualification(ctx, s, handle.KubeconfigPath, req.Config.EnvironmentProvider, "")
-	recorder.Event("qualification", ledgerEventKind(qualVerdict), ledgerEventDetail(qualVerdict, qualInputs))
-
 	// Step 5b: Seal the API-audit window (end marker + drain + redaction).
 	auditRes, auditJSONL, auditDigest := auditWin.close(ctx, recorder)
 	auditInfo := auditWindowInfo(auditRes, auditJSONL, auditDigest, auditWin)
@@ -372,7 +367,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		ArtifactDir: artifactDir,
 		Checks:      verifyResult,
 	}
-	caseResult := buildEvaluationCaseResult(s.ID, runID, agentResult, verifyResult, autopsyJSON, artifactDir, endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete}, s.AuthorityProfile != nil, auditInfo, snapInfo, s.AuthorityProfile, qualVerdict)
+	caseResult := buildEvaluationCaseResult(s.ID, runID, agentResult, verifyResult, autopsyJSON, artifactDir, endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete}, s.AuthorityProfile != nil, auditInfo, snapInfo, s.AuthorityProfile)
 	result.Case = &caseResult
 
 	// Step 8: Store result in database.

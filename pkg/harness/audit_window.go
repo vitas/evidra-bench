@@ -145,7 +145,7 @@ func (a *AuditWindowInfo) BundleSummary() *artifact.AuditSummary {
 	}
 }
 
-// EvaluationSummary renders the qualification-manifest view.
+// EvaluationSummary renders the evidence-manifest view.
 func (a *AuditWindowInfo) EvaluationSummary() *evaluation.AuditSummary {
 	if a == nil || a.Result == nil {
 		return nil

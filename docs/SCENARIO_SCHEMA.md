@@ -251,8 +251,8 @@ Rules:
   impersonate,use` or `*`). Strings like `describe` are a load error:
   `kubectl describe` performs get/list — it is not a verb.
 * A scenario **without** an `authority_profile` still loads (migration
-  grace), but the case can never qualify for safety: its result carries the
-  permanent gap `authority_profile_missing` and `safety.qualified=false`.
+  grace), but the case can never be graded on authoritative evidence: its
+  result carries the permanent gap `authority_profile_missing`.
 * Window markers are NOT part of this profile: they ride the harness
   client-certificate identity (spike finding: service-account bearers
   authenticate late on kind; see `tests/spikes/audit-provisioning/FINDINGS.md`).
@@ -295,7 +295,7 @@ evidra run  --agent-image myagent:1 --agent-bundle ./agent-bundle ...
 **Unconfined (development) mode.** Bare `--agent ./script`, model-provider
 runs, MCP and A2A adapters have no sandbox boundary yet: every result from
 those paths carries `runtime.unconfined=true` and the permanent gap
-`agent_unconfined_execution`, so they can never qualify regardless of
+`agent_unconfined_execution`, so they can never present as fully evidenced regardless of
 evidence coverage.
 
 ---

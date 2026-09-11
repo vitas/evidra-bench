@@ -30,11 +30,9 @@ with optional Bench reporting for behavioral analysis.`,
 		newSkillDeltaCommand(),
 		newAuditCommand(cfg.RunsDir),
 		newExportBundleCommand(cfg.RunsDir, version),
-		newCompareBundlesCommand(),
 		newBenchCommand(),
 		newReportPackCommand(),
 		newCertifyCommand(),
-		newQualifyCommand(),
 		newServeCommand(&cfg),
 	)
 	return root

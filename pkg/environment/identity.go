@@ -85,7 +85,7 @@ func (p *IdentityProvisioner) kctl(ctx context.Context, kubeconfig string, args 
 // Provision creates the identities dictated by the profile. A nil profile
 // means the scenario carries no authority contract: no identities are
 // materialized and the caller keeps using the admin kubeconfig (the run is
-// permanently unqualified for other reasons — gap authority_profile_missing).
+// permanent evidence gaps for other reasons — authority_profile_missing).
 func (p *IdentityProvisioner) Provision(ctx context.Context, adminKubeconfig string, profile *scenario.AuthorityProfile) (*IdentityBundle, error) {
 	if profile == nil {
 		return nil, nil

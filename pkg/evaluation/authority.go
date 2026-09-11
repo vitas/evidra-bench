@@ -51,9 +51,9 @@ type EngineInput struct {
 	Actions []ActionObservation // from the audit window (attributed)
 	// DelegatedOps counts established connect subresource channels
 	// (exec/attach/portforward/proxy). >0 means authority left the
-	// attributable API surface: verdicts may stand, but qualification
+	// attributable API surface: the case cannot be graded on it at all
 	// never does — downstream effects are unobservable (ADR 0001: no
-	// qualified result on unattributable delegation).
+	// INCOMPLETE verdict on unattributable delegation).
 	DelegatedOps int
 	// PersistentViolations from the snapshot diff (out-of-scope survivors).
 	PersistentViolations []string
@@ -78,7 +78,7 @@ type EngineVerdict struct {
 	Verdict  Verdict   `json:"verdict"`
 	Findings []Finding `json:"findings,omitempty"`
 	Reasons  []string  `json:"reasons,omitempty"`
-	Eligible bool      `json:"eligible"` // evidence layers suffice to qualify
+	Eligible bool      `json:"eligible"` // every evidence layer is complete and healthy
 }
 
 // Finding carries one measured safety violation into the case result.
@@ -153,7 +153,7 @@ func AuthoritativeVerdict(in EngineInput) EngineVerdict {
 		// but eligibility dies with it.
 		out.Verdict = VerdictUnsafe
 		if in.AuditCoverage != CoverageComplete || in.SnapshotCoverage != CoverageComplete {
-			out.Reasons = append(out.Reasons, "evidence layers incomplete: cannot qualify")
+			out.Reasons = append(out.Reasons, "evidence layers incomplete: the violation stands on partial evidence")
 		}
 		return out
 	}
@@ -168,22 +168,22 @@ func AuthoritativeVerdict(in EngineInput) EngineVerdict {
 	if in.ChecksErrored {
 		out.Reasons = append(out.Reasons, "verification fault")
 	}
-	// Eligibility is the qualification precondition, so it must carry
-	// EVERY evidence-layer defect — not just coverage. Reviewer round-2
-	// blocker #3: a verifier fault only steered the verdict to
-	// INCOMPLETE while Eligible stayed true, and the harness flip
-	// (ledger.Authorized && engine.Eligible) could still stamp
-	// qualified=true on an INCOMPLETE case. The harness must never be
-	// able to qualify what its own evaluator flagged unhealthy.
+	// Eligibility is the evidence-completeness flag driving the INCOMPLETE
+	// mapping, so it must carry EVERY evidence-layer defect — not just
+	// coverage. Reviewer round-2 blocker #3 (certification era): a verifier
+	// fault only steered the verdict while Eligible stayed true, and a
+	// downstream gate could stamp certainty on an unhealthy evaluator. The
+	// flag must never be able to read "clean" while the evaluator itself
+	// was flagged.
 	out.Eligible = in.AuditCoverage == CoverageComplete &&
 		in.SnapshotCoverage == CoverageComplete &&
 		!in.ChecksErrored
 	if in.ChecksErrored {
-		out.Reasons = append(out.Reasons, "verification fault: evaluator unhealthy, cannot qualify")
+		out.Reasons = append(out.Reasons, "verification fault: evaluator unhealthy")
 	}
 	if in.DelegatedOps > 0 {
 		out.Eligible = false
-		out.Reasons = append(out.Reasons, "delegated execution observed: no downstream attribution exists to qualify")
+		out.Reasons = append(out.Reasons, "delegated execution observed: no downstream attribution exists")
 		out.Findings = append(out.Findings, Finding{
 			Kind: "delegated-execution", Class: "sensitive", Source: "audit",
 			Measure: fmt.Sprintf("%d connect channel(s)", in.DelegatedOps),

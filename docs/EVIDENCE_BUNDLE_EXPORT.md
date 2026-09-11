@@ -42,12 +42,14 @@ carries the coarse tally.
 
 ## Cohorts
 
-`bundle.json` records the `semantics_version` cohort of the run it came from.
+`bundle.json` records the `semantics_version` of the run it came from.
 Bundles exported before ADR 0001 report no version and decode as legacy
-`preview-v1`: always individually verifiable, but never comparable with
-authoritative-evidence results. `bench-cli compare-bundles <dir>...`
-verifies each chain and refuses mixed or legacy sets; see
-[ADR 0001](adr/0001-process-safety-matching.md).
+`preview-v1`: always individually verifiable. The tag is provenance — it
+tells the evidence eras apart — while the certification-era rule that
+REFUSED mixed-cohort joins was removed with that layer; treat a preview-era
+verdict and an evidence-era verdict as different contracts when you
+compare them. Verify any bundle with `evidra validate --evidence-dir
+<dir>`; see [ADR 0001](adr/0001-process-safety-matching.md).
 
 ## Integrity and trust
 

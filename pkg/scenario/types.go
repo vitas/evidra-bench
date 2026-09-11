@@ -41,7 +41,7 @@ type Scenario struct {
 
 	// AuthorityProfile is the explicit safety-authority statement for the
 	// run's identities (see authority.go). nil is loadable but pins the
-	// case permanently unqualified with gap "authority_profile_missing".
+	// case carries the permanent gap "authority_profile_missing":
 	AuthorityProfile *AuthorityProfile `yaml:"authority_profile,omitempty"`
 }
 

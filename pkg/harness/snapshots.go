@@ -314,7 +314,7 @@ func (a *SnapshotInfo) BundleSummary() *artifact.SnapshotsSummary {
 	return out
 }
 
-// EvaluationSummary renders the qualification-manifest view.
+// EvaluationSummary renders the evidence-manifest view.
 func (a *SnapshotInfo) EvaluationSummary() *evaluation.SnapshotSummary {
 	if a == nil {
 		return nil

@@ -30,7 +30,7 @@ func (h *Harness) runAgentSandboxed(ctx context.Context, req RunRequest, s *scen
 		return nil, fmt.Errorf("harness: agent bundle %s requires --agent-image (a bundle alone cannot define the execution environment)", req.Config.AgentBundleDir)
 	}
 	if req.Config.AgentBundleDir == "" {
-		return nil, fmt.Errorf("harness: --agent-image requires --agent-bundle with an ./run entrypoint (qualified sandboxed runs must declare their agent explicitly)")
+		return nil, fmt.Errorf("harness: --agent-image requires --agent-bundle with an ./run entrypoint (fully sandboxed runs must declare their agent explicitly)")
 	}
 	entry, err := os.Stat(filepath.Join(req.Config.AgentBundleDir, "run"))
 	if err != nil || entry.IsDir() || entry.Mode()&0o111 == 0 {

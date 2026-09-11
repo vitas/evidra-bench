@@ -14,7 +14,7 @@ import (
 // v1beta3 pod patches without error, leaving a cluster that LOOKS fine but
 // records no audit (kindest/node image pinning is the mitigation, this
 // check is the backstop). A run whose audit plumbing is not verified can
-// never be qualified, so every collector pass starts with health.
+// be trusted, so every collector pass starts with health.
 type Health struct {
 	Node              string
 	ManifestHasFlags  bool `json:"apiserver_args"`

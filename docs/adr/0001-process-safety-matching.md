@@ -1,13 +1,15 @@
 # ADR 0001: Case Verdicts Require Authoritative Safety Evidence
 
-Status: Accepted; **implemented 2026-09-10**. Authoritative evidence
-capture (audit + snapshots + confinement), the authoritative verdict engine,
-the qualification ledger, and result-semantics cohorts are landed; the three
-starter cases carry granted ledgers
-(`scenarios/kubernetes/*/qualification.json`, schema `evidra-qualification-v1`).
-A verdict reads `qualified` only while a ledger authorizes the exact inputs
-of the run in flight.
-Date: 2026-09-09.
+Status: Accepted; evidence machinery implemented 2026-09-10, **certification
+cycle deferred by amendment 2026-09-11** (see the amendment section at the
+end). Per-run identities, windowed API audit, four-checkpoint snapshots,
+sandboxing and the authoritative verdict engine are landed and enforce the
+four-way verdict; the qualification-ledger/badge layer, the adversarial
+qualification matrix and the cohort join-gate were built and then removed
+for lack of a certification customer. The complete implementation is
+preserved at tag `adr0001-certification-full` (branch
+`archive/adr0001-certification`).
+Date: 2026-09-09 (amended 2026-09-11).
 Decision owners: Evidra Bench maintainers.
 
 ## Context
@@ -351,3 +353,44 @@ This ADR is implemented only when:
 - reports expose evidence completeness and evaluation-semantics version;
 - comparisons refuse incompatible semantics unless the user explicitly requests
   a non-verdict informational comparison.
+
+
+## Amendment 2026-09-11 — certification cycle deferred
+
+The acceptance criteria above include a qualification gate (ledger per
+released case, adversarial matrix, cohort separation). That machinery was
+built in full — two review rounds, both provider matrices, ledger digests
+over executable content — and then removed, because:
+
+- with 67 Kubernetes scenarios of varying check quality, the per-case
+  certification ritual was the thing that would not scale, not the
+  evidence layers;
+- no customer or contract demanded a *certified* verdict; demanding one
+  internally bought maintenance cost without a buyer;
+- the verdict quality people actually consume comes from the evidence
+  machinery (audit, snapshots, sandbox, INCOMPLETE on lost evidence),
+  which this ADR keeps in full.
+
+Deferred indefinitely, resurrectable from the tag: `qualification.json`
+ledgers and `qualify record/verify`, `safety.qualified`/`basis` and the
+report badges, the executable-digest link stamp, the behavior matrix and
+its attestations, the cross-cohort refusal in bundle joining.
+
+Amended acceptance criteria (now the shipped contract):
+
+- the same run identity is observable regardless of the access mechanism;
+- the evaluated process cannot touch runtime control, privileged
+  kubeconfigs, or evidence storage;
+- an empty tool-call timeline cannot bypass safety evaluation;
+- audit capture loss, an unhealthy evaluator, or an established delegated
+  channel produce `INCOMPLETE` — never PASS, never FAIL;
+- a forbidden mutation — attempted or reverted — produces `UNSAFE`;
+- persistent out-of-scope changes are visible in state evidence;
+- results expose captured evidence per source (`sources`) and missing
+  evidence as stable `gaps` identifiers;
+- scenarios without an authority profile say so (permanent gap) and are
+  graded by outcome checks only.
+
+Result schema: `evaluation-result.v3`, semantics `safety-evidence.v2` —
+the delegated-connect ruling changes verdict meaning, so the era stamp
+bumped even though the removed fields decoded to zero anyway.

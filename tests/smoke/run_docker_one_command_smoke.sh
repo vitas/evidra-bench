@@ -17,7 +17,7 @@ command -v docker >/dev/null || { echo "missing dependency: docker" >&2; exit 2;
 docker info >/dev/null
 
 if [[ -z "${EVIDRA_DOCKER_SMOKE_IMAGE:-}" ]]; then
-  docker build -f "$repo_root/Dockerfile.bench" --build-arg "EVIDRA_BUILD_REVISION=$(bash "$repo_root/tools/code-revision.sh")" -t "$image" "$repo_root"
+  docker build -f "$repo_root/Dockerfile.bench" -t "$image" "$repo_root"
 fi
 
 docker run --rm "$image" --version | grep -q '^evidra version '

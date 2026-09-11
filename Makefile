@@ -1,16 +1,10 @@
 BINARY := bench-cli
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
-# Full source revision for the immutable ledger stamp (must match the
-# Dockerfile ARG value fed to the same -X symbol).
-# Executable identity, not a commit sha: the qualification ledger must be
-# passable by the tip artifact (ledgers/attestations/docs cannot move this
-# digest; any shipped .go file can). See tools/code-revision.sh.
-REVISION ?= $(shell ./tools/code-revision.sh 2>/dev/null || echo unknown)
 BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 GO_VERSION ?= $(shell awk '/^go / { print $$2 }' go.mod)
 GOVULNCHECK_TOOLCHAIN ?= go$(GO_VERSION)
-LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(BUILD_DATE) -X github.com/vitas/evidra-bench/pkg/qualification.buildRevision=$(REVISION)"
+LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(BUILD_DATE)"
 
 .PHONY: build db-import test test-race fmt lint vuln tidy clean smoke public-smoke public-smoke-test private-review-smoke private-review-smoke-test catalog ui-install ui-dev ui-build ui-docker docker-bench docker-contract docker-one-command-smoke
 

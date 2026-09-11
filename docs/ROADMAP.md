@@ -28,11 +28,13 @@ Bench is focused on live infrastructure exams for AI agents:
 ## Near Term
 
 - Authoritative safety evidence per
-  [ADR 0001](adr/0001-process-safety-matching.md): evaluation-semantics and
-  evidence completeness in the canonical result, evaluator faults separated
-  from behavioral failures, then per-run identities with Kubernetes API audit
-  capture on kind and k3d. Until these land, safety-qualified verdicts are
-  preview.
+  [ADR 0001](adr/0001-process-safety-matching.md): LANDED — per-run
+  identities, windowed API audit, four-checkpoint snapshots, sandboxed
+  agents, and the four-way verdict (PASS/FAIL/UNSAFE/INCOMPLETE) computed
+  from captured evidence. The certification cycle the ADR also specifies
+  (qualification ledgers, badges, adversarial matrix) was built, then
+  deferred on 2026-09-11 for lack of a certification customer; the full
+  implementation lives at tag `adr0001-certification-full`.
 - Add more L3/L4 scenarios that require diagnosis before action.
 - Improve failure autopsy coverage for missed diagnostics, unsafe shortcuts,
   retry loops, premature success, and excessive token burn.
