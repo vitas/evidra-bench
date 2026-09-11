@@ -314,3 +314,79 @@ func TestWindowToleratesInWindowStreamingOps(t *testing.T) {
 		t.Fatalf("only the plain non-terminal GET may penalize: %v", w.Incomplete)
 	}
 }
+
+// seqSource serves a scripted sequence of read results (rotation drills).
+type seqSource struct {
+	name  string
+	steps [][]byte
+	errs  []error
+	i     int
+}
+
+func (s *seqSource) NodeName() string { return s.name }
+
+func (s *seqSource) Read(context.Context) ([]byte, error) {
+	i := s.i
+	if i >= len(s.steps) {
+		i = len(s.steps) - 1
+	}
+	s.i++
+	if s.errs != nil && i < len(s.errs) && s.errs[i] != nil {
+		return nil, s.errs[i]
+	}
+	return s.steps[i], nil
+}
+
+func TestCollectRotationFailsClosed(t *testing.T) {
+	t0 := time.Now().Add(-time.Minute)
+	mk := func(events ...Event) []byte { return jsonl(t, events...) }
+	start := ev("m1", StageResponseComplete, "/api/v1/namespaces/evidra-system/configmaps/evidra-marker-START1", "system:admin", "get", t0)
+	end := ev("m2", StageResponseComplete, "/api/v1/namespaces/evidra-system/configmaps/evidra-marker-END2", "system:admin", "get", t0.Add(3*time.Second))
+	lost := ev("a1", StageResponseComplete, "/apis/apps/v1/namespaces/bench/deployments/web", "agent", "patch", t0.Add(time.Second))
+
+	// Case 1: file identity changes between polls (post-rotation file has
+	// the end marker; the mutated prefix proves replacement). Both markers
+	// are observed — COMPLETE must still be refused.
+	src := &seqSource{name: "node1", steps: [][]byte{
+		mk(start, lost),        // poll 1: start + agent patch visible
+		mk(start, lost),        // poll 2: unchanged
+		mk(end),                // poll 3: NEW FILE: end marker only
+	}}
+	res, err := Collect(context.Background(), CollectRequest{
+		Sources: []Source{src}, StartNonce: "evidra-marker-START1", EndNonce: "evidra-marker-END2",
+		MarkerUsername: "system:admin", Deadline: time.Now().Add(3 * time.Second), Poll: 5 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Coverage == CoverageComplete {
+		t.Fatal("rotation must never yield CoverageComplete")
+	}
+	if !containsReason(res.Reasons, ReasonLogRotated) {
+		t.Fatalf("want log_rotated reason, got %v", res.Reasons)
+	}
+
+	// Case 2: sources surface the ErrLogRotated sentinel directly.
+	src2 := &seqSource{name: "node2", steps: [][]byte{
+		mk(start), nil, mk(end), mk(end),
+	}, errs: []error{nil, ErrLogRotated, nil, nil}}
+	res2, err := Collect(context.Background(), CollectRequest{
+		Sources: []Source{src2}, StartNonce: "evidra-marker-START1", EndNonce: "evidra-marker-END2",
+		MarkerUsername: "system:admin", Deadline: time.Now().Add(3 * time.Second), Poll: 5 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res2.Coverage == CoverageComplete || !containsReason(res2.Reasons, ReasonLogRotated) {
+		t.Fatalf("sentinel rotation must fail closed: %q %v", res2.Coverage, res2.Reasons)
+	}
+}
+
+func containsReason(reasons []string, want string) bool {
+	for _, r := range reasons {
+		if strings.Contains(r, want) {
+			return true
+		}
+	}
+	return false
+}

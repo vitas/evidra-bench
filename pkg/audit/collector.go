@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"time"
 )
@@ -33,7 +34,16 @@ const (
 	ReasonNonTerminalOps  = "operations without terminal stage at drain end"
 	ReasonReaderFailure   = "audit log reader failed on one or more nodes"
 	ReasonUnparseableJSON = "audit log lines failed JSON decode"
+	// ReasonLogRotated marks a window whose backing file changed under
+	// the collector; events written into the gap are unrecoverable.
+	ReasonLogRotated = "log_rotated"
 )
+
+// ErrLogRotated signals that the audit log was rotated or replaced while
+// a window was open: v1 fail-closes on it (the spike FINDINGS prescribe
+// inode/size regression => incomplete: log_rotated). A full
+// rotation-chain reader could relax this later.
+var ErrLogRotated = errors.New("audit log rotated mid-window")
 
 // Source reads one node's audit log content (whole file; the drain loop
 // re-reads incrementally and dedupes by (auditID, stage)).
@@ -82,7 +92,7 @@ func (d DockerExecSource) Read(ctx context.Context) ([]byte, error) {
 		// Rotation: audit.log may vanish briefly while audit.log.<ts>
 		// exists; tolerate ENOENT only if some rotated file is listed.
 		if isNoFileError(err) && d.rotatedExists(cctx) {
-			return nil, nil
+			return nil, ErrLogRotated
 		}
 		return nil, fmt.Errorf("audit: docker exec %s cat %s: %w", d.Container, d.Path, err)
 	}
@@ -156,6 +166,8 @@ func Collect(ctx context.Context, req CollectRequest) (*Result, error) {
 	}
 	store := NewStore()
 	res := &Result{Store: store}
+	seen := map[string][]byte{}  // per-node last full read
+	rotated := map[string]bool{} // nodes whose file identity changed
 	deadline := req.Deadline
 	if deadline.IsZero() {
 		deadline = time.Now().Add(60 * time.Second)
@@ -170,9 +182,20 @@ func Collect(ctx context.Context, req CollectRequest) (*Result, error) {
 			data, err := src.Read(ctx)
 			if err != nil {
 				failures++
+				if errors.Is(err, ErrLogRotated) {
+					rotated[src.NodeName()] = true
+				}
 				res.NodeFailures = append(res.NodeFailures, src.NodeName()+": "+err.Error())
 				continue
 			}
+			// A full re-read shorter than, or diverging from the prefix
+			// of, the previous read proves the file was replaced: an
+			// append-only log cannot regress on its own.
+			if prev := seen[src.NodeName()]; len(prev) > 0 &&
+				(len(data) < len(prev) || string(data[:len(prev)]) != string(prev)) {
+				rotated[src.NodeName()] = true
+			}
+			seen[src.NodeName()] = data
 			st := Parse(data)
 			parse.Lines += st.Lines
 			parse.Bad += st.Bad
@@ -204,9 +227,14 @@ func Collect(ctx context.Context, req CollectRequest) (*Result, error) {
 	res.Parse = parse
 
 	switch {
-	case lastFailures == len(req.Sources):
+	case lastFailures == len(req.Sources) && len(rotated) == 0:
 		res.Coverage, res.Reasons = CoverageAbsent, append(res.Reasons, ReasonReaderFailure)
 		res.NodeFailures = nil // one clean reason beats N repeats
+		return res, nil
+	case lastFailures == len(req.Sources) && !haveStart:
+		// rotated before the start marker ever landed: nothing in the
+		// window is trustworthy, but the reason is rotation, not absence.
+		res.Coverage, res.Reasons = CoverageIncomplete, append(res.Reasons, ReasonLogRotated)
 		return res, nil
 	case !haveStart:
 		res.Coverage = CoverageIncomplete
@@ -218,6 +246,14 @@ func Collect(ctx context.Context, req CollectRequest) (*Result, error) {
 		res.StartEvent, res.EndEvent = start, end
 		res.Window = store.Window(start, end)
 		switch {
+		case len(rotated) > 0:
+			res.Coverage = CoverageIncomplete
+			nodes := make([]string, 0, len(rotated))
+			for n := range rotated {
+				nodes = append(nodes, n)
+			}
+			sort.Strings(nodes)
+			res.Reasons = append(res.Reasons, fmt.Sprintf("%s: %s", ReasonLogRotated, strings.Join(nodes, ",")))
 		case len(res.Window.Incomplete) > 0:
 			res.Coverage = CoverageIncomplete
 			res.Reasons = append(res.Reasons, fmt.Sprintf("%s: %d", ReasonNonTerminalOps, len(res.Window.Incomplete)))
