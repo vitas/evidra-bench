@@ -105,6 +105,11 @@ jobs:
         working-directory: bench/ui
         run: npm run build
 
+      - name: Validate workflow files
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          actionlint .github/workflows/*.yml
+
       - name: Run tests
         working-directory: bench
         run: go test ./... -count=1
