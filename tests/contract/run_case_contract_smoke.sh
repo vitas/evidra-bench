@@ -24,7 +24,13 @@ esac
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 work_dir="$(mktemp -d)"
-trap 'rm -rf "$work_dir"' EXIT
+# The legs run inside a container as root; artifacts land in $work_dir
+# owned by root. Reclaim them before cleanup, always.
+release_ownership() {
+  docker run --rm -v "$work_dir:/out" "${image:-alpine:3.22}" \
+    chown -R "$(id -u):$(id -g)" /out >/dev/null 2>&1 || true
+}
+trap 'release_ownership; rm -rf "$work_dir"' EXIT
 
 log() { printf 'contract-smoke[%s]: %s\n' "$provider" "$*"; }
 
@@ -65,6 +71,7 @@ bench_leg() {
 # check_leg <name> <want-verdict>
 check_leg() {
   local name="$1" want="$2"
+  release_ownership
   local verdict
   verdict="$(python3 "$repo_root/tests/contract/read_verdict.py" "$work_dir/$name" || true)"
   if [[ "$verdict" != "$want" ]]; then
