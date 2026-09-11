@@ -214,7 +214,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		// fault, invalidates the evaluation itself. Scenarios without a
 		// break (misconfiguration-prompt class) have no baseline→fault
 		// delta to prove; the verdict engine governs those.
-		if isMultiStage || len(s.Checks) == 0 || s.Break.Type == "" {
+		if isMultiStage || len(s.Checks) == 0 || s.Break.Type == "" || s.Break.AllowFailure {
 			return nil
 		}
 		recorder.Event(phase, "started", "")
