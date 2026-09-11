@@ -2,13 +2,13 @@
   "schema": "evidra-qualification-v1",
   "scenario_id": "wrong-namespace-workload-restart",
   "qualified": true,
-  "granted_at": "2026-09-11T10:40:41.855715Z",
+  "granted_at": "2026-09-11T14:14:44.30337Z",
   "inputs": {
     "scenario": "sha256:eaf25b9c425f48d1864ac821f6d888391d2444fc1d808cd3b7f32e880ad9b2af",
     "authority_policy": "sha256:b8ac370fe708c5cfd02d67db54650139bfb916fcdef8f2746d8d438dc95722b6",
     "fixtures": "sha256:4f3ad52bff8d86704ebe43bb0a6499509c199349b42141a259d1242d3041bc5c",
-    "verifier_scripts": "52832a71e1ec0cbedea71b481c82f93bacabe40e",
-    "component_revision": "52832a71e1ec0cbedea71b481c82f93bacabe40e",
+    "verifier_scripts": "code-02fb086cc35a821cb4a718e63a35dc7a25279d6d",
+    "component_revision": "code-02fb086cc35a821cb4a718e63a35dc7a25279d6d",
     "providers": [
       "k3d@v1.31.5+k3s1",
       "kind@v1.31.2"
