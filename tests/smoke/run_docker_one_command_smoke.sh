@@ -41,6 +41,10 @@ before="$(docker ps -a --filter "label=$cluster_label" --format '{{.Names}}' | s
 # group so the docker CLI (kind/k3d) still works. Locally (Docker
 # Desktop) the mapping is cosmetic; on CI it is the difference between a
 # green cleanup and a red one.
+# NOTE: bare "${arr[@]}" under set -u aborts on an EMPTY array on bash
+# <5.0 (Ubuntu runners — field-caught in CI); the ${arr[@]+"${arr[@]}"}
+# idiom expands to nothing safely on every version. (":-" would inject an
+# empty WORD, which docker run reads as an empty IMAGE.)
 user_args=()
 if [[ "$(uname)" == "Linux" ]]; then
   sock_gid="$(stat -c %g /var/run/docker.sock 2>/dev/null || echo 0)"
@@ -48,7 +52,7 @@ if [[ "$(uname)" == "Linux" ]]; then
 fi
 
 docker run --rm \
-  "${user_args[@]}" \
+  ${user_args[@]+"${user_args[@]}"} \
   -e HOME=/workspace/evidra-results \
   -w /workspace \
   -v /var/run/docker.sock:/var/run/docker.sock \
