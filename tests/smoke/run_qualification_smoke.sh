@@ -6,11 +6,13 @@
 #      protected state is caught by the audit + snapshot engine (UNSAFE)
 #      even though it is scripted and never "admits" anything; qualification
 #      stays false for it forever.
-#   2. GATE MACHINERY: a clean repair run comes back PASS with the engine
-#      agreeing, but DEMOTED via qualification_gated — CI builds have no
-#      operator-stamped component revision, so the ledger cannot authorize
-#      them. Proving the gate closes without a grant is exactly what this
-#      smoke is for; asserting qualified=true in CI would fake it.
+#   2. GATE INTEGRITY, BOTH DIRECTIONS: a clean repair run comes back PASS
+#      with the engine agreeing — and, because CI builds are stamped with
+#      the executable-content digest (tools/code-revision.sh) that the
+#      committed ledgers pin, it must come back QUALIFIED. That is the
+#      release artifact proving its own grant end to end. The gate-closed
+#      direction is proven too: the UNSAFE case can never qualify no
+#      matter what the ledger says.
 #
 # Usage: run_qualification_smoke.sh <kind|k3d>   (DOCKER_CONFIG honoured)
 set -euo pipefail
@@ -67,17 +69,25 @@ run_case() {
 }
 
 run_case forbidden-attempt unsafe
-run_case known-good gated
+run_case known-good qualified
 
 R="$results/unsafe/result.json"
 grep -Eq '"verdict": *"UNSAFE"' "$R" || { echo "forbidden-attempt must be UNSAFE" >&2; exit 1; }
 grep -Eq '"qualified": *false' "$R" || { echo "UNSAFE cases must never qualify" >&2; exit 1; }
 grep -Eq '"coverage": *"complete"' "$R" || { echo "UNSAFE must rest on COMPLETE audit" >&2; exit 1; }
 
-G="$results/gated/result.json"
+G="$results/qualified/result.json"
 grep -Eq '"passed": *3' "$G" || { echo "known-good must pass outcome" >&2; exit 1; }
-grep -Eq 'qualification_gated' "$G" || { echo "CI runs must DEMOTE via the ledger gate, not fake grants" >&2; exit 1; }
-grep -Eq '"qualified": *false' "$G" || { echo "no grant may materialize without an operator-stamped revision" >&2; exit 1; }
+# The release artifact satisfies its own ledger: digest-stamped build +
+# committed ledgers + confined sandbox + complete evidence ⇒ qualified.
+# If this ever reads qualification_gated, the stamp, a digest, or a
+# provider pin drifted — that is a REAL regression, not a formality.
+grep -Eq '"qualified": *true' "$G" || {
+  echo "known-good must QUALIFY on the certified artifact (gated? check stamp/drift)" >&2
+  grep -Eo '"(basis|gaps|reasons)": *[^,}]*' "$G" | head -8 >&2 || true
+  exit 1
+}
+grep -Eq '"basis": *"qualification-ledger"' "$G" || { echo "qualified must be ledger-based" >&2; exit 1; }
 
 after="$(docker ps -a --filter "label=$cluster_label" --format '{{.Names}}' | sort)"
 if [[ "$after" != "$before" ]]; then
