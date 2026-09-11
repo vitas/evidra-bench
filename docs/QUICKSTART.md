@@ -31,7 +31,13 @@ daemon. Run only agents and test inputs you trust.
 The default environment is kind. From any working directory:
 
 ```bash
+# Linux: run as your own uid so the reports are yours, not root-owned
+# (the docker.sock-owning group is added so kind stays drivable from
+# inside). Omit --user/--group-add on Docker Desktop.
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  --group-add "$(stat -c %g /var/run/docker.sock)" \
+  -e HOME=/workspace/evidra-results \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$PWD/evidra-results:/workspace/evidra-results" \
   -e OPENAI_API_KEY \
@@ -46,6 +52,9 @@ To use k3d instead, add `--environment k3d`:
 
 ```bash
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  --group-add "$(stat -c %g /var/run/docker.sock)" \
+  -e HOME=/workspace/evidra-results \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$PWD/evidra-results:/workspace/evidra-results" \
   -e OPENAI_API_KEY \
@@ -65,6 +74,9 @@ reach the fixed local endpoint `127.0.0.1:11434`:
 
 ```bash
 docker run --rm --network host \
+  --user "$(id -u):$(id -g)" \
+  --group-add "$(stat -c %g /var/run/docker.sock)" \
+  -e HOME=/workspace/evidra-results \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$PWD/evidra-results:/workspace/evidra-results" \
   ghcr.io/vitas/evidra-bench:latest \

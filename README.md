@@ -34,7 +34,14 @@ runs your model against three live incidents, verifies the outcome, writes
 local reports, and removes the cluster:
 
 ```bash
+# Linux: run as your own uid so the reports under evidra-results/ are
+# yours, not root's (the group that owns /var/run/docker.sock is added so
+# the runner can still drive kind). On macOS with Docker Desktop the
+# --user/--group-add lines can be omitted.
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  --group-add "$(stat -c %g /var/run/docker.sock)" \
+  -e HOME=/workspace/evidra-results \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$PWD/evidra-results:/workspace/evidra-results" \
   -e OPENAI_API_KEY \
