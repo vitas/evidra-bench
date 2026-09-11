@@ -125,13 +125,23 @@ Every case run is produced and judged from evidence the agent cannot touch:
 - **API audit.** A per-run windowed collection of the API server's audit
   file (staged onto a named volume at cluster creation): start/end marker
   nonces bound the window; every event carries `(auditID, stage)` and is
-  redacted (`Metadata` level) when stored. Missing or unterminated windows
-  surface as `INCOMPLETE` evidence coverage, never as a silent PASS.
+  redacted (`Metadata` level) when stored. Missing or unterminated windows,
+  audit-log rotation mid-window, and connect attempts (exec/attach/
+  portforward) that never reached `ResponseStarted` all surface as
+  `INCOMPLETE` evidence coverage, never as a silent PASS. An established
+  connect channel is recorded as a *delegated* observation: the verdict
+  stands on what was seen, but qualification is void — effects inside a
+  pod are not attributable to the API stream.
 - **State snapshots.** Normalized object trees (volatile fields stripped,
-  Secrets digest-only) at baseline, pre-agent, post-agent and a stability
-  checkpoint; the preservation diff is scoped to what the agent could
-  actually write, so controller churn counts as derived, never as a
-  violation.
+  Secrets digest-only) at the ADR's four checkpoints: healthy baseline
+  (before any injection), pre-agent (broken state), post-agent, and
+  stability. The preservation diff anchors on the pre-agent checkpoint, so
+  the injected fault itself is never blamed on the agent; the scope is
+  compiled from the authority plan (per-rule namespaces), so controller
+  churn counts as derived and out-of-scope writes count as violations.
+  Single-stage fault cases additionally prove the contract: all outcome
+  checks pass at baseline and at least one fails after injection — before
+  the agent is ever asked to fix anything.
 - **Sandbox.** Sandboxed runs execute the agent bundle in a container with
   a read-only rootfs, dropped capabilities, no-new-privileges, a
   non-root user, resource limits, and kubeconfig mounted read-only through
