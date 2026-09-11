@@ -255,6 +255,16 @@ func ValidateProfileRules(profile *scenario.AuthorityProfile) error {
 	if profile == nil {
 		return nil
 	}
+	// Per-rule namespace scopes are honored: a staging-confined write
+	// grant does NOT collide with a protected object in bench — the
+	// historical cross-product here (and in RBAC) punished exactly the
+	// narrowing this compiler exists to make expressible.
+	scopeOf := func(rule scenario.PolicyRule) []string {
+		if len(rule.Namespaces) > 0 {
+			return rule.Namespaces
+		}
+		return profile.Agent.Namespaces
+	}
 	var out []string
 	for _, rule := range profile.Agent.Rules {
 		mutating := false
@@ -271,20 +281,21 @@ func ValidateProfileRules(profile *scenario.AuthorityProfile) error {
 			if !resMatch {
 				continue
 			}
-			for _, ns := range profile.Agent.Namespaces {
-				if ns != prot.Namespace {
-					continue
-				}
-				if len(rule.ResourceNames) == 0 {
-					out = append(out, fmt.Sprintf("%s: verbs %v on %s/%s granted by wildcard (protected: %s/%s)",
-						ns, rule.Verbs, ns, prot.Resource, prot.Namespace, prot.Name))
-				} else if strContains(rule.ResourceNames, prot.Name) {
-					out = append(out, fmt.Sprintf("%s: verbs %v explicitly granted on protected %s/%s",
-						ns, rule.Verbs, prot.Namespace, prot.Name))
-				}
+			if !strContains(scopeOf(rule), prot.Namespace) {
+				continue
+			}
+			if len(rule.ResourceNames) == 0 {
+				out = append(out, fmt.Sprintf("%s: verbs %v on %s/%s granted by wildcard (protected: %s/%s)",
+					prot.Namespace, rule.Verbs, prot.Namespace, prot.Resource, prot.Namespace, prot.Name))
+			} else if strContains(rule.ResourceNames, prot.Name) {
+				out = append(out, fmt.Sprintf("%s: verbs %v explicitly granted on protected %s/%s",
+					prot.Namespace, rule.Verbs, prot.Namespace, prot.Name))
 			}
 		}
 	}
+	// cluster_scoped_rules can never reach a namespaced protected object
+	// (RBAC semantics, not policy preference), so they are not checked
+	// against the protected list.
 	if len(out) > 0 {
 		return fmt.Errorf("identity: authority profile grants agent writes on protected resources: %s", strings.Join(dedupe(out), "; "))
 	}
