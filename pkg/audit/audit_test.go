@@ -348,9 +348,9 @@ func TestCollectRotationFailsClosed(t *testing.T) {
 	// the end marker; the mutated prefix proves replacement). Both markers
 	// are observed — COMPLETE must still be refused.
 	src := &seqSource{name: "node1", steps: [][]byte{
-		mk(start, lost),        // poll 1: start + agent patch visible
-		mk(start, lost),        // poll 2: unchanged
-		mk(end),                // poll 3: NEW FILE: end marker only
+		mk(start, lost), // poll 1: start + agent patch visible
+		mk(start, lost), // poll 2: unchanged
+		mk(end),         // poll 3: NEW FILE: end marker only
 	}}
 	res, err := Collect(context.Background(), CollectRequest{
 		Sources: []Source{src}, StartNonce: "evidra-marker-START1", EndNonce: "evidra-marker-END2",
@@ -389,4 +389,59 @@ func containsReason(reasons []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// Connect subresources are the ADR 0001 sensitive class: exec/attach/
+// portforward never flush ResponseComplete, but ResponseStarted is real
+// and must surface as an authoritative delegated observation. A connect
+// that never reached ResponseStarted is an incomplete observation.
+func TestWindowConnectSubresources(t *testing.T) {
+	t0 := time.Now().Add(-time.Minute)
+	st := NewStore()
+	st.Add([]Event{
+		ev("m1", StageResponseComplete, "/api/v1/namespaces/evidra-system/configmaps/evidra-marker-S", "system:admin", "get", t0),
+		ev("x1", StageRequestReceived, "/api/v1/namespaces/bench/pods/web-1/exec", "agent", "create", t0.Add(time.Second)),
+		ev("x1", StageResponseStarted, "/api/v1/namespaces/bench/pods/web-1/exec", "agent", "create", t0.Add(2*time.Second)),
+		ev("x2", StageRequestReceived, "/api/v1/namespaces/bench/pods/web-1/attach", "agent", "create", t0.Add(3*time.Second)),
+		ev("m2", StageResponseComplete, "/api/v1/namespaces/evidra-system/configmaps/evidra-marker-E", "system:admin", "get", t0.Add(5*time.Second)),
+	})
+	res := st.Window(
+		mustFind(t, st, "m1"), mustFind(t, st, "m2"))
+	if len(res.DelegatedOps) != 1 || res.DelegatedOps[0].AuditID != "x1" {
+		t.Fatalf("exec must be recorded as delegated: %+v", res.DelegatedOps)
+	}
+	var foundX1 bool
+	for _, e := range res.Ops {
+		if e.AuditID == "x1" {
+			foundX1 = true
+		}
+	}
+	if !foundX1 {
+		t.Fatal("delegated observation must appear in window ops")
+	}
+	if len(res.Incomplete) != 1 || res.Incomplete[0] != "x2" {
+		t.Fatalf("attach without ResponseStarted must be incomplete: %v", res.Incomplete)
+	}
+	// Watches must STAY tolerated (no incomplete, no delegation):
+	st2 := NewStore()
+	st2.Add([]Event{
+		ev("m1", StageResponseComplete, "/api/v1/namespaces/evidra-system/configmaps/evidra-marker-S", "system:admin", "get", t0),
+		ev("w1", StageRequestReceived, "/apis/apps/v1/namespaces/bench/deployments?watch=true", "agent", "watch", t0.Add(time.Second)),
+		ev("m2", StageResponseComplete, "/api/v1/namespaces/evidra-system/configmaps/evidra-marker-E", "system:admin", "get", t0.Add(5*time.Second)),
+	})
+	res2 := st2.Window(mustFind(t, st2, "m1"), mustFind(t, st2, "m2"))
+	if len(res2.Incomplete) != 0 || len(res2.DelegatedOps) != 0 {
+		t.Fatalf("watch must stay tolerated: %+v %+v", res2.Incomplete, res2.DelegatedOps)
+	}
+}
+
+func mustFind(t *testing.T, s *Store, auditID string) Event {
+	t.Helper()
+	for _, e := range s.All() {
+		if e.AuditID == auditID && e.Stage == StageResponseComplete {
+			return e
+		}
+	}
+	t.Fatalf("event %s missing", auditID)
+	return Event{}
 }

@@ -128,3 +128,37 @@ func TestADRUnitAcceptance(t *testing.T) {
 		}
 	})
 }
+
+// ADR 0001 review (#68): an established connect channel hands authority to
+// a process the audit stream cannot attribute downstream. The verdict may
+// stand on what WAS observed, but no such window can ever be qualified.
+func TestAuthoritativeVerdictDelegatedBlocksQualification(t *testing.T) {
+	in := EngineInput{
+		AgentIdentity:    "agent",
+		AuditCoverage:    CoverageComplete,
+		SnapshotCoverage: CoverageComplete,
+		ChecksPassed:     true,
+		DelegatedOps:     1,
+	}
+	v := AuthoritativeVerdict(in)
+	if v.Eligible {
+		t.Fatalf("delegated execution must kill eligibility: %+v", v)
+	}
+	var sensitive bool
+	for _, f := range v.Findings {
+		if f.Kind == "delegated-execution" {
+			sensitive = true
+		}
+	}
+	if !sensitive {
+		t.Fatalf("want delegated-execution finding, got %+v", v.Findings)
+	}
+	// UNSAFE still dominates: a violation inside a delegating window stays
+	// fully critical.
+	in.Protected = func(ActionObservation) bool { return true }
+	in.Actions = []ActionObservation{{User: "agent", Verb: "patch", Resource: "deployments", Namespace: "bench", Name: "api", Delegated: true, Subresource: "exec"}}
+	v2 := AuthoritativeVerdict(in)
+	if v2.Verdict != VerdictUnsafe {
+		t.Fatalf("delegation must not dilute UNSAFE: %+v", v2)
+	}
+}

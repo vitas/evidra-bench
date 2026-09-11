@@ -200,6 +200,14 @@ func (s *Store) All() []Event {
 type WindowResult struct {
 	Ops        []Event
 	Incomplete []string
+	// DelegatedOps holds established CONNECT subresource observations
+	// (pods/exec, attach, portforward, proxy). These streams legitimately
+	// never flush ResponseComplete, but ADR 0001 lists them as sensitive:
+	// a successful exec crosses a trust boundary into delegated workload
+	// authority the audit stream cannot attribute downstream. They are
+	// recorded authoritatively here and the engine refuses to qualify any
+	// window containing them.
+	DelegatedOps []Event
 }
 
 // Window filters the store by marker timestamps.
@@ -221,15 +229,35 @@ func (s *Store) Window(start, end Event) WindowResult {
 			}
 		}
 		if !found {
-			// Long-lived STREAMING ops (watches, exec/attach/portforward
-			// holds) have no meaningful terminal stage: on client-side
-			// close the apiserver frequently skips the ResponseComplete
-			// flush (cancel-vs-flush race — empirically the dominant audit
-			// "gap" on busy clusters). Penalizing them would make coverage
-			// a coin flip while hiding nothing: no mutation is ever
-			// expressed through these verbs/subresources, and the
-			// pre-window variant of this was a proven false-positive
-			// source (121 controller watches). Tolerated wholesale.
+			// CONNECT subresources (exec/attach/portforward/proxy) never
+			// flush ResponseComplete on a healthy long-lived stream —
+			// ResponseStarted (the 101 upgrade) is their authoritative
+			// establishment observation. Record it; never hide it.
+			if cs := connectStarted(group); cs != nil {
+				if t := cs.EffectiveTimestamp(); !t.Before(lo) && !t.After(hi) {
+					res.Ops = append(res.Ops, *cs)
+					res.DelegatedOps = append(res.DelegatedOps, *cs)
+				}
+				continue
+			}
+			if connectSubresource(group) {
+				// connect attempt without even ResponseStarted: the
+				// outcome is unknown — an incomplete observation.
+				if len(group) > 0 {
+					first := group[0]
+					if !first.EffectiveTimestamp().Before(lo) && !first.EffectiveTimestamp().After(hi) {
+						res.Incomplete = append(res.Incomplete, opID)
+						res.Ops = append(res.Ops, first) // forensics
+					}
+				}
+				continue
+			}
+			// Long-lived WATCH/LIST streams have no meaningful terminal
+			// stage (client-side close races the ResponseComplete flush —
+			// empirically the dominant audit "gap" on busy clusters, and
+			// the pre-window variant was a proven false-positive source
+			// with 121 controller watches). No mutation is ever expressed
+			// through watch semantics. Tolerated wholesale.
 			if streamingOp(group) {
 				continue
 			}
@@ -283,12 +311,47 @@ func streamingOp(group []Event) bool {
 			return true
 		}
 		switch {
-		case strings.Contains(e.RequestURI, "/exec"),
-			strings.Contains(e.RequestURI, "/attach"),
-			strings.Contains(e.RequestURI, "/portforward"),
-			strings.Contains(e.RequestURI, "follow=true"):
+		case strings.Contains(e.RequestURI, "follow=true"):
+			// log tailing is a read stream, not a delegated channel.
 			return true
 		}
 	}
 	return false
+}
+
+// connectSubresources are the pod-level channels that hand authority to a
+// process inside a workload (or the apiserver itself, for proxy).
+var connectSubresources = map[string]bool{
+	"exec":        true,
+	"attach":      true,
+	"portforward": true,
+	"proxy":       true,
+}
+
+// connectSubresource reports whether an op group targets a connect
+// subresource, via ObjectRef.subresource first and URI as fallback.
+func connectSubresource(group []Event) bool {
+	for _, e := range group {
+		if e.ObjectRef != nil && connectSubresources[e.ObjectRef.Subresource] {
+			return true
+		}
+		for sub := range connectSubresources {
+			if strings.Contains(e.RequestURI, "/"+sub) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// connectStarted returns the authoritative establishment observation for a
+// connect group: the ResponseStarted stage (the 101 upgrade point).
+// Returns nil when the group never got that far.
+func connectStarted(group []Event) *Event {
+	for i := range group {
+		if group[i].Stage == StageResponseStarted && connectSubresource(group) {
+			return &group[i]
+		}
+	}
+	return nil
 }

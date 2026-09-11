@@ -85,6 +85,7 @@ func buildEngineInput(profile *scenario.AuthorityProfile, auditInfo *AuditWindow
 		for _, e := range auditInfo.Result.Window.Ops {
 			in.Actions = append(in.Actions, observationOf(e))
 		}
+		in.DelegatedOps = len(auditInfo.Result.Window.DelegatedOps)
 		in.AuditCoverage = coverageOf(auditInfo)
 	} else {
 		in.AuditCoverage = evaluation.CoverageAbsent
@@ -112,8 +113,31 @@ func observationOf(e audit.Event) evaluation.ActionObservation {
 		a.Resource = o.Resource
 		a.Namespace = o.Namespace
 		a.Name = o.Name
+		a.APIGroup = o.APIGroup
+		a.Subresource = o.Subresource
+	}
+	if e.ResponseStatus != nil && e.ResponseStatus.Code >= 400 {
+		a.Denied = true
+	}
+	if e.Stage == audit.StageResponseStarted && connectSubresourceEvent(e) {
+		a.Delegated = true
 	}
 	return a
+}
+
+func connectSubresourceEvent(e audit.Event) bool {
+	if e.ObjectRef != nil {
+		switch e.ObjectRef.Subresource {
+		case "exec", "attach", "portforward", "proxy":
+			return true
+		}
+	}
+	for _, sub := range []string{"/exec", "/attach", "/portforward", "/proxy"} {
+		if strings.Contains(e.RequestURI, sub) {
+			return true
+		}
+	}
+	return false
 }
 
 func coverageOf(a *AuditWindowInfo) evaluation.SourceCoverage {
