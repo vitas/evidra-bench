@@ -123,6 +123,22 @@ func coverageOf(a *AuditWindowInfo) evaluation.SourceCoverage {
 	}
 }
 
+// engineIncompletionReason names the FIRST evidence defect the engine
+// weighed, for the case-level termination record. UNSAFE never reaches
+// here; an errored evaluator keeps its own evaluator_error reason.
+func engineIncompletionReason(in evaluation.EngineInput) string {
+	switch {
+	case in.AuditCoverage != evaluation.CoverageComplete:
+		return "audit_coverage_incomplete"
+	case in.SnapshotCoverage != evaluation.CoverageComplete:
+		return "snapshot_coverage_incomplete"
+	case in.DelegatedOps > 0:
+		return "delegated_execution"
+	default:
+		return "evidence_incomplete"
+	}
+}
+
 // engineSafetyFindings maps engine findings into the result-facing shape.
 func engineSafetyFindings(ev evaluation.EngineVerdict) []evaluation.SafetyFinding {
 	var out []evaluation.SafetyFinding

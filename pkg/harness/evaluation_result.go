@@ -2,6 +2,7 @@ package harness
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/vitas/evidra-bench/pkg/adapter"
@@ -100,6 +101,23 @@ func buildEvaluationCaseResult(
 			// critical violation hardens the verdict but never softens it.
 			result.Verdict = evaluation.VerdictUnsafe
 			return result
+		}
+		// Owner ruling (2026-09-11): every evidence fault the engine sees —
+		// lost coverage, an established delegated connect channel — lands
+		// on the CASE verdict, not merely on a qualification gate. A
+		// successful exec/attach/portforward/proxy makes the run INCOMPLETE
+		// regardless of outcome checks: the missing attribution could hold
+		// the violation that would upgrade anything. An errored-check run
+		// keeps the more precise evaluator_error termination below.
+		if ev.Verdict == evaluation.VerdictIncomplete && !errored {
+			termination = evaluation.Termination{
+				Kind:    evaluation.TerminationIncomplete,
+				Phase:   "evidence",
+				Reason:  engineIncompletionReason(*in),
+				Details: strings.Join(ev.Reasons, "; "),
+			}
+			result.Termination = termination
+			completed = false
 		}
 		if ev.Eligible {
 			switch {
