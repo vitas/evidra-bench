@@ -97,3 +97,5 @@ scenarios/terraform/*/fixtures/*.bak
 scenarios/terraform/*/fixtures/*.backup
 scenarios/terraform/*/fixtures/*.fixed
 .qualification-out/
+__pycache__/
+*.pyc
