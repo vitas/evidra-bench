@@ -18,7 +18,15 @@ import (
 type CommandSucceedsCheck struct {
 	Name    string
 	Command string // path to script or command to run
+	// ExtraEnv carries per-invocation variables (e.g. EVIDRA_PHASE during
+	// preflights). Checkers are built fresh per RunChecks call, so setting
+	// it is race-free; process-global os.Setenv was a cross-evaluation
+	// leak (reviewer round-2 blocker #4).
+	ExtraEnv []string
 }
+
+// AugmentEnv implements verifier.EnvAugmenter.
+func (c *CommandSucceedsCheck) AugmentEnv(env []string) { c.ExtraEnv = env }
 
 // Validate checks that required fields are set.
 func (c *CommandSucceedsCheck) Validate() error {
@@ -31,7 +39,7 @@ func (c *CommandSucceedsCheck) Validate() error {
 // Check runs the command and applies the legacy exit-code policy.
 func (c *CommandSucceedsCheck) Check(ctx context.Context, kubeconfigPath string) CheckResult {
 	name := fmt.Sprintf("command-succeeds/%s", c.Name)
-	out, exitCode, err := runScript(ctx, c.Command, kubeconfigPath)
+	out, exitCode, err := runScript(ctx, c.Command, kubeconfigPath, c.ExtraEnv...)
 	switch exitCode {
 	case 0:
 		return CheckResult{Name: name, Type: "command-succeeds", Verdict: VerdictPass, Message: string(out)}
@@ -53,9 +61,13 @@ func (c *CommandSucceedsCheck) Check(ctx context.Context, kubeconfigPath string)
 // protocol.go). The parsed status is authoritative; the exit code is
 // ignored once the document parses, so wrappers cannot fake outcomes.
 type AssertV2Check struct {
-	Name    string
-	Command string
+	Name     string
+	Command  string
+	ExtraEnv []string // see CommandSucceedsCheck.ExtraEnv
 }
+
+// AugmentEnv implements verifier.EnvAugmenter.
+func (c *AssertV2Check) AugmentEnv(env []string) { c.ExtraEnv = env }
 
 // Validate checks required fields.
 func (c *AssertV2Check) Validate() error {
@@ -68,7 +80,7 @@ func (c *AssertV2Check) Validate() error {
 // Check runs the assert-v2 script and classifies per design §2.
 func (c *AssertV2Check) Check(ctx context.Context, kubeconfigPath string) CheckResult {
 	name := fmt.Sprintf("assert-v2/%s", c.Name)
-	out, exitCode, err := runScript(ctx, c.Command, kubeconfigPath)
+	out, exitCode, err := runScript(ctx, c.Command, kubeconfigPath, c.ExtraEnv...)
 	if ctx.Err() != nil && exitCode < 0 {
 		return errorResult(name, c.Type(), VerdictError, &CheckError{Kind: ErrorKindTimeout, Message: "assert-v2 script timed out"}, truncateTail(string(out), 2048))
 	}
@@ -123,13 +135,16 @@ func renderAssertions(doc ProtocolDocument) string {
 // runScript executes command via bash with the standard verifier
 // environment and reports (combined output, exit code, exec error).
 // exitCode is -1 when the process could not be started at all.
-func runScript(ctx context.Context, command, kubeconfigPath string) ([]byte, int, error) {
+func runScript(ctx context.Context, command, kubeconfigPath string, extraEnv ...string) ([]byte, int, error) {
 	cmd := exec.CommandContext(ctx, "bash", "-c", command)
 	cmd.Env = append(cmd.Env,
 		fmt.Sprintf("KUBECONFIG=%s", kubeconfigPath),
 		fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
 		fmt.Sprintf("HOME=%s", os.Getenv("HOME")),
 	)
+	// Per-invocation additions last: exec honors the final occurrence, so
+	// they override anything inherited.
+	cmd.Env = append(cmd.Env, extraEnv...)
 	// Inherit AWS env vars if set (legacy behavior kept verbatim).
 	for _, env := range os.Environ() {
 		if strings.HasPrefix(env, "AWS_") {

@@ -58,3 +58,11 @@ func (r *VerifyResult) Errored() []CheckResult {
 type Checker interface {
 	Check(ctx context.Context, kubeconfigPath string) CheckResult
 }
+
+// EnvAugmenter is implemented by checkers that spawn external scripts and
+// accept per-invocation environment additions. RunChecks applies it before
+// Check; checkers are constructed fresh per invocation, so this cannot
+// leak across parallel evaluations (unlike process-global os.Setenv).
+type EnvAugmenter interface {
+	AugmentEnv(env []string)
+}

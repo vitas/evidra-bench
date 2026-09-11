@@ -208,6 +208,33 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	// Any deviation aborts the run as an environment fault (INCOMPLETE
 	// with reason) before the agent ever sees a prompt.
 	isMultiStage := len(s.Stages) > 0
+	// Step 3b FIRST: Materialize per-run identities from the authority
+	// profile (ADR 0001 Phase 4; ordering hardened after reviewer round-2
+	// blocker #4). With a profile the agent AND the verifiers never run on
+	// admin credentials: agent = profile grants (SAs below), verifier =
+	// evidence-reader. Preflight checks execute as evidence-reader too —
+	// an assert-v2 script must not hold cluster-admin while the audit
+	// window is still closed. Window markers are emitted by the harness
+	// client-certificate identity (admin kubeconfig — spike-proven immune
+	// to the bearer cold window). Without a profile nothing is materialized
+	// and the run keeps the legacy admin kubeconfig (it is permanently
+	// unqualified via gap authority_profile_missing anyway).
+	agentKubeconfig := handle.KubeconfigPath
+	verifyKubeconfig := handle.KubeconfigPath
+	if s.AuthorityProfile != nil {
+		recorder.Event("identity", "started", "")
+		bundle, err := h.provisionRunIdentities(ctx, req, s, handle.KubeconfigPath, recorder)
+		if err != nil {
+			return nil, err
+		}
+		if bundle != nil {
+			defer bundle.teardown(ctx)
+			agentKubeconfig = bundle.agent.KubeconfigPath
+			verifyKubeconfig = bundle.evidence.KubeconfigPath
+		}
+		recorder.Event("identity", "completed", "")
+	}
+
 	preflight := func(phase string, wantPass bool) error {
 		// The contract binds fault-injecting single-stage cases: a fixture
 		// not healthy before the break, or a break leaving no observable
@@ -218,7 +245,10 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 			return nil
 		}
 		recorder.Event(phase, "started", "")
-		res, err := h.verifyRunPhase(ctx, req, handle.KubeconfigPath, nil, nil, false, phase)
+		// Checks run under the evidence-reader identity, never admin
+		// (reviewer round-2 blocker #4): a scenario script must not get
+		// cluster-admin before the audit window even exists.
+		res, err := h.verifyRunPhase(ctx, req, verifyKubeconfig, nil, nil, false, phase)
 		if err != nil {
 			recorder.Event(phase, "failed", err.Error())
 			return err
@@ -237,34 +267,12 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		recorder.Event(phase, "completed", "")
 		return nil
 	}
+
 	if err := preflight("preflight_baseline", true); err != nil {
 		return nil, err
 	}
-	// Step 3b: Materialize per-run identities from the authority profile
-	// (ADR 0001 Phase 4). With a profile the agent and the verifiers never
-	// run on admin credentials: agent = profile grants (SAs below),
-	// verifier = evidence-reader. Window markers are emitted by the harness
-	// client-certificate identity (admin kubeconfig — spike-proven immune to
-	// the bearer cold window). Without a profile nothing is materialized and
-	// the run keeps the legacy admin kubeconfig (it is permanently
-	// unqualified via gap authority_profile_missing anyway).
-	agentKubeconfig := handle.KubeconfigPath
-	verifyKubeconfig := handle.KubeconfigPath
-	if s.AuthorityProfile != nil {
-		recorder.Event("identity", "started", "")
-		bundle, err := h.provisionRunIdentities(ctx, req, s, handle.KubeconfigPath, recorder)
-		if err != nil {
-			return nil, err
-		}
-		if bundle != nil {
-			defer bundle.teardown(ctx)
-			agentKubeconfig = bundle.agent.KubeconfigPath
-			verifyKubeconfig = bundle.evidence.KubeconfigPath
-		}
-		recorder.Event("identity", "completed", "")
-	}
-
-	// Checkpoint 1 (ADR 0001): healthy baseline, BEFORE fault injection.
+	// Checkpoint 1 (ADR 0001): healthy baseline, verified healthy by the
+	// preflight, captured with the evidence-reader client.
 	snaps := newRunSnapshots(s.AuthorityProfile, verifyKubeconfig)
 	snaps.capture(ctx, "baseline")
 

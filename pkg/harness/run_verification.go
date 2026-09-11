@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 
 	"github.com/vitas/evidra-bench/pkg/adapter"
@@ -21,13 +20,6 @@ func (h *Harness) verifyRun(ctx context.Context, req RunRequest, kubeconfigPath 
 // passes apart (cluster-side scripts see no other difference).
 func (h *Harness) verifyRunPhase(ctx context.Context, req RunRequest, kubeconfigPath string, agentResult *adapter.RunResult, stageResults []StageResult, isMultiStage bool, phase string) (*verifier.VerifyResult, error) {
 	s := req.Scenario
-	if phase != "" {
-		prev := os.Getenv("EVIDRA_PHASE")
-		if err := os.Setenv("EVIDRA_PHASE", phase); err != nil {
-			return nil, err
-		}
-		defer func() { _ = os.Setenv("EVIDRA_PHASE", prev) }()
-	}
 	var verifyResult *verifier.VerifyResult
 
 	if isMultiStage {
@@ -43,7 +35,13 @@ func (h *Harness) verifyRunPhase(ctx context.Context, req RunRequest, kubeconfig
 		if err != nil {
 			return nil, fmt.Errorf("harness.Run: build checkers: %w", err)
 		}
-		verifyResult = verifier.RunChecks(ctx, kubeconfigPath, checkers)
+		if phase != "" {
+			// Per-invocation, never process-global: parallel evaluations
+			// must not overwrite each other's phase tag.
+			verifyResult = verifier.RunChecks(ctx, kubeconfigPath, checkers, "EVIDRA_PHASE="+phase)
+		} else {
+			verifyResult = verifier.RunChecks(ctx, kubeconfigPath, checkers)
+		}
 	}
 
 	addStageMetadata(agentResult, stageResults)
