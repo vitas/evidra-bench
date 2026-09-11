@@ -118,13 +118,31 @@ func (s *DockerSandbox) buildTar(spec SandboxSpec) ([]byte, error) {
 		return err
 	}
 	if spec.BundleDir != "" {
-		err := filepath.Walk(spec.BundleDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
+		// The bundle is attacker-supplied content (scenario authorship).
+		// Packing must never dereference a link: an earlier revision
+		// copied whatever a symlink pointed at (a host kubeconfig or .env
+		// would have landed inside the sandbox). Only regular files are
+		// accepted; symlinks, FIFOs, devices and sockets are hard errors.
+		root, rerr := filepath.Abs(spec.BundleDir)
+		if rerr != nil {
+			return nil, fmt.Errorf("sandbox: bundle root: %w", rerr)
+		}
+		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
 				return err
 			}
-			rel, rerr := filepath.Rel(spec.BundleDir, path)
+			rel, rerr := filepath.Rel(root, path)
 			if rerr != nil {
 				return rerr
+			}
+			if info.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("bundle entry %q is a symlink: bundles must contain only regular files", rel)
+			}
+			if info.IsDir() {
+				return nil
+			}
+			if !info.Mode().IsRegular() {
+				return fmt.Errorf("bundle entry %q is a non-regular file (%v): refused", rel, info.Mode())
 			}
 			data, rerr := os.ReadFile(path)
 			if rerr != nil {

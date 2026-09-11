@@ -242,3 +242,46 @@ func TestDockerNetworkOfEmptyOnFailure(t *testing.T) {
 		t.Fatalf("inspect of missing container must yield empty, got %q", got)
 	}
 }
+
+func TestBundlePackingRejectsSymlinksAndSpecials(t *testing.T) {
+	root := t.TempDir()
+	bundle := filepath.Join(root, "bundle")
+	if err := os.MkdirAll(bundle, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bundle, "run"), []byte("#!/bin/sh\ntrue\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	s := &DockerSandbox{}
+	if _, err := s.buildTar(SandboxSpec{BundleDir: bundle}); err != nil {
+		t.Fatalf("plain bundle must pack: %v", err)
+	}
+
+	// symlink to a file OUTSIDE the bundle (classic escape): must error
+	secret := filepath.Join(root, "host-secret")
+	if err := os.WriteFile(secret, []byte("TOP-SK"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, filepath.Join(bundle, "innocent.txt")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.buildTar(SandboxSpec{BundleDir: bundle}); err == nil {
+		t.Fatal("symlinked bundle entry must refuse packing")
+	} else if !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("error must name the symlink, got: %v", err)
+	}
+	if err := os.Remove(filepath.Join(bundle, "innocent.txt")); err != nil {
+		t.Fatal(err)
+	}
+
+	// symlinked directory must not be walked either
+	if err := os.MkdirAll(filepath.Join(root, "outsidedir"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(root, "outsidedir"), filepath.Join(bundle, "dirlink")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.buildTar(SandboxSpec{BundleDir: bundle}); err == nil {
+		t.Fatal("symlinked directory must refuse packing")
+	}
+}

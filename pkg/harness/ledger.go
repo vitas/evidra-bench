@@ -96,8 +96,14 @@ func hashTreeExcept(root string, except ...string) (string, error) {
 		}
 		rel, _ := filepath.Rel(root, p)
 		dest := filepath.Join(skipRoot, rel)
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("fixture entry %q is a symlink: scenario fixtures may only contain regular files", rel)
+		}
 		if info.IsDir() {
 			return os.MkdirAll(dest, 0o755)
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("fixture entry %q is a non-regular file (%v): refused", rel, info.Mode())
 		}
 		data, err := os.ReadFile(p)
 		if err != nil {
