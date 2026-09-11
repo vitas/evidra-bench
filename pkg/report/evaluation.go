@@ -78,9 +78,9 @@ type evaluationHTMLData struct {
 
 type evaluationHTMLCase struct {
 	VerdictLabel string
-	Result   evaluation.CaseResult
-	Duration string
-	Usage    string
+	Result       evaluation.CaseResult
+	Duration     string
+	Usage        string
 }
 
 // RenderEvaluationHTML writes one self-contained document with no remote
