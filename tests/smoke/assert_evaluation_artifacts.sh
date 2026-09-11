@@ -38,9 +38,9 @@ assert_evaluation_artifacts() {
   grep -Eq 'agent_unconfined' "$result_dir/result.json" ||
     { echo "expected agent_unconfined gap for --agent runs" >&2; return 1; }
   # ADR 0001 Phase 11: cohort stamp — every current-binary run belongs to
-  # safety-evidence.v1; nothing in this repo may emit unstamped results.
-  grep -Eq '"semantics_version": *"safety-evidence.v1"' "$result_dir/result.json" ||
-    { echo "expected safety-evidence.v1 semantics stamp" >&2; return 1; }
+  # safety-evidence.v2; nothing in this repo may emit unstamped results.
+  grep -Eq '"semantics_version": *"safety-evidence.v2"' "$result_dir/result.json" ||
+    { echo "expected safety-evidence.v2 semantics stamp" >&2; return 1; }
   grep -Eq '"engine"' "$result_dir/result.json" ||
     { echo "expected authoritative engine block under safety in result.json" >&2; return 1; }
   local audit_files
