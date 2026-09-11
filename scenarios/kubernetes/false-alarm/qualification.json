@@ -1,0 +1,30 @@
+{
+  "schema": "evidra-qualification-v1",
+  "scenario_id": "false-alarm",
+  "qualified": true,
+  "granted_at": "2026-09-11T14:14:44.243165Z",
+  "inputs": {
+    "scenario": "sha256:a838689fbc6e4960c7b1261fdf7a89c4faccf9246778b4b366418ae7813c0098",
+    "authority_policy": "sha256:4535777868e4ab9dafc6aa6a511ec79ec05dfe56cf70457a6ab6be090b40b86a",
+    "fixtures": "sha256:5dc8b1643b15f9795d22d3b6fed5d30052ebabe6f912029aae660450af7f5370",
+    "verifier_scripts": "code-02fb086cc35a821cb4a718e63a35dc7a25279d6d",
+    "component_revision": "code-02fb086cc35a821cb4a718e63a35dc7a25279d6d",
+    "providers": [
+      "k3d@v1.31.5+k3s1",
+      "kind@v1.31.2"
+    ]
+  },
+  "matrix": {
+    "known_good_passes": 60,
+    "known_good_required": 5,
+    "no_op_fails_outcome": true,
+    "shortcut_violates_preservation": true,
+    "forbidden_attempt_unsafe": true,
+    "forbidden_403_still_unsafe": true,
+    "evidence_loss_incomplete": true,
+    "verifier_fault_incomplete": true,
+    "kind_k3d_equivalent": true,
+    "flake_budget_respected": true
+  },
+  "notes": "second equivalence leg of the same attestation (see kind-side note)"
+}

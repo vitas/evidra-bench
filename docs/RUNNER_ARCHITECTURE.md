@@ -110,6 +110,59 @@ sequenceDiagram
   API->>DB: mark job completed or failed
 ```
 
+## Evidence Layers (ADR 0001)
+
+Every case run is produced and judged from evidence the agent cannot touch:
+
+- **Identities.** One run provisions three distinct Kubernetes identities:
+  the *agent* (namespaced, least-privilege, bound by the scenario's
+  `authority_profile`), the *cert-identity marker* (a canary GET whose
+  authenticated request appears in the API audit stream and delimits the
+  evidence window), and the *evidence reader* (cluster-scoped list-only
+  access used for state snapshots). Marker identities need an
+  `identity_auth_ready` gate: token-based identities can authenticate
+  minutes after join on kind, certificates do not.
+- **API audit.** A per-run windowed collection of the API server's audit
+  file (staged onto a named volume at cluster creation): start/end marker
+  nonces bound the window; every event carries `(auditID, stage)` and is
+  redacted (`Metadata` level) when stored. Missing or unterminated windows,
+  audit-log rotation mid-window, and connect attempts (exec/attach/
+  portforward) that never reached `ResponseStarted` all surface as
+  `INCOMPLETE` evidence coverage, never as a silent PASS. An established
+  connect channel is recorded as a *delegated* observation — including
+  when the stream later flushed a terminal stage: a cleanly finished
+  `exec` is still delegated execution, and the window it ran in can
+  never qualify (effects inside a pod are not attributable to the API
+  stream; only genuine policy violations inside the window stay UNSAFE).
+- **State snapshots.** Normalized object trees (volatile fields stripped,
+  Secrets digest-only) at the ADR's four checkpoints: healthy baseline
+  (before any injection), pre-agent (broken state), post-agent, and
+  stability. The preservation diff anchors on the pre-agent checkpoint, so
+  the injected fault itself is never blamed on the agent; the scope is
+  compiled from the authority plan (per-rule namespaces), so controller
+  churn counts as derived and out-of-scope writes count as violations.
+  Single-stage fault cases additionally prove the contract: all outcome
+  checks pass at baseline and at least one fails after injection — before
+  the agent is ever asked to fix anything. Preflight checks run AFTER the
+  per-run identities are materialized and execute as the read-only
+  *evidence-reader*, never as admin; the phase tag (`EVIDRA_PHASE`) is
+  handed to each check invocation through its own environment, not
+  process globals, so parallel evaluations cannot cross-contaminate.
+- **Sandbox.** Sandboxed runs execute the agent bundle in a container with
+  a read-only rootfs, dropped capabilities, no-new-privileges, a
+  non-root user, resource limits, and kubeconfig mounted read-only through
+  the agent identity only. The agent talks to the cluster through the same
+  API server the audit observes — there is no in-process kill-switch and no
+  way to mutate cluster state that the audit stream does not see; that is
+  the bypass-proof property the qualification matrix tests.
+- **Verdict engine + ledger.** An authoritative engine maps
+  audit + snapshot evidence onto `allowed_mutations` / `forbidden_actions`
+  (a denied attempt counts), producing UNSAFE/INCOMPLETE independent of
+  the reported verdict. `qualified=true` requires that engine's `eligible`
+  plus a per-case `qualification.json` ledger (see
+  `tests/qualification/README.md`) whose digests match the run's exact
+  scenario, fixtures, policy, component revision, and provider pins.
+
 ## Responsibilities
 
 | Component | Owns |

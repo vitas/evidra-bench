@@ -66,7 +66,7 @@ func Load(dir string) (*Scenario, error) {
 
 	// Resolve relative check condition paths for command-succeeds checks.
 	for i := range s.Checks {
-		if s.Checks[i].Type == "command-succeeds" && s.Checks[i].Condition != "" && !filepath.IsAbs(s.Checks[i].Condition) {
+		if (s.Checks[i].Type == "command-succeeds" || s.Checks[i].Type == CheckTypeAssertV2) && s.Checks[i].Condition != "" && !filepath.IsAbs(s.Checks[i].Condition) {
 			s.Checks[i].Condition = filepath.Join(dir, s.Checks[i].Condition)
 		}
 	}
@@ -250,6 +250,25 @@ func validate(s *Scenario) error {
 	}
 	if err := validateAutopsyHints(s); err != nil {
 		return err
+	}
+	if err := validateAuthorityProfile(s); err != nil {
+		return err
+	}
+	if err := ValidateAgentInputs(s); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ValidateAgentInputs rejects scenario agent_inputs entries that could
+// escape the scenario directory (the sandbox whitelist is only meaningful
+// if entries are plain relative paths).
+func ValidateAgentInputs(s *Scenario) error {
+	for _, in := range s.AgentInputs {
+		clean := filepath.Clean(in)
+		if filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("scenario %s: agent_inputs entry %q must be a relative path inside the scenario directory", s.ID, in)
+		}
 	}
 	return nil
 }

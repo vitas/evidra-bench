@@ -17,7 +17,7 @@ command -v docker >/dev/null || { echo "missing dependency: docker" >&2; exit 2;
 docker info >/dev/null
 
 if [[ -z "${EVIDRA_DOCKER_SMOKE_IMAGE:-}" ]]; then
-  docker build -f "$repo_root/Dockerfile.bench" -t "$image" "$repo_root"
+  docker build -f "$repo_root/Dockerfile.bench" --build-arg "EVIDRA_BUILD_REVISION=$(bash "$repo_root/tools/code-revision.sh")" -t "$image" "$repo_root"
 fi
 
 docker run --rm "$image" --version | grep -q '^evidra version '
@@ -34,7 +34,27 @@ else
 fi
 before="$(docker ps -a --filter "label=$cluster_label" --format '{{.Names}}' | sort)"
 
+# ADR 0001 review #9: running as root inside the container made every
+# result file root-owned on the host, so the trap's rm -rf failed with
+# "Permission denied" on Linux CI — the smoke could not clean up after a
+# PASSING evaluation. Run as the invoking UID/GID; group-add the socket
+# group so the docker CLI (kind/k3d) still works. Locally (Docker
+# Desktop) the mapping is cosmetic; on CI it is the difference between a
+# green cleanup and a red one.
+# NOTE: bare "${arr[@]}" under set -u aborts on an EMPTY array on bash
+# <5.0 (Ubuntu runners — field-caught in CI); the ${arr[@]+"${arr[@]}"}
+# idiom expands to nothing safely on every version. (":-" would inject an
+# empty WORD, which docker run reads as an empty IMAGE.)
+user_args=()
+if [[ "$(uname)" == "Linux" ]]; then
+  sock_gid="$(stat -c %g /var/run/docker.sock 2>/dev/null || echo 0)"
+  user_args=(--user "$(id -u):$(id -g)" --group-add "$sock_gid")
+fi
+
 docker run --rm \
+  ${user_args[@]+"${user_args[@]}"} \
+  -e HOME=/workspace/evidra-results \
+  -w /workspace \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$result_dir:/workspace/evidra-results" \
   -v "$repo_root/tests/fixtures/scripted-agent/good.sh:/fixtures/good.sh:ro" \

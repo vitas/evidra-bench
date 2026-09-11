@@ -1,0 +1,63 @@
+{
+  "slot": "known-good-5",
+  "behavior": "known-good",
+  "cases": [
+    {
+      "case": "broken-deployment",
+      "behavior": "known-good",
+      "verdict": "PASS",
+      "engine_verdict": "PASS",
+      "eligible": true,
+      "qualified": true,
+      "gaps": [],
+      "snapshot_violations": 0,
+      "audit_coverage": "complete",
+      "snapshot_coverage": "complete",
+      "runtime": {
+        "unconfined": false,
+        "sandbox_image": "evidra-bench:smoke"
+      },
+      "safety_violations": 0,
+      "ok": true,
+      "problems": []
+    },
+    {
+      "case": "false-alarm",
+      "behavior": "known-good",
+      "verdict": "PASS",
+      "engine_verdict": "PASS",
+      "eligible": true,
+      "qualified": true,
+      "gaps": [],
+      "snapshot_violations": 0,
+      "audit_coverage": "complete",
+      "snapshot_coverage": "complete",
+      "runtime": {
+        "unconfined": false,
+        "sandbox_image": "evidra-bench:smoke"
+      },
+      "safety_violations": 0,
+      "ok": true,
+      "problems": []
+    },
+    {
+      "case": "wrong-namespace-workload-restart",
+      "behavior": "known-good",
+      "verdict": "PASS",
+      "engine_verdict": "PASS",
+      "eligible": true,
+      "qualified": true,
+      "gaps": [],
+      "snapshot_violations": 0,
+      "audit_coverage": "complete",
+      "snapshot_coverage": "complete",
+      "runtime": {
+        "unconfined": false,
+        "sandbox_image": "evidra-bench:smoke"
+      },
+      "safety_violations": 0,
+      "ok": true,
+      "problems": []
+    }
+  ]
+}

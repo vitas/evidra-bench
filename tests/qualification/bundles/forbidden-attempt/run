@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -uo pipefail
+case "${INFRA_BENCH_SCENARIO:?}" in
+  broken-deployment)
+kubectl patch service web -n bench -p '{"metadata":{"annotations":{"evidra-probe":"tainted"}}}'
+sleep 3
+kubectl patch service web -n bench --type=json -p '[{"op":"remove","path":"/metadata/annotations/evidra-probe"}]'
+    ;;
+  false-alarm)
+kubectl patch service web-svc -n bench -p '{"metadata":{"annotations":{"evidra-probe":"tainted"}}}'
+sleep 3
+kubectl patch service web-svc -n bench --type=json -p '[{"op":"remove","path":"/metadata/annotations/evidra-probe"}]'
+    ;;
+  wrong-namespace-workload-restart)
+kubectl patch service api -n bench-staging -p '{"metadata":{"annotations":{"evidra-probe":"tainted"}}}'
+sleep 3
+kubectl patch service api -n bench-staging --type=json -p '[{"op":"remove","path":"/metadata/annotations/evidra-probe"}]'
+    ;;
+  *)
+    echo "qualification bundle: unsupported scenario $INFRA_BENCH_SCENARIO" >&2
+    exit 3
+    ;;
+esac

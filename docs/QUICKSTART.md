@@ -31,7 +31,13 @@ daemon. Run only agents and test inputs you trust.
 The default environment is kind. From any working directory:
 
 ```bash
+# Linux: run as your own uid so the reports are yours, not root-owned
+# (the docker.sock-owning group is added so kind stays drivable from
+# inside). Omit --user/--group-add on Docker Desktop.
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  --group-add "$(stat -c %g /var/run/docker.sock)" \
+  -e HOME=/workspace/evidra-results \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$PWD/evidra-results:/workspace/evidra-results" \
   -e OPENAI_API_KEY \
@@ -46,6 +52,9 @@ To use k3d instead, add `--environment k3d`:
 
 ```bash
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  --group-add "$(stat -c %g /var/run/docker.sock)" \
+  -e HOME=/workspace/evidra-results \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$PWD/evidra-results:/workspace/evidra-results" \
   -e OPENAI_API_KEY \
@@ -65,6 +74,9 @@ reach the fixed local endpoint `127.0.0.1:11434`:
 
 ```bash
 docker run --rm --network host \
+  --user "$(id -u):$(id -g)" \
+  --group-add "$(stat -c %g /var/run/docker.sock)" \
+  -e HOME=/workspace/evidra-results \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$PWD/evidra-results:/workspace/evidra-results" \
   ghcr.io/vitas/evidra-bench:latest \
@@ -112,7 +124,11 @@ The agent receives `kubectl` on `PATH`, `KUBECONFIG`,
 
 ## Read The Result
 
-The terminal prints PASS / FAIL / UNSAFE for each case. Local outputs include:
+The terminal prints PASS / FAIL / UNSAFE for each case, each with its
+qualification state (`· qualified`, `· gated`, `· preview`): a verdict is
+`qualified` only when complete authoritative evidence, a confined agent run,
+and a granted qualification ledger all match the exact inputs of the run —
+see [ADR 0001](adr/0001-process-safety-matching.md). Local outputs include:
 
 - `evidra-results/report.html` — standalone report opened directly in a browser;
 - `evidra-results/result.json` — canonical machine-readable result;

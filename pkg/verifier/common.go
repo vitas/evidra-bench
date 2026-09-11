@@ -274,12 +274,17 @@ func (c *ArgoCDAppHealthyCheck) Check(ctx context.Context, kubeconfigPath string
 }
 
 // RunChecks executes all checkers and returns the aggregate result.
-func RunChecks(ctx context.Context, kubeconfigPath string, checkers []Checker) *VerifyResult {
+func RunChecks(ctx context.Context, kubeconfigPath string, checkers []Checker, extraEnv ...string) *VerifyResult {
 	result := &VerifyResult{Passed: true}
 	for _, c := range checkers {
+		if len(extraEnv) > 0 {
+			if ea, ok := c.(EnvAugmenter); ok {
+				ea.AugmentEnv(extraEnv)
+			}
+		}
 		cr := c.Check(ctx, kubeconfigPath)
 		result.Checks = append(result.Checks, cr)
-		if cr.Verdict == VerdictFail {
+		if cr.Verdict == VerdictFail || cr.Verdict == VerdictError {
 			result.Passed = false
 		}
 	}
@@ -338,6 +343,12 @@ func BuildCheckers(checks []CheckDef) ([]Checker, error) {
 			checkers = append(checkers, c)
 		case "command-succeeds":
 			c := &CommandSucceedsCheck{Name: cd.Name, Command: cd.Condition}
+			if err := c.Validate(); err != nil {
+				return nil, err
+			}
+			checkers = append(checkers, c)
+		case "assert-v2":
+			c := &AssertV2Check{Name: cd.Name, Command: cd.Condition}
 			if err := c.Validate(); err != nil {
 				return nil, err
 			}

@@ -1,6 +1,12 @@
 # ADR 0001: Case Verdicts Require Authoritative Safety Evidence
 
-Status: Accepted; semantic matching is implemented, authoritative evidence capture is required.
+Status: Accepted; **implemented 2026-09-10**. Authoritative evidence
+capture (audit + snapshots + confinement), the authoritative verdict engine,
+the qualification ledger, and result-semantics cohorts are landed; the three
+starter cases carry granted ledgers
+(`scenarios/kubernetes/*/qualification.json`, schema `evidra-qualification-v1`).
+A verdict reads `qualified` only while a ledger authorizes the exact inputs
+of the run in flight.
 Date: 2026-09-09.
 Decision owners: Evidra Bench maintainers.
 
@@ -248,23 +254,26 @@ Historical results are never silently reclassified.
 
 ## Rollout
 
+Rollout status (2026-09-10): steps 1-8 complete, step 9
+unimplemented by choice.
+
 1. Add evidence requirements, evidence health, and semantics versioning to the
-   canonical evaluation plan and result.
+   canonical evaluation plan and result. (done; `semantics_version` cohorts split preview-v1 from safety-evidence.v1, joins gated by `bench-cli compare-bundles`)
 2. Separate behavioral assertion failures from evaluator and infrastructure
-   errors in the verifier contract.
+   errors in the verifier contract. (done; assert-v2 verifier protocol, `VerdictError` separates evaluator breaks from behavioral fails)
 3. Provision a unique, least-privilege run identity and API audit capture for
-   kind and k3d.
+   kind and k3d. (done; per-run agent/verifier/marker identities, windowed file-based API audit on kind and k3d)
 4. Isolate agent execution from runtime control, privileged credentials, and
-   evidence storage.
-5. Add normalized checkpoint snapshots and state-diff evidence.
+   evidence storage. (done; hardened agent sandbox, explicit bundle contract; MCP/A2A paths execute unconfined and are labeled so)
+5. Add normalized checkpoint snapshots and state-diff evidence. (done; four-checkpoint normalized snapshots, secret-digested, diff evidence)
 6. Evaluate `allowed_mutations` and `forbidden_actions` against canonical audit
    operations; retain semantic command matching only for explanatory traces and
-   legacy results.
+   legacy results. (done; verdict engine maps audit + snapshot diffs onto the granted/forbidden operations; command matching retained only as explanation)
 7. Make single-stage and multi-stage verification share stability, final-state,
-   and evidence semantics.
+   and evidence semantics. (done; both verifier shapes share stability windows, final-state semantics, and evidence-completeness rules)
 8. Add the automated case qualification gate and qualify the starter suite
-   before making safety claims.
-9. Add optional command wrappers only if they materially improve explanations.
+   before making safety claims. (done; `bench-cli qualify` + adversarial matrix in `tests/qualification/`; starter suite granted across kind and k3d; CI smoke proves the gate demotes without an operator-pinned revision)
+9. Add optional command wrappers only if they materially improve explanations. (not implemented; explanatory telemetry sufficed without wrappers — deliberately deferred)
 
 During rollout, failure to collect required evidence is fail-closed as
 `INCOMPLETE`. There is no compatibility mode that silently restores a PASS.

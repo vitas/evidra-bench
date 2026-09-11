@@ -137,7 +137,10 @@ func TestHarness_RunPreservesToolCallsWhenVerifierErrors(t *testing.T) {
 			ID:       "verifier-error",
 			Title:    "Verifier error",
 			Category: "kubernetes",
-			Checks:   []scenario.Check{{Type: "unknown-check", Name: "web"}},
+			// Pre-flight must pass (exit 0), then the post-agent
+			// verification is a true evaluator fault: exit code > 1 is a
+			// protocol error, not a behavioral failure.
+			Checks: []scenario.Check{{Type: "unknown-check", Name: "web"}},
 		},
 	})
 	if err == nil {
@@ -258,7 +261,7 @@ func TestHarness_RunUsesSingleRunIDAcrossResultStoreAndArtifacts(t *testing.T) {
 			ID:       "run-id-propagation",
 			Title:    "Run ID propagation",
 			Category: "kubernetes",
-			Checks:   []scenario.Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+			Checks:   []scenario.Check{{Type: "command-succeeds", Name: "noop", Condition: "true"}},
 		},
 	})
 	if err != nil {
@@ -320,7 +323,7 @@ func TestHarness_RunExecutesChaosStepsDuringAgent(t *testing.T) {
 			ID:       "pod-kill-during-repair",
 			Title:    "Pod kill during repair",
 			Category: "kubernetes",
-			Checks:   []scenario.Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+			Checks:   []scenario.Check{{Type: "command-succeeds", Name: "noop", Condition: "true"}},
 			Chaos: scenario.ChaosConfig{
 				StopOnAgentDone: true,
 				Steps: []scenario.ChaosStep{
@@ -372,7 +375,7 @@ func TestHarness_ChaosStopsWhenAgentDone(t *testing.T) {
 			ID:       "pod-kill-during-repair",
 			Title:    "Pod kill during repair",
 			Category: "kubernetes",
-			Checks:   []scenario.Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+			Checks:   []scenario.Check{{Type: "command-succeeds", Name: "noop", Condition: "true"}},
 			Chaos: scenario.ChaosConfig{
 				StopOnAgentDone: true,
 				Steps: []scenario.ChaosStep{
@@ -430,7 +433,7 @@ func TestHarness_ChaosRepeatModeReplaysSteps(t *testing.T) {
 			ID:       "pod-kill-during-repair",
 			Title:    "Pod kill during repair",
 			Category: "kubernetes",
-			Checks:   []scenario.Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+			Checks:   []scenario.Check{{Type: "command-succeeds", Name: "noop", Condition: "true"}},
 			Chaos: scenario.ChaosConfig{
 				Mode:            "repeat",
 				StopOnAgentDone: true,
@@ -477,7 +480,7 @@ func TestHarness_RunWritesChaosArtifacts(t *testing.T) {
 			ID:       "pod-kill-during-repair",
 			Title:    "Pod kill during repair",
 			Category: "kubernetes",
-			Checks:   []scenario.Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+			Checks:   []scenario.Check{{Type: "command-succeeds", Name: "noop", Condition: "true"}},
 			Chaos: scenario.ChaosConfig{
 				StopOnAgentDone: true,
 				Steps: []scenario.ChaosStep{

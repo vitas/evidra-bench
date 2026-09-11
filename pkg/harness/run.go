@@ -50,6 +50,9 @@ type Deps struct {
 	Writer        *artifact.Writer
 	Reporter      *report.Reporter
 	Store         *localstore.Store
+	// Sandbox overrides the docker-CLI sandbox runner (tests); nil uses the
+	// production DockerSandbox.
+	Sandbox environment.SandboxRunner
 }
 
 // RunRequest describes what to run.
@@ -59,6 +62,12 @@ type RunRequest struct {
 	ExtraEnv        []string // Env vars from the profile lease (e.g., AWS_ENDPOINT_URL from aws-localstack)
 	TargetNamespace string   // Override namespace (default: "bench")
 	KubeconfigPath  string   // Pre-provisioned kubeconfig — skip cluster create/destroy if set
+	// Audit exposes provisioned API-audit capture on the leased cluster
+	// (nil = the cluster has no audit; coverage is then honestly absent).
+	Audit *environment.AuditAccess
+	// ClusterNetwork is the docker network of the provisioned cluster
+	// (agent sandbox attaches there; "" = unknown = sandbox unavailable).
+	ClusterNetwork string
 }
 
 // RunResult holds the outcome of a harness run.
@@ -116,7 +125,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 			Phase:   phase,
 			Reason:  kind,
 			Details: runErr.Error(),
-		})
+		}, s.AuthorityProfile != nil, nil, nil, s.AuthorityProfile, nil)
 		if result == nil {
 			result = &RunResult{
 				ScenarioID:  s.ID,
@@ -181,8 +190,93 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		recorder.Event("bootstrap", "completed", "")
 	}
 
-	// Step 3: Inject break (skipped for multi-stage — stages handle their own breaks).
+	// ADR 0001 "Reliable case contract": the sequence between bootstrap
+	// and the agent is a precondition, not a formality. Single-stage
+	// cases (multi-stage scenarios break inside their stages):
+	//
+	//	(a) prove the healthy baseline — every outcome check PASSES after
+	//	    bootstrap, so a later FAIL is the agent's story and not a
+	//	    pre-broken fixture;
+	//	(b) capture checkpoint 1 (healthy-baseline) BEFORE any injection;
+	//	(c) inject the break;
+	//	(d) PROVE the fault materialized — at least one outcome check must
+	//	    FAIL on the broken state before the agent starts. A no-op or
+	//	    silently failed break can never yield a valid (let alone
+	//	    qualified) evaluation: without this, "agent did nothing" and
+	//	    "agent fixed nothing" are indistinguishable.
+	//
+	// Any deviation aborts the run as an environment fault (INCOMPLETE
+	// with reason) before the agent ever sees a prompt.
 	isMultiStage := len(s.Stages) > 0
+	// Step 3b FIRST: Materialize per-run identities from the authority
+	// profile (ADR 0001 Phase 4; ordering hardened after reviewer round-2
+	// blocker #4). With a profile the agent AND the verifiers never run on
+	// admin credentials: agent = profile grants (SAs below), verifier =
+	// evidence-reader. Preflight checks execute as evidence-reader too —
+	// an assert-v2 script must not hold cluster-admin while the audit
+	// window is still closed. Window markers are emitted by the harness
+	// client-certificate identity (admin kubeconfig — spike-proven immune
+	// to the bearer cold window). Without a profile nothing is materialized
+	// and the run keeps the legacy admin kubeconfig (it is permanently
+	// unqualified via gap authority_profile_missing anyway).
+	agentKubeconfig := handle.KubeconfigPath
+	verifyKubeconfig := handle.KubeconfigPath
+	if s.AuthorityProfile != nil {
+		recorder.Event("identity", "started", "")
+		bundle, err := h.provisionRunIdentities(ctx, req, s, handle.KubeconfigPath, recorder)
+		if err != nil {
+			return nil, err
+		}
+		if bundle != nil {
+			defer bundle.teardown(ctx)
+			agentKubeconfig = bundle.agent.KubeconfigPath
+			verifyKubeconfig = bundle.evidence.KubeconfigPath
+		}
+		recorder.Event("identity", "completed", "")
+	}
+
+	preflight := func(phase string, wantPass bool) error {
+		// The contract binds fault-injecting single-stage cases: a fixture
+		// not healthy before the break, or a break leaving no observable
+		// fault, invalidates the evaluation itself. Scenarios without a
+		// break (misconfiguration-prompt class) have no baseline→fault
+		// delta to prove; the verdict engine governs those.
+		if isMultiStage || len(s.Checks) == 0 || s.Break.Type == "" || s.Break.AllowFailure {
+			return nil
+		}
+		recorder.Event(phase, "started", "")
+		// Checks run under the evidence-reader identity, never admin
+		// (reviewer round-2 blocker #4): a scenario script must not get
+		// cluster-admin before the audit window even exists.
+		res, err := h.verifyRunPhase(ctx, req, verifyKubeconfig, nil, nil, false, phase)
+		if err != nil {
+			recorder.Event(phase, "failed", err.Error())
+			return err
+		}
+		if errs := res.Errored(); len(errs) > 0 {
+			msg := phase + ": evaluator unhealthy while checking precondition: " + errs[0].Name + ": " + errs[0].Message
+			recorder.Event(phase, "failed", msg)
+			return &InfraError{Err: fmt.Errorf("harness.Run: %s", msg)}
+		}
+		if res.Passed != wantPass {
+			msg := fmt.Sprintf("%s: precondition violated: checks passed=%v, want pass=%v",
+				phase, res.Passed, wantPass)
+			recorder.Event(phase, "failed", msg)
+			return &InfraError{Err: fmt.Errorf("harness.Run: %s", msg)}
+		}
+		recorder.Event(phase, "completed", "")
+		return nil
+	}
+
+	if err := preflight("preflight_baseline", true); err != nil {
+		return nil, err
+	}
+	// Checkpoint 1 (ADR 0001): healthy baseline, verified healthy by the
+	// preflight, captured with the evidence-reader client.
+	snaps := newRunSnapshots(s.AuthorityProfile, verifyKubeconfig)
+	snaps.capture(ctx, "baseline")
+
+	// Step 3: Inject break (skipped for multi-stage — stages handle their own breaks).
 	if !isMultiStage {
 		recorder.Event("break", "started", "")
 		if err := h.injectSingleStageBreak(ctx, req, handle.KubeconfigPath); err != nil {
@@ -191,6 +285,18 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		}
 		recorder.Event("break", "completed", "")
 	}
+
+	if err := preflight("preflight_fault", false); err != nil {
+		return nil, err
+	}
+	// Checkpoint 2 (ADR 0001): broken state, immediately before the agent
+	// starts. The preservation diff baselines on this checkpoint:
+	// legitimate-but-in-flight churn of the fault itself is not blamed on
+	// the agent, while anything the agent changes shows up cleanly.
+	snaps.capture(ctx, "pre-agent")
+
+	// Step 3a: Open the API-audit window (cert-identity start marker).
+	auditWin := h.startAuditWindow(ctx, req, handle.KubeconfigPath, recorder)
 
 	// Step 4: Execute agent.
 	recorder.Event("agent_prepare", "started", "")
@@ -206,7 +312,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	recorder.Event("agent_run", "started", "")
 	var providerEvDir string
 	var stageResults []StageResult
-	agentResult, providerEvDir, stageResults, err = h.executeRunAgent(ctx, req, handle.KubeconfigPath, promptContent, timeout, startTime, isMultiStage)
+	agentResult, providerEvDir, stageResults, err = h.executeRunAgent(ctx, req, agentKubeconfig, promptContent, timeout, startTime, isMultiStage)
 	if err != nil {
 		chaosRun.stopForAgentError(s.Chaos)
 		recorder.Event("agent_run", "failed", err.Error())
@@ -222,18 +328,34 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 
 	// Step 5: Verify outcome.
 	recorder.Event("verification", "started", "")
-	verifyResult, err = h.verifyRun(ctx, req, handle.KubeconfigPath, agentResult, providerEvDir, stageResults, isMultiStage)
+	verifyResult, err = h.verifyRun(ctx, req, verifyKubeconfig, agentResult, providerEvDir, stageResults, isMultiStage)
 	if err != nil {
 		recorder.Event("verification", "failed", err.Error())
 		return nil, err
 	}
 	recorder.Event("verification", "completed", "")
 
+	// Step 5a: Post-agent + stability state checkpoints (reader reads are
+	// themselves inside the audit window: sealed by the end marker next).
+	snaps.capture(ctx, "post-agent")
+	time.Sleep(stabilityWindow)
+	snaps.capture(ctx, "stability")
+	snapInfo := snaps.finalize(recorder)
+
+	// Step 5c: qualification-ledger verification against THIS run's exact
+	// inputs — digests recomputed, never trusted (ADR 0001 §8).
+	qualVerdict, qualInputs := ComputeQualification(ctx, s, handle.KubeconfigPath, req.Config.EnvironmentProvider, "")
+	recorder.Event("qualification", ledgerEventKind(qualVerdict), ledgerEventDetail(qualVerdict, qualInputs))
+
+	// Step 5b: Seal the API-audit window (end marker + drain + redaction).
+	auditRes, auditJSONL, auditDigest := auditWin.close(ctx, recorder)
+	auditInfo := auditWindowInfo(auditRes, auditJSONL, auditDigest, auditWin)
+
 	// Step 6: Write artifacts.
 	endTime := time.Now()
 	recorder.Event("run", "completed", "")
 	recorder.Event("artifact_write", "started", "")
-	artifactDir, autopsyJSON := h.writeRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, startTime, endTime)
+	artifactDir, autopsyJSON := h.writeRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, startTime, endTime, auditInfo, snapInfo)
 	recorder.Event("artifact_write", "completed", "")
 
 	// Step 7: Bench reporting.
@@ -250,7 +372,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		ArtifactDir: artifactDir,
 		Checks:      verifyResult,
 	}
-	caseResult := buildEvaluationCaseResult(s.ID, runID, agentResult, verifyResult, autopsyJSON, artifactDir, endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete})
+	caseResult := buildEvaluationCaseResult(s.ID, runID, agentResult, verifyResult, autopsyJSON, artifactDir, endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete}, s.AuthorityProfile != nil, auditInfo, snapInfo, s.AuthorityProfile, qualVerdict)
 	result.Case = &caseResult
 
 	// Step 8: Store result in database.

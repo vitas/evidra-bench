@@ -16,15 +16,17 @@ import (
 )
 
 type testRequest struct {
-	Model       string
-	Endpoint    string
-	Agent       string
-	Suite       string
-	Environment string
-	OutputDir   string
-	ProjectRoot string
-	Timeout     time.Duration
-	CI          bool
+	Model          string
+	Endpoint       string
+	Agent          string
+	AgentImage     string
+	AgentBundleDir string
+	Suite          string
+	Environment    string
+	OutputDir      string
+	ProjectRoot    string
+	Timeout        time.Duration
+	CI             bool
 }
 
 type testRunner func(context.Context, testRequest) (evaluation.Result, error)
@@ -66,11 +68,19 @@ func newTestCommand(run testRunner) *cobra.Command {
 		Short: "Test an infrastructure model or agent on live Kubernetes failures",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if strings.TrimSpace(req.Model) == "" && strings.TrimSpace(req.Agent) == "" {
-				return fmt.Errorf("test: provide --model or --agent")
+			image, bundle := strings.TrimSpace(req.AgentImage), strings.TrimSpace(req.AgentBundleDir)
+			sandboxed := image != "" || bundle != ""
+			if sandboxed && (image == "" || bundle == "") {
+				return fmt.Errorf("test: --agent-image and --agent-bundle must be provided together")
 			}
-			if strings.TrimSpace(req.Model) != "" && strings.TrimSpace(req.Agent) != "" {
-				return fmt.Errorf("test: --model and --agent are mutually exclusive")
+			if strings.TrimSpace(req.Model) == "" && strings.TrimSpace(req.Agent) == "" && !sandboxed {
+				return fmt.Errorf("test: provide --model, --agent, or the --agent-image + --agent-bundle sandbox pair")
+			}
+			if strings.TrimSpace(req.Model) != "" && (strings.TrimSpace(req.Agent) != "" || sandboxed) {
+				return fmt.Errorf("test: --model is mutually exclusive with --agent/--agent-image")
+			}
+			if sandboxed && strings.TrimSpace(req.Agent) != "" {
+				return fmt.Errorf("test: --agent cannot be combined with the sandbox pair (the bundle IS the agent)")
 			}
 			if run == nil {
 				return fmt.Errorf("test: evaluation runner is unavailable")
@@ -83,6 +93,8 @@ func newTestCommand(run testRunner) *cobra.Command {
 	flags.StringVar(&req.Model, "model", "", "model to test (for example openai/gpt-5)")
 	flags.StringVar(&req.Endpoint, "endpoint", "", "OpenAI-compatible API base URL")
 	flags.StringVar(&req.Agent, "agent", "", "external agent command")
+	flags.StringVar(&req.AgentImage, "agent-image", "", "run the agent inside a hardened sandbox built from this image")
+	flags.StringVar(&req.AgentBundleDir, "agent-bundle", "", "agent bundle directory (entrypoint ./run + declared files) staged into the sandbox")
 	flags.StringVar(&req.Suite, "suite", req.Suite, "versioned test suite")
 	flags.StringVar(&req.Environment, "environment", req.Environment, "local Kubernetes environment (kind or k3d)")
 	flags.StringVar(&req.OutputDir, "output", req.OutputDir, "directory for local reports and evidence")
@@ -152,7 +164,7 @@ func writeEvaluationOutputs(outputDir string, result evaluation.Result, suiteID 
 	if err != nil {
 		return fmt.Errorf("test: create HTML report: %w", err)
 	}
-	limitations := []string{"Verdicts are preview until authoritative evidence capture lands (docs/adr/0001-process-safety-matching.md): process safety is judged from agent tool-call telemetry, which is not proof that no other action occurred."}
+	limitations := []string{"A verdict is qualified only when its case carries an authorized qualification ledger (docs/adr/0001-process-safety-matching.md): the engine judged complete, audit + snapshot evidence AND a confined sandbox execution. Ungranted or drifted cases read \u00b7 preview or \u00b7 gated and must not be quoted as authoritative."}
 	if suiteID == "kubernetes-demo@1" {
 		limitations = append(limitations, "This starter suite demonstrates core behavior; it does not certify production readiness.")
 	}

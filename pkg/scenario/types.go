@@ -9,32 +9,46 @@ import (
 
 // Scenario is the parsed representation of a scenario.yaml file.
 type Scenario struct {
-	ID          string            `yaml:"id"`
-	Title       string            `yaml:"title"`
-	Description string            `yaml:"description,omitempty"`
-	Category    string            `yaml:"category,omitempty"`   // Primary category (backward compat). Use Categories for multi-category scenarios.
-	Categories  []string          `yaml:"categories,omitempty"` // Multi-category support: categories: [terraform, aws]
-	Track       string            `yaml:"track,omitempty"`      // workloads, troubleshooting, networking, storage, pod-security, runtime-security, release-ops, platform-eng
-	Level       string            `yaml:"level,omitempty"`      // L1 (fix), L2 (diagnose), L3 (judge), L4 (investigate)
-	Path        string            `yaml:"-"`
-	Dir         string            `yaml:"-"`
-	Tags        []string          `yaml:"tags,omitempty"`
-	Prompt      string            `yaml:"prompt"`
-	Timeout     Duration          `yaml:"timeout,omitempty"`
-	Checks      []Check           `yaml:"checks"`
-	Scope       Scope             `yaml:"scope,omitempty"`
-	Bootstrap   []BootstrapStep   `yaml:"bootstrap,omitempty"`
-	AfterBreak  []BootstrapStep   `yaml:"after_break,omitempty"`
-	Break       Break             `yaml:"break"`
-	Stages      []Stage           `yaml:"stages,omitempty"`
-	Chaos       ChaosConfig       `yaml:"chaos,omitempty"`
-	Baseline    string            `yaml:"baseline,omitempty"`
+	ID          string          `yaml:"id"`
+	Title       string          `yaml:"title"`
+	Description string          `yaml:"description,omitempty"`
+	Category    string          `yaml:"category,omitempty"`   // Primary category (backward compat). Use Categories for multi-category scenarios.
+	Categories  []string        `yaml:"categories,omitempty"` // Multi-category support: categories: [terraform, aws]
+	Track       string          `yaml:"track,omitempty"`      // workloads, troubleshooting, networking, storage, pod-security, runtime-security, release-ops, platform-eng
+	Level       string          `yaml:"level,omitempty"`      // L1 (fix), L2 (diagnose), L3 (judge), L4 (investigate)
+	Path        string          `yaml:"-"`
+	Dir         string          `yaml:"-"`
+	Tags        []string        `yaml:"tags,omitempty"`
+	Prompt      string          `yaml:"prompt"`
+	Timeout     Duration        `yaml:"timeout,omitempty"`
+	Checks      []Check         `yaml:"checks"`
+	Scope       Scope           `yaml:"scope,omitempty"`
+	Bootstrap   []BootstrapStep `yaml:"bootstrap,omitempty"`
+	AfterBreak  []BootstrapStep `yaml:"after_break,omitempty"`
+	Break       Break           `yaml:"break"`
+	Stages      []Stage         `yaml:"stages,omitempty"`
+	Chaos       ChaosConfig     `yaml:"chaos,omitempty"`
+	Baseline    string          `yaml:"baseline,omitempty"`
+	// AgentInputs whitelists files from the scenario directory that may be
+	// staged into the agent sandbox (ADR 0001 Phase 6). The scenario dir
+	// itself is NEVER mounted — it can hold fixtures/expected data.
+	AgentInputs []string          `yaml:"agent_inputs,omitempty"`
 	Tools       []string          `yaml:"tools,omitempty"`
 	Environment EnvironmentConfig `yaml:"environment,omitempty"`
 	Autopsy     AutopsyHints      `yaml:"autopsy,omitempty"`
 	Skip        bool              `yaml:"skip,omitempty"`
 	SkipReason  string            `yaml:"skip_reason,omitempty"`
+
+	// AuthorityProfile is the explicit safety-authority statement for the
+	// run's identities (see authority.go). nil is loadable but pins the
+	// case permanently unqualified with gap "authority_profile_missing".
+	AuthorityProfile *AuthorityProfile `yaml:"authority_profile,omitempty"`
 }
+
+// CheckTypeAssertV2 is the structured-output verifier protocol (design §2).
+// Phase 2 recognizes it at the schema/parsing level only; execution semantics
+// land in Phase 3.
+const CheckTypeAssertV2 = "assert-v2"
 
 // ResolvedCategories returns the effective category list.
 // If Categories is set, it takes precedence. Otherwise Category is used as a single-element list.

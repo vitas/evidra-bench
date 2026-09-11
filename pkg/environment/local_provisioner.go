@@ -94,6 +94,8 @@ func (p *LocalProvisioner) acquireDefault(ctx context.Context, req ProvisionRequ
 	return &Lease{
 		Profile:        req.Profile,
 		KubeconfigPath: handle.KubeconfigPath,
+		Audit:          handle.Audit,
+		ClusterNetwork: handle.ClusterNetwork,
 		Provider:       provider,
 		Shared:         req.Shared,
 		release:        release,
@@ -136,6 +138,8 @@ func (p *LocalProvisioner) acquireArgocd(ctx context.Context, req ProvisionReque
 	return &Lease{
 		Profile:        req.Profile,
 		KubeconfigPath: handle.KubeconfigPath,
+		Audit:          handle.Audit,
+		ClusterNetwork: handle.ClusterNetwork,
 		Provider:       provider,
 		Shared:         req.Shared,
 		release:        release,
@@ -186,6 +190,8 @@ func (p *LocalProvisioner) acquireAWSLocalStack(ctx context.Context, req Provisi
 	return &Lease{
 		Profile:        req.Profile,
 		KubeconfigPath: handle.KubeconfigPath,
+		Audit:          handle.Audit,
+		ClusterNetwork: handle.ClusterNetwork,
 		ExtraEnv:       profileResult.ExtraEnv,
 		Provider:       provider,
 		Shared:         req.Shared,
@@ -204,6 +210,10 @@ func (p *LocalProvisioner) provisionCluster(ctx context.Context, req ProvisionRe
 	if req.Scenario != nil {
 		spec.LegacyKubernetes = req.Scenario.Environment.Kubernetes
 	}
+	// ADR 0001: every cluster created through this provisioner carries
+	// API-audit provisioning — generated configs embed the proven recipe,
+	// checked-in assets are merged with it at create time.
+	spec.Audit = AuditConfig{Enabled: true}
 
 	var (
 		handle *Handle

@@ -69,8 +69,8 @@ func TestTestCommand_RejectsMissingTargetBeforeRunner(t *testing.T) {
 	})
 	cmd.SetArgs(nil)
 	err := cmd.Execute()
-	if err == nil || !strings.Contains(err.Error(), "--model or --agent") {
-		t.Fatalf("error = %v, want actionable missing target error", err)
+	if err == nil || !strings.Contains(err.Error(), "--agent-image") {
+		t.Fatalf("error = %v, want actionable missing target error naming the sandbox pair", err)
 	}
 	if called {
 		t.Fatal("runner called before target validation")
@@ -106,5 +106,51 @@ func TestTestCommand_MapsBehavioralAndIncompleteExitCodes(t *testing.T) {
 				t.Fatalf("exit code = %d, want %d (err=%v)", got, tc.want, err)
 			}
 		})
+	}
+}
+
+func TestTestCommandSandboxPairValidation(t *testing.T) {
+	notCalled := func(t *testing.T, args ...string) string {
+		t.Helper()
+		called := false
+		cmd := newTestCommand(func(context.Context, testRequest) (evaluation.Result, error) {
+			called = true
+			return evaluation.Result{}, nil
+		})
+		cmd.SetArgs(args)
+		err := cmd.Execute()
+		if called {
+			t.Fatal("runner must not run with invalid sandbox pairing")
+		}
+		if err == nil {
+			t.Fatalf("expected rejection for %v", args)
+		}
+		return err.Error()
+	}
+	if e := notCalled(t, "--agent-image", "img", "--environment", "kind"); !strings.Contains(e, "together") {
+		t.Fatalf("half pair: %v", e)
+	}
+	if e := notCalled(t, "--model", "m", "--agent-image", "i", "--agent-bundle", "b", "--environment", "kind"); !strings.Contains(e, "mutually exclusive") {
+		t.Fatalf("model+sandbox: %v", e)
+	}
+	if e := notCalled(t, "--agent", "a", "--agent-image", "i", "--agent-bundle", "b", "--environment", "kind"); !strings.Contains(e, "bundle IS the agent") {
+		t.Fatalf("agent+sandbox: %v", e)
+	}
+
+	// Full pair alone is a complete target: reaches the runner.
+	seen := testRequest{}
+	cmd := newTestCommand(func(_ context.Context, req testRequest) (evaluation.Result, error) {
+		seen = req
+		res := completedTestResult(evaluation.VerdictPass)
+		res.Target = evaluation.TargetPlan{Kind: evaluation.TargetAgent}
+		return res, nil
+	})
+	out := t.TempDir()
+	cmd.SetArgs([]string{"--agent-image", "img", "--agent-bundle", "/b", "--environment", "kind", "--output", out})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("pair must validate: %v", err)
+	}
+	if seen.AgentImage != "img" || seen.AgentBundleDir != "/b" {
+		t.Fatalf("request fields lost: %+v", seen)
 	}
 }

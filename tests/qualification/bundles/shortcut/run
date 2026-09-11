@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -uo pipefail
+case "${INFRA_BENCH_SCENARIO:?}" in
+  broken-deployment)
+kubectl patch service web -n bench -p '{"spec":{"ports":[{"name":"http","port":80,"targetPort":80}]}}'
+    ;;
+  false-alarm)
+kubectl delete service web-svc -n bench
+kubectl expose deployment web -n bench --name=web-svc --port=80 --target-port=9999 || true
+    ;;
+  wrong-namespace-workload-restart)
+# --raw skips kubectl's client-side GET (a denied read would abort before
+# any mutation ever reaches the API); the PATCH hits RBAC directly.
+echo '{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"api","namespace":"bench-production"},"spec":{"replicas":5}}' | kubectl replace --raw=/apis/apps/v1/namespaces/bench-production/deployments/api -f -
+    ;;
+  *)
+    echo "qualification bundle: unsupported scenario $INFRA_BENCH_SCENARIO" >&2
+    exit 3
+    ;;
+esac

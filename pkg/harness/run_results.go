@@ -3,10 +3,14 @@ package harness
 import (
 	"encoding/json"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/oklog/ulid/v2"
+
+	"github.com/vitas/evidra-bench/pkg/evaluation"
 
 	"github.com/vitas/evidra-bench/pkg/adapter"
 	"github.com/vitas/evidra-bench/pkg/artifact"
@@ -17,7 +21,7 @@ import (
 	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
-func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, startTime, endTime time.Time) (string, json.RawMessage) {
+func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, startTime, endTime time.Time, auditInfo *AuditWindowInfo, snapInfo *SnapshotInfo) (string, json.RawMessage) {
 	s := req.Scenario
 	checksJSON, _ := json.Marshal(verifyResult)
 	toolCallsJSON := marshalToolCallsJSON(agentResult.ToolCalls)
@@ -60,6 +64,7 @@ func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *a
 		EndTime:        endTime,
 		ExitCode:       agentResult.ExitCode,
 		Passed:         verifyResult.Passed,
+		Verdict:        string(classifyVerdict(!checksErrored(verifyResult), verifyResult.Passed, checksErrored(verifyResult), findingsFromAutopsyJSON(autopsyJSON))),
 		Prompt:         promptContent,
 		Transcript:     agentResult.Transcript,
 		Stdout:         agentResult.Stdout,
@@ -76,7 +81,14 @@ func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *a
 		ChaosLog:       chaosLog,
 		Metadata:       agentResult.Metadata,
 	}
+	bundle.Metadata = stampSemantics(bundle.Metadata)
 
+	if auditInfo != nil {
+		bundle.Audit = auditInfo.BundleSummary()
+	}
+	if snapInfo != nil {
+		bundle.Snapshots = snapInfo.BundleSummary()
+	}
 	if h.deps.Writer == nil {
 		return "", autopsyJSON
 	}
@@ -84,6 +96,20 @@ func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *a
 	if err != nil {
 		log.Printf("[harness] warning: artifact write failed: %v", err)
 		return "", autopsyJSON
+	}
+	if auditInfo != nil && len(auditInfo.JSONL) > 0 {
+		path := filepath.Join(out.Path, "audit.jsonl")
+		if err := os.WriteFile(path, auditInfo.JSONL, 0o600); err != nil {
+			log.Printf("[harness] warning: audit evidence write failed: %v", err)
+		}
+	}
+	if snapInfo != nil {
+		for name, data := range snapInfo.Artifacts {
+			path := filepath.Join(out.Path, name)
+			if err := os.WriteFile(path, data, 0o600); err != nil {
+				log.Printf("[harness] warning: snapshot evidence write failed (%s): %v", name, err)
+			}
+		}
 	}
 	return out.Path, autopsyJSON
 }
@@ -123,6 +149,7 @@ func (h *Harness) writeFailedRunArtifacts(req RunRequest, runID string, agentRes
 			EndTime:        endTime,
 			ExitCode:       agentResult.ExitCode,
 			Passed:         false,
+			Verdict:        string(classifyVerdict(false, false, checksErrored(verifyResult), findingsFromAutopsyJSON(safetyAutopsyJSON))),
 			Prompt:         promptContent,
 			Transcript:     agentResult.Transcript,
 			Stdout:         agentResult.Stdout,
@@ -140,6 +167,7 @@ func (h *Harness) writeFailedRunArtifacts(req RunRequest, runID string, agentRes
 			ChaosLog:       chaosLog,
 			Metadata:       agentResult.Metadata,
 		}
+		bundle.Metadata = stampSemantics(bundle.Metadata)
 		out, err := h.deps.Writer.Write(bundle)
 		if err != nil {
 			log.Printf("[harness] warning: failed-run artifact write failed: %v", err)
@@ -368,4 +396,16 @@ func buildTimelineJSON(toolCallsJSON json.RawMessage) json.RawMessage {
 		return nil
 	}
 	return data
+}
+
+// stampSemantics records the result-semantics cohort on the run document
+// (ADR 0001 Phase 11): every new run is stamped safety-evidence.v1.
+// Exporters and comparers refuse to mix cohorts; documents without the key
+// are legacy preview-v1 — readable, never comparable.
+func stampSemantics(meta map[string]string) map[string]string {
+	if meta == nil {
+		meta = map[string]string{}
+	}
+	meta["semantics_version"] = evaluation.SafetyEvidenceSemanticsVersion
+	return meta
 }

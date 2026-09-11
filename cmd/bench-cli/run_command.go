@@ -176,10 +176,18 @@ func runScenarioOnceWithLease(ctx context.Context, cfg config.Config, s *scenari
 	defer rt.Close()
 	h := harness.New(rt.Deps)
 
+	var auditAccess *environment.AuditAccess
+	var clusterNetwork string
+	if lease != nil {
+		auditAccess = lease.Audit
+		clusterNetwork = lease.ClusterNetwork
+	}
 	result, err := h.Run(ctx, harness.RunRequest{
 		Config:         cfg,
 		Scenario:       s,
 		KubeconfigPath: kubeconfigPath,
+		Audit:          auditAccess,
+		ClusterNetwork: clusterNetwork,
 		ExtraEnv:       extraEnv,
 	})
 	if err != nil {

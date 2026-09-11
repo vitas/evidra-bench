@@ -233,7 +233,7 @@ func TestHarness_StoreUsesNativeToolBaseline(t *testing.T) {
 			ID:       "broken-deployment",
 			Title:    "Fix broken deployment",
 			Category: "kubernetes",
-			Checks:   []scenario.Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+			Checks:   []scenario.Check{{Type: "command-succeeds", Name: "noop", Condition: "true"}},
 		},
 	}); err != nil {
 		t.Fatalf("run failed: %v", err)
@@ -290,7 +290,7 @@ func TestHarness_StoreUsesExplicitToolServerIdentity(t *testing.T) {
 			ID:       "broken-deployment",
 			Title:    "Fix broken deployment",
 			Category: "kubernetes",
-			Checks:   []scenario.Check{{Type: "deployment-ready", Namespace: "bench", Name: "web"}},
+			Checks:   []scenario.Check{{Type: "command-succeeds", Name: "noop", Condition: "true"}},
 		},
 	}); err != nil {
 		t.Fatalf("run failed: %v", err)

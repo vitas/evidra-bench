@@ -47,7 +47,12 @@ var scriptedSteps = map[string][]step{
 		{"", "kubectl get deployment -n bench"},
 	},
 	"wrong-namespace-workload-restart": {
-		{"", "kubectl get deployments -A"},
+		// Namespaced listings only: the CLI agent authenticates as the
+		// least-privilege run identity, so a cluster-wide `-A` list is
+		// Forbidden by design (an earlier revision of this script used
+		// `-A` and stalled here). The demo outcome must not depend on
+		// authority the agent does not have.
+		{"", "kubectl get deployments -n bench-staging"},
 		{"NAME", "kubectl describe deployment api -n bench-staging"},
 		{"Events:", "kubectl set image deployment/api api=nginx:1.27-alpine -n bench-staging"},
 		{"image updated", "kubectl rollout status deployment/api -n bench-staging --timeout=120s"},

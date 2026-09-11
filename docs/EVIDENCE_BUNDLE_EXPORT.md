@@ -40,6 +40,15 @@ Per-tool-call `prescribe`/`report` pairs are planned for v2 — they need
 per-call exit codes recorded by adapters first. Until then the annotation
 carries the coarse tally.
 
+## Cohorts
+
+`bundle.json` records the `semantics_version` cohort of the run it came from.
+Bundles exported before ADR 0001 report no version and decode as legacy
+`preview-v1`: always individually verifiable, but never comparable with
+authoritative-evidence results. `bench-cli compare-bundles <dir>...`
+verifies each chain and refuses mixed or legacy sets; see
+[ADR 0001](adr/0001-process-safety-matching.md).
+
 ## Integrity and trust
 
 - The bundle is signed with an **ephemeral Ed25519 key** generated per export;

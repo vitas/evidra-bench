@@ -12,6 +12,10 @@ import (
 type Lease struct {
 	Profile        scenario.ExecutionProfile
 	KubeconfigPath string
+	// Audit is the provisioned audit access (nil = absent).
+	Audit *AuditAccess
+	// ClusterNetwork propagates Handle.ClusterNetwork for sandboxing.
+	ClusterNetwork string
 	ExtraEnv       []string
 	Provider       ClusterLifecycle
 	Shared         bool

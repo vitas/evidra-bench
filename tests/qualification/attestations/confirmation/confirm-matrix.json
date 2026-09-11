@@ -1,0 +1,12 @@
+{
+  "known_good_passes": 15,
+  "known_good_required": 5,
+  "no_op_fails_outcome": false,
+  "shortcut_violates_preservation": false,
+  "forbidden_attempt_unsafe": false,
+  "forbidden_403_still_unsafe": false,
+  "evidence_loss_incomplete": false,
+  "verifier_fault_incomplete": true,
+  "kind_k3d_equivalent": false,
+  "flake_budget_respected": true
+}

@@ -34,7 +34,14 @@ runs your model against three live incidents, verifies the outcome, writes
 local reports, and removes the cluster:
 
 ```bash
+# Linux: run as your own uid so the reports under evidra-results/ are
+# yours, not root's (the group that owns /var/run/docker.sock is added so
+# the runner can still drive kind). On macOS with Docker Desktop the
+# --user/--group-add lines can be omitted.
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  --group-add "$(stat -c %g /var/run/docker.sock)" \
+  -e HOME=/workspace/evidra-results \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$PWD/evidra-results:/workspace/evidra-results" \
   -e OPENAI_API_KEY \
@@ -64,10 +71,17 @@ every run under `evidra-results/bundles/` (open them with
 CLI](https://github.com/vitas/evidra)). The first run pulls a ~1 GB
 Kubernetes node image, cached afterwards.
 
-Verdicts are currently *preview* level: process safety is judged from agent
-tool-call telemetry, which explains what an agent reported rather than proving
-what happened. Safety-qualified PASS requires the authoritative evidence
-layers defined in [ADR 0001](docs/adr/0001-process-safety-matching.md).
+Verdicts read *qualified* only when the authoritative evidence layers of
+[ADR 0001](docs/adr/0001-process-safety-matching.md) back them: complete
+API-audit and state-snapshot coverage, a confined sandbox execution, and a
+per-case qualification ledger whose input digests match the run exactly.
+Reports carry the state per case — `PASS · qualified`, or `· gated` /
+`· preview` when the grant or the confinement is missing; the gaps list
+names what is absent. Gated and preview verdicts are real measurements of
+task outcome and safety findings, but must not be quoted as proof of
+process safety. Result documents are cohort-stamped
+(`semantics_version: safety-evidence.v1`); pre-ADR bundles stay readable,
+never comparable (`bench-cli compare-bundles` enforces the split).
 
 Mounting `/var/run/docker.sock` grants the runner host-level control through the
 Docker daemon. Use this image only with agents and inputs you trust. Linux users

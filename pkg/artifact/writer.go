@@ -11,21 +11,33 @@ import (
 
 // RunBundle holds all data for a single benchmark run.
 type RunBundle struct {
-	RunID          string            `json:"run_id"`
-	ScenarioID     string            `json:"scenario_id"`
-	Adapter        string            `json:"adapter"`
-	StartTime      time.Time         `json:"start_time"`
-	EndTime        time.Time         `json:"end_time"`
-	ExitCode       int               `json:"exit_code"`
-	Passed         bool              `json:"passed"`
-	Prompt         string            `json:"prompt,omitempty"`
-	Transcript     string            `json:"transcript,omitempty"`
-	Stdout         string            `json:"stdout,omitempty"`
-	Stderr         string            `json:"stderr,omitempty"`
-	ToolCalls      json.RawMessage   `json:"tool_calls,omitempty"`
-	Timeline       json.RawMessage   `json:"timeline,omitempty"`
-	Checks         json.RawMessage   `json:"checks,omitempty"`
-	Autopsy        json.RawMessage   `json:"autopsy,omitempty"`
+	RunID      string    `json:"run_id"`
+	ScenarioID string    `json:"scenario_id"`
+	Adapter    string    `json:"adapter"`
+	StartTime  time.Time `json:"start_time"`
+	EndTime    time.Time `json:"end_time"`
+	ExitCode   int       `json:"exit_code"`
+	Passed     bool      `json:"passed"`
+	// Verdict is the canonical evaluation verdict for the run
+	// (PASS/FAIL/UNSAFE/INCOMPLETE) when written through the harness.
+	// Empty on legacy run.json documents; consumers then fall back to
+	// exit-code derivation and mark the export as legacy.
+	Verdict    string          `json:"verdict,omitempty"`
+	Prompt     string          `json:"prompt,omitempty"`
+	Transcript string          `json:"transcript,omitempty"`
+	Stdout     string          `json:"stdout,omitempty"`
+	Stderr     string          `json:"stderr,omitempty"`
+	ToolCalls  json.RawMessage `json:"tool_calls,omitempty"`
+	Timeline   json.RawMessage `json:"timeline,omitempty"`
+	Checks     json.RawMessage `json:"checks,omitempty"`
+	Autopsy    json.RawMessage `json:"autopsy,omitempty"`
+	// Snapshots is the state-evidence summary (ADR 0001 Phase 7); the
+	// normalized checkpoints live in the run dir as snapshot-*.json.
+	Snapshots *SnapshotsSummary `json:"snapshots,omitempty"`
+	// Audit is the API-audit collection summary (ADR 0001 Phase 5). The
+	// window evidence itself lives in the run dir as audit.jsonl (redacted
+	// by construction); the digest binds it.
+	Audit          *AuditSummary     `json:"audit,omitempty"`
 	Scorecard      json.RawMessage   `json:"scorecard,omitempty"`
 	RunError       json.RawMessage   `json:"run_error,omitempty"`
 	RunEvents      json.RawMessage   `json:"run_events,omitempty"`
@@ -162,4 +174,28 @@ func (w *Writer) Write(bundle RunBundle) (*WriteOutput, error) {
 
 func isSafeArtifactDirName(name string) bool {
 	return name != "" && name == filepath.Base(name) && name != "." && name != ".."
+}
+
+// AuditSummary records how the api_audit source was captured for one run.
+type AuditSummary struct {
+	Coverage     string   `json:"coverage"` // complete|incomplete|absent
+	Reasons      []string `json:"reasons,omitempty"`
+	Events       int      `json:"events"`
+	File         string   `json:"file,omitempty"`
+	DigestSHA256 string   `json:"digest_sha256,omitempty"`
+	WindowStart  string   `json:"window_start_marker,omitempty"`
+	WindowEnd    string   `json:"window_end_marker,omitempty"`
+}
+
+// SnapshotsSummary records how the state_snapshot source was captured.
+type SnapshotsSummary struct {
+	Coverage        string   `json:"coverage"`
+	Reason          string   `json:"reason,omitempty"`
+	BaselineDigest  string   `json:"baseline_digest,omitempty"`
+	PostAgentDigest string   `json:"post_agent_digest,omitempty"`
+	StabilityDigest string   `json:"stability_digest,omitempty"`
+	Violations      []string `json:"violations,omitempty"`
+	AllowedChanges  int      `json:"allowed_changes"`
+	DerivedChanges  int      `json:"derived_changes,omitempty"`
+	Files           []string `json:"files,omitempty"`
 }

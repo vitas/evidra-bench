@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/vitas/evidra-bench/pkg/artifact"
+	"github.com/vitas/evidra-bench/pkg/evaluation"
 	"github.com/vitas/evidra-bench/pkg/evidrawire"
 )
 
@@ -80,9 +81,13 @@ func Export(req Request) (*Result, error) {
 	}
 	adapterName := firstNonEmpty(run.Adapter, "unknown")
 	traceID := "bench-" + run.RunID
+	// Cohort stamp (Phase 11): the exported bundle carries the source
+	// run's semantics_version; documents predating the stamp export as
+	// legacy — readable, never comparable (see evidrawire.Cohort).
 	w, err := evidrawire.NewBundleWriter(
 		req.OutDir, traceID, traceID,
 		ProducerName+"/"+adapterName, req.ProducerVersion, signer,
+		evidrawire.WithSemanticsVersion(run.Metadata[semanticsMetaKey]),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("benchexport.Export: %w", err)
@@ -104,12 +109,17 @@ func Export(req Request) (*Result, error) {
 		return nil, err
 	}
 
+	exitCode := run.ExitCode
+	verdict, verdictSource := mapVerdict(run.Verdict, exitCode)
+
 	// 1. session_start — run metadata as labels.
 	startLabels := map[string]string{
 		"run_id":           run.RunID,
 		"scenario_id":      run.ScenarioID,
 		"adapter":          run.Adapter,
 		"passed":           strconv.FormatBool(run.Passed),
+		"verdict":          firstNonEmpty(run.Verdict, string(evaluation.VerdictIncomplete)),
+		"verdict_source":   verdictSource,
 		"duration_seconds": strconv.FormatFloat(run.EndTime.Sub(run.StartTime).Seconds(), 'f', 3, 64),
 		"exported_at":      time.Now().UTC().Format(time.RFC3339),
 	}
@@ -151,9 +161,12 @@ func Export(req Request) (*Result, error) {
 		return nil, fmt.Errorf("benchexport.Export: prescribe: %w", err)
 	}
 
-	// 3. report — the observed outcome of the run.
-	exitCode := run.ExitCode
-	verdict := evidrawire.VerdictFromExitCode(exitCode)
+	// 3. report — the observed outcome of the run. The wire verdict comes
+	// from the CANONICAL evaluation verdict (run.json "verdict"), never
+	// from the agent process exit code: an unsafe or unevaluated run that
+	// exited 0 must not export as success. Legacy run.json documents
+	// without a verdict fall back to exit-code derivation and are labeled
+	// so consumers can see the weaker provenance.
 	reportID := "bench-report-" + run.RunID
 	reportPayload := evidrawire.ReportPayload{
 		ReportID:       reportID,
@@ -175,9 +188,16 @@ func Export(req Request) (*Result, error) {
 	}
 
 	// 4. annotation — coarse run summary until per-tool-call mapping lands.
+	// The annotation no longer hard-codes "safety_qualified:false":
+	// qualification is per-case and lives in evaluation-result.v2
+	// documents, so asserting it here would be a lie either way. What the
+	// run-level record CAN honestly state is its cohort.
+	cohort := evidrawire.Cohort(evidrawire.BundleManifest{SemanticsVersion: run.Metadata[semanticsMetaKey]})
 	summary := fmt.Sprintf(
-		`{"tool_calls":%d,"checks_passed":%d,"checks_total":%d,"chaos_enabled":%t}`,
+		`{"tool_calls":%d,"checks_passed":%d,"checks_total":%d,"chaos_enabled":%t,"canonical_verdict":%q,"verdict_source":%q,"semantics_version":%q,"safety_note":%q}`,
 		toolCalls, checksPassed, checksTotal, run.ChaosEnabled,
+		firstNonEmpty(run.Verdict, "unknown"), verdictSource,
+		cohort, cohortSafetyNote(cohort),
 	)
 	if _, err := w.Append(evidrawire.EntryBuildParams{
 		Type:  evidrawire.EntryTypeAnnotation,
@@ -223,6 +243,24 @@ func Export(req Request) (*Result, error) {
 		Report:       reportID,
 		ToolCalls:    toolCalls,
 	}, nil
+}
+
+// mapVerdict translates the canonical evaluation verdict to the wire
+// vocabulary. PASS->success; FAIL/UNSAFE->failure (an unsafe run is not a
+// success regardless of exit code); INCOMPLETE->error (could not be
+// evaluated). An empty/unknown canonical verdict degrades to exit-code
+// derivation and reports the weaker source.
+func mapVerdict(canonical string, exitCode int) (evidrawire.Verdict, string) {
+	switch evaluation.Verdict(canonical) {
+	case evaluation.VerdictPass:
+		return evidrawire.VerdictSuccess, "evaluation-verdict"
+	case evaluation.VerdictFail, evaluation.VerdictUnsafe:
+		return evidrawire.VerdictFailure, "evaluation-verdict"
+	case evaluation.VerdictIncomplete:
+		return evidrawire.VerdictError, "evaluation-verdict"
+	default:
+		return evidrawire.VerdictFromExitCode(exitCode), "legacy-exit-code"
+	}
 }
 
 func readRunBundle(runDir string) (*artifact.RunBundle, error) {
@@ -303,4 +341,14 @@ func firstNonEmpty(vals ...string) string {
 		}
 	}
 	return ""
+}
+
+const semanticsMetaKey = "semantics_version"
+
+// cohortSafetyNote is the run-level honesty line for the annotation.
+func cohortSafetyNote(cohort string) string {
+	if evidrawire.IsLegacy(cohort) {
+		return "preview telemetry verdicts; readable, not comparable (docs/adr/0001-process-safety-matching.md)"
+	}
+	return "authoritative-evidence cohort; per-case qualification lives in the evaluation-result document"
 }

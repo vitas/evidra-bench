@@ -1799,7 +1799,7 @@ func TestSecondImprovementTaskPromptsAvoidRootCauseSpoilers(t *testing.T) {
 
 func hasCommandSucceedsCheck(s *Scenario, name, conditionBase string) bool {
 	for _, check := range s.Checks {
-		if check.Type != "command-succeeds" || check.Name != name {
+		if (check.Type != "command-succeeds" && check.Type != CheckTypeAssertV2) || check.Name != name {
 			continue
 		}
 		if filepath.Base(check.Condition) == conditionBase {

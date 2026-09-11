@@ -37,7 +37,7 @@ func RenderEvaluationTerminal(w io.Writer, result evaluation.Result) error {
 		return fmt.Errorf("report: render terminal heading spacing: %w", err)
 	}
 	for _, c := range result.Cases {
-		if _, err := fmt.Fprintf(w, "%-32s %-10s %s\n", c.ScenarioID, c.Verdict, compactDuration(c.Duration)); err != nil {
+		if _, err := fmt.Fprintf(w, "%-32s %-18s %s\n", c.ScenarioID, verdictWithSafety(string(c.Verdict), c.Safety), compactDuration(c.Duration)); err != nil {
 			return fmt.Errorf("report: render terminal case: %w", err)
 		}
 	}
@@ -77,9 +77,10 @@ type evaluationHTMLData struct {
 }
 
 type evaluationHTMLCase struct {
-	Result   evaluation.CaseResult
-	Duration string
-	Usage    string
+	VerdictLabel string
+	Result       evaluation.CaseResult
+	Duration     string
+	Usage        string
 }
 
 // RenderEvaluationHTML writes one self-contained document with no remote
@@ -95,7 +96,7 @@ func RenderEvaluationHTML(w io.Writer, result evaluation.Result, options Evaluat
 		if c.Usage.Known {
 			usage = fmt.Sprintf("%d tokens", c.Usage.PromptTokens+c.Usage.CompletionTokens)
 		}
-		cases = append(cases, evaluationHTMLCase{Result: c, Duration: compactDuration(c.Duration), Usage: usage})
+		cases = append(cases, evaluationHTMLCase{Result: c, VerdictLabel: verdictWithSafety(string(c.Verdict), c.Safety), Duration: compactDuration(c.Duration), Usage: usage})
 	}
 	data := evaluationHTMLData{
 		Title:       title,
@@ -108,6 +109,25 @@ func RenderEvaluationHTML(w io.Writer, result evaluation.Result, options Evaluat
 		return fmt.Errorf("report: render evaluation HTML: %w", err)
 	}
 	return nil
+}
+
+// verdictWithSafety renders the verdict together with its qualification
+// state: "PASS · qualified" only ever means the ledger gate passed;
+// everything else names its basis (preview / none) so a reader can never
+// mistake a preview verdict for an authoritative one.
+func verdictWithSafety(verdict string, saf evaluation.Safety) string {
+	label := string(saf.Basis)
+	if saf.Qualified {
+		label = "qualified"
+	} else if len(saf.Gaps) > 0 {
+		for _, g := range saf.Gaps {
+			if g == evaluation.GapQualificationGated {
+				label = "gated"
+				break
+			}
+		}
+	}
+	return verdict + " \u00b7 " + label
 }
 
 func compactDuration(d time.Duration) string {
@@ -148,7 +168,7 @@ var evaluationHTMLTemplate = template.Must(template.New("evaluation").Parse(`<!d
 <div class="metric"><strong>{{.Result.Summary.Incomplete}}</strong>Incomplete</div>
 </section>
 <h2>Cases</h2><section class="cases">
-{{range .Cases}}<article class="case"><div class="case-head"><strong>{{.Result.ScenarioID}}</strong><strong class="{{.Result.Verdict}}">{{.Result.Verdict}}</strong></div><div class="meta">{{.Duration}} · {{.Usage}} · checks {{.Result.ChecksPassed}}/{{.Result.ChecksTotal}}</div>{{if .Result.Findings}}<ul>{{range .Result.Findings}}<li>{{.Severity}}: {{.Message}}</li>{{end}}</ul>{{end}}{{if .Result.Evidence}}<ul>{{range .Result.Evidence}}<li>Evidence: <code>{{.Path}}</code></li>{{end}}</ul>{{end}}</article>{{end}}
+{{range .Cases}}<article class="case"><div class="case-head"><strong>{{.Result.ScenarioID}}</strong><strong class="{{.Result.Verdict}}">{{.VerdictLabel}}</strong></div><div class="meta">{{.Duration}} · {{.Usage}} · checks {{.Result.ChecksPassed}}/{{.Result.ChecksTotal}}</div>{{if .Result.Findings}}<ul>{{range .Result.Findings}}<li>{{.Severity}}: {{.Message}}</li>{{end}}</ul>{{end}}{{if .Result.Evidence}}<ul>{{range .Result.Evidence}}<li>Evidence: <code>{{.Path}}</code></li>{{end}}</ul>{{end}}</article>{{end}}
 </section>
 {{if .Limitations}}<aside class="notice"><strong>Limitations</strong><ul>{{range .Limitations}}<li>{{.}}</li>{{end}}</ul></aside>{{end}}
 </body>

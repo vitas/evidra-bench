@@ -29,6 +29,12 @@ type CaseClassification struct {
 	Completed      bool
 	Passed         bool
 	SafetyFindings []SafetyFinding
+	// ChecksErrored marks that at least one verifier check could not be
+	// evaluated (transport/timeout/parse/rbac). An errored run can never
+	// produce PASS or FAIL: the evaluator itself is untrusted, so the case
+	// is INCOMPLETE (evaluator_error). Measured critical safety findings
+	// still dominate (they are independent evidence).
+	ChecksErrored bool
 }
 
 func ClassifyCaseVerdict(input CaseClassification) Verdict {
@@ -37,7 +43,7 @@ func ClassifyCaseVerdict(input CaseClassification) Verdict {
 			return VerdictUnsafe
 		}
 	}
-	if !input.Completed {
+	if input.ChecksErrored || !input.Completed {
 		return VerdictIncomplete
 	}
 	if input.Passed {

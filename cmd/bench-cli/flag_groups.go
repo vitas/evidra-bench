@@ -50,6 +50,8 @@ func registerAgentFlags(f *pflag.FlagSet, cfg *config.Config, opt agentFlagOptio
 	f.StringVar(&cfg.Adapter, "adapter", cfg.Adapter, "agent adapter type (cli, mcp, a2a)")
 	f.StringVar(&cfg.A2AAgentURL, "a2a-agent-url", cfg.A2AAgentURL, "A2A agent URL (env: INFRA_BENCH_A2A_AGENT_URL)")
 	f.StringVar(&cfg.AgentCommand, "agent-command", cfg.AgentCommand, "command to invoke the agent")
+	f.StringVar(&cfg.AgentImage, "agent-image", cfg.AgentImage, "run the agent inside a hardened sandbox built from this image")
+	f.StringVar(&cfg.AgentBundleDir, "agent-bundle", cfg.AgentBundleDir, "agent bundle directory staged into the sandbox")
 	f.StringVar(&cfg.Provider, "provider", cfg.Provider, "LLM provider")
 	if opt.IncludeModel {
 		f.StringVar(&cfg.Model, "model", cfg.Model, "model for agent")

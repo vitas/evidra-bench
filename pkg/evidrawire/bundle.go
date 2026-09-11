@@ -54,6 +54,11 @@ type BundleManifest struct {
 	PublicKey  string         `json:"public_key"`
 	CreatedAt  string         `json:"created_at"`
 	Notes      string         `json:"notes,omitempty"`
+	// SemanticsVersion is the result-semantics cohort (ADR 0001 Phase 11):
+	// "safety-evidence.v1" for current runs, "preview-v1" (or absent =
+	// pre-cohort bundles) for legacy. Same field spelling as
+	// evaluation.Evidence.SemanticsVersion so tools share one decoder.
+	SemanticsVersion string `json:"semantics_version,omitempty"`
 }
 
 // BundleManifestPath returns the bundle.json path for a store root.
