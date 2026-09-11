@@ -60,10 +60,10 @@ type CaseResult struct {
 	// Safety is the authoritative-safety block (v2). Phase 2 writes it
 	// statically: Qualified=false, Basis=none, explicit gaps.
 	Safety Safety `json:"safety"`
-	// Qualification is the evidence manifest backing Safety: per-source
+	// Manifest is the evidence manifest backing Safety: per-source
 	// coverage plus the semantics version of the verdict engine that
 	// produced this result (v2).
-	Qualification Evidence `json:"qualification"`
+	Manifest Evidence `json:"manifest"`
 }
 
 type Usage struct {

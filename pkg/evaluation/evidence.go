@@ -38,25 +38,6 @@ const (
 	CoverageAbsent SourceCoverage = "absent"
 )
 
-// SafetyBasis names the authority a qualified=true verdict rests on.
-type SafetyBasis string
-
-const (
-	// BasisNone: no authoritative evidence backs the safety verdict. Every
-	// Phase 2 case is BasisNone.
-	BasisNone SafetyBasis = "none"
-	// BasisPreview: preview-time signals only (e.g. tool telemetry); still
-	// not qualification.
-	BasisPreview SafetyBasis = "preview"
-	// BasisLedger marks a case whose qualified status is backed by a
-	// fully verified qualification-ledger entry + healthy run evidence
-	// (ADR 0001 §8). The only basis that carries qualified=true.
-	BasisLedger SafetyBasis = "qualification-ledger"
-	// BasisAuthoritative: audit + snapshot evidence captured, digests
-	// verified, and the case is on the qualification ledger.
-	BasisAuthoritative SafetyBasis = "authoritative"
-)
-
 // SourceStatus records the observed coverage of one evidence source, plus
 // where the raw material lives.
 type SourceStatus struct {
@@ -80,23 +61,22 @@ type Evidence struct {
 	Sources          []SourceStatus `json:"sources"`
 }
 
-// Safety is the authoritative-safety block. Qualified=true is only permitted
-// from Phase 10 forward and only with BasisAuthoritative; until then the
-// harness writes Qualified=false with explicit Gaps.
+// Safety is the authoritative-safety evidence block: what was captured,
+// what was missing, what the engine concluded. Since the certification
+// layer was dropped (2026-09-11) it carries no qualification verdict —
+// Gaps stay as honest diagnostics ("this run never saw the audit layer").
 type Safety struct {
-	Qualified bool        `json:"qualified"`
-	Basis     SafetyBasis `json:"basis"`
-	// Gaps are stable identifiers for what prevented qualification.
+	// Gaps are stable identifiers for missing or degraded evidence.
 	Gaps []string `json:"gaps,omitempty"`
 	// Violations are safety findings sourced from authoritative evidence
 	// (audit/snapshot). Preview telemetry findings remain in
 	// CaseResult.Findings; this list is populated by Phase 8.
 	Violations []SafetyFinding `json:"violations,omitempty"`
 	// Engine is the authoritative verdict engine's assessment for this
-	// case (ADR 0001 Phase 8). It records what the engine concluded from
-	// audit + snapshot evidence REGARDLESS of the qualification gate; the
-	// reported Verdict only inherits it where fail-safe (UNSAFE dominance)
-	// until Phase 10 flips the gate. Nil when no authority profile existed.
+	// case (ADR 0001 Phase 8). For scenarios with an authority profile the
+	// engine verdict IS the case verdict (UNSAFE/INCOMPLETE dominance);
+	// classifyVerdict remains the path for profile-less scenarios. Nil when
+	// no authority profile existed.
 	Engine *EngineVerdict `json:"engine,omitempty"`
 }
 
@@ -109,31 +89,23 @@ const (
 	// GapAgentUnconfined marks runs whose agent executed outside the
 	// hardened sandbox (ADR 0001 Phase 6): permanent until re-run confined.
 	GapAgentUnconfined = "agent_unconfined_execution"
-	// GapQualificationGated is recorded when the authoritative engine
-	// finds the evidence layers complete but the qualification gate
-	// (Phase 10 ledger wiring) has not yet been permitted to flip
-	// safety.qualified.
-	GapQualificationGated = "qualification_gated"
 )
 
 // SafetyEvidenceSemanticsVersion is stamped on every run produced by the
-// ADR 0001 harness (Phase 11): the authoritative-safety evidence shape
-// (engine, ledger, coverage). Cohorts are separated by this tag: mixed
-// versions never compare, and preview-v1 documents stay readable only.
+// ADR 0001 harness: the authoritative-safety evidence shape (engine,
+// coverage). Cohorts are separated by this tag: mixed versions never
+// compare, and preview-v1 documents stay readable only.
 const SafetyEvidenceSemanticsVersion = "safety-evidence.v1"
 
 // PreviewSemanticsVersion is the semantics tag for Phase 2: verdicts are
 // produced from process/telemetry signals only and can never qualify.
 const PreviewSemanticsVersion = "preview-v1"
 
-// UnqualifiedSafety returns the honest, static Safety block for a case whose
-// authoritative sources are not captured yet (all Phase 2 cases). The audit
-// and snapshot sources are absent; tool telemetry is explanatory and marked
-// absent-by-default until an adapter records it.
-func UnqualifiedSafety() Safety {
+// InitialSafety returns the honest starting Safety block: every authoritative
+// source is treated as not yet captured; the harness closes gaps as audit
+// and snapshot evidence actually lands for the case.
+func InitialSafety() Safety {
 	return Safety{
-		Qualified: false,
-		Basis:     BasisNone,
 		Gaps: []string{
 			GapAuditNotCaptured,
 			GapSnapshotNotCaptured,
@@ -146,10 +118,7 @@ func UnqualifiedSafety() Safety {
 // state_snapshot are absent (collectors land later); tool_telemetry
 // coverage is supplied by the caller based on the adapter path, since the
 // harness is the only place that knows whether telemetry was recorded.
-// EvidenceForRun stamps the cohort on every run this binary produces.
-// (Name history: it was PreviewEvidence in the Phase 2 era, when every
-// verdict was preview; from Phase 11 the same shape is the
-// safety-evidence.v1 contract — qualification remains a per-case bool.)
+// EvidenceForRun stamps the evidence manifest every run this binary produces.
 func EvidenceForRun(telemetry SourceStatus) Evidence {
 	return Evidence{
 		SemanticsVersion: SafetyEvidenceSemanticsVersion,
@@ -211,8 +180,7 @@ func (e *Evidence) setSource(name SourceName, st SourceStatus) {
 	e.Sources = append(e.Sources, st)
 }
 
-// DropGap removes a gap id (used when a source legitimately became
-// complete while the overall basis stays preview until Phase 10).
+// DropGap removes a gap id once the corresponding source really became complete.
 func (s *Safety) DropGap(gap string) {
 	out := s.Gaps[:0]
 	for _, g := range s.Gaps {

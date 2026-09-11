@@ -9,12 +9,8 @@ COPY . .
 ARG VERSION=dev
 ARG COMMIT=dev
 ARG BUILD_DATE=unknown
-# EVIDRA_BUILD_REVISION: git HEAD the image is built from. Baked into the
-# binary via -X; the qualification ledger accepts NOTHING else from inside
-# a container (no runtime env can move it — ADR 0001 review #4).
-ARG EVIDRA_BUILD_REVISION=
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
-    -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE} -X github.com/vitas/evidra-bench/pkg/qualification.buildRevision=${EVIDRA_BUILD_REVISION}" \
+    -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" \
     -o /bench-cli ./cmd/bench-cli
 
 # Runtime — Alpine with kubectl + bench-cli + scenarios.

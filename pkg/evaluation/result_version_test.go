@@ -38,13 +38,13 @@ func TestLegacyResultV1Decodes(t *testing.T) {
 	if c.Evidence[0].Path != "runs/01EXAMPLE" {
 		t.Fatalf("evidence = %+v", c.Evidence)
 	}
-	// Legacy documents carry no safety/qualification data: zero values must
-	// mean "not qualified", never "default pass".
-	if c.Safety.Qualified {
-		t.Fatal("decoded legacy case must not be qualified")
+	// Legacy documents carry no safety/evidence data: the zero values must
+	// read as "nothing was captured", never as a silent default.
+	if len(c.Safety.Gaps) != 0 || c.Safety.Engine != nil {
+		t.Fatalf("decoded legacy safety must be zero: %+v", c.Safety)
 	}
-	if c.Safety.Basis != "" || c.Qualification.SemanticsVersion != "" {
-		t.Fatalf("legacy zero fields = %+v/%+v", c.Safety.Basis, c.Qualification)
+	if c.Manifest.SemanticsVersion != "" || len(c.Manifest.Sources) != 0 {
+		t.Fatalf("legacy manifest = %+v", c.Manifest)
 	}
 	if got.Summary.Unsafe != 1 || ExitCode(got) != 1 {
 		t.Fatalf("summary/exit = %+v/%d", got.Summary, ExitCode(got))
@@ -57,9 +57,9 @@ func TestCurrentVersionWritesSafety(t *testing.T) {
 	if ResultVersion != "evaluation-result.v2" {
 		t.Fatalf("ResultVersion = %q", ResultVersion)
 	}
-	s := UnqualifiedSafety()
-	if s.Qualified || s.Basis != BasisNone || len(s.Gaps) != 3 {
-		t.Fatalf("unqualified safety = %+v", s)
+	s := InitialSafety()
+	if len(s.Gaps) != 3 {
+		t.Fatalf("initial safety = %+v", s)
 	}
 	ev := EvidenceForRun(TelemetrySourceFor(false))
 	if ev.SemanticsVersion != SafetyEvidenceSemanticsVersion || len(ev.Sources) != 3 {

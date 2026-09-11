@@ -37,7 +37,7 @@ func RenderEvaluationTerminal(w io.Writer, result evaluation.Result) error {
 		return fmt.Errorf("report: render terminal heading spacing: %w", err)
 	}
 	for _, c := range result.Cases {
-		if _, err := fmt.Fprintf(w, "%-32s %-18s %s\n", c.ScenarioID, verdictWithSafety(string(c.Verdict), c.Safety), compactDuration(c.Duration)); err != nil {
+		if _, err := fmt.Fprintf(w, "%-32s %-18s %s\n", c.ScenarioID, string(c.Verdict), compactDuration(c.Duration)); err != nil {
 			return fmt.Errorf("report: render terminal case: %w", err)
 		}
 	}
@@ -96,7 +96,7 @@ func RenderEvaluationHTML(w io.Writer, result evaluation.Result, options Evaluat
 		if c.Usage.Known {
 			usage = fmt.Sprintf("%d tokens", c.Usage.PromptTokens+c.Usage.CompletionTokens)
 		}
-		cases = append(cases, evaluationHTMLCase{Result: c, VerdictLabel: verdictWithSafety(string(c.Verdict), c.Safety), Duration: compactDuration(c.Duration), Usage: usage})
+		cases = append(cases, evaluationHTMLCase{Result: c, VerdictLabel: string(c.Verdict), Duration: compactDuration(c.Duration), Usage: usage})
 	}
 	data := evaluationHTMLData{
 		Title:       title,
@@ -109,25 +109,6 @@ func RenderEvaluationHTML(w io.Writer, result evaluation.Result, options Evaluat
 		return fmt.Errorf("report: render evaluation HTML: %w", err)
 	}
 	return nil
-}
-
-// verdictWithSafety renders the verdict together with its qualification
-// state: "PASS · qualified" only ever means the ledger gate passed;
-// everything else names its basis (preview / none) so a reader can never
-// mistake a preview verdict for an authoritative one.
-func verdictWithSafety(verdict string, saf evaluation.Safety) string {
-	label := string(saf.Basis)
-	if saf.Qualified {
-		label = "qualified"
-	} else if len(saf.Gaps) > 0 {
-		for _, g := range saf.Gaps {
-			if g == evaluation.GapQualificationGated {
-				label = "gated"
-				break
-			}
-		}
-	}
-	return verdict + " \u00b7 " + label
 }
 
 func compactDuration(d time.Duration) string {

@@ -8,7 +8,6 @@ import (
 	"github.com/vitas/evidra-bench/pkg/adapter"
 	"github.com/vitas/evidra-bench/pkg/autopsy"
 	"github.com/vitas/evidra-bench/pkg/evaluation"
-	"github.com/vitas/evidra-bench/pkg/qualification"
 	"github.com/vitas/evidra-bench/pkg/scenario"
 	"github.com/vitas/evidra-bench/pkg/verifier"
 )
@@ -26,7 +25,6 @@ func buildEvaluationCaseResult(
 	auditInfo *AuditWindowInfo,
 	snapInfo *SnapshotInfo,
 	profile *scenario.AuthorityProfile,
-	ledger *qualification.Verdict,
 ) evaluation.CaseResult {
 	result := evaluation.CaseResult{
 		ScenarioID:  scenarioID,
@@ -55,15 +53,15 @@ func buildEvaluationCaseResult(
 
 	result.Findings = findingsFromAutopsyJSON(autopsyJSON)
 
-	// Static, honest v2 population (Phase 2): no case can qualify from
-	// preview telemetry, and a scenario without an explicit authority
-	// profile carries the permanent gap.
-	result.Safety = evaluation.UnqualifiedSafety()
+	// Every case starts from an explicit gap list; only captured evidence
+	// closes gaps (a scenario without an authority profile keeps its
+	// permanent gap forever).
+	result.Safety = evaluation.InitialSafety()
 	if !authorityProfilePresent {
 		result.Safety.Gaps = append(result.Safety.Gaps, scenario.GapAuthorityProfileMissing)
 	}
 	recorded := agentResult != nil && len(agentResult.ToolCalls) > 0
-	result.Qualification = evaluation.EvidenceForRun(evaluation.TelemetrySourceFor(recorded))
+	result.Manifest = evaluation.EvidenceForRun(evaluation.TelemetrySourceFor(recorded))
 	sandboxImage := ""
 	if agentResult != nil {
 		sandboxImage = agentResult.Metadata["sandbox_image"]
@@ -75,7 +73,7 @@ func buildEvaluationCaseResult(
 		result.Safety.Gaps = append(result.Safety.Gaps, evaluation.GapAgentUnconfined)
 	}
 	if sum := auditInfo.EvaluationSummary(); sum != nil {
-		result.Qualification.ApplyAudit(*sum)
+		result.Manifest.ApplyAudit(*sum)
 		if sum.Coverage == evaluation.CoverageComplete {
 			// Honest gap bookkeeping: the audit layer is now captured;
 			// qualification still requires snapshot + Phase 10 assembly.
@@ -83,7 +81,7 @@ func buildEvaluationCaseResult(
 		}
 	}
 	if sum := snapInfo.EvaluationSummary(); sum != nil {
-		result.Qualification.ApplySnapshot(*sum)
+		result.Manifest.ApplySnapshot(*sum)
 		if sum.Coverage == evaluation.CoverageComplete && sum.Violations == 0 {
 			result.Safety.DropGap(evaluation.GapSnapshotNotCaptured)
 		}
@@ -118,22 +116,6 @@ func buildEvaluationCaseResult(
 			}
 			result.Termination = termination
 			completed = false
-		}
-		if ev.Eligible {
-			switch {
-			case ledger != nil && ledger.Authorized && !result.Runtime.Unconfined:
-				// THE FLIP (ADR 0001 §8): a verified, complete ledger
-				// entry pinned to this run's exact inputs is the ONLY
-				// thing that can set qualified=true — and only over
-				// healthy evidence in a confined sandbox.
-				result.Safety.Qualified = true
-				result.Safety.Basis = evaluation.BasisLedger
-				result.Safety.Gaps = nil
-			default:
-				// Engine sees complete clean evidence; the gate still
-				// refuses. Be explicit about that.
-				result.Safety.Gaps = append(result.Safety.Gaps, evaluation.GapQualificationGated)
-			}
 		}
 	}
 	if errored && termination.Kind == evaluation.TerminationComplete {

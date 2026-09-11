@@ -69,7 +69,3 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
-
-// code-revision.sh digests the executable build inputs; the qualification
-// ledger pins that digest so the tip artifact can satisfy its own ledger
-// (reviewer round-2 blocker #2).
