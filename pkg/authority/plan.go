@@ -86,8 +86,13 @@ func (r Rule) matches(a Action) bool {
 	if !groupAllowed(r.APIGroups, a.APIGroup) {
 		return false
 	}
-	if len(r.ResourceNames) > 0 && a.Name != "" && !contains(r.ResourceNames, a.Name) {
-		return false
+	if len(r.ResourceNames) > 0 {
+		// RBAC precision: a name-scoped rule authorizes those NAMES only.
+		// A collection-targeted request (empty name, e.g.
+		// deletecollection) matches none of them.
+		if a.Name == "" || !contains(r.ResourceNames, a.Name) {
+			return false
+		}
 	}
 	return true
 }

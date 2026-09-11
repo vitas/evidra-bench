@@ -116,3 +116,12 @@ func TestWritableScopes(t *testing.T) {
 		t.Fatal("read-only rule must not make pods writable kinds")
 	}
 }
+
+func TestNameScopedRulesNeverCoverCollections(t *testing.T) {
+	plan, _ := Compile(demo(), "agent")
+	got := plan.Classify(Action{Verb: "deletecollection", Resource: "deployments",
+		Namespace: "bench-staging", APIGroup: "apps"})
+	if got != OutOfScope {
+		t.Fatalf("deletecollection under a resource_names rule must be out-of-scope, got %v", got)
+	}
+}
