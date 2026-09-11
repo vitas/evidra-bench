@@ -21,14 +21,16 @@ import (
 	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
-func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, startTime, endTime time.Time, auditInfo *AuditWindowInfo, snapInfo *SnapshotInfo) (string, json.RawMessage) {
+// buildSuccessAutopsy renders the failure-autopsy document for a run that
+// reached the end of the pipeline. It is computed BEFORE the artifacts are
+// written because the authoritative CaseResult — and with it the single
+// verdict every artifact must agree on — consumes the same document.
+func buildSuccessAutopsy(req RunRequest, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, startTime, endTime time.Time) json.RawMessage {
 	s := req.Scenario
 	checksJSON, _ := json.Marshal(verifyResult)
 	toolCallsJSON := marshalToolCallsJSON(agentResult.ToolCalls)
-	timelineJSON := buildTimelineJSON(toolCallsJSON)
-	runEventsJSON := recorder.EventsJSON()
 	checksPassedForAutopsy, checksTotalForAutopsy := countChecks(verifyResult)
-	autopsyJSON := buildFailureAutopsyJSON(localstore.RunRecord{
+	return buildFailureAutopsyJSON(localstore.RunRecord{
 		ScenarioID:       s.ID,
 		Model:            req.Config.Model,
 		Provider:         req.Config.Provider,
@@ -46,7 +48,14 @@ func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *a
 		ChecksJSON:       string(checksJSON),
 		CreatedAt:        startTime,
 	}, toolCallsJSON, agentResult.Transcript, checksJSON, s.Autopsy)
+}
 
+func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, startTime, endTime time.Time, auditInfo *AuditWindowInfo, snapInfo *SnapshotInfo, autopsyJSON json.RawMessage, verdict evaluation.Verdict) string {
+	s := req.Scenario
+	checksJSON, _ := json.Marshal(verifyResult)
+	toolCallsJSON := marshalToolCallsJSON(agentResult.ToolCalls)
+	timelineJSON := buildTimelineJSON(toolCallsJSON)
+	runEventsJSON := recorder.EventsJSON()
 	chaosJSON, chaosLog := chaosArtifacts(chaosRunner)
 	chaosStepCount := 0
 	chaosMode := ""
@@ -57,14 +66,17 @@ func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *a
 	}
 
 	bundle := artifact.RunBundle{
-		RunID:          runID,
-		ScenarioID:     s.ID,
-		Adapter:        req.Config.Adapter,
-		StartTime:      startTime,
-		EndTime:        endTime,
-		ExitCode:       agentResult.ExitCode,
-		Passed:         verifyResult.Passed,
-		Verdict:        string(classifyVerdict(!checksErrored(verifyResult), verifyResult.Passed, checksErrored(verifyResult), findingsFromAutopsyJSON(autopsyJSON))),
+		RunID:      runID,
+		ScenarioID: s.ID,
+		Adapter:    req.Config.Adapter,
+		StartTime:  startTime,
+		EndTime:    endTime,
+		ExitCode:   agentResult.ExitCode,
+		Passed:     verifyResult.Passed,
+		// The verdict is the authoritative CaseResult's — written through,
+		// never re-derived here (release review finding #1: run.json and
+		// result.json must not disagree for one run).
+		Verdict:        string(verdict),
 		Prompt:         promptContent,
 		Transcript:     agentResult.Transcript,
 		Stdout:         agentResult.Stdout,
@@ -90,12 +102,12 @@ func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *a
 		bundle.Snapshots = snapInfo.BundleSummary()
 	}
 	if h.deps.Writer == nil {
-		return "", autopsyJSON
+		return ""
 	}
 	out, err := h.deps.Writer.Write(bundle)
 	if err != nil {
 		log.Printf("[harness] warning: artifact write failed: %v", err)
-		return "", autopsyJSON
+		return ""
 	}
 	if auditInfo != nil && len(auditInfo.JSONL) > 0 {
 		path := filepath.Join(out.Path, "audit.jsonl")
@@ -111,10 +123,25 @@ func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *a
 			}
 		}
 	}
-	return out.Path, autopsyJSON
+	return out.Path
 }
 
-func (h *Harness) writeFailedRunArtifacts(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, runErr error, startTime, endTime time.Time) (string, json.RawMessage) {
+// failedRunSafetyAutopsy normalizes the partial results of a failed run
+// and renders the safety-autopsy document the authoritative CaseResult
+// consumes. It is split out of the artifact writer so the verdict is
+// computed ONCE — from these documents — before run.json is written
+// (release review finding #1).
+func failedRunSafetyAutopsy(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, runErr error, startTime, endTime time.Time) (*adapter.RunResult, *verifier.VerifyResult, json.RawMessage) {
+	exitCode := failedRunExitCode(runErr, agentResultExitCode(agentResult))
+	agentResult = failedAgentResult(agentResult, exitCode)
+	verifyResult = failedVerifyResult(verifyResult)
+	checksJSON, _ := json.Marshal(verifyResult)
+	toolCallsJSON := marshalToolCallsJSON(agentResult.ToolCalls)
+	rec := buildRunRecord(req, runID, agentResult, verifyResult, "", startTime, endTime)
+	return agentResult, verifyResult, buildFailureAutopsyJSON(rec, toolCallsJSON, agentResult.Transcript, checksJSON, req.Scenario.Autopsy)
+}
+
+func (h *Harness) writeFailedRunArtifacts(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, runErr error, startTime, endTime time.Time, safetyAutopsyJSON json.RawMessage, verdict evaluation.Verdict) string {
 	exitCode := failedRunExitCode(runErr, agentResultExitCode(agentResult))
 	agentResult = failedAgentResult(agentResult, exitCode)
 	verifyResult = failedVerifyResult(verifyResult)
@@ -128,7 +155,6 @@ func (h *Harness) writeFailedRunArtifacts(req RunRequest, runID string, agentRes
 
 	rec := buildRunRecord(req, runID, agentResult, verifyResult, "", startTime, endTime)
 	autopsyJSON := buildRunErrorAutopsyJSON(rec, runErrArtifact)
-	safetyAutopsyJSON := buildFailureAutopsyJSON(rec, toolCallsJSON, agentResult.Transcript, checksJSON, req.Scenario.Autopsy)
 
 	chaosJSON, chaosLog := chaosArtifacts(chaosRunner)
 	chaosStepCount := 0
@@ -142,14 +168,16 @@ func (h *Harness) writeFailedRunArtifacts(req RunRequest, runID string, agentRes
 	artifactDir := ""
 	if h.deps.Writer != nil {
 		bundle := artifact.RunBundle{
-			RunID:          runID,
-			ScenarioID:     req.Scenario.ID,
-			Adapter:        req.Config.Adapter,
-			StartTime:      startTime,
-			EndTime:        endTime,
-			ExitCode:       agentResult.ExitCode,
-			Passed:         false,
-			Verdict:        string(classifyVerdict(false, false, checksErrored(verifyResult), findingsFromAutopsyJSON(safetyAutopsyJSON))),
+			RunID:      runID,
+			ScenarioID: req.Scenario.ID,
+			Adapter:    req.Config.Adapter,
+			StartTime:  startTime,
+			EndTime:    endTime,
+			ExitCode:   agentResult.ExitCode,
+			Passed:     false,
+			// Written through from the authoritative CaseResult — never
+			// re-derived here (release review finding #1).
+			Verdict:        string(verdict),
 			Prompt:         promptContent,
 			Transcript:     agentResult.Transcript,
 			Stdout:         agentResult.Stdout,
@@ -178,7 +206,7 @@ func (h *Harness) writeFailedRunArtifacts(req RunRequest, runID string, agentRes
 
 	rec.ArtifactDir = artifactDir
 	h.persistRun(req, rec, agentResult.Transcript, agentResult.ToolCalls, timelineJSON, autopsyJSON, runErrorJSON, runEventsJSON)
-	return artifactDir, safetyAutopsyJSON
+	return artifactDir
 }
 
 func (h *Harness) reportRun(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, startTime, endTime time.Time) {

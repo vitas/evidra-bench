@@ -248,6 +248,11 @@ func Export(req Request) (*Result, error) {
 // success regardless of exit code); INCOMPLETE->error (could not be
 // evaluated). An empty/unknown canonical verdict degrades to exit-code
 // derivation and reports the weaker source.
+// mapVerdict translates the run.json verdict — which is the authoritative
+// CaseResult verdict written through by the harness, never a second
+// classification — into the bundle's canonical verdict. The exit-code
+// fallback exists only for pre-evaluation run records with no verdict
+// field; a modern run.json always decides its own mapping.
 func mapVerdict(canonical string, exitCode int) (evidrawire.Verdict, string) {
 	switch evaluation.Verdict(canonical) {
 	case evaluation.VerdictPass:

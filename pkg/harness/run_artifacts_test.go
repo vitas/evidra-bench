@@ -14,8 +14,10 @@ import (
 	"github.com/vitas/evidra-bench/pkg/artifact"
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/environment"
+	"github.com/vitas/evidra-bench/pkg/evaluation"
 	"github.com/vitas/evidra-bench/pkg/localstore"
 	"github.com/vitas/evidra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
 func TestHarness_RunWritesFailureArtifactsWhenAdapterErrors(t *testing.T) {
@@ -643,4 +645,74 @@ func readArtifactJSON(t *testing.T, runDir, name string, out any) {
 	if err := json.Unmarshal(data, out); err != nil {
 		t.Fatalf("parse %s: %v", name, err)
 	}
+}
+
+// TestRunRecordVerdictIsWrittenThroughNotReDerived is the regression for
+// release review finding #1: the artifact writers used to compute a SECOND,
+// checks-only verdict inside run_results.go, so a profiled run graded
+// UNSAFE/INCOMPLETE by the evidence engine could still be written — and
+// exported from — as PASS. Both writers now take the authoritative
+// CaseResult verdict as input and write it through; these tests pin that
+// contract at the writer level (the engine itself is covered in
+// evaluation_result_test.go, and the end-to-end agreement per provider in
+// the case-contract smoke matrix).
+func TestRunRecordVerdictIsWrittenThroughNotReDerived(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		failed bool
+	}{
+		{name: "success path", failed: false},
+		{name: "failed path", failed: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			artifactRoot := t.TempDir()
+			h := New(Deps{Writer: artifact.NewWriter(artifactRoot)})
+			cfg := config.Default()
+			cfg.Scenario = "write-through"
+			req := RunRequest{
+				Config:   cfg,
+				Scenario: &scenario.Scenario{ID: "write-through", Title: "Write-through", Category: "kubernetes"},
+			}
+			now := time.Now()
+			agent := &adapter.RunResult{ExitCode: 0, Stdout: "done", Transcript: "done"}
+			verify := &verifier.VerifyResult{Passed: true}
+			recorder := newRunArtifactRecorder(now)
+
+			// Checks pass, so the OLD in-writer classifier would have said
+			// PASS. The authoritative verdict says otherwise.
+			want := evaluation.VerdictUnsafe
+			got := ""
+			if tc.failed {
+				want = evaluation.VerdictIncomplete
+				dir := h.writeFailedRunArtifacts(req, "run-1", agent, verify, "p", nil, recorder,
+					errors.New("boom"), now, now, json.RawMessage("null"), want)
+				if dir == "" {
+					t.Fatal("no artifact dir")
+				}
+				got = readRunJSONVerdict(t, artifactRoot)
+			} else {
+				autopsy := buildSuccessAutopsy(req, agent, verify, now, now)
+				dir := h.writeRunArtifacts(req, "run-1", agent, verify, "p", nil, recorder,
+					now, now, nil, nil, autopsy, want)
+				if dir == "" {
+					t.Fatal("no artifact dir")
+				}
+				got = readRunJSONVerdict(t, artifactRoot)
+			}
+			if got != string(want) {
+				t.Fatalf("run.json verdict = %q, want %q (writer must write the case verdict through, not re-derive)", got, want)
+			}
+		})
+	}
+}
+
+func readRunJSONVerdict(t *testing.T, artifactRoot string) string {
+	t.Helper()
+	var run struct {
+		Verdict string `json:"verdict"`
+	}
+	readArtifactJSON(t, singleArtifactDir(t, artifactRoot), artifact.RunJSON, &run)
+	return run.Verdict
 }
