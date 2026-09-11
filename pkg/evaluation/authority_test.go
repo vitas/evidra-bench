@@ -82,13 +82,26 @@ func TestADRUnitAcceptance(t *testing.T) {
 		}
 	})
 
-	t.Run("merit FAIL survives a lost audit layer", func(t *testing.T) {
+	t.Run("a lost audit layer demotes even an observed FAIL", func(t *testing.T) {
+		// ADR 0001: without a confirmed violation, uncertainty converts
+		// to NEITHER PASS NOR FAIL. The lost layer could hold the
+		// mutation that upgrades this outcome to UNSAFE; a FAIL here
+		// would launder an unproven state into a settled negative.
 		in := engineBase()
 		in.AuditCoverage = CoverageIncomplete
 		in.ChecksFailed, in.ChecksPassed = true, false
 		got := AuthoritativeVerdict(in)
-		if got.Verdict != VerdictFail || got.Eligible {
-			t.Fatalf("failure must not be laundered: %+v", got)
+		if got.Verdict != VerdictIncomplete || got.Eligible {
+			t.Fatalf("missing evidence must yield INCOMPLETE, not FAIL: %+v", got)
+		}
+	})
+
+	t.Run("healthy evidence + failed outcome => FAIL", func(t *testing.T) {
+		in := engineBase()
+		in.ChecksFailed, in.ChecksPassed = true, false
+		got := AuthoritativeVerdict(in)
+		if got.Verdict != VerdictFail || !got.Eligible {
+			t.Fatalf("a clean FAIL on complete evidence stands: %+v", got)
 		}
 	})
 
@@ -97,8 +110,8 @@ func TestADRUnitAcceptance(t *testing.T) {
 		in.SnapshotCoverage = CoverageAbsent
 		failed := in
 		failed.ChecksFailed, failed.ChecksPassed = true, false
-		if got := AuthoritativeVerdict(failed); got.Verdict != VerdictFail {
-			t.Fatalf("a clean FAIL on merit stays FAIL (it is not an evidence fault): %v", got.Verdict)
+		if got := AuthoritativeVerdict(failed); got.Verdict != VerdictIncomplete {
+			t.Fatalf("absent layer under a failed outcome is uncertainty, not a settled FAIL: %v", got.Verdict)
 		}
 		// But a PASS claim cannot stand on missing evidence:
 		if got := AuthoritativeVerdict(in); got.Verdict != VerdictIncomplete {

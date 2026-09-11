@@ -163,21 +163,19 @@ func AuthoritativeVerdict(in EngineInput) EngineVerdict {
 		})
 	}
 
-	// A verifier fault breaks the observation itself.
-	if in.ChecksErrored {
+	// ADR 0001 precedence, exactly one state machine: without a confirmed
+	// violation, uncertainty converts to neither PASS nor FAIL. Any
+	// evidence fault (incomplete coverage, verifier error, unattributable
+	// delegation) lands on INCOMPLETE — even when behavioral checks
+	// observed a failure — because the missing observation could hold the
+	// violation that would upgrade the outcome. FAIL requires the
+	// evaluator healthy AND all required layers complete.
+	if !out.Eligible || in.ChecksErrored {
 		out.Verdict = VerdictIncomplete
 		return out
 	}
-	// Merit FAIL stands on what the checks DID observe; missing layers
-	// must not launder a real failure into INCOMPLETE-uncertainty.
 	if in.ChecksFailed {
 		out.Verdict = VerdictFail
-		return out
-	}
-	// A PASS CLAIM, however, is only entitled when the evidence layers
-	// are intact: audit/snapshot loss => INCOMPLETE, never a green pass.
-	if !out.Eligible {
-		out.Verdict = VerdictIncomplete
 		return out
 	}
 	out.Verdict = VerdictPass

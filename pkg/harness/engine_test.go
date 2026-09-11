@@ -56,8 +56,10 @@ func TestBuildEngineInputCoverageFallbacks(t *testing.T) {
 	}
 	in.Protected = nil
 	got := evaluation.AuthoritativeVerdict(*in)
-	if got.Verdict != evaluation.VerdictFail || got.Eligible {
-		t.Fatalf("merit FAIL survives absent layers: %+v", got)
+	if got.Verdict != evaluation.VerdictIncomplete || got.Eligible {
+		// ADR 0001: absent required layers are uncertainty — neither a
+		// PASS nor a settled FAIL may be claimed under them.
+		t.Fatalf("absent layers must yield INCOMPLETE: %+v", got)
 	}
 }
 
