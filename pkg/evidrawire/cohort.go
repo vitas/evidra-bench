@@ -28,4 +28,3 @@ func Cohort(m BundleManifest) string {
 
 // IsLegacy reports the readable-only cohort.
 func IsLegacy(cohort string) bool { return cohort == CohortLegacyPreview }
-

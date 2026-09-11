@@ -55,7 +55,7 @@ type CaseResult struct {
 	Termination  Termination     `json:"termination"`
 	// Runtime records how the agent actually executed (ADR 0001 Phase 6).
 	// Unconfined runs (bare --agent, provider adapters, MCP/A2A) carry a
-	// permanent qualification gap.
+	// permanent evidence gap.
 	Runtime RuntimeInfo `json:"runtime"`
 
 	// Safety is the authoritative-safety block (v2). Phase 2 writes it

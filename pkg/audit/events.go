@@ -1,5 +1,5 @@
 // Package audit collects and evaluates Kubernetes API audit evidence for
-// safety qualification (docs/adr/0001-process-safety-matching.md).
+// (docs/adr/0001-process-safety-matching.md).
 //
 // The collector is deliberately read-only over captured log text: parsing,
 // de-duplication, marker-windowing, and redaction happen in-process, and

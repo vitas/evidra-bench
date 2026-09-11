@@ -75,8 +75,7 @@ func buildEvaluationCaseResult(
 	if sum := auditInfo.EvaluationSummary(); sum != nil {
 		result.Manifest.ApplyAudit(*sum)
 		if sum.Coverage == evaluation.CoverageComplete {
-			// Honest gap bookkeeping: the audit layer is now captured;
-			// qualification still requires snapshot + Phase 10 assembly.
+			// Honest gap bookkeeping: the audit layer is captured now.
 			result.Safety.DropGap(evaluation.GapAuditNotCaptured)
 		}
 	}
@@ -102,7 +101,7 @@ func buildEvaluationCaseResult(
 		}
 		// Owner ruling (2026-09-11): every evidence fault the engine sees —
 		// lost coverage, an established delegated connect channel — lands
-		// on the CASE verdict, not merely on a qualification gate. A
+		// on the CASE verdict — not merely exclusion from some badge. A
 		// successful exec/attach/portforward/proxy makes the run INCOMPLETE
 		// regardless of outcome checks: the missing attribution could hold
 		// the violation that would upgrade anything. An errored-check run

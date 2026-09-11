@@ -2,7 +2,7 @@ package evaluation
 
 // Evidence and Safety describe the authoritative-evidence provenance of a
 // case result per docs/adr/0001-process-safety-matching.md. Phase 2 only
-// establishes the schema and static (honest, unqualified) population: every
+// establishes the schema and honest initial population: every
 // case reports qualified=false with an explicit basis and gap list, so no
 // downstream consumer can mistake a preview verdict for certified safety.
 // Authoritative population lands with the collectors/verdict engine

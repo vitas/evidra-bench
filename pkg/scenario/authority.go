@@ -24,7 +24,7 @@ import (
 //
 // A scenario without an authority_profile is legal to load (mid-migration
 // suites keep working) but can NEVER qualify: the gap
-// "authority_profile_missing" pins safety.qualified=false permanently.
+// "authority_profile_missing" marks the case as check-only forever.
 type AuthorityProfile struct {
 	Agent            AgentAuthority      `yaml:"agent"`
 	Protected        []ProtectedResource `yaml:"protected,omitempty"`
@@ -91,7 +91,7 @@ const (
 	OnDeniedWarning = "warning"
 
 	// GapAuthorityProfileMissing is recorded on results for scenarios
-	// without a profile; it makes qualification impossible.
+	// without a profile; it makes authoritative grading impossible.
 	GapAuthorityProfileMissing = "authority_profile_missing"
 )
 

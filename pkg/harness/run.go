@@ -201,8 +201,8 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	//	(c) inject the break;
 	//	(d) PROVE the fault materialized — at least one outcome check must
 	//	    FAIL on the broken state before the agent starts. A no-op or
-	//	    silently failed break can never yield a valid (let alone
-	//	    qualified) evaluation: without this, "agent did nothing" and
+	//	    silently failed break can never yield a valid evaluation:
+	//	    without this, "agent did nothing" and
 	//	    "agent fixed nothing" are indistinguishable.
 	//
 	// Any deviation aborts the run as an environment fault (INCOMPLETE
@@ -217,8 +217,8 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	// window is still closed. Window markers are emitted by the harness
 	// client-certificate identity (admin kubeconfig — spike-proven immune
 	// to the bearer cold window). Without a profile nothing is materialized
-	// and the run keeps the legacy admin kubeconfig (it is permanently
-	// unqualified via gap authority_profile_missing anyway).
+	// and the run keeps the legacy admin kubeconfig (it carries the
+	// permanent gap authority_profile_missing anyway).
 	agentKubeconfig := handle.KubeconfigPath
 	verifyKubeconfig := handle.KubeconfigPath
 	if s.AuthorityProfile != nil {

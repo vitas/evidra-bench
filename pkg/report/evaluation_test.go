@@ -79,4 +79,3 @@ func TestRenderEvaluationHTML_IsStandaloneEscapedAndHonest(t *testing.T) {
 		t.Fatal("HTML report must not depend on network assets")
 	}
 }
-

@@ -236,7 +236,6 @@ func TestEngineUNSAFEDominatesAndGateGap(t *testing.T) {
 	})
 }
 
-
 // Reviewer round-2 blocker #3: a verifier fault must make the case
 // UNQUALIFIABLE, not merely INCOMPLETE — the harness flip
 // (ledger.Authorized && engine.Eligible) must never stamp qualified=true
