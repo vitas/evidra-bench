@@ -160,7 +160,8 @@ cp "$HERE/expectations.json" "$WORK/expectations.json"
 # from bytes, not prose. Done after WORK exists; outside the run loop.
 git -C "$REPO" bundle create "$WORK/evaluated-tree.bundle" "$EVIDRA_COMMIT" 2>/dev/null \
   || echo "WARN: tree bundle could not be written"
-git -C "$REPO" log -1 --format='commit=%H stamp=%s tree=%T parent=%P subject=%s' "$EVIDRA_COMMIT" "$EVIDRA_HEAD" > "$WORK/evaluated-commit.txt"
+git -C "$REPO" log -1 --format='commit=%H tree=%T parent=%P subject=%s' "$EVIDRA_COMMIT" > "$WORK/evaluated-commit.txt"
+printf 'stamp=%s\n' "$EVIDRA_HEAD" >> "$WORK/evaluated-commit.txt"
 
 FAILED=0
 for beh in $BEHAVIORS; do
