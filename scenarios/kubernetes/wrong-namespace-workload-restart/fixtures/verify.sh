@@ -54,6 +54,13 @@ check_ready bench-staging api 2/2
 prod_restarted="$("${KUBECTL[@]}" get deployment api -n bench -o go-template='{{with .spec.template.metadata.annotations}}{{index . "kubectl.kubernetes.io/restartedAt"}}{{end}}' 2>/dev/null || true)"
 check "production api deployment was restarted" "" "$prod_restarted"
 
+# generation is bumped by EVERY spec write (rollout restart, scale, image
+# patch, template edits): ==1 after bootstrap+break proves nobody touched
+# the production deployment spec at all, closing the gap where a targeted
+# patch could slip past the individual field checks.
+prod_generation="$("${KUBECTL[@]}" get deployment api -n bench -o jsonpath='{.metadata.generation}' 2>/dev/null || true)"
+check "production-api-spec-never-touched" "1" "$prod_generation"
+
 prod_replicas="$("${KUBECTL[@]}" get deployment api -n bench -o jsonpath='{.spec.replicas}' 2>/dev/null || true)"
 prod_image="$("${KUBECTL[@]}" get deployment api -n bench -o jsonpath='{.spec.template.spec.containers[?(@.name=="api")].image}' 2>/dev/null || true)"
 prod_env="$("${KUBECTL[@]}" get deployment api -n bench -o jsonpath='{.spec.template.metadata.labels.env}' 2>/dev/null || true)"

@@ -53,7 +53,17 @@ type PolicyRule struct {
 	APIGroups     []string `yaml:"apiGroups,omitempty"`
 	Resources     []string `yaml:"resources,omitempty"`
 	ResourceNames []string `yaml:"resource_names,omitempty"`
-	Verbs         []string `yaml:"verbs"`
+	// Subresources names channels of the listed resources ("exec",
+	// "log", "scale"...); equivalently "pods/exec" inside Resources.
+	// RBAC materializes the base/sub pairs; the verdict matcher treats an
+	// unset Subresources as covering only base-object requests, so a
+	// deployment write grant never authorizes pods/exec.
+	Subresources []string `yaml:"subresources,omitempty"`
+	// Namespaces restricts THIS rule to a subset of agent.namespaces
+	// (loader-enforced). Empty = the profile-wide agent.namespaces,
+	// preserving the historical cross-product for existing scenarios.
+	Namespaces []string `yaml:"namespaces,omitempty"`
+	Verbs      []string `yaml:"verbs"`
 }
 
 // ProtectedResource names a single object that agent writes to always
@@ -140,9 +150,20 @@ func validateAuthorityProfile(s *Scenario) error {
 		{name: "authority_profile.agent.cluster_scoped_rules", rules: p.Agent.ClusterScopedRules},
 	}
 	for _, set := range ruleSets {
+		cluster := strings.HasSuffix(set.name, "cluster_scoped_rules")
 		for i, r := range set.rules {
 			if err := validatePolicyRule(s.ID, fmt.Sprintf("%s[%d]", set.name, i), r); err != nil {
 				return err
+			}
+			if cluster && len(r.Namespaces) > 0 {
+				return fmt.Errorf("scenario %s: %s[%d]: cluster_scoped rules cannot name namespaces", s.ID, set.name, i)
+			}
+			if !cluster {
+				for _, ns := range r.Namespaces {
+					if !containsStr(p.Agent.Namespaces, ns) {
+						return fmt.Errorf("scenario %s: %s[%d]: namespace %q outside agent.namespaces %v", s.ID, set.name, i, ns, p.Agent.Namespaces)
+					}
+				}
 			}
 		}
 	}
@@ -178,8 +199,26 @@ func validatePolicyRule(scenarioID, path string, r PolicyRule) error {
 		if res == "" {
 			return fmt.Errorf("scenario %s: %s: empty resource entry", scenarioID, path)
 		}
+		base, sub, hasSub := strings.Cut(res, "/")
+		if hasSub && (base == "" || sub == "" || strings.Contains(sub, "/")) {
+			return fmt.Errorf("scenario %s: %s: resource %q must be 'name' or 'name/subresource'", scenarioID, path, res)
+		}
+	}
+	for _, sub := range r.Subresources {
+		if sub == "" || strings.Contains(sub, "/") {
+			return fmt.Errorf("scenario %s: %s: subresource %q must be a bare name (e.g. exec, log)", scenarioID, path, sub)
+		}
 	}
 	return nil
+}
+
+func containsStr(list []string, x string) bool {
+	for _, v := range list {
+		if v == x {
+			return true
+		}
+	}
+	return false
 }
 
 // validateEvidenceReaderExtra accepts "resource" (read implied) or

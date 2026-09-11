@@ -13,6 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"sort"
+
+	"github.com/vitas/evidra-bench/pkg/authority"
 	"github.com/vitas/evidra-bench/pkg/scenario"
 )
 
@@ -187,17 +190,31 @@ func identityManifests(profile *scenario.AuthorityProfile) []map[string]any {
 		obj("v1", "ServiceAccount", EvidenceServiceAccount, IdentityNamespace),
 	}
 
-	// Defense in depth: the loader validator already rejects unflagged
-	// impersonate/escalate/bind rules; materialize without them regardless.
-	agentRules := sanitizeRules(profile.Agent.Rules)
-
-	for i, ns := range profile.Agent.Namespaces {
-		roleName := fmt.Sprintf("evidra-agent-role-%d", i)
-		objs = append(objs, roleObject(roleName, ns, agentRules))
+	// ONE compiler for every consumer (ADR 0001 review): RBAC below, the
+	// verdict matcher, and the snapshot scope all derive from the same
+	// compiled plan — per-rule namespace scopes stay per-rule, so a write
+	// grant confined to bench-staging materializes ONLY there. The
+	// escalation-verb filter is defense in depth on top of the loader
+	// validator (impersonate/escalate/bind never reach the API).
+	plan, err := authority.Compile(profile, "")
+	if err != nil {
+		// The scenario loader validated the profile; a compile error here
+		// can only mean an out-of-scope rule namespace. Fail closed.
+		panic("identity: authority compile: " + err.Error())
+	}
+	roles := plan.RolesByNamespace()
+	names := make([]string, 0, len(roles))
+	for ns := range roles {
+		names = append(names, ns)
+	}
+	sort.Strings(names)
+	for _, ns := range names {
+		roleName := "evidra-agent-role-" + dnsLabel(ns)
+		objs = append(objs, roleObject(roleName, ns, rbacMaps(roles[ns])))
 		objs = append(objs, roleBinding(roleName, ns, AgentServiceAccount))
 	}
-	if len(profile.Agent.ClusterScopedRules) > 0 {
-		objs = append(objs, clusterRole("evidra-agent-cluster-role", sanitizeRules(profile.Agent.ClusterScopedRules)))
+	if crs := plan.ClusterRoleRules(); len(crs) > 0 {
+		objs = append(objs, clusterRole("evidra-agent-cluster-role", rbacMaps(crs)))
 		objs = append(objs, clusterRoleBinding("evidra-agent-cluster-role", AgentServiceAccount))
 	}
 
@@ -276,36 +293,17 @@ func ValidateProfileRules(profile *scenario.AuthorityProfile) error {
 
 var readVerbs = map[string]bool{"get": true, "list": true, "watch": true}
 
-var forbiddenAgentVerbs = map[string]bool{"impersonate": true, "escalate": true, "bind": true}
-
 // sanitizeRules drops privileged-escalation verbs regardless of what the
 // profile said (the loader gate already requires allow_impersonation +
 // explicit rule; this is defense in depth for materialization).
-func sanitizeRules(rules []scenario.PolicyRule) []map[string]any {
+// rbacMaps converts compiled rules into unstructured manifests.
+func rbacMaps(rules []authority.RBACRule) []map[string]any {
 	out := make([]map[string]any, 0, len(rules))
 	for _, r := range rules {
-		verbs := make([]string, 0, len(r.Verbs))
-		star := false
-		for _, v := range r.Verbs {
-			if v == "*" {
-				star = true
-				break
-			}
-			if !forbiddenAgentVerbs[v] {
-				verbs = append(verbs, v)
-			}
-		}
-		if star {
-			verbs = []string{"*"}
-		}
-		groups := r.APIGroups
-		if groups == nil {
-			groups = []string{""}
-		}
 		m := map[string]any{
-			"apiGroups": strList(groups),
+			"apiGroups": strList(r.APIGroups),
 			"resources": strList(r.Resources),
-			"verbs":     strList(verbs),
+			"verbs":     strList(r.Verbs),
 		}
 		if len(r.ResourceNames) > 0 {
 			m["resourceNames"] = strList(r.ResourceNames)
@@ -313,6 +311,23 @@ func sanitizeRules(rules []scenario.PolicyRule) []map[string]any {
 		out = append(out, m)
 	}
 	return out
+}
+
+// dnsLabel turns a namespace into a deterministic RBAC role-name suffix.
+func dnsLabel(ns string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(ns) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteByte(byte(r))
+		} else {
+			b.WriteByte('-')
+		}
+	}
+	out := b.String()
+	if len(out) > 40 {
+		out = out[:40]
+	}
+	return strings.Trim(out, "-")
 }
 
 func evResources(profile *scenario.AuthorityProfile) []string {

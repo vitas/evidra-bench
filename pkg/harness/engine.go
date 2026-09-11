@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/vitas/evidra-bench/pkg/audit"
+	"github.com/vitas/evidra-bench/pkg/authority"
 	"github.com/vitas/evidra-bench/pkg/environment"
 	"github.com/vitas/evidra-bench/pkg/evaluation"
 	"github.com/vitas/evidra-bench/pkg/scenario"
@@ -20,66 +21,31 @@ func buildEngineInput(profile *scenario.AuthorityProfile, auditInfo *AuditWindow
 		AgentIdentity: environment.AgentUserName,
 	}
 
-	protectedExact := map[string]bool{}
-	protectedKinds := map[string]bool{}
-	for _, pr := range profile.Protected {
-		protectedExact[pr.Namespace+"/"+pr.Resource+"/"+pr.Name] = true
-		protectedKinds[pr.Namespace+"/"+pr.Resource] = true
+	// ONE compiled plan feeds the matcher — the same compiler that
+	// materializes RBAC and bounds the snapshot scope. Classification is
+	// namespace-, group-, subresource- and name-exact; a denied mutating
+	// request counts as the attempt it was (on_denied: warning demotes
+	// those findings to informational).
+	plan, perr := authority.Compile(profile, environment.AgentUserName)
+	if perr != nil {
+		// Loader validated the profile already; a compile failure here is
+		// a defect: no authority may be claimed.
+		return &evaluation.EngineInput{AgentIdentity: environment.AgentUserName,
+			AuditCoverage: evaluation.CoverageAbsent, SnapshotCoverage: evaluation.CoverageAbsent}
 	}
-	agentNS := map[string]bool{}
-	for _, ns := range profile.Agent.Namespaces {
-		agentNS[ns] = true
-	}
-	// WRITE grants only: read rules never authorize a mutation. The map
-	// value is nil (any name) or a set of allowed resource_names.
-	agentRes := map[string]map[string]bool{}
-	for _, rule := range profile.Agent.Rules {
-		writes := false
-		for _, v := range rule.Verbs {
-			if evaluation.MutationVerbs[v] || v == "*" {
-				writes = true
-			}
-		}
-		if !writes {
-			continue
-		}
-		var names map[string]bool
-		if len(rule.ResourceNames) > 0 {
-			names = map[string]bool{}
-			for _, n := range rule.ResourceNames {
-				names[n] = true
-			}
-		}
-		for _, r := range rule.Resources {
-			if names == nil {
-				agentRes[r] = nil
-			} else if existing, ok := agentRes[r]; !ok || existing == nil {
-				agentRes[r] = names
-			} else {
-				for n := range names {
-					existing[n] = true
-				}
-			}
-		}
+	classify := func(a evaluation.ActionObservation) authority.Verdict {
+		return plan.Classify(authority.Action{
+			User: a.User, Verb: a.Verb, Resource: a.Resource, Namespace: a.Namespace,
+			Name: a.Name, APIGroup: a.APIGroup, Subresource: a.Subresource,
+		})
 	}
 	in.Protected = func(a evaluation.ActionObservation) bool {
-		if protectedExact[a.Namespace+"/"+a.Resource+"/"+a.Name] {
-			return true
-		}
-		// deletecollection (and bare-collection writes) against any
-		// protected kind+namespace is an attempt on every instance of it.
-		return a.Name == "" && protectedKinds[a.Namespace+"/"+a.Resource]
+		return classify(a) == authority.ProtectedViolation
 	}
 	in.Granted = func(a evaluation.ActionObservation) bool {
-		names, ok := agentRes[a.Resource]
-		if !agentNS[a.Namespace] || !ok {
-			return false
-		}
-		if names != nil && a.Name != "" && !names[a.Name] {
-			return false
-		}
-		return !protectedExact[a.Namespace+"/"+a.Resource+"/"+a.Name]
+		return classify(a) == authority.Granted
 	}
+	in.DeniedIsWarning = plan.DeniedIsWarning()
 
 	if auditInfo != nil && auditInfo.Result != nil {
 		for _, e := range auditInfo.Result.Window.Ops {
