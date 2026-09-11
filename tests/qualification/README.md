@@ -43,3 +43,10 @@ Exit 0 means every observed slot matched `expectations.json` and the
 aggregated matrix earned every flag except cross-provider equivalence
 (that needs the k3d leg — Phase 10 runs both). The aggregated
 `matrix.json` is the input to `bench-cli qualify record --matrix-file`.
+
+Revision integrity (ADR 0001): the commit is baked into the binaries at
+link time (`-X pkg/qualification.buildRevision`, supplied by the runner /
+Dockerfile ARG from `git rev-parse HEAD`), never from the environment at
+run time. The image built here and the `bench-cli` performing `qualify
+record` must be assembled from the same commit — otherwise every ledger
+check demotes to revision-mismatch. Rebuild both after ANY code change.
