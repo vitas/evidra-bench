@@ -250,12 +250,22 @@ func hashReader(r io.Reader) (string, error) {
 // BuildRevision identifies the compiled harness: git commit, dirty flag,
 // module version. This is the container-portable stand-in for hashing the
 // source of collector/normalizer/verdict-engine packages.
+// buildRevision is the ONLY value that may pin this binary's source
+// revision for the ledger: it is injected at link time
+// (-X pkg/qualification.buildRevision=$(git rev-parse HEAD)) and is
+// therefore immutable for the life of the artifact. ADR 0001 review #4
+// removed the runtime environment override — a binary must not be able to
+// talk its way into believing it is some other build. Release packaging
+// (Dockerfile.bench ARG, make release) always supplies it.
+var buildRevision string
+
+// LinkedRevision returns the compile-time stamp exactly as injected
+// (empty when the binary was built ad hoc without it).
+func LinkedRevision() string { return buildRevision }
+
+// BuildRevision reports the revision this binary was built from.
 func BuildRevision() string {
-	// Explicit pin (P10): containers build without .git, so stamping them
-	// from VCS is impossible; the operator passes the revision both sides
-	// must agree on (e.g. `docker run -e EVIDRA_BUILD_REVISION=$(git
-	// rev-parse HEAD)`). Empty = auto-detect below.
-	if v := strings.TrimSpace(os.Getenv("EVIDRA_BUILD_REVISION")); v != "" {
+	if v := strings.TrimSpace(buildRevision); v != "" {
 		return v
 	}
 	info, ok := debug.ReadBuildInfo()

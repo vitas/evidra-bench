@@ -52,7 +52,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [[ -z "${EVIDRA_DOCKER_SMOKE_IMAGE:-}" ]]; then
-  docker build -f "$repo_root/Dockerfile.bench" -t "$image" "$repo_root"
+  docker build -f "$repo_root/Dockerfile.bench" --build-arg "EVIDRA_BUILD_REVISION=$(git -C "$repo_root" rev-parse HEAD)" -t "$image" "$repo_root"
 fi
 
 # Build the static Linux fixture binary and run it in the host network

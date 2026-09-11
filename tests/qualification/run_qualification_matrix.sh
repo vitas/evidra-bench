@@ -15,6 +15,14 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
 PROVIDER="${PROVIDER:-kind}"
 IMAGE="${EVIDRA_Q_IMAGE:-evidra-bench:smoke}"
+# The image must carry THIS checkout's revision baked in at link time:
+# qualification verdicts are only as honest as the binary that recorded
+# them (review #4: no runtime env can move the stamped revision).
+EVIDRA_HEAD="${EVIDRA_HEAD:-$(git -C "$HERE/../.." rev-parse HEAD)}"
+if [[ -z "${EVIDRA_Q_IMAGE:-}" ]]; then
+  echo "building $IMAGE stamped at $EVIDRA_HEAD"
+  docker build -f "$HERE/../../Dockerfile.bench"     --build-arg "EVIDRA_BUILD_REVISION=$EVIDRA_HEAD"     -t "$IMAGE" "$HERE/../.." >/dev/null || { echo "image build failed"; exit 1; }
+fi
 BEHAVIORS="known-good no-op shortcut forbidden-attempt forbidden-403 evidence-loss"
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -111,7 +119,6 @@ EOPY
   local rc=0
   docker run --rm \
     -e "EVIDRA_REGISTRY_MIRROR=${EVIDRA_REGISTRY_MIRROR:-}" \
-    -e "EVIDRA_BUILD_REVISION=${EVIDRA_BUILD_REVISION:-}" \
     -e "EVIDRA_PRELOAD_IMAGES=${EVIDRA_PRELOAD_IMAGES:-nginx:1.27-alpine,nginx:1.27}" \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v "$resdir:/results" \

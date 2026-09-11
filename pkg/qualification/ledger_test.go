@@ -174,13 +174,23 @@ func TestVerifyProviderSetMembership(t *testing.T) {
 	}
 }
 
-func TestBuildRevisionOverride(t *testing.T) {
+// The revision is a compile-time fact. Review #4 killed the runtime
+// environment override; this test proves nothing at runtime can move it.
+func TestBuildRevisionIsImmutable(t *testing.T) {
 	t.Setenv("EVIDRA_BUILD_REVISION", "git-abc123")
-	if got := BuildRevision(); got != "git-abc123" {
-		t.Fatalf("override must win: %q", got)
+	if got := BuildRevision(); got == "git-abc123" {
+		t.Fatal("environment must NOT be able to pin the revision")
 	}
-	t.Setenv("EVIDRA_BUILD_REVISION", "")
-	if got := BuildRevision(); got == "git-abc123" || got == "" {
-		t.Fatalf("empty override must fall through to detection, got %q", got)
+	// Injecting the linker stamp (same mechanism -X uses) does win.
+	old := buildRevision
+	buildRevision = "stamped-rev"
+	defer func() { buildRevision = old }()
+	if got := BuildRevision(); got != "stamped-rev" {
+		t.Fatalf("linked stamp must win: %q", got)
+	}
+	// Unstamped: honest fallback detection, never empty.
+	buildRevision = ""
+	if got := BuildRevision(); got == "" {
+		t.Fatal("fallback must still report something")
 	}
 }
