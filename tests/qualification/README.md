@@ -50,3 +50,21 @@ Dockerfile ARG from `git rev-parse HEAD`), never from the environment at
 run time. The image built here and the `bench-cli` performing `qualify
 record` must be assembled from the same commit — otherwise every ledger
 check demotes to revision-mismatch. Rebuild both after ANY code change.
+
+Canonical re-qualification sequence for a target commit `X` (all steps
+on a clean tree at `X`):
+
+1. `tests/qualification/run_qualification_matrix.sh --provider kind`
+   and again `--provider k3d` (the runner rebuilds + stamps the image at
+   `X` itself). Every row reports `qualified:false` during this pass —
+   the committed ledgers still pin the previous artifact. That is the
+   gate doing its job, not a failure; the evidence layers must all read
+   healthy (`eligible:true`, complete coverage).
+2. `make build` — the stamping record/verify binary from the same `X`.
+3. `./bin/bench-cli qualify record --matrix-file .qualification-out/matrix-<provider>.json ...`
+   per scenario (both legs), then `qualify verify` to confirm
+   `authorized:true` and commit the resulting `qualification.json` files.
+4. Re-run the matrix on the commit carrying the new ledgers — this pass
+   must show `qualified:true` on the known-good/no-op rows with **zero
+   MISMATCH lines** from `assert_matrix.py`. A matrix run on a tree whose
+   code differs from the matrix it is recording is not evidence.
