@@ -27,8 +27,10 @@ work_dir="$(mktemp -d)"
 # The legs run inside a container as root; artifacts land in $work_dir
 # owned by root. Reclaim them before cleanup, always.
 release_ownership() {
-  docker run --rm -v "$work_dir:/out" "${image:-alpine:3.22}" \
-    chown -R "$(id -u):$(id -g)" /out >/dev/null 2>&1 || true
+  # --entrypoint matters: the runner image's ENTRYPOINT is "evidra", so a
+  # bare `docker run IMAGE chown ...` would execute the CLI, not chown.
+  docker run --rm -v "$work_dir:/out" --entrypoint chown "${image:-alpine:3.22}" \
+    -R "$(id -u):$(id -g)" /out >/dev/null 2>&1 || true
 }
 trap 'release_ownership; rm -rf "$work_dir"' EXIT
 
