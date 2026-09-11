@@ -21,6 +21,11 @@ type Config struct {
 	Adapter             string
 	A2AAgentURL         string
 	AgentCommand        string
+	// AgentUnconfined opts an external --agent command out of the default
+	// sandbox. Profiled scenarios graded with an unconfined external agent
+	// land on INCOMPLETE (release review finding #2): the runner container
+	// holds the docker socket, so evidence tampering cannot be excluded.
+	AgentUnconfined bool
 	// AgentImage / AgentBundleDir enable the hardened agent sandbox
 	// (ADR 0001 Phase 6). Without them agents run unconfined: results carry
 	// runtime.unconfined=true and can never qualify.

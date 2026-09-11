@@ -37,8 +37,19 @@ func RenderEvaluationTerminal(w io.Writer, result evaluation.Result) error {
 		return fmt.Errorf("report: render terminal heading spacing: %w", err)
 	}
 	for _, c := range result.Cases {
-		if _, err := fmt.Fprintf(w, "%-32s %-18s %s\n", c.ScenarioID, string(c.Verdict), compactDuration(c.Duration)); err != nil {
+		line := fmt.Sprintf("%-32s %-18s %s", c.ScenarioID, string(c.Verdict), compactDuration(c.Duration))
+		if c.Runtime.Unconfined {
+			// Material gaps must not be silently PASS-shaped
+			// (release review finding #2): the terminal says so inline.
+			line += "  \u26a0 unconfined agent"
+		}
+		if _, err := fmt.Fprintln(w, line); err != nil {
 			return fmt.Errorf("report: render terminal case: %w", err)
+		}
+	}
+	if unconfined := countUnconfined(result.Cases); unconfined > 0 {
+		if _, err := fmt.Fprintf(w, "\n\u26a0 %d/%d cases ran the agent outside the sandbox (gap agent_unconfined_execution). External --agent commands are sandboxed by default; --agent-unconfined opts out and profiled cases then grade INCOMPLETE.\n", unconfined, len(result.Cases)); err != nil {
+			return fmt.Errorf("report: render terminal gap warning: %w", err)
 		}
 	}
 	s := result.Summary
@@ -149,8 +160,18 @@ var evaluationHTMLTemplate = template.Must(template.New("evaluation").Parse(`<!d
 <div class="metric"><strong>{{.Result.Summary.Incomplete}}</strong>Incomplete</div>
 </section>
 <h2>Cases</h2><section class="cases">
-{{range .Cases}}<article class="case"><div class="case-head"><strong>{{.Result.ScenarioID}}</strong><strong class="{{.Result.Verdict}}">{{.VerdictLabel}}</strong></div><div class="meta">{{.Duration}} · {{.Usage}} · checks {{.Result.ChecksPassed}}/{{.Result.ChecksTotal}}</div>{{if .Result.Findings}}<ul>{{range .Result.Findings}}<li>{{.Severity}}: {{.Message}}</li>{{end}}</ul>{{end}}{{if .Result.Evidence}}<ul>{{range .Result.Evidence}}<li>Evidence: <code>{{.Path}}</code></li>{{end}}</ul>{{end}}</article>{{end}}
+{{range .Cases}}<article class="case"><div class="case-head"><strong>{{.Result.ScenarioID}}</strong><strong class="{{.Result.Verdict}}">{{.VerdictLabel}}</strong></div><div class="meta">{{.Duration}} · {{.Usage}} · checks {{.Result.ChecksPassed}}/{{.Result.ChecksTotal}}</div>{{if .Result.Runtime.Unconfined}}<div class="meta">\u26a0 agent ran outside the sandbox (gap: agent_unconfined_execution)</div>{{end}}{{if .Result.Safety.Gaps}}<ul>{{range .Result.Safety.Gaps}}<li>evidence gap: {{.}}</li>{{end}}</ul>{{end}}{{if .Result.Findings}}<ul>{{range .Result.Findings}}<li>{{.Severity}}: {{.Message}}</li>{{end}}</ul>{{end}}{{if .Result.Evidence}}<ul>{{range .Result.Evidence}}<li>Evidence: <code>{{.Path}}</code></li>{{end}}</ul>{{end}}</article>{{end}}
 </section>
 {{if .Limitations}}<aside class="notice"><strong>Limitations</strong><ul>{{range .Limitations}}<li>{{.}}</li>{{end}}</ul></aside>{{end}}
 </body>
 </html>`))
+
+func countUnconfined(cases []evaluation.CaseResult) int {
+	n := 0
+	for _, c := range cases {
+		if c.Runtime.Unconfined {
+			n++
+		}
+	}
+	return n
+}

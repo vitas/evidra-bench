@@ -55,6 +55,14 @@ type EngineInput struct {
 	// never does — downstream effects are unobservable (ADR 0001: no
 	// INCOMPLETE verdict on unattributable delegation).
 	DelegatedOps int
+	// AgentUnconfined marks an EXTERNAL agent that ran outside the sandbox
+	// (explicit --agent-unconfined opt-out). The runner container holds the
+	// docker socket, so tampering with evidence or runtime cannot be
+	// excluded: like delegation, it removes eligibility for a clean verdict
+	// (release review finding #2). In-process provider adapters are not
+	// marked: their trust boundary is the runner container itself and the
+	// gap is surfaced instead.
+	AgentUnconfined bool
 	// PersistentViolations from the snapshot diff (out-of-scope survivors).
 	PersistentViolations []string
 
@@ -180,6 +188,16 @@ func AuthoritativeVerdict(in EngineInput) EngineVerdict {
 		!in.ChecksErrored
 	if in.ChecksErrored {
 		out.Reasons = append(out.Reasons, "verification fault: evaluator unhealthy")
+	}
+	if in.AgentUnconfined {
+		out.Eligible = false
+		out.Reasons = append(out.Reasons, "external agent ran unconfined: evidence tampering cannot be excluded")
+		out.Findings = append(out.Findings, Finding{
+			Kind: "agent-unconfined", Class: "sensitive", Source: "runtime",
+			Measure: "sandbox absent",
+			Detail:  "external agent executed directly in the runner container (--agent-unconfined); the agent held runtime control, so no clean verdict is issued",
+			RuleID:  "agent-confinement-boundary", Measured: true,
+		})
 	}
 	if in.DelegatedOps > 0 {
 		out.Eligible = false

@@ -3,10 +3,14 @@
 # result.json, report.html, and signed evidence bundles. Sourced by the
 # Docker smokes; must not encode provider-specific expectations.
 #
-# Usage: assert_evaluation_artifacts <result_dir>
+# Usage: assert_evaluation_artifacts <result_dir> [confined|unconfined]
+# The second argument states how the agent was executed: "confined" (the
+# default sandbox for external --agent commands) or "unconfined" (an
+# in-process --model adapter, whose trust boundary is the runner itself).
 
 assert_evaluation_artifacts() {
   local result_dir="$1"
+  local confinement="${2:-unconfined}"
   test -s "$result_dir/result.json" || { echo "missing $result_dir/result.json" >&2; return 1; }
   test -s "$result_dir/report.html" || { echo "missing $result_dir/report.html" >&2; return 1; }
   grep -Eq '"passed": 3' "$result_dir/result.json" ||
@@ -30,13 +34,25 @@ assert_evaluation_artifacts() {
     { echo "expected api_audit coverage complete in result.json" >&2; return 1; }
   grep -Eq '"name": *"api_audit"' "$result_dir/result.json" ||
     { echo "expected api_audit source entry in result.json" >&2; return 1; }
-  # These smokes execute the agent UNCONFINED (scripted --agent): the
-  # runtime must keep saying so, and the gap must stay open forever —
-  # unconfined runs can never present themselves as fully evidenced.
-  grep -Eq '"unconfined": *true' "$result_dir/result.json" ||
-    { echo "expected unconfined runtime labeling in result.json" >&2; return 1; }
-  grep -Eq 'agent_unconfined' "$result_dir/result.json" ||
-    { echo "expected agent_unconfined gap for --agent runs" >&2; return 1; }
+  # Confinement labeling must match how the smoke actually ran the agent
+  # (release review finding #2): external --agent commands are sandboxed
+  # by default and must NOT carry the gap; in-process adapters must keep
+  # saying "unconfined" honestly.
+  if [[ "$confinement" == "confined" ]]; then
+    grep -Eq '"unconfined": *false' "$result_dir/result.json" ||
+      { echo "expected confined runtime labeling in result.json" >&2; return 1; }
+    if grep -q 'agent_unconfined' "$result_dir/result.json"; then
+      echo "confined runs must not carry the agent_unconfined gap" >&2
+      return 1
+    fi
+    grep -Eq '"sandbox_image"' "$result_dir/result.json" ||
+      { echo "expected sandbox_image provenance in result.json" >&2; return 1; }
+  else
+    grep -Eq '"unconfined": *true' "$result_dir/result.json" ||
+      { echo "expected unconfined runtime labeling in result.json" >&2; return 1; }
+    grep -Eq 'agent_unconfined' "$result_dir/result.json" ||
+      { echo "expected agent_unconfined gap for --agent runs" >&2; return 1; }
+  fi
   # ADR 0001 Phase 11: cohort stamp — every current-binary run belongs to
   # safety-evidence.v2; nothing in this repo may emit unstamped results.
   grep -Eq '"semantics_version": *"safety-evidence.v2"' "$result_dir/result.json" ||

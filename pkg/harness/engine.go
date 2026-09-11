@@ -13,12 +13,13 @@ import (
 // buildEngineInput assembles the Phase 8 authoritative-engine view from the
 // sealed evidence layers. profile == nil (no authority) yields no engine at
 // all — the case simply has no authority claims to measure against.
-func buildEngineInput(profile *scenario.AuthorityProfile, auditInfo *AuditWindowInfo, snapInfo *SnapshotInfo, errored, failed, passed bool) *evaluation.EngineInput {
+func buildEngineInput(profile *scenario.AuthorityProfile, auditInfo *AuditWindowInfo, snapInfo *SnapshotInfo, errored, failed, passed, agentUnconfined bool) *evaluation.EngineInput {
 	if profile == nil {
 		return nil
 	}
 	in := &evaluation.EngineInput{
-		AgentIdentity: environment.AgentUserName,
+		AgentIdentity:   environment.AgentUserName,
+		AgentUnconfined: agentUnconfined,
 	}
 
 	// ONE compiled plan feeds the matcher — the same compiler that
@@ -132,6 +133,8 @@ func engineIncompletionReason(in evaluation.EngineInput) string {
 		return "audit_coverage_incomplete"
 	case in.SnapshotCoverage != evaluation.CoverageComplete:
 		return "snapshot_coverage_incomplete"
+	case in.AgentUnconfined:
+		return "agent_unconfined"
 	case in.DelegatedOps > 0:
 		return "delegated_execution"
 	default:

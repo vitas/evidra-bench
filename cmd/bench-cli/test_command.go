@@ -16,17 +16,18 @@ import (
 )
 
 type testRequest struct {
-	Model          string
-	Endpoint       string
-	Agent          string
-	AgentImage     string
-	AgentBundleDir string
-	Suite          string
-	Environment    string
-	OutputDir      string
-	ProjectRoot    string
-	Timeout        time.Duration
-	CI             bool
+	Model           string
+	Endpoint        string
+	Agent           string
+	AgentImage      string
+	AgentBundleDir  string
+	AgentUnconfined bool
+	Suite           string
+	Environment     string
+	OutputDir       string
+	ProjectRoot     string
+	Timeout         time.Duration
+	CI              bool
 }
 
 type testRunner func(context.Context, testRequest) (evaluation.Result, error)
@@ -69,18 +70,24 @@ func newTestCommand(run testRunner) *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			image, bundle := strings.TrimSpace(req.AgentImage), strings.TrimSpace(req.AgentBundleDir)
-			sandboxed := image != "" || bundle != ""
-			if sandboxed && (image == "" || bundle == "") {
-				return fmt.Errorf("test: --agent-image and --agent-bundle must be provided together")
+			agent := strings.TrimSpace(req.Agent)
+			if bundle != "" && image == "" {
+				return fmt.Errorf("test: --agent-bundle requires --agent-image (the bundle alone cannot define the execution environment)")
 			}
-			if strings.TrimSpace(req.Model) == "" && strings.TrimSpace(req.Agent) == "" && !sandboxed {
-				return fmt.Errorf("test: provide --model, --agent, or the --agent-image + --agent-bundle sandbox pair")
+			if image != "" && bundle == "" && agent == "" {
+				return fmt.Errorf("test: --agent-image must be provided together with --agent-bundle, or with --agent (as the sandbox image for the default-sandboxed external agent)")
 			}
-			if strings.TrimSpace(req.Model) != "" && (strings.TrimSpace(req.Agent) != "" || sandboxed) {
-				return fmt.Errorf("test: --model is mutually exclusive with --agent/--agent-image")
+			if bundle != "" && agent != "" {
+				return fmt.Errorf("test: --agent cannot be combined with --agent-bundle (the bundle IS the agent)")
 			}
-			if sandboxed && strings.TrimSpace(req.Agent) != "" {
-				return fmt.Errorf("test: --agent cannot be combined with the sandbox pair (the bundle IS the agent)")
+			if strings.TrimSpace(req.Model) == "" && agent == "" && bundle == "" {
+				return fmt.Errorf("test: provide --model, --agent (sandboxed by default), or the --agent-image + --agent-bundle sandbox pair")
+			}
+			if strings.TrimSpace(req.Model) != "" && (agent != "" || image != "" || bundle != "") {
+				return fmt.Errorf("test: --model is mutually exclusive with --agent/--agent-image/--agent-bundle")
+			}
+			if req.AgentUnconfined && agent == "" {
+				return fmt.Errorf("test: --agent-unconfined only applies to an external --agent command")
 			}
 			if run == nil {
 				return fmt.Errorf("test: evaluation runner is unavailable")
@@ -95,6 +102,7 @@ func newTestCommand(run testRunner) *cobra.Command {
 	flags.StringVar(&req.Agent, "agent", "", "external agent command")
 	flags.StringVar(&req.AgentImage, "agent-image", "", "run the agent inside a hardened sandbox built from this image")
 	flags.StringVar(&req.AgentBundleDir, "agent-bundle", "", "agent bundle directory (entrypoint ./run + declared files) staged into the sandbox")
+	flags.BoolVar(&req.AgentUnconfined, "agent-unconfined", false, "run the external --agent command directly in the runner container instead of the default sandbox (profiled scenarios then grade INCOMPLETE)")
 	flags.StringVar(&req.Suite, "suite", req.Suite, "versioned test suite")
 	flags.StringVar(&req.Environment, "environment", req.Environment, "local Kubernetes environment (kind or k3d)")
 	flags.StringVar(&req.OutputDir, "output", req.OutputDir, "directory for local reports and evidence")

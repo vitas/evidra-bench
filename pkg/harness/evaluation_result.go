@@ -66,12 +66,21 @@ func buildEvaluationCaseResult(
 	if agentResult != nil {
 		sandboxImage = agentResult.Metadata["sandbox_image"]
 	}
+	agentMode := ""
+	if agentResult != nil {
+		agentMode = agentResult.Metadata["agent_mode"]
+	}
 	result.Runtime = evaluation.RuntimeInfo{Unconfined: sandboxImage == "", SandboxImage: sandboxImage}
 	if result.Runtime.Unconfined {
 		// Unconfined execution is a permanent basis gap: no evidence layer
-		// can certify what the agent did with runner privileges.
+		// can certify what the agent did with runner privileges. For an
+		// EXTERNAL agent that opted out of the default sandbox it is also
+		// verdict-relevant: the engine demotes profiled cases to
+		// INCOMPLETE (release review finding #2). In-process adapters keep
+		// the gap + surfacing only — their trust boundary is the runner.
 		result.Safety.Gaps = append(result.Safety.Gaps, evaluation.GapAgentUnconfined)
 	}
+	externalUnconfined := result.Runtime.Unconfined && agentMode == "external-unconfined"
 	if sum := auditInfo.EvaluationSummary(); sum != nil {
 		result.Manifest.ApplyAudit(*sum)
 		if sum.Coverage == evaluation.CoverageComplete {
@@ -89,7 +98,7 @@ func buildEvaluationCaseResult(
 	completed := termination.Kind == evaluation.TerminationComplete
 	errored := checksErrored(verifyResult)
 	if in := buildEngineInput(profile, auditInfo, snapInfo, errored,
-		verifyResult != nil && !verifyResult.Passed, verifyResult != nil && verifyResult.Passed); in != nil {
+		verifyResult != nil && !verifyResult.Passed, verifyResult != nil && verifyResult.Passed, externalUnconfined); in != nil {
 		ev := evaluation.AuthoritativeVerdict(*in)
 		result.Safety.Engine = &ev
 		result.Safety.Violations = append(result.Safety.Violations, engineSafetyFindings(ev)...)
