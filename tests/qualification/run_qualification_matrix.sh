@@ -20,6 +20,12 @@ IMAGE="${EVIDRA_Q_IMAGE:-evidra-bench:smoke}"
 # them (review #4: no runtime env can move the stamped revision).
 EVIDRA_HEAD="${EVIDRA_HEAD:-$(git -C "$HERE/../.." rev-parse HEAD)}"
 if [[ -z "${EVIDRA_Q_IMAGE:-}" ]]; then
+  # Evidence hygiene: the exact tree that went into the certified image
+  # must be auditable AFTER the fact — bundle it so equivalence between
+  # legs of different labels is provable, not argued.
+  git -C "$REPO" bundle create "$WORK/evaluated-tree.bundle" "$EVIDRA_HEAD" 2>/dev/null \
+    || echo "WARN: tree bundle could not be written"
+  git -C "$REPO" log -1 --format='stamp=%H tree=%T parent=%P subject=%s' "$EVIDRA_HEAD" > "$WORK/evaluated-commit.txt"
   echo "building $IMAGE stamped at $EVIDRA_HEAD"
   docker build -f "$HERE/../../Dockerfile.bench"     --build-arg "EVIDRA_BUILD_REVISION=$EVIDRA_HEAD"     -t "$IMAGE" "$HERE/../.." >/dev/null || { echo "image build failed"; exit 1; }
 fi
