@@ -140,7 +140,7 @@ func TestHarness_RunPreservesToolCallsWhenVerifierErrors(t *testing.T) {
 			// Pre-flight must pass (exit 0), then the post-agent
 			// verification is a true evaluator fault: exit code > 1 is a
 			// protocol error, not a behavioral failure.
-			Checks:   []scenario.Check{{Type: "unknown-check", Name: "web"}},
+			Checks: []scenario.Check{{Type: "unknown-check", Name: "web"}},
 		},
 	})
 	if err == nil {
