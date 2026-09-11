@@ -252,22 +252,34 @@ func hashReader(r io.Reader) (string, error) {
 // source of collector/normalizer/verdict-engine packages.
 // buildRevision is the ONLY value that may pin this binary's source
 // revision for the ledger: it is injected at link time
-// (-X pkg/qualification.buildRevision=$(git rev-parse HEAD)) and is
-// therefore immutable for the life of the artifact. ADR 0001 review #4
-// removed the runtime environment override — a binary must not be able to
-// talk its way into believing it is some other build. Release packaging
-// (Dockerfile.bench ARG, make release) always supplies it.
+// (-X pkg/qualification.buildRevision=$(bash tools/code-revision.sh)) and
+// is therefore immutable for the life of the artifact. The value is the
+// code-<sha256> digest of the executable build inputs — deliberately NOT
+// the commit sha: a ledger pinned to a commit could never be satisfied by
+// the tip artifact, since the commit carrying the ledger is by
+// construction later than the commit it records (reviewer round-2
+// blocker #2). ADR 0001 review #4 removed the runtime environment
+// override — a binary must not be able to talk its way into believing it
+// is some other build. Release packaging (Dockerfile.bench ARG, make
+// release, CI) always supplies it.
 var buildRevision string
 
 // LinkedRevision returns the compile-time stamp exactly as injected
 // (empty when the binary was built ad hoc without it).
 func LinkedRevision() string { return buildRevision }
 
-// BuildRevision reports the revision this binary was built from.
+// BuildRevision reports the executable identity of this binary: the
+// stamped code digest when packaged (the only form a ledger can match),
+// otherwise an honest debug fallback that can never impersonate a
+// certified artifact.
 func BuildRevision() string {
 	if v := strings.TrimSpace(buildRevision); v != "" {
 		return v
 	}
+	return fallbackRevision()
+}
+
+func fallbackRevision() string {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return "unknown"

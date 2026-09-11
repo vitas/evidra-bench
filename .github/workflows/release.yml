@@ -188,6 +188,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Executable identity
+        id: coderev
+        run: echo "rev=$(bash tools/code-revision.sh)" >> "$GITHUB_OUTPUT"
+
       - name: Build image (smoke test)
         uses: docker/build-push-action@v7
         with:
@@ -199,6 +203,7 @@ jobs:
             VERSION=${{ github.ref_name }}
             COMMIT=${{ github.sha }}
             BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            EVIDRA_BUILD_REVISION=${{ steps.coderev.outputs.rev }}
 
       - name: Smoke test
         run: |
@@ -218,6 +223,7 @@ jobs:
             VERSION=${{ github.ref_name }}
             COMMIT=${{ github.sha }}
             BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            EVIDRA_BUILD_REVISION=${{ steps.coderev.outputs.rev }}
 
   docker-ui:
     needs: [test]

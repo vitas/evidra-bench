@@ -44,12 +44,19 @@ aggregated matrix earned every flag except cross-provider equivalence
 (that needs the k3d leg — Phase 10 runs both). The aggregated
 `matrix.json` is the input to `bench-cli qualify record --matrix-file`.
 
-Revision integrity (ADR 0001): the commit is baked into the binaries at
-link time (`-X pkg/qualification.buildRevision`, supplied by the runner /
-Dockerfile ARG from `git rev-parse HEAD`), never from the environment at
-run time. The image built here and the `bench-cli` performing `qualify
-record` must be assembled from the same commit — otherwise every ledger
-check demotes to revision-mismatch. Rebuild both after ANY code change.
+Revision integrity (ADR 0001): the EXECUTABLE IDENTITY is baked into the
+binaries at link time (`-X pkg/qualification.buildRevision`, supplied by
+the runner / Dockerfile ARG / CI from `bash tools/code-revision.sh` — the
+sha256 over all tracked non-test `*.go`, `go.mod`, `go.sum`), never from
+the environment at run time. It is deliberately NOT the commit sha: the
+commit carrying a ledger is always later than the commit its ledger
+records, so a sha-pinned ledger could never be satisfied by the tip
+artifact (reviewer round-2 blocker #2). With the content digest, ledgers,
+attestations, docs and CI plumbing can move freely without invalidating a
+grant, while ANY change to shipped Go code moves the digest and
+demotes every ledger to revision-mismatch. The image and the `bench-cli`
+performing `qualify record` must carry the same digest — rebuild both
+after any code change (`make build` does it automatically).
 
 Canonical re-qualification sequence for a target commit `X` (all steps
 on a clean tree at `X`):

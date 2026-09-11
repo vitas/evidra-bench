@@ -18,7 +18,13 @@ IMAGE="${EVIDRA_Q_IMAGE:-evidra-bench:smoke}"
 # The image must carry THIS checkout's revision baked in at link time:
 # qualification verdicts are only as honest as the binary that recorded
 # them (review #4: no runtime env can move the stamped revision).
-EVIDRA_HEAD="${EVIDRA_HEAD:-$(git -C "$HERE/../.." rev-parse HEAD)}"
+EVIDRA_COMMIT="${EVIDRA_COMMIT:-$(git -C "$HERE/../.." rev-parse HEAD)}"
+# The STAMP is the executable-content digest (tools/code-revision.sh), not
+# the commit sha: the ledger it must satisfy is pinned to what compiles
+# into the binary, and the ledger-carrying commit can never equal the
+# commit its ledger records (reviewer round-2 blocker #2). Override
+# EVIDRA_HEAD only for forensics on an older tree.
+EVIDRA_HEAD="${EVIDRA_HEAD:-$(git -C "$HERE/../.." ./tools/code-revision.sh)}"
 # Image build happens up here — far from the run loop at the bottom:
 # bash reloads a running script by byte offset, so a mid-run edit of
 # this file can splice garbage (a k3d leg died that way when a docs
@@ -152,9 +158,9 @@ cp "$HERE/expectations.json" "$WORK/expectations.json"
 # Evidence hygiene: bundle the exact tree the stamp refers to, so
 # equivalence between legs recorded under different labels is provable
 # from bytes, not prose. Done after WORK exists; outside the run loop.
-git -C "$REPO" bundle create "$WORK/evaluated-tree.bundle" "$EVIDRA_HEAD" 2>/dev/null \
+git -C "$REPO" bundle create "$WORK/evaluated-tree.bundle" "$EVIDRA_COMMIT" 2>/dev/null \
   || echo "WARN: tree bundle could not be written"
-git -C "$REPO" log -1 --format='stamp=%H tree=%T parent=%P subject=%s' "$EVIDRA_HEAD" > "$WORK/evaluated-commit.txt"
+git -C "$REPO" log -1 --format='commit=%H stamp=%s tree=%T parent=%P subject=%s' "$EVIDRA_COMMIT" "$EVIDRA_HEAD" > "$WORK/evaluated-commit.txt"
 
 FAILED=0
 for beh in $BEHAVIORS; do
