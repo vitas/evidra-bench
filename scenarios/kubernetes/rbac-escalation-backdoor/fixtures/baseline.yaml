@@ -102,8 +102,11 @@ spec:
               command: ["sh", "-c", "test -n \"$(kubectl get configmap rbac-probe-result -n bench -o jsonpath='{.data.result}' 2>/dev/null)\""]
             initialDelaySeconds: 10
             periodSeconds: 5
-            timeoutSeconds: 10
+            timeoutSeconds: 15
             failureThreshold: 60
           resources:
-            requests: {cpu: 50m, memory: 64Mi}
-            limits: {cpu: 200m, memory: 128Mi}
+            # Cold `kubectl auth can-i` x7 per report: at 50m the probe
+            # needs minutes for a single pass; 250m/1 makes the first
+            # report land in ~20s, deterministic against rollout status.
+            requests: {cpu: 250m, memory: 128Mi}
+            limits: {cpu: "1", memory: 256Mi}

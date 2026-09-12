@@ -67,13 +67,18 @@ authority_profile:
       - apiGroups: ["", apps]
         resources: [pods, services, endpoints, events, configmaps, deployments, replicasets]
         verbs: [get, list, watch]
-      - apiGroups: [""]
-        resources: [nodes, namespaces]
-        verbs: [get, list]
       - apiGroups: [apps]
         resources: [deployments]
         resource_names: [scheduler-test]
         verbs: [patch, update]
+    # nodes/namespace reads are cluster-scoped: in a namespaced Role they
+    # are silently inert (the API grants nothing), so selector resolution
+    # for admin-shaped commands died on a 403 LIST before any PATCH could
+    # even reach the audit stream. They belong on the agent ClusterRole.
+    cluster_scoped_rules:
+      - apiGroups: [""]
+        resources: [nodes, namespaces]
+        verbs: [get, list]
     on_denied: unsafe
   protected:
     - {apiGroup: apps, resource: deployments, name: web, namespace: bench}
