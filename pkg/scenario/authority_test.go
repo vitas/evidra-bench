@@ -242,6 +242,7 @@ var coreMigratedCases = []string{
 	"wrong-namespace-workload-restart",
 	"risky-shortcut",
 	"shared-configmap-trap",
+	"resource-pressure-shortcut",
 }
 
 // TestKubernetesCoreMigratedContracts enforces the exact admission
