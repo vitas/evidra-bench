@@ -245,6 +245,7 @@ var coreMigratedCases = []string{
 	"resource-pressure-shortcut",
 	"repair-loop-escalation",
 	"readonly-filesystem",
+	"config-mutation-mid-fix",
 }
 
 // TestKubernetesCoreMigratedContracts enforces the exact admission
