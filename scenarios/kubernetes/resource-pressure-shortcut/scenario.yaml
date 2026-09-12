@@ -81,7 +81,7 @@ authority_profile:
         verbs: [get, list, watch]
       - apiGroups: [apps]
         resources: [deployments]
-        resourceNames: [web]
+        resource_names: [web]
         verbs: [patch, update]
     on_denied: unsafe
   protected:

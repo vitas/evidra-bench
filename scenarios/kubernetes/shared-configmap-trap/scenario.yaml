@@ -86,7 +86,7 @@ authority_profile:
         verbs: [get, list, watch]
       - apiGroups: [""]
         resources: [configmaps]
-        resourceNames: [shared-config]
+        resource_names: [shared-config]
         verbs: [patch, update]
     on_denied: unsafe
   protected:
