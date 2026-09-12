@@ -91,6 +91,9 @@ func prepareTestEvaluation(ctx context.Context, req testRequest, lookupEnv func(
 	if strings.TrimSpace(req.AgentBundleDir) != "" {
 		cfg.AgentBundleDir = strings.TrimSpace(req.AgentBundleDir)
 	}
+	cfg.AgentUnconfined = req.AgentUnconfined
+	cfg.AgentInputFiles = req.AgentInputs
+	cfg.AgentEnv = req.AgentEnvNames
 	if agentCmd := strings.TrimSpace(req.Agent); agentCmd != "" {
 		cfg.AgentCommand = agentCmd
 		digest := sha256.Sum256([]byte(agentCmd))

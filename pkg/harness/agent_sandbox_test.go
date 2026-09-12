@@ -161,27 +161,52 @@ func TestExecuteSingleAgentRoutesToSandbox(t *testing.T) {
 	}
 }
 
-func TestEvaluationRuntimeUnconfinedLabeling(t *testing.T) {
+// TestEvaluationRuntimeModes pins round-4 finding #2: modes, not a
+// boolean. The old code called every sandbox-image-less run "unconfined",
+// which falsely alarmed on mediated --model runs.
+func TestEvaluationRuntimeModes(t *testing.T) {
 	term := evaluation.Termination{Kind: evaluation.TerminationComplete}
-	plain := buildEvaluationCaseResult("c", "r1",
-		&adapter.RunResult{ExitCode: 0, Metadata: map[string]string{}},
-		&verifier.VerifyResult{Passed: true, Checks: []verifier.CheckResult{{Verdict: verifier.VerdictPass}}},
-		nil, "", time.Second, term, true, nil, nil, nil)
-	if !plain.Runtime.Unconfined {
-		t.Fatalf("bare run must be labeled unconfined: %+v", plain.Runtime)
-	}
-	if !containsString(plain.Safety.Gaps, evaluation.GapAgentUnconfined) {
-		t.Fatalf("unconfined gap missing: %v", plain.Safety.Gaps)
+	build := func(meta map[string]string) evaluation.CaseResult {
+		return buildEvaluationCaseResult("c", "r1",
+			&adapter.RunResult{ExitCode: 0, Metadata: meta},
+			&verifier.VerifyResult{Passed: true, Checks: []verifier.CheckResult{{Verdict: verifier.VerdictPass}}},
+			nil, "", time.Second, term, true, nil, nil, nil)
 	}
 
-	sbx := buildEvaluationCaseResult("c", "r2",
-		&adapter.RunResult{ExitCode: 0, Metadata: map[string]string{"sandbox": "1", "sandbox_image": "agent:1"}},
-		&verifier.VerifyResult{Passed: true, Checks: []verifier.CheckResult{{Verdict: verifier.VerdictPass}}},
-		nil, "", time.Second, term, true, nil, nil, nil)
-	if sbx.Runtime.Unconfined || sbx.Runtime.SandboxImage != "agent:1" {
+	mediated := build(map[string]string{})
+	if mediated.Runtime.Mode != evaluation.ModeMediated {
+		t.Fatalf("in-process adapter must be mediated, got %q", mediated.Runtime.Mode)
+	}
+	if containsString(mediated.Safety.Gaps, evaluation.GapAgentUnconfined) {
+		t.Fatalf("mediated runs are NOT unconfined and must not carry the gap: %v", mediated.Safety.Gaps)
+	}
+
+	sbx := build(map[string]string{"sandbox": "1", "sandbox_image": "agent:1"})
+	if sbx.Runtime.Mode != evaluation.ModeSandboxed || sbx.Runtime.SandboxImage != "agent:1" {
 		t.Fatalf("sandboxed run mislabeled: %+v", sbx.Runtime)
 	}
 	if containsString(sbx.Safety.Gaps, evaluation.GapAgentUnconfined) {
 		t.Fatalf("sandboxed run must not carry unconfined gap: %v", sbx.Safety.Gaps)
+	}
+
+	ext := build(map[string]string{"agent_mode": "external-unconfined"})
+	if ext.Runtime.Mode != evaluation.ModeExternalUnconfined {
+		t.Fatalf("opt-out run mislabeled: %+v", ext.Runtime)
+	}
+	if !containsString(ext.Safety.Gaps, evaluation.GapAgentUnconfined) {
+		t.Fatalf("only the genuine opt-out earns the gap: %v", ext.Safety.Gaps)
+	}
+
+	synth := build(map[string]string{"agent_mode": "external-sandboxed", "sandbox_image": "runner:1"})
+	if synth.Runtime.Mode != evaluation.ModeSandboxed {
+		t.Fatalf("synthetic-bundle runs are sandboxed: %+v", synth.Runtime)
+	}
+
+	remote := build(map[string]string{"agent_mode": "remote"})
+	if remote.Runtime.Mode != evaluation.ModeRemoteUnattributed {
+		t.Fatalf("a2a run mislabeled: %+v", remote.Runtime)
+	}
+	if containsString(remote.Safety.Gaps, evaluation.GapAgentUnconfined) {
+		t.Fatalf("remote runs are not runner-privileged; no unconfined gap: %v", remote.Safety.Gaps)
 	}
 }

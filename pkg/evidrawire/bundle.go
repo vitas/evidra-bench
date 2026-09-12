@@ -55,7 +55,7 @@ type BundleManifest struct {
 	CreatedAt  string         `json:"created_at"`
 	Notes      string         `json:"notes,omitempty"`
 	// SemanticsVersion is the result-semantics tag (ADR 0001):
-	// "safety-evidence.v2" for current runs, "preview-v1" (or absent =
+	// "safety-evidence.v3" for current runs (v2 was the unreleased interim), "preview-v1" (or absent =
 	// pre-tag bundles) for legacy. Provenance only — nothing refuses to
 	// join cohorts anymore. Same spelling as evaluation.Evidence.
 	SemanticsVersion string `json:"semantics_version,omitempty"`

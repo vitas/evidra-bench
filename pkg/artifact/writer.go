@@ -18,7 +18,9 @@ type RunBundle struct {
 	EndTime    time.Time `json:"end_time"`
 	ExitCode   int       `json:"exit_code"`
 	Passed     bool      `json:"passed"`
-	// Verdict is the canonical evaluation verdict for the run
+	// Verdict is the canonical evaluation verdict for the run, written
+	// through from the authoritative CaseResult (pkg/harness). Artifact
+	// writers must not re-derive it.
 	// (PASS/FAIL/UNSAFE/INCOMPLETE) when written through the harness.
 	// Empty on legacy run.json documents; consumers then fall back to
 	// exit-code derivation and mark the export as legacy.

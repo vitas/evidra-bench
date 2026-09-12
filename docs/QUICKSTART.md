@@ -119,8 +119,15 @@ docker run --rm \
   test --agent /fixtures/agent.sh
 ```
 
-The agent receives `kubectl` on `PATH`, `KUBECONFIG`,
-`INFRA_BENCH_SCENARIO`, `INFRA_BENCH_PROMPT`, and a writable workspace.
+`--agent` commands run sandboxed by default: the first token is resolved
+locally (or staged with `--agent-input`) and copied into the sandbox, so
+`--agent "./my-agent --config agent.yaml" --agent-input ./my-agent
+--agent-input ./agent.yaml` just works. The agent receives `kubectl` on
+`PATH`, `KUBECONFIG`, `INFRA_BENCH_SCENARIO`, `INFRA_BENCH_PROMPT`,
+`INFRA_BENCH_WORKSPACE`, and a writable `/workspace`. Credentials cross
+only by name: `--agent-env OPENAI_API_KEY`. Opting out
+(`--agent-unconfined`) is honest but demotes profiled cases to
+`INCOMPLETE`.
 
 ## Read The Result
 

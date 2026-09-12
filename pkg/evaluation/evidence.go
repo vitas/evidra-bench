@@ -86,7 +86,9 @@ const (
 	GapAuditNotCaptured       = "api_audit_not_captured"
 	GapSnapshotNotCaptured    = "state_snapshot_not_captured"
 	GapTelemetryNotSufficient = "tool_telemetry_not_sufficient"
-	// GapAgentUnconfined marks runs whose agent executed outside the
+	// GapAgentUnconfined marks runs whose external agent executed outside
+	// the default sandbox by explicit opt-out (mode external_unconfined);
+	// mediated model runs are NOT unconfined and carry no such gap.
 	// hardened sandbox (ADR 0001 Phase 6): permanent until re-run confined.
 	GapAgentUnconfined = "agent_unconfined_execution"
 )
@@ -96,7 +98,7 @@ const (
 // coverage). The tag is provenance bookkeeping kept after the
 // certification-era cohort gate was dropped — readers may still filter
 // on it; nothing refuses to join cohorts anymore.
-const SafetyEvidenceSemanticsVersion = "safety-evidence.v2"
+const SafetyEvidenceSemanticsVersion = "safety-evidence.v3"
 
 // PreviewSemanticsVersion is the semantics tag for Phase 2: verdicts are
 // produced from process/telemetry signals only and can never qualify.

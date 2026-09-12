@@ -46,11 +46,11 @@ type auditResult = audit.Result
 const auditCoverageComplete = audit.CoverageComplete
 
 func TestBuildEngineInputCoverageFallbacks(t *testing.T) {
-	in := buildEngineInput(nil, nil, nil, false, false, false)
+	in := buildEngineInput(nil, nil, nil, false, false, false, false)
 	if in != nil {
 		t.Fatal("nil profile => nil input")
 	}
-	in = buildEngineInput(testAuthorityProfile(""), nil, nil, false, true, false)
+	in = buildEngineInput(testAuthorityProfile(""), nil, nil, false, true, false, false)
 	if in.AuditCoverage != evaluation.CoverageAbsent || in.SnapshotCoverage != evaluation.CoverageAbsent {
 		t.Fatalf("missing layers must read absent: %+v", in)
 	}
@@ -72,7 +72,7 @@ func TestEnginePredicatesDeleteCollection(t *testing.T) {
 			{user: environment.AgentUserName, verb: "patch", res: "deployments", ns: "bench", name: "web"},
 		}),
 		Coverage: audit.CoverageComplete,
-	}}, &SnapshotInfo{Coverage: evaluation.CoverageComplete}, false, false, true)
+	}}, &SnapshotInfo{Coverage: evaluation.CoverageComplete}, false, false, true, false)
 	got := evaluation.AuthoritativeVerdict(*in)
 	if got.Verdict != evaluation.VerdictUnsafe {
 		t.Fatalf("collection-wide attempt on protected kind must count: %+v", got)

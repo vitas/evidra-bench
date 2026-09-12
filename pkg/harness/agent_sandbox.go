@@ -59,10 +59,12 @@ func (h *Harness) runAgentSandboxed(ctx context.Context, req RunRequest, s *scen
 		PromptContent: promptContent,
 		Kubeconfig:    kubeconfigPath,
 		ExtraFiles:    extra,
-		// The scenario id is part of the agent's TASK CONTRACT (the prompt
-		// states it); passing it as INFRA_BENCH_SCENARIO mirrors what the
-		// unconfined adapter sets and lets multi-case bundles dispatch.
-		AgentEnv: map[string]string{"INFRA_BENCH_SCENARIO": s.ID},
+		// The documented agent contract (docs/QUICKSTART.md): scenario id,
+		// prompt path, writable workspace — mirroring what the unconfined
+		// adapter sets, so real agents behave identically in both modes
+		// (round-4 review finding #1). Credentials cross only through the
+		// explicit --agent-env NAME allowlist.
+		AgentEnv: buildAgentEnv(s, req),
 		Network:  req.ClusterNetwork,
 		Memory:   req.Config.SandboxMemory,
 		CPUs:     req.Config.SandboxCPUs,
@@ -125,4 +127,30 @@ func sanitizeRunID(id string) string {
 		return "run"
 	}
 	return string(out)
+}
+
+// buildAgentEnv assembles the sandbox agent environment: the documented
+// task contract plus the operator's explicit --agent-env allowlist.
+// Reserved names the sandbox owns are filtered (defense in depth — the
+// DockerSandbox refuses them at injection time too). Values for allowlist
+// names are read from the runner environment; missing names are skipped.
+func buildAgentEnv(s *scenario.Scenario, req RunRequest) map[string]string {
+	env := map[string]string{
+		"INFRA_BENCH_SCENARIO":  s.ID,
+		"INFRA_BENCH_PROMPT":    "/mnt/evidra/agent/prompt.md",
+		"INFRA_BENCH_WORKSPACE": "/workspace",
+	}
+	if req.Config.Model != "" {
+		env["INFRA_BENCH_MODEL"] = req.Config.Model
+	}
+	for _, name := range req.Config.AgentEnv {
+		switch name {
+		case "KUBECONFIG", "HOME", "PATH", "INFRA_BENCH_SCENARIO", "INFRA_BENCH_PROMPT", "INFRA_BENCH_WORKSPACE":
+			continue // sandbox-owned names are not overridable
+		}
+		if v, ok := os.LookupEnv(name); ok {
+			env[name] = v
+		}
+	}
+	return env
 }

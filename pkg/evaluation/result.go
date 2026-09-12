@@ -2,11 +2,14 @@ package evaluation
 
 import "time"
 
-// ResultVersion is the canonical result schema. v3 replaces the
-// certification-era safety block (drops qualified/basis) and renames the
-// evidence manifest field; older documents stay decode-compatible — the
-// removed fields simply read as zero (see TestLegacyResultV1Decodes).
-const ResultVersion = "evaluation-result.v3"
+// ResultVersion is the canonical result schema. v4 replaces the boolean
+// RuntimeInfo.Unconfined with the explicit Mode (mediated / sandboxed /
+// external_unconfined / remote_unattributed) — a bool wrongly labeled
+// mediated --model runs as unconfined. v3's field simply reads as absent
+// on decode (Mode ""), older documents stay readable (see
+// TestLegacyResultV1Decodes). v3 itself dropped the certification-era
+// safety block.
+const ResultVersion = "evaluation-result.v4"
 
 type TerminationKind string
 
@@ -132,11 +135,30 @@ func ExitCode(result Result) int {
 	return 0
 }
 
+// Agent execution modes (round-4 review: a boolean "unconfined" wrongly
+// labeled mediated model runs). Every case states exactly one.
+const (
+	// ModeMediated: in-process provider/MCP adapter. Actions travel
+	// through the harness-controlled tool executor under the harness
+	// identity — no unattended external process exists at all.
+	ModeMediated = "mediated"
+	// ModeSandboxed: external agent executed in the hardened sibling
+	// container; SandboxImage carries the provenance.
+	ModeSandboxed = "sandboxed"
+	// ModeExternalUnconfined: explicit --agent-unconfined opt-out — an
+	// external process ran with runner privileges. Profiled cases grade
+	// INCOMPLETE because evidence tampering cannot be excluded.
+	ModeExternalUnconfined = "external_unconfined"
+	// ModeRemoteUnattributed: remote A2A agent — its execution sits
+	// outside the runner's process boundary and is attributed only to
+	// the remote endpoint's identity.
+	ModeRemoteUnattributed = "remote_unattributed"
+)
+
 // RuntimeInfo describes the agent execution boundary for one case.
 type RuntimeInfo struct {
-	// Unconfined = the agent ran with runner privileges (no sandbox); it
-	// can never qualify regardless of evidence coverage.
-	Unconfined bool `json:"unconfined"`
+	// Mode is one of the Mode* constants.
+	Mode string `json:"mode"`
 	// SandboxImage is the hardened-execution image when sandboxed.
 	SandboxImage string `json:"sandbox_image,omitempty"`
 }

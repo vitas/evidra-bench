@@ -118,14 +118,18 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		recorder.Event(recorder.CurrentPhase(), "failed", runErr.Error())
 		failedAt := time.Now()
 		phase := recorder.CurrentPhase()
-		artifactDir, safetyAutopsyJSON := h.writeFailedRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, runErr, startTime, failedAt)
+		nAgent, nVerify, safetyAutopsyJSON := failedRunSafetyAutopsy(req, runID, agentResult, verifyResult, runErr, startTime, failedAt)
 		kind, _ := classifyRunError(runErr, phase)
-		caseResult := buildEvaluationCaseResult(s.ID, runID, agentResult, verifyResult, safetyAutopsyJSON, artifactDir, failedAt.Sub(startTime), evaluation.Termination{
+		caseResult := buildEvaluationCaseResultPlanned(s.ID, plannedAgentMode(req), runID, nAgent, nVerify, safetyAutopsyJSON, "", failedAt.Sub(startTime), evaluation.Termination{
 			Kind:    evaluation.TerminationIncomplete,
 			Phase:   phase,
 			Reason:  kind,
 			Details: runErr.Error(),
 		}, s.AuthorityProfile != nil, nil, nil, s.AuthorityProfile)
+		artifactDir := h.writeFailedRunArtifacts(req, runID, nAgent, nVerify, promptContent, runChaosRunner(chaosRun), recorder, runErr, startTime, failedAt, safetyAutopsyJSON, caseResult.Verdict)
+		if artifactDir != "" {
+			caseResult.Evidence = []evaluation.EvidenceRef{{Kind: "artifact_dir", Path: artifactDir}}
+		}
 		if result == nil {
 			result = &RunResult{
 				ScenarioID:  s.ID,
@@ -346,11 +350,20 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	auditRes, auditJSONL, auditDigest := auditWin.close(ctx, recorder)
 	auditInfo := auditWindowInfo(auditRes, auditJSONL, auditDigest, auditWin)
 
-	// Step 6: Write artifacts.
+	// Step 6: Write artifacts. The authoritative CaseResult is built FIRST
+	// (from the autopsy document, the evidence layers and the checks) and
+	// run.json is then written carrying THAT verdict — one source of truth
+	// for run.json, result.json and the signed bundle (release review
+	// finding #1).
 	endTime := time.Now()
 	recorder.Event("run", "completed", "")
+	autopsyJSON := buildSuccessAutopsy(req, agentResult, verifyResult, startTime, endTime)
+	caseResult := buildEvaluationCaseResultPlanned(s.ID, plannedAgentMode(req), runID, agentResult, verifyResult, autopsyJSON, "", endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete}, s.AuthorityProfile != nil, auditInfo, snapInfo, s.AuthorityProfile)
 	recorder.Event("artifact_write", "started", "")
-	artifactDir, autopsyJSON := h.writeRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, startTime, endTime, auditInfo, snapInfo)
+	artifactDir := h.writeRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, startTime, endTime, auditInfo, snapInfo, autopsyJSON, caseResult.Verdict)
+	if artifactDir != "" {
+		caseResult.Evidence = []evaluation.EvidenceRef{{Kind: "artifact_dir", Path: artifactDir}}
+	}
 	recorder.Event("artifact_write", "completed", "")
 
 	// Step 7: Bench reporting.
@@ -367,7 +380,6 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		ArtifactDir: artifactDir,
 		Checks:      verifyResult,
 	}
-	caseResult := buildEvaluationCaseResult(s.ID, runID, agentResult, verifyResult, autopsyJSON, artifactDir, endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete}, s.AuthorityProfile != nil, auditInfo, snapInfo, s.AuthorityProfile)
 	result.Case = &caseResult
 
 	// Step 8: Store result in database.

@@ -51,6 +51,9 @@ func registerAgentFlags(f *pflag.FlagSet, cfg *config.Config, opt agentFlagOptio
 	f.StringVar(&cfg.A2AAgentURL, "a2a-agent-url", cfg.A2AAgentURL, "A2A agent URL (env: INFRA_BENCH_A2A_AGENT_URL)")
 	f.StringVar(&cfg.AgentCommand, "agent-command", cfg.AgentCommand, "command to invoke the agent")
 	f.StringVar(&cfg.AgentImage, "agent-image", cfg.AgentImage, "run the agent inside a hardened sandbox built from this image")
+	f.BoolVar(&cfg.AgentUnconfined, "agent-unconfined", cfg.AgentUnconfined, "run the external agent command directly in this process instead of the default sandbox (profiled scenarios then grade INCOMPLETE)")
+	f.StringArrayVar(&cfg.AgentInputFiles, "agent-input", cfg.AgentInputFiles, "file to stage into the sandboxed agent's working directory (repeatable; pair with --agent commands that load config)")
+	f.StringArrayVar(&cfg.AgentEnv, "agent-env", cfg.AgentEnv, "environment variable NAME to pass from this process into the agent sandbox (repeatable allowlist; values are never logged)")
 	f.StringVar(&cfg.AgentBundleDir, "agent-bundle", cfg.AgentBundleDir, "agent bundle directory staged into the sandbox")
 	f.StringVar(&cfg.Provider, "provider", cfg.Provider, "LLM provider")
 	if opt.IncludeModel {

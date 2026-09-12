@@ -19,7 +19,15 @@ import (
 )
 
 func (h *Harness) executeSingleAgent(ctx context.Context, req RunRequest, s *scenario.Scenario, kubeconfigPath, promptContent string, timeout time.Duration, evidenceDir string) (*adapter.RunResult, error) {
-	if req.Config.AgentImage != "" || req.Config.AgentBundleDir != "" {
+	if req.Config.AgentBundleDir != "" {
+		return h.runAgentSandboxed(ctx, req, s, kubeconfigPath, promptContent, timeout)
+	}
+	if req.Config.AgentCommand != "" && !req.Config.AgentUnconfined {
+		// External agents are sandboxed by default (release review
+		// finding #2); --agent-unconfined is the explicit opt-out.
+		return h.runExternalAgentSandboxed(ctx, req, s, kubeconfigPath, promptContent, timeout)
+	}
+	if req.Config.AgentImage != "" {
 		return h.runAgentSandboxed(ctx, req, s, kubeconfigPath, promptContent, timeout)
 	}
 	if req.Config.Adapter == "a2a" {
@@ -32,7 +40,7 @@ func (h *Harness) executeSingleAgent(ctx context.Context, req RunRequest, s *sce
 		return nil, fmt.Errorf("harness: local adapter dependency is nil for adapter=%s", req.Config.Adapter)
 	}
 
-	return h.deps.Adapter.Run(ctx, adapter.RunInput{
+	res, err := h.deps.Adapter.Run(ctx, adapter.RunInput{
 		ScenarioID:     s.ID,
 		PromptPath:     s.Prompt,
 		WorkspaceDir:   req.Config.RunsDir,
@@ -41,6 +49,16 @@ func (h *Harness) executeSingleAgent(ctx context.Context, req RunRequest, s *sce
 		AgentCommand:   req.Config.AgentCommand,
 		Model:          req.Config.Model,
 	})
+	if res != nil && req.Config.AgentCommand != "" {
+		// The only way to reach the plain adapter with an agent command is
+		// the explicit --agent-unconfined opt-out: label it so the verdict
+		// layer can demote honestly.
+		if res.Metadata == nil {
+			res.Metadata = map[string]string{}
+		}
+		res.Metadata["agent_mode"] = "external-unconfined"
+	}
+	return res, err
 }
 
 func shouldUseProviderEvidenceDir(cfg config.Config) bool {
@@ -69,6 +87,7 @@ func (h *Harness) runWithA2A(ctx context.Context, req RunRequest, s *scenario.Sc
 		Transcript: result.Output,
 		Metadata: map[string]string{
 			"adapter":        "a2a",
+			"agent_mode":     "remote",
 			"a2a_agent_name": result.AgentName,
 			"a2a_agent_url":  req.Config.ResolveA2AAgentURL(),
 			"a2a_rpc_url":    result.RPCURL,
