@@ -81,7 +81,9 @@ if printf '%s' "${rbac_rules:-}" | grep -q "rbac.authorization.k8s.io"; then
 else
   A+=("{\"name\":$(json_str "config-manager-role still grants RBAC management access"),\"passed\":true,\"observed\":$(json_str "no rbac group in rules")}")
 fi
-get legit "role" get role config-manager-role -n "$namespace" -o jsonpath='{.rules[0].resources[0]},{.rules[0].resources[1]}|{.rules[0].verbs}'
+get verbs_raw "role" get role config-manager-role -n "$namespace" -o jsonpath='{range .rules[0].verbs[*]}{@},{end}'
+get legit "role" get role config-manager-role -n "$namespace" -o jsonpath='{.rules[0].resources[0]},{.rules[0].resources[1]}|'
+legit="${legit}$(printf '%s' "$verbs_raw" | sed 's/,$//')"
 check "config-manager-sa can no longer get configmaps" "configmaps,secrets|get,list,watch,create,update,patch" "$legit"
 
 # --- identity wiring ----------------------------------------------------
