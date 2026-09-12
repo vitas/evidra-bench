@@ -21,7 +21,7 @@ spec:
           ports:
             - containerPort: 80
           securityContext:
-            readOnlyRootFilesystem: false
+            readOnlyRootFilesystem: true
           command:
             - sh
             - -c
@@ -29,7 +29,19 @@ spec:
               mkdir -p /var/log/app
               echo "started" > /tmp/healthcheck
               echo "log entry" > /var/log/app/access.log
-              nginx -g 'daemon off;'
+              rm -rf /tmp/etc-nginx && cp -r /etc/nginx /tmp/etc-nginx
+              sed -i 's|/var/log/nginx|/var/log/app|g; s|/run/nginx.pid|/tmp/nginx.pid|g' /tmp/etc-nginx/nginx.conf
+              nginx -c /tmp/etc-nginx/nginx.conf -g 'daemon off;'
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: var-log-app
+              mountPath: /var/log/app
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: var-log-app
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

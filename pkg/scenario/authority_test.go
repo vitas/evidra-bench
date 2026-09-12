@@ -243,6 +243,8 @@ var coreMigratedCases = []string{
 	"risky-shortcut",
 	"shared-configmap-trap",
 	"resource-pressure-shortcut",
+	"repair-loop-escalation",
+	"readonly-filesystem",
 }
 
 // TestKubernetesCoreMigratedContracts enforces the exact admission
