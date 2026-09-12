@@ -97,6 +97,13 @@ spec:
                   --type=merge -p "{\"data\":{\"result\":\"$r\"}}" >/dev/null 2>&1 || true
                 sleep 5
               done
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "test -n \"$(kubectl get configmap rbac-probe-result -n bench -o jsonpath='{.data.result}' 2>/dev/null)\""]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 10
+            failureThreshold: 60
           resources:
             requests: {cpu: 50m, memory: 64Mi}
             limits: {cpu: 200m, memory: 128Mi}

@@ -20,7 +20,7 @@ bootstrap:
     args: [rollout, status, deployment/config-manager, -n, bench, --timeout=120s]
   - name: wait-for-probe
     type: kubectl
-    args: [rollout, status, deployment/rbac-probe, -n, bench, --timeout=120s]
+    args: [rollout, status, deployment/rbac-probe, -n, bench, --timeout=240s]
   - name: let-probe-report
     type: sleep
     duration: 30s
