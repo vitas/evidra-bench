@@ -80,6 +80,10 @@ func prepareTestEvaluation(ctx context.Context, req testRequest, lookupEnv func(
 	cfg.ScenariosDir = filepath.Join(root, "scenarios")
 	cfg.RunsDir = filepath.Join(req.OutputDir, "runs")
 	cfg.Timeout = req.Timeout
+	// `test` always provisions and owns its disposable cluster, so cases
+	// running suite-by-suite may reset their declared bench scopes between
+	// cases (kubernetes-core plan Task 2). No other command sets this.
+	cfg.ResetNamespacesBeforeCase = true
 	cfg.ClusterName = oneCommandClusterName(os.Getpid(), time.Now())
 	cfg.Adapter = "cli"
 

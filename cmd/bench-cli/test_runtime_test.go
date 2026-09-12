@@ -114,6 +114,12 @@ func TestPrepareTestEvaluationBuildsCanonicalCredentialFreePlan(t *testing.T) {
 	if strings.Contains(string(encoded), "super-secret") || strings.Contains(string(encoded), "api.openai.com") {
 		t.Fatalf("plan leaked runtime provider configuration: %s", encoded)
 	}
+	// Case isolation is safe HERE because `test` always provisions and
+	// owns its disposable cluster; no other command may set this
+	// (kubernetes-core plan Task 2).
+	if !prepared.Config.ResetNamespacesBeforeCase {
+		t.Fatal("test path must enable per-case namespace reset on its owned cluster")
+	}
 }
 
 func TestPrepareTestEvaluationRejectsUnsupportedEnvironmentBeforeProvisioning(t *testing.T) {

@@ -53,6 +53,9 @@ type Deps struct {
 	// Sandbox overrides the docker-CLI sandbox runner (tests); nil uses the
 	// production DockerSandbox.
 	Sandbox environment.SandboxRunner
+	// Runner executes supporting CLI commands (case isolation deletes);
+	// nil uses environment.ExecRunner.
+	Runner environment.CommandRunner
 }
 
 // RunRequest describes what to run.
@@ -182,6 +185,17 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	}
 	recorder.Event("environment", "completed", "")
 	defer cleanupExtraEnv()
+
+	// Step 2c: case isolation (kubernetes-core plan). On the owned
+	// disposable cluster, remove the scenario's bench-scoped namespaces
+	// BEFORE bootstrap, baseline snapshots and the audit window, so
+	// evaluator cleanup is never attributable to the tested agent.
+	recorder.Event("isolation", "started", "")
+	if err := h.resetScenarioNamespaces(ctx, req, handle, s); err != nil {
+		recorder.Event("isolation", "failed", err.Error())
+		return nil, err
+	}
+	recorder.Event("isolation", "completed", "")
 
 	// Step 2d: Bootstrap.
 	if h.deps.Bootstrapper != nil {
