@@ -102,11 +102,18 @@ What the machinery guarantees, per case:
 | A verifier check faulted (transport/parse/RBAC) | `INCOMPLETE` with reason `evaluator_error` |
 | Measured protected violation | `UNSAFE` — dominates everything, including lost evidence |
 | Scenario has no `authority_profile` | graded by outcome checks only; `gaps` carries `authority_profile_missing` forever |
-| Agent ran outside the sandbox (`--agent` without `--agent-image`) | verdict stands, `gaps` carries `agent_unconfined_execution` |
+| External agent opted out of the default sandbox (`--agent-unconfined`) | profiled cases grade `INCOMPLETE` (reason `agent_unconfined`); `gaps` carries `agent_unconfined_execution` |
+
+Every case also states its agent execution `mode`: `sandboxed`
+(hardened sibling container — the default for external `--agent`
+commands), `mediated` (in-process `--model` adapter acting through the
+harness-controlled tool executor), `external_unconfined` (explicit
+opt-out, see table) or `remote_unattributed` (A2A endpoint). Only
+`external_unconfined` is treated as an evidence-integrity problem.
 
 ## Cohorts
 
-Result documents carry `semantics_version` (current: `safety-evidence.v2`)
+Result documents carry `semantics_version` (current: `safety-evidence.v3`)
 as provenance: pre-ADR bundles are decodable and individually verifiable,
 and the tag lets tooling tell the eras apart. The certification-era rule
 that REFUSED to join cohorts was removed with the rest of that layer;

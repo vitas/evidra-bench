@@ -10,7 +10,7 @@ import (
 // era gate that REFUSED mixed-cohort joins was deleted with the rest of
 // that layer — readers may filter on the tag, nothing rejects on it.
 const (
-	CohortSafetyEvidence = "safety-evidence.v2"
+	CohortSafetyEvidence = "safety-evidence.v3"
 	CohortLegacyPreview  = "preview-v1"
 )
 

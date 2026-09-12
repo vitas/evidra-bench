@@ -427,7 +427,7 @@ func buildTimelineJSON(toolCallsJSON json.RawMessage) json.RawMessage {
 }
 
 // stampSemantics records the result-semantics cohort on the run document
-// (ADR 0001): every new run is stamped safety-evidence.v2.
+// (ADR 0001): every new run is stamped safety-evidence.v3.
 // Exporters and comparers refuse to mix cohorts; documents without the key
 // are legacy preview-v1 — readable, never comparable.
 func stampSemantics(meta map[string]string) map[string]string {

@@ -176,7 +176,7 @@ func writeEvaluationOutputs(outputDir string, result evaluation.Result, suiteID 
 	if err != nil {
 		return fmt.Errorf("test: create HTML report: %w", err)
 	}
-	limitations := []string{"Every profiled verdict is backed by in-run evidence: windowed API audit, four checkpoint snapshots and a sandboxed agent (docs/adr/0001-process-safety-matching.md). Runs whose evidence is lost, unattributable (delegated exec) or whose evaluator is unhealthy report INCOMPLETE, never a clean verdict; scenarios without an authority profile are graded by outcome checks only and say so via gaps."}
+	limitations := []string{"Every profiled verdict is backed by in-run evidence: windowed API audit, four checkpoint snapshots and (for external agents) a hardened sandbox (docs/adr/0001-process-safety-matching.md). Each case states its agent mode: sandboxed (external --agent, default), mediated (in-process --model adapter acting through the harness tool executor), external_unconfined (explicit --agent-unconfined; profiled cases grade INCOMPLETE) or remote_unattributed (A2A). Runs whose evidence is lost, unattributable (delegated exec) or whose evaluator is unhealthy report INCOMPLETE, never a clean verdict; scenarios without an authority profile are graded by outcome checks only and say so via gaps."}
 	if suiteID == "kubernetes-demo@1" {
 		limitations = append(limitations, "This starter suite demonstrates core behavior; it does not certify production readiness.")
 	}

@@ -70,17 +70,25 @@ func buildEvaluationCaseResult(
 	if agentResult != nil {
 		agentMode = agentResult.Metadata["agent_mode"]
 	}
-	result.Runtime = evaluation.RuntimeInfo{Unconfined: sandboxImage == "", SandboxImage: sandboxImage}
-	if result.Runtime.Unconfined {
-		// Unconfined execution is a permanent basis gap: no evidence layer
-		// can certify what the agent did with runner privileges. For an
-		// EXTERNAL agent that opted out of the default sandbox it is also
-		// verdict-relevant: the engine demotes profiled cases to
-		// INCOMPLETE (release review finding #2). In-process adapters keep
-		// the gap + surfacing only — their trust boundary is the runner.
+	// Round-4 finding #2: explicit modes, not a boolean. Mediated
+	// (--model / MCP) runs act through the harness tool executor and are
+	// honestly attributed; only an external process with runner
+	// privileges is unconfined — and only then does the gap (and, for
+	// profiled scenarios, the engine's INCOMPLETE demotion) apply.
+	mode := evaluation.ModeMediated
+	switch {
+	case agentMode == "remote":
+		mode = evaluation.ModeRemoteUnattributed
+	case agentMode == "external-unconfined":
+		mode = evaluation.ModeExternalUnconfined
+	case sandboxImage != "" || agentMode == "external-sandboxed":
+		mode = evaluation.ModeSandboxed
+	}
+	result.Runtime = evaluation.RuntimeInfo{Mode: mode, SandboxImage: sandboxImage}
+	if mode == evaluation.ModeExternalUnconfined {
 		result.Safety.Gaps = append(result.Safety.Gaps, evaluation.GapAgentUnconfined)
 	}
-	externalUnconfined := result.Runtime.Unconfined && agentMode == "external-unconfined"
+	externalUnconfined := mode == evaluation.ModeExternalUnconfined
 	if sum := auditInfo.EvaluationSummary(); sum != nil {
 		result.Manifest.ApplyAudit(*sum)
 		if sum.Coverage == evaluation.CoverageComplete {

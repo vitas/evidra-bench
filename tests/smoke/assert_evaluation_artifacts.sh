@@ -3,14 +3,16 @@
 # result.json, report.html, and signed evidence bundles. Sourced by the
 # Docker smokes; must not encode provider-specific expectations.
 #
-# Usage: assert_evaluation_artifacts <result_dir> [confined|unconfined]
-# The second argument states how the agent was executed: "confined" (the
-# default sandbox for external --agent commands) or "unconfined" (an
-# in-process --model adapter, whose trust boundary is the runner itself).
+# Usage: assert_evaluation_artifacts <result_dir> [sandboxed|mediated|external_unconfined]
+# The second argument states the EXPECTED agent execution mode
+# (evaluation.RuntimeInfo.Mode, round-4 finding #2): "sandboxed" for the
+# default hardened sibling container, "mediated" for in-process --model
+# adapters acting through the harness tool executor (NOT unconfined),
+# "external_unconfined" for the explicit --agent-unconfined opt-out.
 
 assert_evaluation_artifacts() {
   local result_dir="$1"
-  local confinement="${2:-unconfined}"
+  local want_mode="${2:-mediated}"
   test -s "$result_dir/result.json" || { echo "missing $result_dir/result.json" >&2; return 1; }
   test -s "$result_dir/report.html" || { echo "missing $result_dir/report.html" >&2; return 1; }
   grep -Eq '"passed": 3' "$result_dir/result.json" ||
@@ -34,29 +36,41 @@ assert_evaluation_artifacts() {
     { echo "expected api_audit coverage complete in result.json" >&2; return 1; }
   grep -Eq '"name": *"api_audit"' "$result_dir/result.json" ||
     { echo "expected api_audit source entry in result.json" >&2; return 1; }
-  # Confinement labeling must match how the smoke actually ran the agent
-  # (release review finding #2): external --agent commands are sandboxed
-  # by default and must NOT carry the gap; in-process adapters must keep
-  # saying "unconfined" honestly.
-  if [[ "$confinement" == "confined" ]]; then
-    grep -Eq '"unconfined": *false' "$result_dir/result.json" ||
-      { echo "expected confined runtime labeling in result.json" >&2; return 1; }
-    if grep -q 'agent_unconfined' "$result_dir/result.json"; then
-      echo "confined runs must not carry the agent_unconfined gap" >&2
-      return 1
-    fi
-    grep -Eq '"sandbox_image"' "$result_dir/result.json" ||
-      { echo "expected sandbox_image provenance in result.json" >&2; return 1; }
-  else
-    grep -Eq '"unconfined": *true' "$result_dir/result.json" ||
-      { echo "expected unconfined runtime labeling in result.json" >&2; return 1; }
-    grep -Eq 'agent_unconfined' "$result_dir/result.json" ||
-      { echo "expected agent_unconfined gap for --agent runs" >&2; return 1; }
-  fi
+  # Execution-mode labeling must match how the smoke ran the agent:
+  # only a genuine opt-out carries the agent_unconfined gap; sandboxed
+  # runs prove it via sandbox_image provenance; mediated runs are clean.
+  grep -Eq "\"mode\": \"$want_mode\"" "$result_dir/result.json" ||
+    { echo "expected runtime mode $want_mode in result.json" >&2; return 1; }
+  case "$want_mode" in
+    sandboxed)
+      grep -Eq '"sandbox_image"' "$result_dir/result.json" ||
+        { echo "expected sandbox_image provenance in result.json" >&2; return 1; }
+      if grep -q 'agent_unconfined' "$result_dir/result.json"; then
+        echo "sandboxed runs must not carry the agent_unconfined gap" >&2
+        return 1
+      fi
+      ;;
+    mediated)
+      if grep -q 'agent_unconfined' "$result_dir/result.json"; then
+        echo "mediated (--model) runs are NOT unconfined: no such gap" >&2
+        return 1
+      fi
+      if grep -Eq '"sandbox_image"' "$result_dir/result.json"; then
+        echo "mediated runs must not claim a sandbox image" >&2
+        return 1
+      fi
+      ;;
+    external_unconfined)
+      grep -Eq 'agent_unconfined' "$result_dir/result.json" ||
+        { echo "opt-out runs must carry the agent_unconfined gap" >&2; return 1; }
+      ;;
+  esac
   # ADR 0001 Phase 11: cohort stamp — every current-binary run belongs to
-  # safety-evidence.v2; nothing in this repo may emit unstamped results.
-  grep -Eq '"semantics_version": *"safety-evidence.v2"' "$result_dir/result.json" ||
-    { echo "expected safety-evidence.v2 semantics stamp" >&2; return 1; }
+  # safety-evidence.v3; nothing in this repo may emit unstamped results.
+  grep -Eq '"semantics_version": *"safety-evidence.v3"' "$result_dir/result.json" ||
+    { echo "expected safety-evidence.v3 semantics stamp" >&2; return 1; }
+  grep -Eq '"version": *"evaluation-result.v4"' "$result_dir/result.json" ||
+    { echo "expected evaluation-result.v4 version stamp" >&2; return 1; }
   grep -Eq '"engine"' "$result_dir/result.json" ||
     { echo "expected authoritative engine block under safety in result.json" >&2; return 1; }
   local audit_files

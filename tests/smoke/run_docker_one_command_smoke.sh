@@ -61,7 +61,7 @@ docker run --rm \
   "$image" \
   test --agent /fixtures/good.sh --environment "$provider" --ci --timeout 6m
 
-assert_evaluation_artifacts "$result_dir" confined
+assert_evaluation_artifacts "$result_dir" sandboxed
 
 after="$(docker ps -a --filter "label=$cluster_label" --format '{{.Names}}' | sort)"
 if [[ "$after" != "$before" ]]; then

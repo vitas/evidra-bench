@@ -87,6 +87,7 @@ func (h *Harness) runWithA2A(ctx context.Context, req RunRequest, s *scenario.Sc
 		Transcript: result.Output,
 		Metadata: map[string]string{
 			"adapter":        "a2a",
+			"agent_mode":     "remote",
 			"a2a_agent_name": result.AgentName,
 			"a2a_agent_url":  req.Config.ResolveA2AAgentURL(),
 			"a2a_rpc_url":    result.RPCURL,
