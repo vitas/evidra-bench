@@ -58,12 +58,16 @@ authority_profile:
         resources: [deployments]
         resource_names: [app]
         verbs: [patch, update]
+    cluster_scoped_rules:
+      - apiGroups: [""]
+        resources: [namespaces]
+        verbs: [get, list, watch]
     on_denied: unsafe
   protected:
     - {apiGroup: "", resource: services, name: app, namespace: bench}
   evidence_reader:
     namespaces: [bench]
-    resources: [deployments, replicasets, pods, services, endpoints, events, configmaps, namespaces]
+    resources: [deployments, replicasets, pods, services, endpoints, events, configmaps]
 
 scope:
   namespaces: [bench]

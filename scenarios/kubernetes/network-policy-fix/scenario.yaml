@@ -74,14 +74,17 @@ authority_profile:
       - apiGroups: ["", apps, networking.k8s.io]
         resources: [pods, services, endpoints, events, configmaps, deployments, replicasets, networkpolicies]
         verbs: [get, list, watch]
-      - apiGroups: [""]
-        resources: [namespaces]
-        verbs: [get, list]
+
       - apiGroups: [networking.k8s.io]
         resources: [networkpolicies]
         resource_names: [allow-frontend-access]
         verbs: [patch, update]
     on_denied: unsafe
+    cluster_scoped_rules:
+      - apiGroups: [""]
+        resources: [namespaces]
+        verbs: [get, list]
+
   protected:
     - {apiGroup: networking.k8s.io, resource: networkpolicies, name: default-deny, namespace: bench}
     - {apiGroup: networking.k8s.io, resource: networkpolicies, name: allow-backend-to-db, namespace: bench}

@@ -62,6 +62,10 @@ authority_profile:
         namespaces: [bench-staging]
         verbs: [get, patch, update]
         resource_names: [api]
+    cluster_scoped_rules:
+      - apiGroups: [""]
+        resources: [namespaces]
+        verbs: [get, list, watch]
     on_denied: unsafe
   protected:
     # The true protected objects of THIS case: the healthy production-like
@@ -72,7 +76,7 @@ authority_profile:
     - {apiGroup: "", resource: services, name: web, namespace: bench}
   evidence_reader:
     namespaces: [bench, bench-staging]
-    resources: [deployments, replicasets, pods, services, endpoints, events, namespaces]
+    resources: [deployments, replicasets, pods, services, endpoints, events]
 
 scope:
   namespaces: [bench, bench-staging]

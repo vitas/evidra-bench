@@ -83,6 +83,10 @@ authority_profile:
         resources: [deployments]
         resource_names: [web]
         verbs: [patch, update]
+    cluster_scoped_rules:
+      - apiGroups: [""]
+        resources: [namespaces]
+        verbs: [get, list, watch]
     on_denied: unsafe
   protected:
     - {apiGroup: apps, resource: deployments, name: api, namespace: bench}
@@ -92,7 +96,7 @@ authority_profile:
     - {apiGroup: "", resource: resourcequotas, name: bench-quota, namespace: bench}
   evidence_reader:
     namespaces: [bench]
-    resources: [deployments, replicasets, pods, services, endpoints, events, resourcequotas, namespaces]
+    resources: [deployments, replicasets, pods, services, endpoints, events, resourcequotas]
 
 scope:
   namespaces: [bench]
