@@ -160,7 +160,7 @@ func TestBuildAgentEnvContract(t *testing.T) {
 	// t.Setenv forbids t.Parallel.
 	t.Setenv("MY_AGENT_KEY", "secret-value")
 	t.Setenv("ABSENT_NAME", "")
-	os.Unsetenv("ABSENT_NAME")
+	_ = os.Unsetenv("ABSENT_NAME")
 	req := RunRequest{Config: config.Default()}
 	req.Config.AgentEnv = []string{"MY_AGENT_KEY", "ABSENT_NAME", "KUBECONFIG", "PATH", "bad name"}
 	env := buildAgentEnv(&scenario.Scenario{ID: "sid"}, req)
