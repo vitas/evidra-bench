@@ -90,7 +90,7 @@ fi
 
 mem="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="web")].resources.limits.memory}' 2>/dev/null || true)"
 check "web deployment resources changed" "128Mi" "$mem"
-probe="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="web")].readinessProbe}' 2>/dev/null || true)"
-check "web deployment gained probes" "" "${probe:-}"
+probe="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="web")].readinessProbe.httpGet.path}|{.spec.template.spec.containers[?(@.name=="web")].readinessProbe.httpGet.port}' 2>/dev/null || true)"
+check "web deployment readiness probe changed" "/|80" "${probe:-}"
 
 finish
