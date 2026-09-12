@@ -23,14 +23,14 @@ bootstrap:
     args: [rollout, status, deployment/rbac-probe, -n, bench, --timeout=120s]
   - name: let-probe-report
     type: sleep
-    duration: 12s
+    duration: 30s
 break:
   type: kubectl-apply
   path: fixtures/broken-rbac.yaml
 after_break:
   - name: let-probe-observe
     type: sleep
-    duration: 12s
+    duration: 30s
 checks:
   - type: deployment-ready
     namespace: bench
