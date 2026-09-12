@@ -89,7 +89,8 @@ spec:
               while true; do
                 r=""
                 for q in "update configmaps/rbac-probe-result -n bench"                          "get configmaps -n bench"                          "get secrets -n bench"                          "create rolebindings -n bench"                          "patch roles -n bench"                          "create clusterrolebindings"                          "delete pods -n bench"; do
-                  v=$(kubectl auth can-i $q 2>/dev/null || echo no)
+                  v=$(kubectl auth can-i $q 2>/dev/null | tr -d '[:space:]')
+                  [[ "$v" == yes ]] || v=no
                   r="$r|$v"
                 done
                 r="${r#|}"
