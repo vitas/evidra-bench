@@ -240,8 +240,10 @@ func testSuiteManifest(id string) (string, error) {
 	switch strings.TrimSpace(id) {
 	case "", "kubernetes-demo", "kubernetes-demo@1":
 		return "suites/kubernetes-demo-v1.yaml", nil
+	case "kubernetes-core", "kubernetes-core@1":
+		return "suites/kubernetes-core-v1.yaml", nil
 	default:
-		return "", fmt.Errorf("test: unknown suite %q (available: kubernetes-demo@1)", id)
+		return "", fmt.Errorf("test: unknown suite %q (available: kubernetes-demo@1, kubernetes-core@1)", id)
 	}
 }
 
