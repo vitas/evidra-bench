@@ -6,11 +6,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/vitas/evidra-bench/pkg/adapter"
 	"github.com/vitas/evidra-bench/pkg/audit"
 	"github.com/vitas/evidra-bench/pkg/config"
 	"github.com/vitas/evidra-bench/pkg/evaluation"
 	"github.com/vitas/evidra-bench/pkg/scenario"
+	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
 func TestSyntheticAgentBundleCopiesExecutablePath(t *testing.T) {
@@ -249,5 +252,87 @@ func TestExternalUnconfinedAgentGradesIncomplete(t *testing.T) {
 	in.AgentUnconfined = false
 	if ev := evaluation.AuthoritativeVerdict(*in); ev.Verdict != evaluation.VerdictPass {
 		t.Fatalf("confined clean run must PASS: %+v", ev)
+	}
+}
+
+// Round-5 finding #1: the custom-image pass-through must honor the same
+// --agent-input contract as the local-executable branch — the wrapper has
+// to cd into the bundle, or staged files sit in a directory the command
+// never sees (the image WORKDIR wins otherwise).
+func TestSyntheticAgentBundleCustomImageWrapperCdAndInputs(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	cfgFile := filepath.Join(root, "agent.yaml")
+	if err := os.WriteFile(cfgFile, []byte("mode: custom\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dir, err := syntheticAgentBundle("my-agent --config agent.yaml", []string{cfgFile}, true)
+	if err != nil {
+		t.Fatalf("custom image bundle: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(dir) }()
+	run, err := os.ReadFile(filepath.Join(dir, "run"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(run), `cd "$(dirname "$0")"`) {
+		t.Fatalf("custom-image wrapper must cd into the bundle dir: %q", run)
+	}
+	if !strings.Contains(string(run), "exec my-agent --config agent.yaml") {
+		t.Fatalf("command must pass through verbatim: %q", run)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "agent.yaml"))
+	if err != nil || !strings.Contains(string(data), "mode: custom") {
+		t.Fatalf("inputs must stage into custom-image bundles too: %q %v", data, err)
+	}
+}
+
+// Round-5 finding #2: a failed agent result with NO observed metadata
+// must carry the PLANNED mode, never mediated-by-default.
+func TestFailedRunKeepsPlannedMode(t *testing.T) {
+	term := evaluation.Termination{Kind: evaluation.TerminationComplete}
+	nAgent := failedAgentResult(nil, 1) // exactly what the failure path normalizes to
+	crp := config.Default()
+
+	sandboxed := buildEvaluationCaseResultPlanned("c", plannedAgentMode(RunRequest{Config: func() config.Config {
+		cp := crp
+		cp.AgentCommand = "/somewhere/agent.sh"
+		return cp
+	}()}), "r1", nAgent,
+		&verifier.VerifyResult{Checks: []verifier.CheckResult{{Verdict: verifier.VerdictFail}}},
+		nil, "", time.Second, term, false, nil, nil, nil)
+	if sandboxed.Runtime.Mode != evaluation.ModeSandboxed {
+		t.Fatalf("sandbox-unavailable run mislabeled %q", sandboxed.Runtime.Mode)
+	}
+	if containsString(sandboxed.Safety.Gaps, evaluation.GapAgentUnconfined) {
+		t.Fatal("planned-sandboxed is not unconfined; no gap")
+	}
+
+	unconf := buildEvaluationCaseResultPlanned("c", plannedAgentMode(RunRequest{Config: func() config.Config {
+		cp := crp
+		cp.AgentCommand = "/somewhere/agent.sh"
+		cp.AgentUnconfined = true
+		return cp
+	}()}), "r2", nAgent,
+		&verifier.VerifyResult{Passed: true, Checks: []verifier.CheckResult{{Verdict: verifier.VerdictPass}}},
+		nil, "", time.Second, term, true, nil, nil, nil)
+	if unconf.Runtime.Mode != evaluation.ModeExternalUnconfined {
+		t.Fatalf("planned opt-out mislabeled %q", unconf.Runtime.Mode)
+	}
+	if !containsString(unconf.Safety.Gaps, evaluation.GapAgentUnconfined) {
+		t.Fatal("planned external_unconfined keeps the gap on failed results")
+	}
+	// Observed metadata beats the plan.
+	observed := buildEvaluationCaseResultPlanned("c", evaluation.ModeSandboxed, "r3",
+		&adapter.RunResult{ExitCode: 0, Metadata: map[string]string{"agent_mode": "remote"}},
+		&verifier.VerifyResult{Passed: true, Checks: []verifier.CheckResult{{Verdict: verifier.VerdictPass}}},
+		nil, "", time.Second, term, false, nil, nil, nil)
+	if observed.Runtime.Mode != evaluation.ModeRemoteUnattributed {
+		t.Fatalf("observed remote must beat planned sandboxed: %q", observed.Runtime.Mode)
+	}
+
+	// The plain-adapter plan stays mediated (no regression for --model).
+	if m := plannedAgentMode(RunRequest{Config: crp}); m != evaluation.ModeMediated {
+		t.Fatalf("default plan = %q, want mediated", m)
 	}
 }

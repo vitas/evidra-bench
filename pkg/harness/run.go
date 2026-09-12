@@ -120,7 +120,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		phase := recorder.CurrentPhase()
 		nAgent, nVerify, safetyAutopsyJSON := failedRunSafetyAutopsy(req, runID, agentResult, verifyResult, runErr, startTime, failedAt)
 		kind, _ := classifyRunError(runErr, phase)
-		caseResult := buildEvaluationCaseResult(s.ID, runID, nAgent, nVerify, safetyAutopsyJSON, "", failedAt.Sub(startTime), evaluation.Termination{
+		caseResult := buildEvaluationCaseResultPlanned(s.ID, plannedAgentMode(req), runID, nAgent, nVerify, safetyAutopsyJSON, "", failedAt.Sub(startTime), evaluation.Termination{
 			Kind:    evaluation.TerminationIncomplete,
 			Phase:   phase,
 			Reason:  kind,
@@ -358,7 +358,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	endTime := time.Now()
 	recorder.Event("run", "completed", "")
 	autopsyJSON := buildSuccessAutopsy(req, agentResult, verifyResult, startTime, endTime)
-	caseResult := buildEvaluationCaseResult(s.ID, runID, agentResult, verifyResult, autopsyJSON, "", endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete}, s.AuthorityProfile != nil, auditInfo, snapInfo, s.AuthorityProfile)
+	caseResult := buildEvaluationCaseResultPlanned(s.ID, plannedAgentMode(req), runID, agentResult, verifyResult, autopsyJSON, "", endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete}, s.AuthorityProfile != nil, auditInfo, snapInfo, s.AuthorityProfile)
 	recorder.Event("artifact_write", "started", "")
 	artifactDir := h.writeRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, startTime, endTime, auditInfo, snapInfo, autopsyJSON, caseResult.Verdict)
 	if artifactDir != "" {

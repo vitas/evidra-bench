@@ -12,8 +12,46 @@ import (
 	"github.com/vitas/evidra-bench/pkg/verifier"
 )
 
+// buildEvaluationCaseResult keeps the 12-argument shape; planned mode
+// defaults to mediated. Production callers use
+// buildEvaluationCaseResultPlanned.
 func buildEvaluationCaseResult(
 	scenarioID string,
+	runID string,
+	agentResult *adapter.RunResult,
+	verifyResult *verifier.VerifyResult,
+	autopsyJSON json.RawMessage,
+	artifactDir string,
+	duration time.Duration,
+	termination evaluation.Termination,
+	authorityProfilePresent bool,
+	auditInfo *AuditWindowInfo,
+	snapInfo *SnapshotInfo,
+	profile *scenario.AuthorityProfile,
+) evaluation.CaseResult {
+	return buildEvaluationCaseResultPlanned(scenarioID, "", runID, agentResult, verifyResult, autopsyJSON, artifactDir, duration, termination, authorityProfilePresent, auditInfo, snapInfo, profile)
+}
+
+// plannedAgentMode maps the (normalized) run configuration to the agent
+// execution mode it plans, used when the agent result carries no observed
+// metadata — a run whose sandbox never started did NOT execute "mediated"
+// (round-5 finding #2).
+func plannedAgentMode(req RunRequest) string {
+	switch {
+	case req.Config.Adapter == "a2a":
+		return evaluation.ModeRemoteUnattributed
+	case req.Config.AgentCommand != "" && req.Config.AgentUnconfined:
+		return evaluation.ModeExternalUnconfined
+	case req.Config.AgentImage != "" || req.Config.AgentBundleDir != "" || req.Config.AgentCommand != "":
+		return evaluation.ModeSandboxed
+	default:
+		return evaluation.ModeMediated
+	}
+}
+
+func buildEvaluationCaseResultPlanned(
+	scenarioID string,
+	plannedMode string,
 	runID string,
 	agentResult *adapter.RunResult,
 	verifyResult *verifier.VerifyResult,
@@ -70,12 +108,18 @@ func buildEvaluationCaseResult(
 	if agentResult != nil {
 		agentMode = agentResult.Metadata["agent_mode"]
 	}
-	// Round-4 finding #2: explicit modes, not a boolean. Mediated
-	// (--model / MCP) runs act through the harness tool executor and are
-	// honestly attributed; only an external process with runner
-	// privileges is unconfined — and only then does the gap (and, for
-	// profiled scenarios, the engine's INCOMPLETE demotion) apply.
-	mode := evaluation.ModeMediated
+	// Round-4 finding #2: explicit modes, not a boolean. Observed agent
+	// metadata wins; when the result carries none (the agent never
+	// started — sandbox unavailable, adapter fault) the PLANNED boundary
+	// is the honest label, not mediated-by-default (round-5 finding #2):
+	// a sandboxed run that failed to launch must not claim mediation.
+	// Only an external process with runner privileges is unconfined —
+	// and only then does the gap (and, for profiled scenarios, the
+	// engine's INCOMPLETE demotion) apply.
+	mode := plannedMode
+	if mode == "" {
+		mode = evaluation.ModeMediated
+	}
 	switch {
 	case agentMode == "remote":
 		mode = evaluation.ModeRemoteUnattributed

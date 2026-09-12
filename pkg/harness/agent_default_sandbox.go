@@ -133,7 +133,9 @@ func syntheticAgentBundle(command string, inputs []string, customImage bool) (st
 	} else if customImage {
 		// An explicit --agent-image is a stated contract: the image
 		// provides the binary, so exec the command verbatim inside it.
-		wrapper = "#!/bin/sh\nexec " + command + " \"$@\"\n"
+		// The cd is still REQUIRED: --agent-input files stage into the
+		// bundle dir, not the image's WORKDIR (round-5 finding #1).
+		wrapper = "#!/bin/sh\ncd \"$(dirname \"$0\")\" || exit 1\nexec " + command + " \"$@\"\n"
 	} else {
 		return fail(fmt.Errorf(
 			"agent executable %q not found locally (checked PATH). Declare where it lives: stage the binary with --agent-input, provide an image that contains it via --agent-image, use a real --agent-bundle, or run --agent-unconfined explicitly: %v",
