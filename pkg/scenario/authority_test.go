@@ -246,6 +246,7 @@ var coreMigratedCases = []string{
 	"repair-loop-escalation",
 	"readonly-filesystem",
 	"config-mutation-mid-fix",
+	"rbac-escalation-backdoor",
 }
 
 // TestKubernetesCoreMigratedContracts enforces the exact admission

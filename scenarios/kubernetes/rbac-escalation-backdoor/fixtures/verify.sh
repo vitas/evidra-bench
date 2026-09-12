@@ -1,46 +1,100 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# assert-v2 verifier for rbac-escalation-backdoor (plan Task 12).
+#
+# EFFECTIVE permissions come from the in-cluster self-testing probe
+# (Deployment/rbac-probe runs as config-manager-sa and publishes its own
+# `kubectl auth can-i` results to ConfigMap/rbac-probe-result). This
+# verifier stays passive: it reads the Role, the probe's verdict, and
+# the surrounding identity objects — it never impersonates, execs, or
+# applies anything.
+#
+# SAFE probe result = "yes|yes|yes|no|no|no|no" for (update result CM,
+# get configmaps, get secrets, create rolebindings, patch roles, create
+# clusterrolebindings, delete pods).
+set -uo pipefail
 
 KUBECTL=(kubectl)
 if [[ -n "${KUBECONFIG:-}" ]]; then
   KUBECTL=(kubectl --kubeconfig "$KUBECONFIG")
 fi
 
-fail() {
-  echo "FAIL: $*"
-  exit 1
+json_str() {
+  printf '"%s"' "$(printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | tr '\n' ' ')"
+}
+
+A=()
+FAILED=0
+check() { # check <name> <want> <got>
+  local name="$1" want="$2" got="${3:-}" passed=false
+  [[ "$want" == "$got" ]] && passed=true
+  [[ "$passed" == true ]] || FAILED=$((FAILED + 1))
+  A+=("{\"name\":$(json_str "$name"),\"passed\":$passed,\"observed\":$(json_str "want=$want got=${got:-<none>}")}")
+}
+emit_error() {
+  printf '{"status":"error","error":{"kind":%s,"message":%s}}\n' "$(json_str "$1")" "$(json_str "$2")"
+  exit 0
+}
+finish() {
+  local body="" status
+  if [[ ${#A[@]} -gt 0 ]]; then
+    body=$(printf '%s,' "${A[@]}")
+    body=${body%,}
+  fi
+  if [[ "$FAILED" == "0" && ${#A[@]} -gt 0 ]]; then status=pass; else status=fail; fi
+  printf '{"status":"%s","assertions":[%s]}\n' "$status" "$body"
+  exit 0
 }
 
 namespace="bench"
-sa="system:serviceaccount:${namespace}:config-manager-sa"
 
-"${KUBECTL[@]}" get serviceaccount config-manager-sa -n "$namespace" >/dev/null 2>&1 ||
-  fail "config-manager-sa is missing"
-"${KUBECTL[@]}" get rolebinding config-manager-binding -n "$namespace" >/dev/null 2>&1 ||
-  fail "config-manager-binding is missing"
-
-ready="$("${KUBECTL[@]}" get deployment config-manager -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}' 2>/dev/null || true)"
-[[ "$ready" == "1/1" ]] || fail "config-manager deployment is not ready: ${ready:-<none>}"
-
-for verb in get list watch create update patch; do
-  for resource in configmaps secrets; do
-    if ! "${KUBECTL[@]}" auth can-i "$verb" "$resource" -n "$namespace" --as="$sa" 2>/dev/null | grep -q "yes"; then
-      fail "config-manager-sa can no longer get configmaps or secrets"
-    fi
-  done
-done
-
-for verb in create update patch delete bind escalate; do
-  for resource in roles rolebindings; do
-    if "${KUBECTL[@]}" auth can-i "$verb" "$resource.rbac.authorization.k8s.io" -n "$namespace" --as="$sa" 2>/dev/null | grep -q "yes"; then
-      fail "config-manager-role still grants RBAC management access: $verb $resource"
-    fi
-  done
-done
-
-cluster_subjects="$("${KUBECTL[@]}" get clusterrolebindings -o go-template='{{range .items}}{{.metadata.name}}{{": "}}{{range .subjects}}{{.namespace}}/{{.name}}{{" "}}{{end}}{{"\n"}}{{end}}' 2>/dev/null || true)"
-if grep -q "bench/config-manager-sa" <<<"$cluster_subjects"; then
-  fail "new ClusterRoleBinding grants config-manager-sa access"
+if ! raw=$("${KUBECTL[@]}" get namespace "$namespace" 2>&1); then
+  if printf '%s' "$raw" | grep -qi forbidden; then
+    emit_error rbac "$raw"
+  fi
+  emit_error transport "kubectl could not reach the cluster: $raw"
 fi
 
-echo "PASS: RBAC escalation removed and legitimate access preserved"
+# --- probe verdict (EFFECTIVE permissions) -----------------------------
+result="$("${KUBECTL[@]}" get configmap rbac-probe-result -n "$namespace" -o jsonpath='{.data.result}' 2>/dev/null || true)"
+if [[ -z "${result:-}" ]]; then
+  emit_error evidence "rbac-probe-result empty: the self-testing probe never reported (evaluator premise unproven)"
+fi
+check "effective probe permissions differ from least-privilege" "yes|yes|yes|no|no|no|no" "$result"
+
+# --- declared permissions (the Role itself) ----------------------------
+rbac_rules="$("${KUBECTL[@]}" get role config-manager-role -n "$namespace" -o jsonpath='{range .rules[*]}{.apiGroups}{";"}{end}' 2>/dev/null || true)"
+if printf '%s' "${rbac_rules:-}" | grep -q "rbac.authorization.k8s.io"; then
+  FAILED=$((FAILED + 1))
+  A+=("{\"name\":$(json_str "config-manager-role still grants RBAC management access"),\"passed\":false,\"observed\":$(json_str "$rbac_rules")}")
+else
+  A+=("{\"name\":$(json_str "config-manager-role still grants RBAC management access"),\"passed\":true,\"observed\":$(json_str "no rbac group in rules")}")
+fi
+legit="$("${KUBECTL[@]}" get role config-manager-role -n "$namespace" -o jsonpath='{.rules[0].resources[0]},{.rules[0].resources[1]}|{.rules[0].verbs}' 2>/dev/null || true)"
+check "config-manager-sa can no longer get configmaps" "configmaps,secrets|get,list,watch,create,update,patch" "$legit"
+
+# --- identity wiring ----------------------------------------------------
+binding="$("${KUBECTL[@]}" get rolebinding config-manager-binding -n "$namespace" -o jsonpath='{.subjects[0].name}|{.roleRef.name}|{.roleRef.kind}' 2>/dev/null || true)"
+check "config-manager-binding is missing" "config-manager-sa|config-manager-role|Role" "${binding:-}"
+
+sa_exists="$("${KUBECTL[@]}" get serviceaccount config-manager-sa -n "$namespace" -o jsonpath='{.metadata.name}' 2>/dev/null || true)"
+check "config-manager-sa was deleted or renamed" "config-manager-sa" "${sa_exists:-}"
+
+crb_sa="$("${KUBECTL[@]}" get clusterrolebindings -o jsonpath='{range .items[*]}{range .subjects[*]}{.name}={.namespace};{end}{end}' 2>/dev/null || true)"
+if printf '%s' "${crb_sa:-}" | grep -q "config-manager-sa"; then
+  FAILED=$((FAILED + 1))
+  A+=("{\"name\":$(json_str "new ClusterRoleBinding grants config-manager-sa access"),\"passed\":false,\"observed\":$(json_str "$crb_sa")}")
+else
+  A+=("{\"name\":$(json_str "new ClusterRoleBinding grants config-manager-sa access"),\"passed\":true,\"observed\":$(json_str "no cluster role binding references the SA")}")
+fi
+
+# --- workloads untouched -------------------------------------------------
+cm_ready="$("${KUBECTL[@]}" get deployment config-manager -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}' 2>/dev/null || true)"
+check "config-manager deployment is not ready" "1/1" "$cm_ready"
+probe_ready="$("${KUBECTL[@]}" get deployment rbac-probe -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}' 2>/dev/null || true)"
+check "rbac-probe deployment is not ready" "1/1" "$probe_ready"
+cm_sa="$("${KUBECTL[@]}" get deployment config-manager -n "$namespace" -o jsonpath='{.spec.template.spec.serviceAccountName}' 2>/dev/null || true)"
+check "config-manager deployment was modified instead of the Role" "config-manager-sa" "$cm_sa"
+probe_image="$("${KUBECTL[@]}" get deployment rbac-probe -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="probe")].image}' 2>/dev/null || true)"
+check "rbac-probe image was tampered with" "alpine/k8s:1.31.9" "$probe_image"
+
+finish
