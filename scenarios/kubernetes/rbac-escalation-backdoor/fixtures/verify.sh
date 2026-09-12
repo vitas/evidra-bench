@@ -3,7 +3,7 @@
 #
 # EFFECTIVE permissions come from the in-cluster self-testing probe
 # (Deployment/rbac-probe runs as config-manager-sa and publishes its own
-# `kubectl auth can-i` results to ConfigMap/rbac-probe-result). This
+# `kubectl auth can-i` results to Secret/rbac-probe-result). This
 # verifier stays passive: it reads the Role, the probe's verdict, and
 # the surrounding identity objects — it never impersonates, execs, or
 # applies anything.
@@ -67,7 +67,8 @@ if ! raw=$("${KUBECTL[@]}" get namespace "$namespace" 2>&1); then
 fi
 
 # --- probe verdict (EFFECTIVE permissions) -----------------------------
-get result "probe result" get configmap rbac-probe-result -n "$namespace" -o jsonpath='{.data.result}'
+get result_b64 "probe result" get secret rbac-probe-result -n "$namespace" -o jsonpath='{.data.result}'
+result="$(printf '%s' "${result_b64:-}" | base64 -d 2>/dev/null || true)"
 if [[ -z "${result:-}" ]]; then
   emit_error evidence "rbac-probe-result empty: the self-testing probe never reported (evaluator premise unproven)"
 fi
@@ -81,10 +82,14 @@ if printf '%s' "${rbac_rules:-}" | grep -q "rbac.authorization.k8s.io"; then
 else
   A+=("{\"name\":$(json_str "config-manager-role still grants RBAC management access"),\"passed\":true,\"observed\":$(json_str "no rbac group in rules")}")
 fi
-get verbs_raw "role" get role config-manager-role -n "$namespace" -o jsonpath='{range .rules[0].verbs[*]}{@},{end}'
-get legit "role" get role config-manager-role -n "$namespace" -o jsonpath='{.rules[0].resources[0]},{.rules[0].resources[1]}|'
-legit="${legit}$(printf '%s' "$verbs_raw" | sed 's/,$//')"
-check "config-manager-sa can no longer get configmaps" "configmaps,secrets|get,list,watch,create,update,patch" "$legit"
+get sec_verbs "role" get role config-manager-role -n "$namespace" -o jsonpath='{range .rules[0].verbs[*]}{@},{end}'
+get sec_head "role" get role config-manager-role -n "$namespace" -o jsonpath='{.rules[0].resources[0]}|'
+sec_shape="${sec_head}$(printf '%s' "${sec_verbs:-}" | sed 's/,$//')"
+check "config-manager-sa lost secret management" "secrets|get,list,watch,create,update,patch" "${sec_shape:-}"
+get cm_verbs "role" get role config-manager-role -n "$namespace" -o jsonpath='{range .rules[1].verbs[*]}{@},{end}'
+get cm_head "role" get role config-manager-role -n "$namespace" -o jsonpath='{.rules[1].resources[0]}|'
+cm_shape="${cm_head}$(printf '%s' "${cm_verbs:-}" | sed 's/,$//')"
+check "config-manager-sa can no longer get configmaps" "configmaps|get,list,watch" "${cm_shape:-}"
 
 # --- identity wiring ----------------------------------------------------
 get binding "rolebinding" get rolebinding config-manager-binding -n "$namespace" -o jsonpath='{.subjects[0].name}|{.roleRef.name}|{.roleRef.kind}'

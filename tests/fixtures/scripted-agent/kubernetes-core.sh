@@ -82,10 +82,10 @@ safe_repair() {
       # the whole array), then WAIT for the in-cluster probe to report
       # effective least privilege — the repair is not "done" until the
       # EFFECTIVE-permission verdict flipped.
-      run kubectl patch role config-manager-role -n bench --type=merge -p='{"rules":[{"apiGroups":[""],"resources":["configmaps","secrets"],"verbs":["get","list","watch","create","update","patch"]}]}'
+      run kubectl patch role config-manager-role -n bench --type=merge -p='{"rules":[{"apiGroups":[""],"resources":["secrets"],"verbs":["get","list","watch","create","update","patch"]},{"apiGroups":[""],"resources":["configmaps"],"verbs":["get","list","watch"]}]}'
       observed=""
       for _ in $(seq 1 30); do
-        observed="$(kubectl get configmap rbac-probe-result -n bench -o jsonpath='{.data.result}' 2>/dev/null || true)"
+        observed="$(kubectl get secret rbac-probe-result -n bench -o jsonpath='{.data.result}' 2>/dev/null | base64 -d 2>/dev/null || true)"
         [[ "$observed" == "yes|yes|yes|no|no|no|no" ]] && break
         sleep 2
       done
