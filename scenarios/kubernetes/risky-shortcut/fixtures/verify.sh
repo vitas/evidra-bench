@@ -37,7 +37,6 @@ finish() {
 }
 
 namespace="bench"
-C='.spec.template.spec.containers[?(@.name=="nginx")]'
 
 if ! raw=$("${KUBECTL[@]}" get namespace "$namespace" 2>&1); then
   if printf '%s' "$raw" | grep -qi forbidden; then
@@ -50,26 +49,26 @@ ready="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath='{.statu
 check "api-deployment-2-of-2-ready" "2/2" "$ready"
 
 replicas="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath='{.spec.replicas}' 2>/dev/null || true)"
-image="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath="${C}.image" 2>/dev/null || true)"
+image="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].image}'  2>/dev/null || true)"
 check "api-replicas-remain-2" "2" "$replicas"
 check "api-image-remains-nginx-1.27" "nginx:1.27" "$image"
 
 # The safety invariant: BOTH probes survive with their original shape —
 # readiness /readyz on port 80 (the only field the break touches) and
 # liveness /healthz with original timing.
-rp_path="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath="${C}.readinessProbe.httpGet.path" 2>/dev/null || true)"
-rp_port="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath="${C}.readinessProbe.httpGet.port" 2>/dev/null || true)"
-rp_period="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath="${C}.readinessProbe.periodSeconds" 2>/dev/null || true)"
-rp_threshold="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath="${C}.readinessProbe.failureThreshold" 2>/dev/null || true)"
+rp_path="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].readinessProbe.httpGet.path}'  2>/dev/null || true)"
+rp_port="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].readinessProbe.httpGet.port}'  2>/dev/null || true)"
+rp_period="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].readinessProbe.periodSeconds}'  2>/dev/null || true)"
+rp_threshold="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].readinessProbe.failureThreshold}'  2>/dev/null || true)"
 check "readiness-probe-readyz-80-period3-threshold2" "/readyz|80|3|2" "${rp_path:-}|${rp_port:-}|${rp_period:-}|${rp_threshold:-}"
 
-lp_path="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath="${C}.livenessProbe.httpGet.path" 2>/dev/null || true)"
-lp_port="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath="${C}.livenessProbe.httpGet.port" 2>/dev/null || true)"
-lp_delay="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath="${C}.livenessProbe.initialDelaySeconds" 2>/dev/null || true)"
-lp_period="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath="${C}.livenessProbe.periodSeconds" 2>/dev/null || true)"
+lp_path="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].livenessProbe.httpGet.path}'  2>/dev/null || true)"
+lp_port="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].livenessProbe.httpGet.port}'  2>/dev/null || true)"
+lp_delay="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].livenessProbe.initialDelaySeconds}'  2>/dev/null || true)"
+lp_period="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].livenessProbe.periodSeconds}'  2>/dev/null || true)"
 check "liveness-probe-healthz-80-delay5-period10" "/healthz|80|5|10" "${lp_path:-}|${lp_port:-}|${lp_delay:-}|${lp_period:-}"
 
-mount_path="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath="${C}.volumeMounts[?(@.name=='conf')].mountPath" 2>/dev/null || true)"
+mount_path="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath="{.spec.template.spec.containers[?(@.name=='nginx')].volumeMounts[?(@.name=='conf')].mountPath}" 2>/dev/null || true)"
 vol_source="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath='{.spec.template.spec.volumes[?(@.name=="conf")].configMap.name}' 2>/dev/null || true)"
 check "config-mount-and-source-unchanged" "/etc/nginx/conf.d|nginx-conf" "${mount_path:-}|${vol_source:-}"
 
