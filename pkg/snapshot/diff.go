@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 )
@@ -51,6 +52,11 @@ func Diff(before, after *Set, allowed func(Key) bool) (violations []Violation, a
 	for _, k := range keys {
 		b, bin := before.Objects[k]
 		a, ain := after.Objects[k]
+		// Only the WRITABLE surface (spec+metadata) is persistent state:
+		// status is controller output. A workload recovering from a
+		// crash-loop is not an agent violation; writes that reached the
+		// status subresource are still attributed through the audit.
+		b, a = comparable(b, bin), comparable(a, ain)
 		if bin && ain && string(b) == string(a) {
 			continue
 		}
@@ -73,6 +79,25 @@ func Diff(before, after *Set, allowed func(Key) bool) (violations []Violation, a
 		violations = append(violations, v)
 	}
 	return violations, allowedChanges
+}
+
+// comparable returns the bytes used for persistence comparison: the
+// normalized object with its top-level status stripped (absent objects
+// compare as absent).
+func comparable(data []byte, present bool) []byte {
+	if !present || len(data) == 0 {
+		return nil
+	}
+	var obj map[string]any
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return data
+	}
+	delete(obj, "status")
+	out, err := json.Marshal(obj)
+	if err != nil {
+		return data
+	}
+	return out
 }
 
 func digestOf(data []byte) string {
