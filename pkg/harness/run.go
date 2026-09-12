@@ -324,7 +324,14 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		return nil, err
 	}
 	recorder.Event("agent_prepare", "completed", "")
-	chaosRun = h.startRunChaos(ctx, s, handle.KubeconfigPath)
+	{
+		var chaosErr error
+		chaosRun, chaosErr = h.startRunChaos(ctx, s, handle.KubeconfigPath)
+		if chaosErr != nil {
+			recorder.Event("agent_prepare", "failed", chaosErr.Error())
+			return nil, chaosErr
+		}
+	}
 
 	// Step 4: Execute agent (+ concurrent stages for multi-stage).
 	recorder.Event("agent_run", "started", "")
@@ -337,6 +344,12 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		return nil, wrapRunAgentError(err)
 	}
 	chaosRun.stopAfterAgentDone(s.Chaos)
+	if cr := runChaosRunner(chaosRun); cr.TriggerFaulted() {
+		// Evaluator-side watch fault: the disruption that was supposed to
+		// happen may not have happened — the outcome cannot be attributed.
+		recorder.Event("agent_run", "failed", cr.TriggerFault().Error())
+		return nil, &InfraError{Err: fmt.Errorf("harness.Run: %w", cr.TriggerFault())}
+	}
 	recorder.Event("agent_run", "completed", "")
 
 	// Step 4c: Wait for rollouts to settle before verification.

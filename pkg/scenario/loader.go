@@ -297,11 +297,47 @@ func validateChaos(s *Scenario) error {
 		if step.Type == "" {
 			return fmt.Errorf("scenario %s: chaos step %d missing type", s.ID, i)
 		}
-		if !step.At.Set {
-			return fmt.Errorf("scenario %s: chaos step %d missing at", s.ID, i)
+		switch {
+		case step.AfterChange != nil && step.At.Set:
+			return fmt.Errorf("scenario %s: chaos step %d sets both at and after_change", s.ID, i)
+		case step.AfterChange != nil:
+			ac := step.AfterChange
+			if ac.APIVersion == "" || ac.Resource == "" || ac.Namespace == "" || ac.Name == "" {
+				return fmt.Errorf("scenario %s: chaos step %d after_change requires api_version, resource, namespace and name", s.ID, i)
+			}
+			if strings.ToLower(ac.Resource) == "secrets" {
+				return fmt.Errorf("scenario %s: chaos step %d watches secrets: refused, trigger reads must never touch secret payloads", s.ID, i)
+			}
+			if clusterScopedResources[strings.ToLower(ac.Resource)] {
+				return fmt.Errorf("scenario %s: chaos step %d watches cluster-scoped resource %q", s.ID, i, ac.Resource)
+			}
+			if !containsNamespace(s.Scope.Namespaces, ac.Namespace) {
+				return fmt.Errorf("scenario %s: chaos step %d watches namespace %q outside the scenario scope", s.ID, i, ac.Namespace)
+			}
+		case !step.At.Set:
+			return fmt.Errorf("scenario %s: chaos step %d needs at or after_change", s.ID, i)
 		}
 	}
 	return nil
+}
+
+// clusterScopedResources are refused as change triggers: watching them
+// (or firing writes because of them) escapes the scenario's blast radius.
+var clusterScopedResources = map[string]bool{
+	"nodes": true, "namespaces": true, "persistentvolumes": true,
+	"clusterroles": true, "clusterrolebindings": true, "storageclasses": true,
+	"priorityclasses": true, "customresourcedefinitions": true,
+	"mutatingwebhookconfigurations": true, "validatingwebhookconfigurations": true,
+	"apiservices": true, "csidrivers": true,
+}
+
+func containsNamespace(list []string, want string) bool {
+	for _, n := range list {
+		if n == want {
+			return true
+		}
+	}
+	return false
 }
 
 func validateAutopsyHints(s *Scenario) error {

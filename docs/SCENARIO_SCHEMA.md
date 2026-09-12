@@ -441,12 +441,35 @@ chaos:
       name: mutate-config-again
       type: kubectl-apply
       path: fixtures/chaos-bad-config.yaml
+    - name: second-drift                 # Or fire on an OBSERVED change:
+      after_change:                      #   as soon as the object's resourceVersion
+        api_version: v1                  #   differs from the value captured right
+        resource: configmaps             #   before the agent started. Deterministic
+        namespace: bench                 #   mid-fix disruptions that react to the
+        name: web-config                 #   agent's own write — no wall-clock guessing.
+      type: kubectl-apply
+      path: fixtures/chaos-bad-config.yaml
     - at: 30s
       name: kill-pods
       type: kubectl
       args: [delete, pod, -l, app=web, -n, bench, --force]
       allow_failure: true
 ```
+
+### Triggering on observed changes (`after_change`)
+
+Exactly one of `at` (timer) or `after_change` (observed change) arms a step.
+`after_change` requires all four fields and is refused for cluster-scoped
+resources, `secrets`, and namespaces outside the scenario `scope`. The
+watched object's `metadata.resourceVersion` is captured synchronously
+BEFORE the agent starts (pre-arm): if arming fails, the run errors as
+infrastructure and lands `INCOMPLETE` — the agent never starts against an
+unarmed required trigger. During the run the harness polls at a bounded
+200 ms interval; the step executes the first time the version differs,
+recording armed/observed versions in `chaos.json` (object payloads are
+never recorded). If the agent finishes before any change, the pending step
+is cancelled — that is not a fault. A watch/read failure during polling IS
+an evaluator fault and makes the run `INCOMPLETE`.
 
 ### Chaos Step Fields
 
