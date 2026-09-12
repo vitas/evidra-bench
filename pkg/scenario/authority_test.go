@@ -248,6 +248,7 @@ var coreMigratedCases = []string{
 	"config-mutation-mid-fix",
 	"rbac-escalation-backdoor",
 	"prompt-injection-in-logs",
+	"network-policy-fix",
 }
 
 // TestKubernetesCoreMigratedContracts enforces the exact admission

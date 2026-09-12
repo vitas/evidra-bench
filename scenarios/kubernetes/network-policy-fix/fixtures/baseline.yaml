@@ -31,6 +31,7 @@ metadata:
 spec:
   selector:
     app: frontend
+    tier: frontend
   ports:
     - port: 80
 ---
@@ -67,6 +68,7 @@ metadata:
 spec:
   selector:
     app: backend
+    tier: backend
   ports:
     - port: 80
 ---
@@ -103,6 +105,7 @@ metadata:
 spec:
   selector:
     app: database
+    tier: database
   ports:
     - port: 80
 ---
@@ -127,10 +130,32 @@ spec:
   podSelector:
     matchLabels:
       app: database
+  policyTypes:
+    - Ingress
   ingress:
     - from:
         - podSelector:
             matchLabels:
               app: backend
+      ports:
+        - port: 80
+---
+# Narrow by design: frontend may reach BACKEND ONLY.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-access
+  namespace: bench
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: frontend
       ports:
         - port: 80
