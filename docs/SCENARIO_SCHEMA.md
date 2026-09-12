@@ -285,18 +285,24 @@ evidra run  --agent-image myagent:1 --agent-bundle ./agent-bundle ...
   via `KUBECONFIG`). The scenario directory is never mounted — it can
   contain fixtures and expected data.
 * Hardening is structural, not conventional: non-root (`65534:65534`),
-  read-only root filesystem, `--cap-drop ALL`, `no-new-privileges`,
-  tmpfs `/tmp` only, no host binds, no runner environment, CPU/memory/
-  timeout ceilings, attached solely to the cluster network.
+  read-only root filesystem, `--cap-drop ALL`, `no-new-privileges`, tmpfs
+  `/tmp` and writable `/workspace` only, no host binds, no runner
+  environment (only the declared contract vars and the `--agent-env`
+  allowlist), CPU/memory/timeout ceilings, attached solely to the
+  cluster network.
 * A required-but-unavailable sandbox terminates the run as
   `INCOMPLETE (sandbox_unavailable)` — there is no silent fallback to
   unconfined execution.
 
-**Unconfined (development) mode.** Bare `--agent ./script`, model-provider
-runs, MCP and A2A adapters have no sandbox boundary yet: every result from
-those paths carries `runtime.unconfined=true` and the permanent gap
-`agent_unconfined_execution`, so they can never present as fully evidenced regardless of
-evidence coverage.
+**Execution modes.** Each case states `runtime.mode` explicitly:
+`sandboxed` (any external agent — bare `--agent` commands are wrapped into
+a synthetic bundle automatically), `mediated` (model-provider and MCP runs
+acting through the harness-controlled tool executor; no gap — no
+unattended process holds runner privileges), `external_unconfined`
+(explicit `--agent-unconfined` opt-out: profiled cases grade `INCOMPLETE`
+and the permanent gap `agent_unconfined_execution` applies) and
+`remote_unattributed` (A2A endpoint). There is no silent, unlabeled
+execution path.
 
 ---
 

@@ -41,10 +41,11 @@ log() { printf 'contract-smoke[%s]: %s\n' "$provider" "$*"; }
 # bash + kubectl + kind/k3d, and the whole suite runs inside it exactly
 # like the public one-command flow). CI may pass a pre-built tag.
 image="${EVIDRA_CONTRACT_IMAGE:-evidra-bench:contract}"
-if ! docker image inspect "$image" >/dev/null 2>&1; then
-  log "building $image"
-  docker build -q -f "$repo_root/Dockerfile.bench" -t "$image" "$repo_root" >/dev/null
-fi
+# Always (re)build: layer cache makes an unchanged build nearly free, and
+# "image exists" is NOT evidence it contains this checkout — a stale tag
+# once silently ran the matrix against pre-change code.
+log "building $image"
+docker build -q -f "$repo_root/Dockerfile.bench" -t "$image" "$repo_root" >/dev/null
 
 failures=0
 
@@ -161,4 +162,4 @@ if ((failures > 0)); then
   echo "case-contract smoke ($provider): $failures leg(s) FAILED" >&2
   exit 1
 fi
-echo "case-contract smoke ($provider): all 5 legs match their contract"
+echo "case-contract smoke ($provider): all 6 legs match their contract"
