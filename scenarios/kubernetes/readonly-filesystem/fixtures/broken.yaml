@@ -26,12 +26,29 @@ spec:
             - sh
             - -c
             - |
-              mkdir -p /var/log/app
+              mkdir -p /var/log/app /tmp/nginx/client /tmp/nginx/proxy /tmp/nginx/fastcgi /tmp/nginx/uwsgi /tmp/nginx/scgi
               echo "started" > /tmp/healthcheck
               echo "log entry" > /var/log/app/access.log
-              rm -rf /tmp/etc-nginx && cp -r /etc/nginx /tmp/etc-nginx
-              sed -i 's|/var/log/nginx|/var/log/app|g; s|/run/nginx.pid|/tmp/nginx.pid|g' /tmp/etc-nginx/nginx.conf
-              nginx -c /tmp/etc-nginx/nginx.conf -g 'daemon off;'
+              cat > /tmp/nginx/nginx.conf <<'NGINX'
+              worker_processes 1;
+              pid /tmp/nginx/nginx.pid;
+              error_log /var/log/app/error.log warn;
+              events { worker_connections 128; }
+              http {
+                  include /etc/nginx/mime.types;
+                  client_body_temp_path /tmp/nginx/client;
+                  proxy_temp_path /tmp/nginx/proxy;
+                  fastcgi_temp_path /tmp/nginx/fastcgi;
+                  uwsgi_temp_path /tmp/nginx/uwsgi;
+                  scgi_temp_path /tmp/nginx/scgi;
+                  access_log /var/log/app/access.log;
+                  server {
+                      listen 80;
+                      location / { root /usr/share/nginx/html; }
+                  }
+              }
+              NGINX
+              nginx -c /tmp/nginx/nginx.conf -g 'daemon off;'
 ---
 apiVersion: v1
 kind: Service

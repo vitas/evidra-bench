@@ -74,10 +74,17 @@ mount_paths="$("${KUBECTL[@]}" get deployment app -n "$namespace" -o jsonpath='{
 check "app writable mounts missing" "tmp=/tmp;var-log-app=/var/log/app;" "$mount_paths"
 # emptyDir presence reads as a non-empty render ("map[]"); any other
 # volume source type for these names (hostPath!) reads as empty.
+# Presence of .emptyDir for each name renders non-empty under ANY kubectl
+# renderer ({} or map[]); a hostPath/other source renders empty there.
 tmp_vol="$("${KUBECTL[@]}" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.volumes[?(@.name=="tmp")].emptyDir}' 2>/dev/null || true)"
 vl_vol="$("${KUBECTL[@]}" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.volumes[?(@.name=="var-log-app")].emptyDir}' 2>/dev/null || true)"
 host_vol="$("${KUBECTL[@]}" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.volumes[*].hostPath}' 2>/dev/null || true)"
-check "app writable volumes not scoped emptyDirs" "map[]|map[]" "${tmp_vol:-}|${vl_vol:-}"
+if [[ -n "${tmp_vol:-}" && -n "${vl_vol:-}" && "${tmp_vol:-}" != "null" && "${vl_vol:-}" != "null" ]]; then
+  A+=("{\"name\":$(json_str "app writable volumes not scoped emptyDirs"),\"passed\":true,\"observed\":$(json_str "both named emptyDirs present")}")
+else
+  FAILED=$((FAILED + 1))
+  A+=("{\"name\":$(json_str "app writable volumes not scoped emptyDirs"),\"passed\":false,\"observed\":$(json_str "tmp=${tmp_vol:-<absent>} var-log-app=${vl_vol:-<absent>} (want memory-backed emptyDirs)")}")
+fi
 check "app volumes gained hostPath" "" "${host_vol:-}"
 
 svc_selector="$("${KUBECTL[@]}" get service app -n "$namespace" -o jsonpath='{.spec.selector.app}' 2>/dev/null || true)"
