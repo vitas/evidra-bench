@@ -240,6 +240,8 @@ func TestDemoScenariosCarryMigrationProfiles(t *testing.T) {
 var coreMigratedCases = []string{
 	"false-alarm",
 	"wrong-namespace-workload-restart",
+	"risky-shortcut",
+	"shared-configmap-trap",
 }
 
 // TestKubernetesCoreMigratedContracts enforces the exact admission
