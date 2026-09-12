@@ -57,7 +57,9 @@ type SandboxSpec struct {
 	Network  string // cluster docker network name
 	Memory   string // e.g. "512m"; empty = docker default
 	CPUs     string // e.g. "1.0"; empty = unlimited-ish
-	Timeout  time.Duration
+	// WorkspaceSize bounds the writable /workspace tmpfs (default 256m).
+	WorkspaceSize string
+	Timeout       time.Duration
 }
 
 // SandboxRunner executes sandbox commands and reports the result.
@@ -195,40 +197,7 @@ func (s *DockerSandbox) Run(ctx context.Context, spec SandboxSpec, argv []string
 		return nil, err
 	}
 	name := "evidra-sbx-" + strings.ToLower(spec.RunID)
-	args := append([]string{"run", "-d", "--name", name,
-		"--network", spec.Network,
-		"--read-only",
-		"--cap-drop", "ALL",
-		"--security-opt", "no-new-privileges",
-		"--user", "65534:65534",
-		"--tmpfs", "/tmp:rw,size=64m",
-		"-v", vol + ":/mnt/evidra:ro",
-	}, resourceFlags(spec)...)
-	args = append(args, "-e", "KUBECONFIG=/mnt/evidra/run/agent.kubeconfig", "-e", "HOME=/tmp")
-	{
-		keys := make([]string, 0, len(spec.AgentEnv))
-		for k := range spec.AgentEnv {
-			if !envNameRe.MatchString(k) {
-				continue // refuse junk names, never silently pass weird keys
-			}
-			switch k {
-			case "KUBECONFIG", "HOME", "PATH":
-				continue // reserved: the sandbox identity contract, never overridable
-			}
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			args = append(args, "-e", k+"="+spec.AgentEnv[k])
-		}
-	}
-	// The container is a parking lot, NOT the agent: its argv must survive
-	// arbitrary ENTRYPOINTs (the bench image ships ENTRYPOINT [evidra],
-	// which ate `sleep` and killed the sandbox in the Phase 9 matrix).
-	// `sh` is the only image requirement; a missing sh fails startup
-	// honestly as sandbox-unavailable rather than misattributing.
-	args = append(args,
-		"--entrypoint", "", spec.Image, "sh", "-c", "sleep 2147483647")
+	args := sandboxRunArgs(spec, vol, name)
 	if out, err := s.docker(ctx, args...); err != nil {
 		s.cleanup(ctx, vol, name)
 		return nil, fmt.Errorf("%w: start %s: %v: %s", ErrSandboxUnavailable, spec.Image, err, truncate(string(out), 300))
@@ -256,6 +225,60 @@ func (s *DockerSandbox) Run(ctx context.Context, spec SandboxSpec, argv []string
 	}
 	s.cleanup(ctx, vol, name)
 	return res, nil
+}
+
+// sandboxRunArgs renders the hardened `docker run` argv. Pure function so
+// the contract (read-only rootfs, dropped caps, only /tmp and /workspace
+// writable, declared env only, entrypoint-neutralizing park) is
+// unit-testable without a daemon.
+func sandboxRunArgs(spec SandboxSpec, vol, name string) []string {
+	args := append([]string{"run", "-d", "--name", name,
+		"--network", spec.Network,
+		"--read-only",
+		"--cap-drop", "ALL",
+		"--security-opt", "no-new-privileges",
+		"--user", "65534:65534",
+		"--tmpfs", "/tmp:rw,size=64m",
+		"--tmpfs", workspaceFlag(spec),
+		"-v", vol + ":/mnt/evidra:ro",
+	}, resourceFlags(spec)...)
+	args = append(args, "-e", "KUBECONFIG=/mnt/evidra/run/agent.kubeconfig", "-e", "HOME=/tmp")
+	{
+		keys := make([]string, 0, len(spec.AgentEnv))
+		for k := range spec.AgentEnv {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			if !envNameRe.MatchString(k) {
+				continue // refuse junk names, never silently pass weird keys
+			}
+			switch k {
+			case "KUBECONFIG", "HOME", "PATH":
+				continue // owned by the sandbox; not agent-overridable
+			}
+			args = append(args, "-e", k+"="+spec.AgentEnv[k])
+		}
+	}
+	// The container is a parking lot, NOT the agent: its argv must survive
+	// arbitrary ENTRYPOINTs (the bench image ships ENTRYPOINT [evidra],
+	// which ate `sleep` and killed the sandbox in the Phase 9 matrix).
+	// `sh` is the only image requirement; a missing sh fails startup
+	// honestly as sandbox-unavailable rather than misattributing.
+	args = append(args,
+		"--entrypoint", "", spec.Image, "sh", "-c", "sleep 2147483647")
+	return args
+}
+
+// workspaceFlag mounts the documented writable workspace. The agent
+// contract (docs + unconfined adapter) promises a writable scratch dir;
+// /workspace is that promise, sized down by spec.Memory's sibling knob.
+func workspaceFlag(spec SandboxSpec) string {
+	size := spec.WorkspaceSize
+	if size == "" {
+		size = "256m"
+	}
+	return "/workspace:rw,size=" + size
 }
 
 func resourceFlags(spec SandboxSpec) []string {

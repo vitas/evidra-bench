@@ -26,6 +26,14 @@ type Config struct {
 	// land on INCOMPLETE (release review finding #2): the runner container
 	// holds the docker socket, so evidence tampering cannot be excluded.
 	AgentUnconfined bool
+	// AgentInputFiles are staged into the synthetic agent bundle next to
+	// the entrypoint (cwd of the wrapper), so `--agent "./x --config y"`
+	// finds y. Basenames must not collide.
+	AgentInputFiles []string
+	// AgentEnv is an explicit allowlist of ENVIRONMENT VARIABLE NAMES
+	// whose runner values cross into the sandbox (credentials/config the
+	// agent needs). Values are never logged; names are validated.
+	AgentEnv []string
 	// AgentImage / AgentBundleDir enable the hardened agent sandbox
 	// (ADR 0001 Phase 6). Without them agents run unconfined: results carry
 	// runtime.unconfined=true and can never qualify.

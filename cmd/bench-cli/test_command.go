@@ -22,6 +22,8 @@ type testRequest struct {
 	AgentImage      string
 	AgentBundleDir  string
 	AgentUnconfined bool
+	AgentInputs     []string
+	AgentEnvNames   []string
 	Suite           string
 	Environment     string
 	OutputDir       string
@@ -102,6 +104,8 @@ func newTestCommand(run testRunner) *cobra.Command {
 	flags.StringVar(&req.Agent, "agent", "", "external agent command")
 	flags.StringVar(&req.AgentImage, "agent-image", "", "run the agent inside a hardened sandbox built from this image")
 	flags.StringVar(&req.AgentBundleDir, "agent-bundle", "", "agent bundle directory (entrypoint ./run + declared files) staged into the sandbox")
+	flags.StringArrayVar(&req.AgentInputs, "agent-input", nil, "file to stage next to the sandboxed agent (its working directory); repeat for multiple inputs")
+	flags.StringArrayVar(&req.AgentEnvNames, "agent-env", nil, "pass this environment variable's value from the runner into the agent sandbox (repeatable allowlist; never logged)")
 	flags.BoolVar(&req.AgentUnconfined, "agent-unconfined", false, "run the external --agent command directly in the runner container instead of the default sandbox (profiled scenarios then grade INCOMPLETE)")
 	flags.StringVar(&req.Suite, "suite", req.Suite, "versioned test suite")
 	flags.StringVar(&req.Environment, "environment", req.Environment, "local Kubernetes environment (kind or k3d)")
