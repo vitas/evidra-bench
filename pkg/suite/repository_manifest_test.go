@@ -44,6 +44,8 @@ func TestRepositoryDemoSmokeScriptsAreExecutableAndParse(t *testing.T) {
 		"tests/fixtures/scripted-agent/no-op.sh",
 		"tests/fixtures/scripted-agent/failed-repair.sh",
 		"tests/fixtures/scripted-agent/wrong-scope.sh",
+		"tests/fixtures/scripted-agent/kubernetes-core.sh",
+		"tests/contract/test_core_control_scripts.sh",
 		"tests/smoke/run_demo_suite_smoke.sh",
 	}
 	for _, rel := range paths {
