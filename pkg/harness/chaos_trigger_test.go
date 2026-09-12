@@ -16,9 +16,10 @@ import (
 // triggerRunner scripts kubectl get --raw responses and records applied
 // chaos steps. Synchronization is via channels — no sleeps as assertions.
 type triggerRunner struct {
-	mu      sync.Mutex
-	rv      string // current scripted resourceVersion
-	failGet bool
+	mu        sync.Mutex
+	rv        string // current scripted resourceVersion
+	failGet   bool
+	failApply bool
 
 	gets    chan struct{} // signaled on every raw read
 	applied chan string   // signaled when the chaos step executes
@@ -44,6 +45,12 @@ func (t *triggerRunner) setFailGet(f bool) {
 	t.mu.Unlock()
 }
 
+func (t *triggerRunner) setFailApply(f bool) {
+	t.mu.Lock()
+	t.failApply = f
+	t.mu.Unlock()
+}
+
 func (t *triggerRunner) Run(_ context.Context, cmd *exec.Cmd) ([]byte, error) {
 	joined := strings.Join(cmd.Args, " ")
 	if strings.Contains(joined, "get --raw") {
@@ -59,6 +66,12 @@ func (t *triggerRunner) Run(_ context.Context, cmd *exec.Cmd) ([]byte, error) {
 		return out, nil
 	}
 	t.applied <- joined
+	t.mu.Lock()
+	fail := t.failApply
+	t.mu.Unlock()
+	if fail {
+		return nil, fmt.Errorf("error: server could not find requested resource")
+	}
 	return []byte("configured"), nil
 }
 
@@ -233,5 +246,56 @@ func TestChaosTimerStepsUnchanged(t *testing.T) {
 	}
 	if len(r.gets) != 0 {
 		t.Fatal("timer-only config must not read triggers")
+	}
+}
+
+// A trigger-armed step is load-bearing for the case premise: its APPLY
+// failure must fault the run exactly like a watch failure — a drift that
+// silently never materialized means the evaluation proved nothing.
+func TestChaosTriggerApplyFailureIsEvaluatorFault(t *testing.T) {
+	r := newTriggerRunner("100")
+	r.setFailApply(true)
+	cr := &ChaosRunner{Runner: r, KubeconfigPath: "/kc", Config: triggerScenario(changeStep()).Chaos}
+	if err := cr.ArmResourceTriggers(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		cr.Run(ctx)
+	}()
+	r.setRV("200") // the agent's change
+	select {
+	case <-r.applied:
+	case <-time.After(5 * time.Second):
+		t.Fatal("step never attempted")
+	}
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("runner did not stop after failed load-bearing step")
+	}
+	if !cr.TriggerFaulted() {
+		t.Fatalf("apply failure must fault the trigger channel: triggerErr=%v", cr.triggerErr)
+	}
+}
+
+// Timer steps keep their historical log-only failure behavior (pinned by
+// TestChaosTimerStepsUnchanged; assert the trigger channel stays clean).
+func TestChaosTimerFailureDoesNotFaultTrigger(t *testing.T) {
+	r := newTriggerRunner("100")
+	r.setFailApply(true)
+	step := scenario.ChaosStep{Name: "t1", Type: "kubectl-apply", Path: "p.yaml", At: scenario.Duration{Duration: 10 * time.Millisecond}}
+	cr := &ChaosRunner{Runner: r, KubeconfigPath: "/kc", Config: triggerScenario(step).Chaos}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cr.Run(ctx)
+	if cr.TriggerFaulted() {
+		t.Fatal("timer-step failure must not enter the trigger fault channel")
+	}
+	if len(cr.events) != 1 || cr.events[0].Success {
+		t.Fatalf("events = %+v", cr.events)
 	}
 }

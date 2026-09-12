@@ -172,6 +172,15 @@ func (r *ChaosRunner) Run(ctx context.Context) {
 					continue
 				}
 				log.Printf("[chaos] step %s failed: %s", step.Name, event.Error)
+				// A trigger-armed step is load-bearing for the case
+				// premise (the drift IS the test): its failure is an
+				// evaluator fault, reported through the same channel as
+				// a faulted watch — never silently swallowed. Timer
+				// steps keep their historical log-only behavior.
+				if step.AfterChange != nil {
+					r.triggerErr = fmt.Errorf("chaos step %q failed: %s", step.Name, event.Error)
+					return
+				}
 			}
 		}
 		if mode != "repeat" {
