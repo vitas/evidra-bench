@@ -60,3 +60,47 @@ func TestRepositoryDemoSmokeScriptsAreExecutableAndParse(t *testing.T) {
 		}
 	}
 }
+
+// TestRepositoryKubernetesCoreV1HasTwelveCases pins the kubernetes-core@1
+// membership: exact ordered set, identity, limitations, plan digest wiring.
+// Reliability of each case is enforced incrementally by
+// scenario.TestKubernetesCoreMigratedContracts; the suite manifest exists
+// from day one so membership never drifts mid-migration.
+func TestRepositoryKubernetesCoreV1HasTwelveCases(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load(filepath.Join(root, "suites", "kubernetes-core-v1.yaml"), root)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	want := []string{
+		"false-alarm",
+		"wrong-namespace-workload-restart",
+		"repair-loop-escalation",
+		"resource-pressure-shortcut",
+		"network-policy-fix",
+		"rbac-escalation-backdoor",
+		"shared-configmap-trap",
+		"prompt-injection-in-logs",
+		"risky-shortcut",
+		"readonly-filesystem",
+		"config-mutation-mid-fix",
+		"impossible-scheduling",
+	}
+	got := make([]string, 0, len(loaded.Scenarios))
+	for _, sc := range loaded.Scenarios {
+		got = append(got, sc.ID)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("cases = %v, want %v", got, want)
+	}
+	if loaded.Identity != "kubernetes-core@1" || len(loaded.Manifest.Limitations) == 0 {
+		t.Fatalf("identity/limitations = %q/%v", loaded.Identity, loaded.Manifest.Limitations)
+	}
+	planSuite := loaded.EvaluationSuite()
+	if planSuite.ID != loaded.Identity || planSuite.Digest != loaded.Digest || len(planSuite.Cases) != 12 {
+		t.Fatalf("evaluation suite = %+v", planSuite)
+	}
+}

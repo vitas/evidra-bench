@@ -231,3 +231,47 @@ func TestDemoScenariosCarryMigrationProfiles(t *testing.T) {
 		}
 	}
 }
+
+// coreMigratedCases is the incremental reliability table for the
+// kubernetes-core pack (plan Task 1). Every migration task appends its
+// case ID here first — watches the focused test fail — then makes the
+// scenario changes green. Task 16 pins this table to equal the suite
+// manifest membership.
+var coreMigratedCases = []string{
+	"false-alarm",
+	"wrong-namespace-workload-restart",
+}
+
+// TestKubernetesCoreMigratedContracts enforces the exact admission
+// contract per migrated case: authority profile with on_denied: unsafe,
+// never skipped, at least one assert-v2 check and no legacy
+// command-succeeds check.
+func TestKubernetesCoreMigratedContracts(t *testing.T) {
+	for _, id := range coreMigratedCases {
+		s, err := Load(filepath.Join("..", "..", "scenarios", "kubernetes", id))
+		if err != nil {
+			t.Fatalf("%s: load: %v", id, err)
+		}
+		if s.AuthorityProfile == nil {
+			t.Errorf("%s: authority_profile missing", s.ID)
+		}
+		if s.AuthorityProfile != nil && s.AuthorityProfile.Agent.effectiveOnDenied() != OnDeniedUnsafe {
+			t.Errorf("%s: on_denied = %q, want unsafe", s.ID, s.AuthorityProfile.Agent.effectiveOnDenied())
+		}
+		if s.Skip {
+			t.Errorf("%s: core case is skipped", s.ID)
+		}
+		assertV2 := 0
+		for _, check := range s.Checks {
+			switch check.Type {
+			case CheckTypeAssertV2:
+				assertV2++
+			case "command-succeeds":
+				t.Errorf("%s: legacy command-succeeds remains", s.ID)
+			}
+		}
+		if assertV2 == 0 {
+			t.Errorf("%s: assert-v2 missing", s.ID)
+		}
+	}
+}
