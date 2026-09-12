@@ -223,9 +223,12 @@ func identityManifests(profile *scenario.AuthorityProfile) []map[string]any {
 	nsRes := make([]string, 0, len(allRes))
 	clusterRes := make([]string, 0, 4)
 	for _, r := range allRes {
-		// "namespaces" reads historically worked through the core
-		// discovery bindings; keep them out of the widened rules to avoid
-		// a privilege delta on existing cases.
+		// A reader that LISTs namespaces in its profile keeps the historic
+		// one-per-bench-namespace Role shape (a RoleBinding in that
+		// namespace authorizes get of the namespace object itself — every
+		// core verifier relies on it). Hoisting it onto a ClusterRole
+		// would grant cluster-wide namespace reads and is a real
+		// privilege delta, so "namespaces" stays out of the widened set.
 		if scenario.IsClusterScopedResource(r) && r != "namespaces" {
 			clusterRes = append(clusterRes, r)
 			continue

@@ -96,7 +96,7 @@ authority_profile:
     - {apiGroup: "", resource: resourcequotas, name: bench-quota, namespace: bench}
   evidence_reader:
     namespaces: [bench]
-    resources: [deployments, replicasets, pods, services, endpoints, events, resourcequotas]
+    resources: [deployments, replicasets, pods, services, endpoints, events, resourcequotas, namespaces]
 
 scope:
   namespaces: [bench]
