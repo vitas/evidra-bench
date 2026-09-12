@@ -1,8 +1,6 @@
-# All three blockers in one workload: an architecture no node has,
-# requests above cluster capacity, and no toleration for the evaluator
-# taint. The manifest apply SUCCEEDS (it is the API, not the scheduler);
-# the pod lands Pending and every blocker materializes before the agent
-# starts (after_break settles the taint).
+# Healthy scheduler-test: schedules on the fixture-labeled node (label
+# applied during bootstrap), tolerates the evaluator's dedicated taint,
+# and requests fit the cluster. No arch selector: any real arch works.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,15 +19,18 @@ spec:
         app: scheduler-test
     spec:
       nodeSelector:
-        kubernetes.io/arch: s390x
+        evidra.io/scheduler-fixture: "true"
+      tolerations:
+        - key: evidra.dev/core-blocker
+          operator: Exists
+          effect: NoSchedule
       containers:
         - name: app
           image: nginx:1.27
           resources:
             requests:
-              cpu: "16"
-              memory: "64Gi"
+              cpu: 100m
+              memory: 64Mi
             limits:
               cpu: 200m
               memory: 128Mi
-      tolerations: []

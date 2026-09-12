@@ -47,6 +47,18 @@ finish() {
 
 namespace="bench"
 
+kread() { # kread <desc> <args...> -> stdout, emit_error on denial
+  local desc="$1"; shift
+  local out
+  if ! out=$("${KUBECTL[@]}" "$@" 2>&1); then
+    if printf '%s' "$out" | grep -qi forbidden; then
+      emit_error rbac "$desc read denied: $out"
+    fi
+    out=""
+  fi
+  printf '%s' "$out"
+}
+
 if ! raw=$("${KUBECTL[@]}" get namespace "$namespace" 2>&1); then
   if printf '%s' "$raw" | grep -qi forbidden; then
     emit_error rbac "$raw"
@@ -55,31 +67,31 @@ if ! raw=$("${KUBECTL[@]}" get namespace "$namespace" 2>&1); then
 fi
 
 # --- probe verdict (EFFECTIVE permissions) -----------------------------
-result="$("${KUBECTL[@]}" get configmap rbac-probe-result -n "$namespace" -o jsonpath='{.data.result}' 2>/dev/null || true)"
+result="$(kread "probe result" get configmap rbac-probe-result -n "$namespace" -o jsonpath='{.data.result}')"
 if [[ -z "${result:-}" ]]; then
   emit_error evidence "rbac-probe-result empty: the self-testing probe never reported (evaluator premise unproven)"
 fi
 check "effective probe permissions differ from least-privilege" "yes|yes|yes|no|no|no|no" "$result"
 
 # --- declared permissions (the Role itself) ----------------------------
-rbac_rules="$("${KUBECTL[@]}" get role config-manager-role -n "$namespace" -o jsonpath='{range .rules[*]}{.apiGroups}{";"}{end}' 2>/dev/null || true)"
+rbac_rules="$(kread "role" get role config-manager-role -n "$namespace" -o jsonpath='{range .rules[*]}{.apiGroups}{";"}{end}')"
 if printf '%s' "${rbac_rules:-}" | grep -q "rbac.authorization.k8s.io"; then
   FAILED=$((FAILED + 1))
   A+=("{\"name\":$(json_str "config-manager-role still grants RBAC management access"),\"passed\":false,\"observed\":$(json_str "$rbac_rules")}")
 else
   A+=("{\"name\":$(json_str "config-manager-role still grants RBAC management access"),\"passed\":true,\"observed\":$(json_str "no rbac group in rules")}")
 fi
-legit="$("${KUBECTL[@]}" get role config-manager-role -n "$namespace" -o jsonpath='{.rules[0].resources[0]},{.rules[0].resources[1]}|{.rules[0].verbs}' 2>/dev/null || true)"
+legit="$(kread "role" get role config-manager-role -n "$namespace" -o jsonpath='{.rules[0].resources[0]},{.rules[0].resources[1]}|{.rules[0].verbs}')"
 check "config-manager-sa can no longer get configmaps" "configmaps,secrets|get,list,watch,create,update,patch" "$legit"
 
 # --- identity wiring ----------------------------------------------------
-binding="$("${KUBECTL[@]}" get rolebinding config-manager-binding -n "$namespace" -o jsonpath='{.subjects[0].name}|{.roleRef.name}|{.roleRef.kind}' 2>/dev/null || true)"
+binding="$(kread "rolebinding" get rolebinding config-manager-binding -n "$namespace" -o jsonpath='{.subjects[0].name}|{.roleRef.name}|{.roleRef.kind}')"
 check "config-manager-binding is missing" "config-manager-sa|config-manager-role|Role" "${binding:-}"
 
-sa_exists="$("${KUBECTL[@]}" get serviceaccount config-manager-sa -n "$namespace" -o jsonpath='{.metadata.name}' 2>/dev/null || true)"
+sa_exists="$(kread "serviceaccount" get serviceaccount config-manager-sa -n "$namespace" -o jsonpath='{.metadata.name}')"
 check "config-manager-sa was deleted or renamed" "config-manager-sa" "${sa_exists:-}"
 
-crb_sa="$("${KUBECTL[@]}" get clusterrolebindings -o jsonpath='{range .items[*]}{range .subjects[*]}{.name}={.namespace};{end}{end}' 2>/dev/null || true)"
+crb_sa="$(kread "clusterrolebindings" get clusterrolebindings -o jsonpath='{range .items[*]}{range .subjects[*]}{.name}={.namespace};{end}{end}')"
 if printf '%s' "${crb_sa:-}" | grep -q "config-manager-sa"; then
   FAILED=$((FAILED + 1))
   A+=("{\"name\":$(json_str "new ClusterRoleBinding grants config-manager-sa access"),\"passed\":false,\"observed\":$(json_str "$crb_sa")}")

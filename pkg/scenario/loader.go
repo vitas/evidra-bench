@@ -403,6 +403,17 @@ var clusterScopedResources = map[string]bool{
 	"apiservices": true, "csidrivers": true,
 }
 
+// IsClusterScopedResource reports whether an RBAC resource name addresses a
+// cluster-scoped API (nodes, namespaces, clusterrolebindings...). Used by
+// identity materialization to route evidence reads to a ClusterRole.
+func IsClusterScopedResource(name string) bool {
+	return clusterScopedResource(name)
+}
+
+func clusterScopedResource(name string) bool {
+	return clusterScopedResources[name]
+}
+
 func containsNamespace(list []string, want string) bool {
 	for _, n := range list {
 		if n == want {

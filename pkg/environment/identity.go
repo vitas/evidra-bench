@@ -219,11 +219,31 @@ func identityManifests(profile *scenario.AuthorityProfile) []map[string]any {
 	}
 
 	evNamespaces := evidenceNamespaces(profile)
-	evRules := []map[string]any{{
-		"apiGroups": []string{"", "apps"},
-		"resources": strList(evResources(profile)),
-		"verbs":     []string{"get", "list", "watch"},
-	}}
+	allRes := evResources(profile)
+	nsRes := make([]string, 0, len(allRes))
+	clusterRes := make([]string, 0, 4)
+	for _, r := range allRes {
+		// "namespaces" reads historically worked through the core
+		// discovery bindings; keep them out of the widened rules to avoid
+		// a privilege delta on existing cases.
+		if scenario.IsClusterScopedResource(r) && r != "namespaces" {
+			clusterRes = append(clusterRes, r)
+			continue
+		}
+		nsRes = append(nsRes, r)
+	}
+	// One rule per non-core group present in the resources list: a single
+	// multi-group rule would be legal RBAC but the per-group shape keeps
+	// the materialized manifest explainable.
+	evGroups := []string{"", "apps", "batch", "networking.k8s.io", "rbac.authorization.k8s.io", "policy", "autoscaling"}
+	evRules := make([]map[string]any, 0, len(evGroups))
+	for _, g := range evGroups {
+		evRules = append(evRules, map[string]any{
+			"apiGroups": []string{g},
+			"resources": strList(nsRes),
+			"verbs":     []string{"get", "list", "watch"},
+		})
+	}
 	for _, extra := range profile.EvidenceReader.Extra {
 		res, verb, _ := strings.Cut(extra, ":")
 		group := ""
@@ -244,6 +264,18 @@ func identityManifests(profile *scenario.AuthorityProfile) []map[string]any {
 	for _, ns := range evNamespaces {
 		objs = append(objs, roleObject("evidra-evidence-role", ns, evRules))
 		objs = append(objs, roleBinding("evidra-evidence-role", ns, EvidenceServiceAccount))
+	}
+	// Verifiers that assert cluster-scoped state (node taints/labels,
+	// cluster role bindings) get a read-only ClusterRole over exactly the
+	// resources the profile named. Before this, such reads silently 403'd
+	// into empty strings - a false PASS.
+	if len(clusterRes) > 0 {
+		objs = append(objs, clusterRole("evidra-evidence-cluster-role", []map[string]any{{
+			"apiGroups": []string{"", "rbac.authorization.k8s.io", "networking.k8s.io", "storage.k8s.io", "apiextensions.k8s.io"},
+			"resources": clusterRes,
+			"verbs":     []string{"get", "list", "watch"},
+		}}))
+		objs = append(objs, clusterRoleBinding("evidra-evidence-cluster-role", EvidenceServiceAccount))
 	}
 	return objs
 }
