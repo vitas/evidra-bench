@@ -30,13 +30,16 @@ bootstrap:
   - name: wait-for-scheduler-baseline
     type: kubectl
     args: [rollout, status, deployment/scheduler-test, -n, bench, --timeout=120s]
+  # The taint exists from bootstrap on: the healthy baseline tolerates
+  # it, so the verifier's "taint still present" assertion is phase
+  # stable, and nobody can pass preflight by scrubbing it later.
+  - name: add-evaluator-taint
+    type: kubectl
+    args: [taint, nodes, -l, kubernetes.io/os=linux, evidra.dev/core-blocker=true:NoSchedule, --overwrite]
 break:
   type: kubectl-apply
   path: fixtures/impossible-pod.yaml
 after_break:
-  - name: add-evaluator-taint
-    type: kubectl
-    args: [taint, nodes, -l, kubernetes.io/os=linux, evidra.dev/core-blocker=true:NoSchedule, --overwrite]
   - name: let-blockers-settle
     type: sleep
     duration: 6s

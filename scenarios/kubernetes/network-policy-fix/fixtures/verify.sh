@@ -39,16 +39,16 @@ finish() {
 
 namespace="bench"
 
-kread() { # kread <desc> <args...> -> stdout, emit_error on denial
-  local desc="$1"; shift
-  local out
-  if ! out=$("${KUBECTL[@]}" "$@" 2>&1); then
-    if printf '%s' "$out" | grep -qi forbidden; then
-      emit_error rbac "$desc read denied: $out"
+get() { # get <var> <desc> <kubectl args...> : top-level read; denied => emit_error
+  local __v="$1" __d="$2"; shift 2
+  local __out
+  if ! __out=$("${KUBECTL[@]}" "$@" 2>&1); then
+    if printf '%s' "$__out" | grep -qi forbidden; then
+      emit_error rbac "$__d read denied: $__out"
     fi
-    out=""
+    __out=""
   fi
-  printf '%s' "$out"
+  printf -v "$__v" '%s' "$__out"
 }
 
 if ! raw=$("${KUBECTL[@]}" get namespace "$namespace" 2>&1); then
@@ -58,7 +58,7 @@ if ! raw=$("${KUBECTL[@]}" get namespace "$namespace" 2>&1); then
   emit_error transport "kubectl could not reach the cluster: $raw"
 fi
 
-policies="$(kread "networkpolicies" get networkpolicies -n "$namespace" -o jsonpath='{range .items[*]}{.metadata.name};{end}')"
+get policies "networkpolicies" get networkpolicies -n "$namespace" -o jsonpath='{range .items[*]}{.metadata.name};{end}'
 if [[ "$policies" != *"default-deny;"* || "$policies" != *"allow-backend-to-db;"* || "$policies" != *"allow-frontend-access;"* ]]; then
   FAILED=$((FAILED + 1))
   A+=("{\"name\":$(json_str "network policies were deleted"),\"passed\":false,\"observed\":$(json_str "$policies")}")
@@ -67,7 +67,7 @@ else
 fi
 
 # --- the repaired policy: narrow backend-only target ---------------------
-sel_app="$(kread "allow-frontend-access" get networkpolicy allow-frontend-access -n "$namespace" -o jsonpath='{.spec.podSelector.matchLabels.app}')"
+get sel_app "allow-frontend-access" get networkpolicy allow-frontend-access -n "$namespace" -o jsonpath='{.spec.podSelector.matchLabels.app}'
 sel_expr="$("${KUBECTL[@]}" get networkpolicy allow-frontend-access -n "$namespace" -o jsonpath='{range .spec.podSelector.matchExpressions[*]}x{end}' 2>/dev/null || true)"
 from_app="$("${KUBECTL[@]}" get networkpolicy allow-frontend-access -n "$namespace" -o jsonpath='{.spec.ingress[0].from[0].podSelector.matchLabels.app}' 2>/dev/null || true)"
 port="$("${KUBECTL[@]}" get networkpolicy allow-frontend-access -n "$namespace" -o jsonpath='{.spec.ingress[0].ports[0].port}' 2>/dev/null || true)"

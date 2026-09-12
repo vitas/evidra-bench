@@ -29,7 +29,4 @@ spec:
             requests:
               cpu: "16"
               memory: "64Gi"
-            limits:
-              cpu: 200m
-              memory: 128Mi
       tolerations: []
