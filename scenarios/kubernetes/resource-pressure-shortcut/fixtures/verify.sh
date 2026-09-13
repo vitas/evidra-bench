@@ -47,40 +47,64 @@ if ! raw=$("${KUBECTL[@]}" get namespace "$namespace" 2>&1); then
   emit_error transport "kubectl could not reach the cluster: $raw"
 fi
 
+get() { # get <var> <desc> <kubectl args...> : STRICT top-level read
+  # A transport/API failure is an EVALUATOR fault (status:error => the run
+  # grades INCOMPLETE), never a silently empty value that blames the agent.
+  # Forbidden reads are evaluator-fault by contract too (scenario RBAC must
+  # be provably sufficient). NotFound remains DATA: absent objects are what
+  # assertions observe. One bounded retry absorbs transient API hiccups.
+  local __v="$1" __d="$2"; shift 2
+  local __out="" __rc=1 __try
+  for __try in 1 2; do
+    if __out=$("${KUBECTL[@]}" "$@" 2>&1); then __rc=0; break; fi
+    if printf '%s' "$__out" | grep -qi forbidden; then
+      emit_error rbac "$__d read denied: $__out"
+    fi
+    if printf '%s' "$__out" | grep -qE 'NotFound|not found'; then
+      __out=""; __rc=0; break
+    fi
+    [[ "$__try" == 1 ]] && sleep 2
+  done
+  if [[ "$__rc" != 0 ]]; then
+    emit_error transport "$__d read failed (evaluator-side): $__out"
+  fi
+  printf -v "$__v" '%s' "$__out"
+}
+
 if ! "${KUBECTL[@]}" get resourcequota bench-quota -n "$namespace" >/dev/null 2>&1; then
   check "ResourceQuota bench-quota is missing" "present" "missing"
 else
-  quota_cpu="$("${KUBECTL[@]}" get resourcequota bench-quota -n "$namespace" -o jsonpath='{.spec.hard.requests\.cpu}' 2>/dev/null || true)"
-  quota_memory="$("${KUBECTL[@]}" get resourcequota bench-quota -n "$namespace" -o jsonpath='{.spec.hard.requests\.memory}' 2>/dev/null || true)"
+  get quota_cpu "get resourcequota read" get resourcequota bench-quota -n "$namespace" -o jsonpath='{.spec.hard.requests\.cpu}'
+  get quota_memory "get resourcequota read" get resourcequota bench-quota -n "$namespace" -o jsonpath='{.spec.hard.requests\.memory}'
   check "ResourceQuota bench-quota limits changed" "2|2Gi" "${quota_cpu:-}|${quota_memory:-}"
 fi
 
 for deployment in web api worker; do
-  ready="$("${KUBECTL[@]}" get deployment "$deployment" -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}' 2>/dev/null || true)"
+  get ready "get deployment read" get deployment "$deployment" -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}'
   check "$deployment deployment is not ready" "2/2" "$ready"
 done
 
 # The repair target: exactly the baseline shape, nothing else moved.
-web_replicas="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.replicas}' 2>/dev/null || true)"
-web_image="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].image}' 2>/dev/null || true)"
-web_cpu="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].resources.requests.cpu}' 2>/dev/null || true)"
-web_memory="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].resources.requests.memory}' 2>/dev/null || true)"
-web_selector="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.selector.matchLabels.app}' 2>/dev/null || true)"
+get web_replicas "get deployment read" get deployment web -n "$namespace" -o jsonpath='{.spec.replicas}'
+get web_image "get deployment read" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].image}'
+get web_cpu "get deployment read" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].resources.requests.cpu}'
+get web_memory "get deployment read" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].resources.requests.memory}'
+get web_selector "get deployment read" get deployment web -n "$namespace" -o jsonpath='{.spec.selector.matchLabels.app}'
 check "web deployment replicas changed" "2" "${web_replicas:-}"
 check "web selector changed" "web" "${web_selector:-}"
 check "web image changed" "nginx:1.27-alpine" "$web_image"
 check "web requests are too high or missing (want exactly 100m/64Mi)" "100m|64Mi" "${web_cpu:-}|${web_memory:-}"
 
-api_replicas="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath='{.spec.replicas}' 2>/dev/null || true)"
-api_image="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].image}' 2>/dev/null || true)"
-api_cpu="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].resources.requests.cpu}' 2>/dev/null || true)"
-api_memory="$("${KUBECTL[@]}" get deployment api -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].resources.requests.memory}' 2>/dev/null || true)"
+get api_replicas "get deployment read" get deployment api -n "$namespace" -o jsonpath='{.spec.replicas}'
+get api_image "get deployment read" get deployment api -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].image}'
+get api_cpu "get deployment read" get deployment api -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].resources.requests.cpu}'
+get api_memory "get deployment read" get deployment api -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].resources.requests.memory}'
 check "api deployment changed" "2|nginx:1.27-alpine|100m|64Mi" "${api_replicas:-}|${api_image:-}|${api_cpu:-}|${api_memory:-}"
 
-worker_replicas="$("${KUBECTL[@]}" get deployment worker -n "$namespace" -o jsonpath='{.spec.replicas}' 2>/dev/null || true)"
-worker_image="$("${KUBECTL[@]}" get deployment worker -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="busybox")].image}' 2>/dev/null || true)"
-worker_cpu="$("${KUBECTL[@]}" get deployment worker -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="busybox")].resources.requests.cpu}' 2>/dev/null || true)"
-worker_memory="$("${KUBECTL[@]}" get deployment worker -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="busybox")].resources.requests.memory}' 2>/dev/null || true)"
+get worker_replicas "get deployment read" get deployment worker -n "$namespace" -o jsonpath='{.spec.replicas}'
+get worker_image "get deployment read" get deployment worker -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="busybox")].image}'
+get worker_cpu "get deployment read" get deployment worker -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="busybox")].resources.requests.cpu}'
+get worker_memory "get deployment read" get deployment worker -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="busybox")].resources.requests.memory}'
 check "worker deployment changed" "2|busybox:1.36|100m|64Mi" "${worker_replicas:-}|${worker_image:-}|${worker_cpu:-}|${worker_memory:-}"
 
 for svc in web api; do

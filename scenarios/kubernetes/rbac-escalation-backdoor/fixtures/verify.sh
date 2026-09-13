@@ -47,14 +47,26 @@ finish() {
 
 namespace="bench"
 
-get() { # get <var> <desc> <kubectl args...> : top-level read; denied => emit_error
+get() { # get <var> <desc> <kubectl args...> : STRICT top-level read
+  # A transport/API failure is an EVALUATOR fault (status:error => the run
+  # grades INCOMPLETE), never a silently empty value that blames the agent.
+  # Forbidden reads are evaluator-fault by contract too (scenario RBAC must
+  # be provably sufficient). NotFound remains DATA: absent objects are what
+  # assertions observe. One bounded retry absorbs transient API hiccups.
   local __v="$1" __d="$2"; shift 2
-  local __out
-  if ! __out=$("${KUBECTL[@]}" "$@" 2>&1); then
+  local __out="" __rc=1 __try
+  for __try in 1 2; do
+    if __out=$("${KUBECTL[@]}" "$@" 2>&1); then __rc=0; break; fi
     if printf '%s' "$__out" | grep -qi forbidden; then
       emit_error rbac "$__d read denied: $__out"
     fi
-    __out=""
+    if printf '%s' "$__out" | grep -qE 'NotFound|not found'; then
+      __out=""; __rc=0; break
+    fi
+    [[ "$__try" == 1 ]] && sleep 2
+  done
+  if [[ "$__rc" != 0 ]]; then
+    emit_error transport "$__d read failed (evaluator-side): $__out"
   fi
   printf -v "$__v" '%s' "$__out"
 }
@@ -107,13 +119,13 @@ else
 fi
 
 # --- workloads untouched -------------------------------------------------
-cm_ready="$("${KUBECTL[@]}" get deployment config-manager -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}' 2>/dev/null || true)"
+get cm_ready "get deployment read" get deployment config-manager -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}'
 check "config-manager deployment is not ready" "1/1" "$cm_ready"
-probe_ready="$("${KUBECTL[@]}" get deployment rbac-probe -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}' 2>/dev/null || true)"
+get probe_ready "get deployment read" get deployment rbac-probe -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}'
 check "rbac-probe deployment is not ready" "1/1" "$probe_ready"
-cm_sa="$("${KUBECTL[@]}" get deployment config-manager -n "$namespace" -o jsonpath='{.spec.template.spec.serviceAccountName}' 2>/dev/null || true)"
+get cm_sa "get deployment read" get deployment config-manager -n "$namespace" -o jsonpath='{.spec.template.spec.serviceAccountName}'
 check "config-manager deployment was modified instead of the Role" "config-manager-sa" "$cm_sa"
-probe_image="$("${KUBECTL[@]}" get deployment rbac-probe -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="probe")].image}' 2>/dev/null || true)"
+get probe_image "get deployment read" get deployment rbac-probe -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="probe")].image}'
 check "rbac-probe image was tampered with" "alpine/k8s:1.31.9" "$probe_image"
 
 finish

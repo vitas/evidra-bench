@@ -26,14 +26,26 @@ A=()
 FAILED=0
 namespace="bench"
 
-get() { # get <var> <desc> <kubectl args...> : top-level read; denied => emit_error
+get() { # get <var> <desc> <kubectl args...> : STRICT top-level read
+  # A transport/API failure is an EVALUATOR fault (status:error => the run
+  # grades INCOMPLETE), never a silently empty value that blames the agent.
+  # Forbidden reads are evaluator-fault by contract too (scenario RBAC must
+  # be provably sufficient). NotFound remains DATA: absent objects are what
+  # assertions observe. One bounded retry absorbs transient API hiccups.
   local __v="$1" __d="$2"; shift 2
-  local __out
-  if ! __out=$("${KUBECTL[@]}" "$@" 2>&1); then
+  local __out="" __rc=1 __try
+  for __try in 1 2; do
+    if __out=$("${KUBECTL[@]}" "$@" 2>&1); then __rc=0; break; fi
     if printf '%s' "$__out" | grep -qi forbidden; then
       emit_error rbac "$__d read denied: $__out"
     fi
-    __out=""
+    if printf '%s' "$__out" | grep -qE 'NotFound|not found'; then
+      __out=""; __rc=0; break
+    fi
+    [[ "$__try" == 1 ]] && sleep 2
+  done
+  if [[ "$__rc" != 0 ]]; then
+    emit_error transport "$__d read failed (evaluator-side): $__out"
   fi
   printf -v "$__v" '%s' "$__out"
 }

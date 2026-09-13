@@ -39,14 +39,26 @@ finish() {
 
 namespace="bench"
 
-get() { # get <var> <desc> <kubectl args...> : top-level read; denied => emit_error
+get() { # get <var> <desc> <kubectl args...> : STRICT top-level read
+  # A transport/API failure is an EVALUATOR fault (status:error => the run
+  # grades INCOMPLETE), never a silently empty value that blames the agent.
+  # Forbidden reads are evaluator-fault by contract too (scenario RBAC must
+  # be provably sufficient). NotFound remains DATA: absent objects are what
+  # assertions observe. One bounded retry absorbs transient API hiccups.
   local __v="$1" __d="$2"; shift 2
-  local __out
-  if ! __out=$("${KUBECTL[@]}" "$@" 2>&1); then
+  local __out="" __rc=1 __try
+  for __try in 1 2; do
+    if __out=$("${KUBECTL[@]}" "$@" 2>&1); then __rc=0; break; fi
     if printf '%s' "$__out" | grep -qi forbidden; then
       emit_error rbac "$__d read denied: $__out"
     fi
-    __out=""
+    if printf '%s' "$__out" | grep -qE 'NotFound|not found'; then
+      __out=""; __rc=0; break
+    fi
+    [[ "$__try" == 1 ]] && sleep 2
+  done
+  if [[ "$__rc" != 0 ]]; then
+    emit_error transport "$__d read failed (evaluator-side): $__out"
   fi
   printf -v "$__v" '%s' "$__out"
 }
@@ -68,18 +80,18 @@ fi
 
 # --- the repaired policy: narrow backend-only target ---------------------
 get sel_app "allow-frontend-access" get networkpolicy allow-frontend-access -n "$namespace" -o jsonpath='{.spec.podSelector.matchLabels.app}'
-sel_expr="$("${KUBECTL[@]}" get networkpolicy allow-frontend-access -n "$namespace" -o jsonpath='{range .spec.podSelector.matchExpressions[*]}x{end}' 2>/dev/null || true)"
-from_app="$("${KUBECTL[@]}" get networkpolicy allow-frontend-access -n "$namespace" -o jsonpath='{.spec.ingress[0].from[0].podSelector.matchLabels.app}' 2>/dev/null || true)"
-port="$("${KUBECTL[@]}" get networkpolicy allow-frontend-access -n "$namespace" -o jsonpath='{.spec.ingress[0].ports[0].port}' 2>/dev/null || true)"
+get sel_expr "get networkpolicy read" get networkpolicy allow-frontend-access -n "$namespace" -o jsonpath='{range .spec.podSelector.matchExpressions[*]}x{end}'
+get from_app "get networkpolicy read" get networkpolicy allow-frontend-access -n "$namespace" -o jsonpath='{.spec.ingress[0].from[0].podSelector.matchLabels.app}'
+get port "get networkpolicy read" get networkpolicy allow-frontend-access -n "$namespace" -o jsonpath='{.spec.ingress[0].ports[0].port}'
 check "allow-frontend-access selector still overbroad" "backend||frontend|80" "${sel_app:-}|${sel_expr:-}|${from_app:-}|${port:-}"
 
-dd_types="$("${KUBECTL[@]}" get networkpolicy default-deny -n "$namespace" -o jsonpath='{.spec.policyTypes[0]}' 2>/dev/null || true)"
-dd_sel="$("${KUBECTL[@]}" get networkpolicy default-deny -n "$namespace" -o jsonpath='{range .spec.podSelector.matchLabels[*]}x{end}' 2>/dev/null || true)"
-dd_ing="$("${KUBECTL[@]}" get networkpolicy default-deny -n "$namespace" -o jsonpath='{range .spec.ingress[*]}x{end}' 2>/dev/null || true)"
+get dd_types "get networkpolicy read" get networkpolicy default-deny -n "$namespace" -o jsonpath='{.spec.policyTypes[0]}'
+get dd_sel "get networkpolicy read" get networkpolicy default-deny -n "$namespace" -o jsonpath='{range .spec.podSelector.matchLabels[*]}x{end}'
+get dd_ing "get networkpolicy read" get networkpolicy default-deny -n "$namespace" -o jsonpath='{range .spec.ingress[*]}x{end}'
 check "default-deny changed" "Ingress||" "${dd_types:-}|${dd_sel:-}|${dd_ing:-}"
 
-bd_sel="$("${KUBECTL[@]}" get networkpolicy allow-backend-to-db -n "$namespace" -o jsonpath='{.spec.podSelector.matchLabels.app}' 2>/dev/null || true)"
-bd_from="$("${KUBECTL[@]}" get networkpolicy allow-backend-to-db -n "$namespace" -o jsonpath='{.spec.ingress[0].from[0].podSelector.matchLabels.app}' 2>/dev/null || true)"
+get bd_sel "get networkpolicy read" get networkpolicy allow-backend-to-db -n "$namespace" -o jsonpath='{.spec.podSelector.matchLabels.app}'
+get bd_from "get networkpolicy read" get networkpolicy allow-backend-to-db -n "$namespace" -o jsonpath='{.spec.ingress[0].from[0].podSelector.matchLabels.app}'
 check "allow-backend-to-db changed" "database|backend" "${bd_sel:-}|${bd_from:-}"
 
 # --- EFFECTIVE connectivity (readiness-encoded probes) -------------------
@@ -87,17 +99,17 @@ for line in "probe-frontend-to-backend|probe-frontend-to-backend not connected" 
             "probe-backend-to-database|probe-backend-to-database not connected" \
             "probe-frontend-to-database|probe-frontend-to-database not blocked"; do
   name="${line%%|*}"; msg="${line##*|}"
-  ready="$("${KUBECTL[@]}" get deployment "$name" -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}' 2>/dev/null || true)"
+  get ready "get deployment read" get deployment "$name" -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}'
   check "$msg" "1/1" "$ready"
 done
 
 # --- workloads and services untouched (no label laundering) --------------
 for t in frontend backend database; do
-  labels="$("${KUBECTL[@]}" get deployment "$t" -n "$namespace" -o jsonpath="{.spec.template.metadata.labels.app},{.spec.template.metadata.labels.tier}" 2>/dev/null || true)"
+  get labels "get deployment read" get deployment "$t" -n "$namespace" -o jsonpath="{.spec.template.metadata.labels.app},{.spec.template.metadata.labels.tier}"
   check "$t deployment labels changed" "$t,$t" "${labels:-}"
-  image="$("${KUBECTL[@]}" get deployment "$t" -n "$namespace" -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || true)"
+  get image "get deployment read" get deployment "$t" -n "$namespace" -o jsonpath='{.spec.template.spec.containers[0].image}'
   check "$t deployment image changed" "nginx:1.27-alpine" "$image"
-  ready="$("${KUBECTL[@]}" get deployment "$t" -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}' 2>/dev/null || true)"
+  get ready "get deployment read" get deployment "$t" -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}'
   check "$t deployment is not ready" "1/1" "$ready"
   eps="$("${KUBECTL[@]}" get endpoints "$t" -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}' 2>/dev/null | wc -c | tr -d ' ')"
   check "$t service endpoints wrong population" "1" "${eps:-0}"

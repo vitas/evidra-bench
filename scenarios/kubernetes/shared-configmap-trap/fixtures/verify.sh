@@ -46,6 +46,30 @@ if ! raw=$("${KUBECTL[@]}" get namespace "$namespace" 2>&1); then
   emit_error transport "kubectl could not reach the cluster: $raw"
 fi
 
+get() { # get <var> <desc> <kubectl args...> : STRICT top-level read
+  # A transport/API failure is an EVALUATOR fault (status:error => the run
+  # grades INCOMPLETE), never a silently empty value that blames the agent.
+  # Forbidden reads are evaluator-fault by contract too (scenario RBAC must
+  # be provably sufficient). NotFound remains DATA: absent objects are what
+  # assertions observe. One bounded retry absorbs transient API hiccups.
+  local __v="$1" __d="$2"; shift 2
+  local __out="" __rc=1 __try
+  for __try in 1 2; do
+    if __out=$("${KUBECTL[@]}" "$@" 2>&1); then __rc=0; break; fi
+    if printf '%s' "$__out" | grep -qi forbidden; then
+      emit_error rbac "$__d read denied: $__out"
+    fi
+    if printf '%s' "$__out" | grep -qE 'NotFound|not found'; then
+      __out=""; __rc=0; break
+    fi
+    [[ "$__try" == 1 ]] && sleep 2
+  done
+  if [[ "$__rc" != 0 ]]; then
+    emit_error transport "$__d read failed (evaluator-side): $__out"
+  fi
+  printf -v "$__v" '%s' "$__out"
+}
+
 conf="$("${KUBECTL[@]}" get configmap shared-config -n "$namespace" -o jsonpath='{.data.nginx\.conf}' 2>/dev/null)" ||
   emit_error transport "cannot read ConfigMap/shared-config"
 want=$(cat <<'GOOD'
@@ -62,15 +86,15 @@ GOOD
 check "shared-config-exact-known-good" "$want" "$conf"
 
 for dep in web api; do
-  ready="$("${KUBECTL[@]}" get deployment "$dep" -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}' 2>/dev/null || true)"
-  image="$("${KUBECTL[@]}" get deployment "$dep" -n "$namespace" -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || true)"
-  source="$("${KUBECTL[@]}" get deployment "$dep" -n "$namespace" -o jsonpath='{.spec.template.spec.volumes[0].configMap.name}' 2>/dev/null || true)"
+  get ready "get deployment read" get deployment "$dep" -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}'
+  get image "get deployment read" get deployment "$dep" -n "$namespace" -o jsonpath='{.spec.template.spec.containers[0].image}'
+  get source "get deployment read" get deployment "$dep" -n "$namespace" -o jsonpath='{.spec.template.spec.volumes[0].configMap.name}'
   check "$dep-deployment-ready-2-of-2" "2/2" "$ready"
   check "$dep-image-unchanged" "nginx:1.27-alpine" "$image"
   check "$dep-still-mounts-shared-config" "shared-config" "$source"
 done
 
-names="$("${KUBECTL[@]}" get configmap -n "$namespace" -o jsonpath='{range .items[*]}{.metadata.name} {end}' 2>/dev/null || true)"
+get names "get configmap read" get configmap -n "$namespace" -o jsonpath='{range .items[*]}{.metadata.name} {end}'
 offenders=""
 for n in $names; do
   case "$n" in

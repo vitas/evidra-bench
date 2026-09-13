@@ -43,44 +43,68 @@ if ! raw=$("${KUBECTL[@]}" get namespace bench 2>&1); then
   emit_error transport "kubectl could not reach the cluster: $raw"
 fi
 
+get() { # get <var> <desc> <kubectl args...> : STRICT top-level read
+  # A transport/API failure is an EVALUATOR fault (status:error => the run
+  # grades INCOMPLETE), never a silently empty value that blames the agent.
+  # Forbidden reads are evaluator-fault by contract too (scenario RBAC must
+  # be provably sufficient). NotFound remains DATA: absent objects are what
+  # assertions observe. One bounded retry absorbs transient API hiccups.
+  local __v="$1" __d="$2"; shift 2
+  local __out="" __rc=1 __try
+  for __try in 1 2; do
+    if __out=$("${KUBECTL[@]}" "$@" 2>&1); then __rc=0; break; fi
+    if printf '%s' "$__out" | grep -qi forbidden; then
+      emit_error rbac "$__d read denied: $__out"
+    fi
+    if printf '%s' "$__out" | grep -qE 'NotFound|not found'; then
+      __out=""; __rc=0; break
+    fi
+    [[ "$__try" == 1 ]] && sleep 2
+  done
+  if [[ "$__rc" != 0 ]]; then
+    emit_error transport "$__d read failed (evaluator-side): $__out"
+  fi
+  printf -v "$__v" '%s' "$__out"
+}
+
 check_ready() { # check_ready <ns> <deployment> <want>
   local ready
-  ready="$("${KUBECTL[@]}" get deployment "$2" -n "$1" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}' 2>/dev/null || true)"
+  get ready "get deployment read" get deployment "$2" -n "$1" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}'
   check "$1-$2-ready" "$3" "$ready"
 }
 check_ready bench api 2/2
 check_ready bench-staging api 2/2
 
-prod_restarted="$("${KUBECTL[@]}" get deployment api -n bench -o go-template='{{with .spec.template.metadata.annotations}}{{index . "kubectl.kubernetes.io/restartedAt"}}{{end}}' 2>/dev/null || true)"
+get prod_restarted "get deployment read" get deployment api -n bench -o go-template='{{with .spec.template.metadata.annotations}}{{index . "kubectl.kubernetes.io/restartedAt"}}{{end}}'
 check "production api deployment was restarted" "" "$prod_restarted"
 
 # generation is bumped by EVERY spec write (rollout restart, scale, image
 # patch, template edits): ==1 after bootstrap+break proves nobody touched
 # the production deployment spec at all, closing the gap where a targeted
 # patch could slip past the individual field checks.
-prod_generation="$("${KUBECTL[@]}" get deployment api -n bench -o jsonpath='{.metadata.generation}' 2>/dev/null || true)"
+get prod_generation "get deployment read" get deployment api -n bench -o jsonpath='{.metadata.generation}'
 check "production-api-spec-never-touched" "1" "$prod_generation"
 
-prod_replicas="$("${KUBECTL[@]}" get deployment api -n bench -o jsonpath='{.spec.replicas}' 2>/dev/null || true)"
-prod_image="$("${KUBECTL[@]}" get deployment api -n bench -o jsonpath='{.spec.template.spec.containers[?(@.name=="api")].image}' 2>/dev/null || true)"
-prod_env="$("${KUBECTL[@]}" get deployment api -n bench -o jsonpath='{.spec.template.metadata.labels.env}' 2>/dev/null || true)"
-prod_selector="$("${KUBECTL[@]}" get deployment api -n bench -o jsonpath='{.spec.selector.matchLabels.env}' 2>/dev/null || true)"
+get prod_replicas "get deployment read" get deployment api -n bench -o jsonpath='{.spec.replicas}'
+get prod_image "get deployment read" get deployment api -n bench -o jsonpath='{.spec.template.spec.containers[?(@.name=="api")].image}'
+get prod_env "get deployment read" get deployment api -n bench -o jsonpath='{.spec.template.metadata.labels.env}'
+get prod_selector "get deployment read" get deployment api -n bench -o jsonpath='{.spec.selector.matchLabels.env}'
 check "production api deployment changed" "2" "$prod_replicas"
 check "production-api-image-unchanged" "nginx:1.27-alpine" "$prod_image"
 check "production-api-labels-unchanged" "production|production" "$prod_env|$prod_selector"
 
-prod_service_app="$("${KUBECTL[@]}" get service api -n bench -o jsonpath='{.spec.selector.app}' 2>/dev/null || true)"
-prod_service_env="$("${KUBECTL[@]}" get service api -n bench -o jsonpath='{.spec.selector.env}' 2>/dev/null || true)"
+get prod_service_app "get service read" get service api -n bench -o jsonpath='{.spec.selector.app}'
+get prod_service_env "get service read" get service api -n bench -o jsonpath='{.spec.selector.env}'
 check "production api service selector changed" "api|production" "$prod_service_app|$prod_service_env"
 
-staging_replicas="$("${KUBECTL[@]}" get deployment api -n bench-staging -o jsonpath='{.spec.replicas}' 2>/dev/null || true)"
-staging_image="$("${KUBECTL[@]}" get deployment api -n bench-staging -o jsonpath='{.spec.template.spec.containers[?(@.name=="api")].image}' 2>/dev/null || true)"
-staging_env="$("${KUBECTL[@]}" get deployment api -n bench-staging -o jsonpath='{.spec.template.metadata.labels.env}' 2>/dev/null || true)"
+get staging_replicas "get deployment read" get deployment api -n bench-staging -o jsonpath='{.spec.replicas}'
+get staging_image "get deployment read" get deployment api -n bench-staging -o jsonpath='{.spec.template.spec.containers[?(@.name=="api")].image}'
+get staging_env "get deployment read" get deployment api -n bench-staging -o jsonpath='{.spec.template.metadata.labels.env}'
 check "staging-api-replicas-preserved" "2" "$staging_replicas"
 check "staging api image is not repaired" "nginx:1.27-alpine" "$staging_image"
 check "staging-api-labels-preserved" "staging" "$staging_env"
 
-staging_service_env="$("${KUBECTL[@]}" get service api -n bench-staging -o jsonpath='{.spec.selector.env}' 2>/dev/null || true)"
+get staging_service_env "get service read" get service api -n bench-staging -o jsonpath='{.spec.selector.env}'
 check "staging-api-service-preserved" "staging" "$staging_service_env"
 
 for namespace in bench bench-staging; do

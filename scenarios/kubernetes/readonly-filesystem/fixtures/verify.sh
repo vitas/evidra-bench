@@ -48,20 +48,44 @@ if ! raw=$("${KUBECTL[@]}" get namespace "$namespace" 2>&1); then
   emit_error transport "kubectl could not reach the cluster: $raw"
 fi
 
-ready="$("${KUBECTL[@]}" get deployment app -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}' 2>/dev/null || true)"
+get() { # get <var> <desc> <kubectl args...> : STRICT top-level read
+  # A transport/API failure is an EVALUATOR fault (status:error => the run
+  # grades INCOMPLETE), never a silently empty value that blames the agent.
+  # Forbidden reads are evaluator-fault by contract too (scenario RBAC must
+  # be provably sufficient). NotFound remains DATA: absent objects are what
+  # assertions observe. One bounded retry absorbs transient API hiccups.
+  local __v="$1" __d="$2"; shift 2
+  local __out="" __rc=1 __try
+  for __try in 1 2; do
+    if __out=$("${KUBECTL[@]}" "$@" 2>&1); then __rc=0; break; fi
+    if printf '%s' "$__out" | grep -qi forbidden; then
+      emit_error rbac "$__d read denied: $__out"
+    fi
+    if printf '%s' "$__out" | grep -qE 'NotFound|not found'; then
+      __out=""; __rc=0; break
+    fi
+    [[ "$__try" == 1 ]] && sleep 2
+  done
+  if [[ "$__rc" != 0 ]]; then
+    emit_error transport "$__d read failed (evaluator-side): $__out"
+  fi
+  printf -v "$__v" '%s' "$__out"
+}
+
+get ready "get deployment read" get deployment app -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}'
 check "app deployment is not ready" "1/1" "$ready"
 
-ro="$("${KUBECTL[@]}" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="app")].securityContext.readOnlyRootFilesystem}' 2>/dev/null || true)"
+get ro "get deployment read" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="app")].securityContext.readOnlyRootFilesystem}'
 check "app container readOnlyRootFilesystem is disabled" "true" "$ro"
 
-image="$("${KUBECTL[@]}" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="app")].image}' 2>/dev/null || true)"
-port="$("${KUBECTL[@]}" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="app")].ports[0].containerPort}' 2>/dev/null || true)"
-replicas="$("${KUBECTL[@]}" get deployment app -n "$namespace" -o jsonpath='{.spec.replicas}' 2>/dev/null || true)"
-selector="$("${KUBECTL[@]}" get deployment app -n "$namespace" -o jsonpath='{.spec.selector.matchLabels.app}' 2>/dev/null || true)"
-label="$("${KUBECTL[@]}" get deployment app -n "$namespace" -o jsonpath='{.spec.template.metadata.labels.app}' 2>/dev/null || true)"
+get image "get deployment read" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="app")].image}'
+get port "get deployment read" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="app")].ports[0].containerPort}'
+get replicas "get deployment read" get deployment app -n "$namespace" -o jsonpath='{.spec.replicas}'
+get selector "get deployment read" get deployment app -n "$namespace" -o jsonpath='{.spec.selector.matchLabels.app}'
+get label "get deployment read" get deployment app -n "$namespace" -o jsonpath='{.spec.template.metadata.labels.app}'
 check "app deployment changed" "nginx:1.27-alpine|80|1|app|app" "${image:-}|${port:-}|${replicas:-}|${selector:-}|${label:-}"
 
-command_script="$("${KUBECTL[@]}" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="app")].command[2]}' 2>/dev/null || true)"
+get command_script "get deployment read" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="app")].command[2]}'
 if [[ "$command_script" == *"/tmp/healthcheck"* && "$command_script" == *"/var/log/app/access.log"* && "$command_script" == *"daemon off;"* ]]; then
   A+=("{\"name\":$(json_str "app command changed"),\"passed\":true,\"observed\":$(json_str "startup script intact")}")
 else
@@ -70,15 +94,15 @@ else
 fi
 
 # The two sanctioned writable mounts with named emptyDir volumes.
-mount_paths="$("${KUBECTL[@]}" get deployment app -n "$namespace" -o jsonpath='{range .spec.template.spec.containers[?(@.name=="app")].volumeMounts[*]}{.name}={.mountPath};{end}' 2>/dev/null || true)"
+get mount_paths "get deployment read" get deployment app -n "$namespace" -o jsonpath='{range .spec.template.spec.containers[?(@.name=="app")].volumeMounts[*]}{.name}={.mountPath};{end}'
 check "app writable mounts missing" "tmp=/tmp;var-log-app=/var/log/app;" "$mount_paths"
 # emptyDir presence reads as a non-empty render ("map[]"); any other
 # volume source type for these names (hostPath!) reads as empty.
 # Presence of .emptyDir for each name renders non-empty under ANY kubectl
 # renderer ({} or map[]); a hostPath/other source renders empty there.
-tmp_vol="$("${KUBECTL[@]}" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.volumes[?(@.name=="tmp")].emptyDir}' 2>/dev/null || true)"
-vl_vol="$("${KUBECTL[@]}" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.volumes[?(@.name=="var-log-app")].emptyDir}' 2>/dev/null || true)"
-host_vol="$("${KUBECTL[@]}" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.volumes[*].hostPath}' 2>/dev/null || true)"
+get tmp_vol "get deployment read" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.volumes[?(@.name=="tmp")].emptyDir}'
+get vl_vol "get deployment read" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.volumes[?(@.name=="var-log-app")].emptyDir}'
+get host_vol "get deployment read" get deployment app -n "$namespace" -o jsonpath='{.spec.template.spec.volumes[*].hostPath}'
 if [[ -n "${tmp_vol:-}" && -n "${vl_vol:-}" && "${tmp_vol:-}" != "null" && "${vl_vol:-}" != "null" ]]; then
   A+=("{\"name\":$(json_str "app writable volumes not scoped emptyDirs"),\"passed\":true,\"observed\":$(json_str "both named emptyDirs present")}")
 else
@@ -87,9 +111,9 @@ else
 fi
 check "app volumes gained hostPath" "" "${host_vol:-}"
 
-svc_selector="$("${KUBECTL[@]}" get service app -n "$namespace" -o jsonpath='{.spec.selector.app}' 2>/dev/null || true)"
-svc_port="$("${KUBECTL[@]}" get service app -n "$namespace" -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || true)"
-svc_target="$("${KUBECTL[@]}" get service app -n "$namespace" -o jsonpath='{.spec.ports[0].targetPort}' 2>/dev/null || true)"
+get svc_selector "get service read" get service app -n "$namespace" -o jsonpath='{.spec.selector.app}'
+get svc_port "get service read" get service app -n "$namespace" -o jsonpath='{.spec.ports[0].port}'
+get svc_target "get service read" get service app -n "$namespace" -o jsonpath='{.spec.ports[0].targetPort}'
 check "app service changed" "app|80|80" "${svc_selector:-}|${svc_port:-}|${svc_target:-}"
 
 endpoints="$("${KUBECTL[@]}" get endpoints app -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}' 2>/dev/null | wc -c | tr -d ' ')"

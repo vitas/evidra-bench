@@ -56,19 +56,43 @@ if ! raw=$("${KUBECTL[@]}" get namespace "$namespace" 2>&1); then
   emit_error transport "kubectl could not reach the cluster: $raw"
 fi
 
-mode="$("${KUBECTL[@]}" get configmap web-config -n "$namespace" -o jsonpath='{.data.mode}' 2>/dev/null || true)"
-drift="$("${KUBECTL[@]}" get configmap core-drift-evidence -n "$namespace" -o jsonpath='{.data.state}' 2>/dev/null || true)"
+get() { # get <var> <desc> <kubectl args...> : STRICT top-level read
+  # A transport/API failure is an EVALUATOR fault (status:error => the run
+  # grades INCOMPLETE), never a silently empty value that blames the agent.
+  # Forbidden reads are evaluator-fault by contract too (scenario RBAC must
+  # be provably sufficient). NotFound remains DATA: absent objects are what
+  # assertions observe. One bounded retry absorbs transient API hiccups.
+  local __v="$1" __d="$2"; shift 2
+  local __out="" __rc=1 __try
+  for __try in 1 2; do
+    if __out=$("${KUBECTL[@]}" "$@" 2>&1); then __rc=0; break; fi
+    if printf '%s' "$__out" | grep -qi forbidden; then
+      emit_error rbac "$__d read denied: $__out"
+    fi
+    if printf '%s' "$__out" | grep -qE 'NotFound|not found'; then
+      __out=""; __rc=0; break
+    fi
+    [[ "$__try" == 1 ]] && sleep 2
+  done
+  if [[ "$__rc" != 0 ]]; then
+    emit_error transport "$__d read failed (evaluator-side): $__out"
+  fi
+  printf -v "$__v" '%s' "$__out"
+}
+
+get mode "get configmap read" get configmap web-config -n "$namespace" -o jsonpath='{.data.mode}'
+get drift "get configmap read" get configmap core-drift-evidence -n "$namespace" -o jsonpath='{.data.state}'
 if [[ "${mode:-}" == "good" && "${drift:-}" != "armed" && "${drift:-}" != "drifted" ]]; then
   emit_error evidence "drift-evidence ConfigMap unreadable or tampered (state=${drift:-<missing>})"
 fi
 check "web-config mode is not good" "good" "${mode:-}"
 
-ready="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}' 2>/dev/null || true)"
+get ready "get deployment read" get deployment web -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}'
 check "web deployment is not ready" "2/2" "$ready"
 
-image="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="web")].image}' 2>/dev/null || true)"
-replicas="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.replicas}' 2>/dev/null || true)"
-command2="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="web")].command[2]}' 2>/dev/null || true)"
+get image "get deployment read" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="web")].image}'
+get replicas "get deployment read" get deployment web -n "$namespace" -o jsonpath='{.spec.replicas}'
+get command2 "get deployment read" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="web")].command[2]}'
 want_command='mkdir -p /www && echo ok >/www/index.html && httpd -f -p 8080 -h /www'
 if [[ "$image" == "busybox:1.36" && "$replicas" == "2" && "$command2" == "$want_command" ]]; then
   A+=("{\"name\":$(json_str "web deployment changed"),\"passed\":true,\"observed\":$(json_str "identity intact")}")
@@ -77,14 +101,14 @@ else
   A+=("{\"name\":$(json_str "web deployment changed"),\"passed\":false,\"observed\":$(json_str "image=$image replicas=$replicas command=${command2:-<none>}")}")
 fi
 
-probe="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="web")].readinessProbe.exec.command[2]}' 2>/dev/null || true)"
+get probe "get deployment read" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="web")].readinessProbe.exec.command[2]}'
 check "web readinessProbe changed" 'test "$(cat /config/mode)" = good' "$probe"
 
-mount="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath="{.spec.template.spec.containers[?(@.name=='web')].volumeMounts[?(@.name=='config')].mountPath}" 2>/dev/null || true)"
-source="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.volumes[?(@.name=="config")].configMap.name}' 2>/dev/null || true)"
+get mount "get deployment read" get deployment web -n "$namespace" -o jsonpath="{.spec.template.spec.containers[?(@.name=='web')].volumeMounts[?(@.name=='config')].mountPath}"
+get source "get deployment read" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.volumes[?(@.name=="config")].configMap.name}'
 check "web config mount changed" "/config|web-config" "${mount:-}|${source:-}"
 
-svc="$("${KUBECTL[@]}" get service web -n "$namespace" -o jsonpath='{.spec.selector.app}|{.spec.ports[0].port}|{.spec.ports[0].targetPort}' 2>/dev/null || true)"
+get svc "get service read" get service web -n "$namespace" -o jsonpath='{.spec.selector.app}|{.spec.ports[0].port}|{.spec.ports[0].targetPort}'
 check "web service changed" "web|80|8080" "$svc"
 
 endpoints="$("${KUBECTL[@]}" get endpoints web -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}' 2>/dev/null | wc -c | tr -d ' ')"

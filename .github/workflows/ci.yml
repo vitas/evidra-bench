@@ -204,9 +204,32 @@ jobs:
       - name: Build runner image
         run: docker build -f bench/Dockerfile.bench -t evidra-bench:contract-ci bench
 
+      - name: Core control scripts static test
+        if: always()
+        working-directory: bench
+        run: bash tests/contract/test_core_control_scripts.sh
+
+      - name: Verifier strict-read contract test
+        if: always()
+        working-directory: bench
+        run: bash tests/contract/test_verifier_strict_reads.sh
+
       - name: Contract matrix (kind, 12 cases x 3 controls)
         working-directory: bench
         run: bash tests/contract/run_kubernetes_core_contract.sh kind
+
+      # The contract gate salvages per-run machine truth (run.json,
+      # verifier.json, failure-autopsy.json, result.json) to /tmp when an
+      # evaluation misgrades. Without an upload that evidence dies with the
+      # runner - every INCOMPLETE postmortem would be guesswork.
+      - name: Upload contract forensics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-gate-forensics-kind-${{ github.run_id }}
+          path: /tmp/core-gate-forensics-*
+          if-no-files-found: ignore
+          retention-days: 14
 
   core-contract-k3d:
     name: Kubernetes core contract matrix (k3d)
@@ -226,9 +249,32 @@ jobs:
       - name: Build runner image
         run: docker build -f bench/Dockerfile.bench -t evidra-bench:contract-ci bench
 
+      - name: Core control scripts static test
+        if: always()
+        working-directory: bench
+        run: bash tests/contract/test_core_control_scripts.sh
+
+      - name: Verifier strict-read contract test
+        if: always()
+        working-directory: bench
+        run: bash tests/contract/test_verifier_strict_reads.sh
+
       - name: Contract matrix (k3d, 12 cases x 3 controls)
         working-directory: bench
         run: bash tests/contract/run_kubernetes_core_contract.sh k3d
+
+      # The contract gate salvages per-run machine truth (run.json,
+      # verifier.json, failure-autopsy.json, result.json) to /tmp when an
+      # evaluation misgrades. Without an upload that evidence dies with the
+      # runner - every INCOMPLETE postmortem would be guesswork.
+      - name: Upload contract forensics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-gate-forensics-k3d-${{ github.run_id }}
+          path: /tmp/core-gate-forensics-*
+          if-no-files-found: ignore
+          retention-days: 14
 
 
   docker-local-model-smoke:
