@@ -56,6 +56,22 @@ cleanup() {
     echo "LEAKED clusters after contract run: $leaked" >&2
     exit 1
   fi
+  # Forensic insurance: when an evaluation failed, salvage every run's
+  # machine-readable truth (run.json/verifier.json/failure-autopsy.json)
+  # to a fixed directory BEFORE deleting the workspace. The suites
+  # themselves stay lean; this only fires on the path that needed
+  # debugging anyway. EVIDRA_CORE_KEEP=1 skips the delete entirely.
+  if [[ "${EVIDRA_CORE_KEEP:-0}" == "1" ]]; then
+    echo "EVIDRA_CORE_KEEP=1: workspace preserved at $work" >&2
+    return
+  fi
+  if [[ -n "${eval_failed:-}" ]]; then
+    forensics=/tmp/core-gate-forensics-$(basename "$work")
+    mkdir -p "$forensics"
+    find "$work" \( -name run.json -o -name verifier.json -o -name failure-autopsy.json \) \
+      -exec cp {} --parents "$forensics" \; 2>/dev/null || true
+    echo "failed evaluation artifacts salvaged to $forensics" >&2
+  fi
   rm -rf "$work"
 }
 trap cleanup EXIT
@@ -78,8 +94,9 @@ for r in $(seq 1 "$repeat"); do
       --output "$out"; then
       echo "note: $mode control exited 0"
     fi
-    [[ -f "$out/result.json" ]] || { echo "no result.json for $mode" >&2; exit 1; }
-    python3 "$root/tests/contract/check_suite_verdicts.py" "$out/result.json" "$mode"
+    [[ -f "$out/result.json" ]] || { echo "no result.json for $mode" >&2; eval_failed=1; exit 1; }
+    python3 "$root/tests/contract/check_suite_verdicts.py" "$out/result.json" "$mode" \
+      || { eval_failed=1; exit 1; }
     total=$((total + 12))
   done
 done
