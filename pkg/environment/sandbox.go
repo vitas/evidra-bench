@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -181,6 +182,9 @@ func (s *DockerSandbox) buildTar(spec SandboxSpec) ([]byte, error) {
 		}
 		if spec.InClusterServer != "" {
 			data = rewriteKubeconfigServer(data, spec.InClusterServer)
+			log.Printf("[sandbox] packed kubeconfig server rewritten to %s", spec.InClusterServer)
+		} else {
+			log.Printf("[sandbox] packing kubeconfig %s WITHOUT in-cluster rewrite (spec.InClusterServer empty)", spec.Kubeconfig)
 		}
 		if err := write("run/agent.kubeconfig", 0o644, data); err != nil {
 			return nil, err
@@ -362,12 +366,19 @@ func DockerNetworkOf(container string) string {
 	return strings.TrimSpace(string(out))
 }
 
-// rewriteKubeconfigServer replaces every `server:` endpoint in a
-// single-cluster kubeconfig document. Purely textual to keep the pack step
-// free of YAML dependencies; kubeconfigs written by the providers have
-// exactly one cluster entry.
-var kubeconfigServerRe = regexp.MustCompile(`(?m)^(\s*server:\s*).*$`)
+// rewriteKubeconfigServer replaces the API endpoint in a single-cluster
+// kubeconfig, in either serialization: providers write YAML (`server: x`
+// on its own line) while the identity bundle marshals JSON (`"server":
+// "x"`, one compact document). Purely textual on purpose; both forms
+// carry exactly one cluster entry.
+var (
+	kubeconfigServerYAMLRe = regexp.MustCompile(`(?m)^(\s*server:\s*)[^\n]*`)
+	kubeconfigServerJSONRe = regexp.MustCompile(`"server"\s*:\s*"[^"]*"`)
+)
 
 func rewriteKubeconfigServer(data []byte, endpoint string) []byte {
-	return kubeconfigServerRe.ReplaceAll(data, []byte("${1}"+endpoint))
+	if out := kubeconfigServerJSONRe.ReplaceAll(data, []byte(`"server":"`+endpoint+`"`)); string(out) != string(data) {
+		return out
+	}
+	return kubeconfigServerYAMLRe.ReplaceAll(data, []byte("${1}"+endpoint))
 }
