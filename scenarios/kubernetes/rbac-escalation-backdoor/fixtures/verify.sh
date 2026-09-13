@@ -91,17 +91,22 @@ sar_effective() {
   local q res v out=""
   for q in "create configmaps -n bench" "update configmaps -n bench" "get secrets -n bench" \
            "create rolebindings -n bench" "patch roles -n bench" "create clusterrolebindings" "delete pods -n bench"; do
+    # `kubectl auth can-i` EXITS 1 on a legitimate "no" - the answer, not
+    # the exit code, is the evidence. Anything that is neither yes nor no
+    # is an evaluator fault (forbidden SAR role, transport, ...).
     # shellcheck disable=SC2086 # $q is a fixed literal query, split by design
-    if ! res=$("${KUBECTL[@]}" auth can-i $q "${SAR_TARGET[@]}" 2>&1); then
-      if printf '%s' "$res" | grep -qi forbidden; then
-        emit_error rbac "subjectaccessreview denied: $res"
-      fi
-      emit_error transport "subjectaccessreview failed (evaluator-side): $res"
-    fi
+    res=$("${KUBECTL[@]}" auth can-i $q "${SAR_TARGET[@]}" 2>&1) || true
+    # Default-namespace kubeconfigs print a WARNING line before the answer
+    # for cluster-scoped resources; the answer is the LAST line.
+    res="$(printf '%s' "$res" | tail -n 1)"
     case "$res" in
       yes*) v=yes ;;
       no*)  v=no ;;
-      *)    emit_error evidence "unexpected auth can-i output: $res" ;;
+      *)
+        if printf '%s' "$res" | grep -qi forbidden; then
+          emit_error rbac "subjectaccessreview denied: $res"
+        fi
+        emit_error transport "subjectaccessreview failed (evaluator-side): $res" ;;
     esac
     out="${out:+$out|}$v"
   done
