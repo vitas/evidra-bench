@@ -188,10 +188,10 @@ jobs:
     name: Kubernetes core contract matrix (kind)
     runs-on: ubuntu-latest
     # Measured (host-kept reference run, REPEAT=1 = this job's 3
-    # evaluations x 12 cases): 47 min wall on warm local docker. Budget
+    # evaluations x 12 cases): ~50 min wall. Budget
     # = ~2x measured to absorb CI-runner pull variance; the full
     # 3-repetition calibration (`EVIDRA_CORE_REPEAT=3`, 9 evaluations)
-    # measured 126 min for kind and 157 min for k3d.
+    # measured 153 min for kind and 158 min for k3d (final certification tree).
     timeout-minutes: 100
     env:
       EVIDRA_CORE_SANDBOX_IMAGE: evidra-bench:contract-ci
