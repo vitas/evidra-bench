@@ -89,7 +89,7 @@ spec:
             - sh
             - -c
             - |
-              SAFE="yes|yes|yes|no|no|no|no"
+              prev=""
               while true; do
                 r=""
                 for q in "update secrets/rbac-probe-result -n bench"                          "get configmaps -n bench"                          "get secrets -n bench"                          "create rolebindings -n bench"                          "patch roles -n bench"                          "create clusterrolebindings"                          "delete pods -n bench"; do
@@ -98,9 +98,17 @@ spec:
                   r="$r|$v"
                 done
                 r="${r#|}"
-                b64=$(printf '%s' "$r" | base64 | tr -d '\n')
-                kubectl patch secret rbac-probe-result -n bench \
-                  --type=merge -p "{\"data\":{\"result\":\"$b64\"}}" >/dev/null 2>&1 || true
+                # Publish only on TRANSITION. A steady writer to a snapshotted
+                # Secret races the 3s post-agent stability window and grades
+                # healthy runs INCOMPLETE (observed ~1 in 3 suite evaluations).
+                # can-i freshness is untouched (SSAR runs every 5s); the stored
+                # value only matters when it changes.
+                if [[ "$r" != "$prev" ]]; then
+                  b64=$(printf '%s' "$r" | base64 | tr -d '\n')
+                  kubectl patch secret rbac-probe-result -n bench \
+                    --type=merge -p "{\"data\":{\"result\":\"$b64\"}}" >/dev/null 2>&1 || true
+                  prev="$r"
+                fi
                 sleep 5
               done
           readinessProbe:
