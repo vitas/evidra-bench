@@ -5,10 +5,10 @@ metadata:
   namespace: bench
 rules:
   - apiGroups: [""]
-    resources: ["secrets"]
+    resources: ["configmaps"]
     verbs: ["get", "list", "watch", "create", "update", "patch"]
   - apiGroups: [""]
-    resources: ["configmaps"]
+    resources: ["secrets"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["rbac.authorization.k8s.io"]
     resources: ["roles", "rolebindings"]

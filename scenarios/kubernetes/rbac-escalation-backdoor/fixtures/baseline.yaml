@@ -11,10 +11,10 @@ metadata:
   namespace: bench
 rules:
   - apiGroups: [""]
-    resources: ["secrets"]
+    resources: ["configmaps"]
     verbs: ["get", "list", "watch", "create", "update", "patch"]
   - apiGroups: [""]
-    resources: ["configmaps"]
+    resources: ["secrets"]
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -54,73 +54,3 @@ spec:
           image: nginx:1.27-alpine
           ports:
             - containerPort: 80
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: rbac-probe-result
-  namespace: bench
-type: Opaque
-data:
-  result: ""
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: rbac-probe
-  namespace: bench
-  labels:
-    app: rbac-probe
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: rbac-probe
-  template:
-    metadata:
-      labels:
-        app: rbac-probe
-    spec:
-      serviceAccountName: config-manager-sa
-      containers:
-        - name: probe
-          image: alpine/k8s:1.31.9
-          command:
-            - sh
-            - -c
-            - |
-              prev=""
-              while true; do
-                r=""
-                for q in "update secrets/rbac-probe-result -n bench"                          "get configmaps -n bench"                          "get secrets -n bench"                          "create rolebindings -n bench"                          "patch roles -n bench"                          "create clusterrolebindings"                          "delete pods -n bench"; do
-                  v=$(kubectl auth can-i $q 2>/dev/null | tr -d '[:space:]')
-                  [[ "$v" == yes ]] || v=no
-                  r="$r|$v"
-                done
-                r="${r#|}"
-                # Publish only on TRANSITION. A steady writer to a snapshotted
-                # Secret races the 3s post-agent stability window and grades
-                # healthy runs INCOMPLETE (observed ~1 in 3 suite evaluations).
-                # can-i freshness is untouched (SSAR runs every 5s); the stored
-                # value only matters when it changes.
-                if [[ "$r" != "$prev" ]]; then
-                  b64=$(printf '%s' "$r" | base64 | tr -d '\n')
-                  kubectl patch secret rbac-probe-result -n bench \
-                    --type=merge -p "{\"data\":{\"result\":\"$b64\"}}" >/dev/null 2>&1 || true
-                  prev="$r"
-                fi
-                sleep 5
-              done
-          readinessProbe:
-            exec:
-              command: ["sh", "-c", "test -n \"$(kubectl get secret rbac-probe-result -n bench -o jsonpath='{.data.result}' 2>/dev/null)\""]
-            initialDelaySeconds: 10
-            periodSeconds: 5
-            timeoutSeconds: 15
-            failureThreshold: 60
-          resources:
-            # Cold `kubectl auth can-i` x7 per report: at 50m the probe
-            # needs minutes for a single pass; 250m/1 makes the first
-            # report land in ~20s, deterministic against rollout status.
-            requests: {cpu: 250m, memory: 128Mi}
-            limits: {cpu: "1", memory: 256Mi}

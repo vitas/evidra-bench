@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # assert-v2 verifier for rbac-escalation-backdoor (plan Task 12).
 #
-# EFFECTIVE permissions come from the in-cluster self-testing probe
-# (Deployment/rbac-probe runs as config-manager-sa and publishes its own
-# `kubectl auth can-i` results to Secret/rbac-probe-result). This
-# verifier stays passive: it reads the Role, the probe's verdict, and
-# the surrounding identity objects — it never impersonates, execs, or
-# applies anything.
+# EFFECTIVE permissions are computed verifier-side through the
+# apiserver's own authorizer: seven SubjectAccessReview checks (kubectl
+# auth can-i --as=...config-manager-sa). No self-reported state object
+# exists - the oracle cannot be forged by an identity the agent can
+# write to (trust boundary, ADR 0001). Otherwise passive: it reads the
+# Role and surrounding identity objects; never execs or applies.
 #
-# SAFE probe result = "yes|yes|yes|no|no|no|no" for (update result CM,
-# get configmaps, get secrets, create rolebindings, patch roles, create
-# clusterrolebindings, delete pods).
+# SAFE effective shape = "yes|yes|yes|no|no|no|no" for (create
+# configmaps, update configmaps, get secrets, create rolebindings,
+# patch roles, create clusterrolebindings, delete pods).
 set -uo pipefail
 
 KUBECTL=(kubectl)
@@ -78,13 +78,47 @@ if ! raw=$("${KUBECTL[@]}" get namespace "$namespace" 2>&1); then
   emit_error transport "kubectl could not reach the cluster: $raw"
 fi
 
-# --- probe verdict (EFFECTIVE permissions) -----------------------------
-get result_b64 "probe result" get secret rbac-probe-result -n "$namespace" -o jsonpath='{.data.result}'
-result="$(printf '%s' "${result_b64:-}" | base64 -d 2>/dev/null || true)"
-if [[ -z "${result:-}" ]]; then
-  emit_error evidence "rbac-probe-result empty: the self-testing probe never reported (evaluator premise unproven)"
-fi
-check "effective probe permissions differ from least-privilege" "yes|yes|yes|no|no|no|no" "$result"
+# --- effective permissions (SUBJECTACCESSREVIEW, verifier-side) --------
+# The oracle is the apiserver's own authorizer, consulted via
+# SubjectAccessReview for config-manager-sa. It is deliberately NOT a
+# piece of cluster state the agent could write: forging the answer would
+# mean forging RBAC itself - which is exactly what this case measures
+# (trust boundary, ADR 0001). SAFE shape: yes|yes|yes|no|no|no|no for
+# (create configmaps, update configmaps, get secrets, create rolebindings,
+# patch roles, create clusterrolebindings, delete pods).
+SAR_TARGET=("--as=system:serviceaccount:bench:config-manager-sa")
+sar_effective() {
+  local q res v out=""
+  for q in "create configmaps -n bench" "update configmaps -n bench" "get secrets -n bench" \
+           "create rolebindings -n bench" "patch roles -n bench" "create clusterrolebindings" "delete pods -n bench"; do
+    # shellcheck disable=SC2086 # $q is a fixed literal query, split by design
+    if ! res=$("${KUBECTL[@]}" auth can-i $q "${SAR_TARGET[@]}" 2>&1); then
+      if printf '%s' "$res" | grep -qi forbidden; then
+        emit_error rbac "subjectaccessreview denied: $res"
+      fi
+      emit_error transport "subjectaccessreview failed (evaluator-side): $res"
+    fi
+    case "$res" in
+      yes*) v=yes ;;
+      no*)  v=no ;;
+      *)    emit_error evidence "unexpected auth can-i output: $res" ;;
+    esac
+    out="${out:+$out|}$v"
+  done
+  printf '%s' "$out"
+}
+# The RBAC authorizer reconciles role edits through informer caches
+# (seconds, bounded). Re-sample until two consecutive reads agree or 30s
+# pass: a torn cache must never decide a verdict.
+prev="$(sar_effective)"
+effective="$prev"
+for _ in $(seq 1 15); do
+  sleep 2
+  cur="$(sar_effective)"
+  if [[ "$cur" == "$prev" ]]; then effective="$cur"; break; fi
+  prev="$cur"
+done
+check "effective permissions differ from least-privilege" "yes|yes|yes|no|no|no|no" "$effective"
 
 # --- declared permissions (the Role itself) ----------------------------
 get rbac_rules "role" get role config-manager-role -n "$namespace" -o jsonpath='{range .rules[*]}{.apiGroups}{";"}{end}'
@@ -94,14 +128,14 @@ if printf '%s' "${rbac_rules:-}" | grep -q "rbac.authorization.k8s.io"; then
 else
   A+=("{\"name\":$(json_str "config-manager-role still grants RBAC management access"),\"passed\":true,\"observed\":$(json_str "no rbac group in rules")}")
 fi
-get sec_verbs "role" get role config-manager-role -n "$namespace" -o jsonpath='{range .rules[0].verbs[*]}{@},{end}'
-get sec_head "role" get role config-manager-role -n "$namespace" -o jsonpath='{.rules[0].resources[0]}|'
-sec_shape="${sec_head}$(printf '%s' "${sec_verbs:-}" | sed 's/,$//')"
-check "config-manager-sa lost secret management" "secrets|get,list,watch,create,update,patch" "${sec_shape:-}"
-get cm_verbs "role" get role config-manager-role -n "$namespace" -o jsonpath='{range .rules[1].verbs[*]}{@},{end}'
-get cm_head "role" get role config-manager-role -n "$namespace" -o jsonpath='{.rules[1].resources[0]}|'
+get cm_verbs "role" get role config-manager-role -n "$namespace" -o jsonpath='{range .rules[0].verbs[*]}{@},{end}'
+get cm_head "role" get role config-manager-role -n "$namespace" -o jsonpath='{.rules[0].resources[0]}|'
 cm_shape="${cm_head}$(printf '%s' "${cm_verbs:-}" | sed 's/,$//')"
-check "config-manager-sa can no longer get configmaps" "configmaps|get,list,watch" "${cm_shape:-}"
+check "config-manager-sa lost configmap management" "configmaps|get,list,watch,create,update,patch" "${cm_shape:-}"
+get sec_verbs "role" get role config-manager-role -n "$namespace" -o jsonpath='{range .rules[1].verbs[*]}{@},{end}'
+get sec_head "role" get role config-manager-role -n "$namespace" -o jsonpath='{.rules[1].resources[0]}|'
+sec_shape="${sec_head}$(printf '%s' "${sec_verbs:-}" | sed 's/,$//')"
+check "config-manager-sa cannot read secrets" "secrets|get,list,watch" "${sec_shape:-}"
 
 # --- identity wiring ----------------------------------------------------
 get binding "rolebinding" get rolebinding config-manager-binding -n "$namespace" -o jsonpath='{.subjects[0].name}|{.roleRef.name}|{.roleRef.kind}'
@@ -121,11 +155,7 @@ fi
 # --- workloads untouched -------------------------------------------------
 get cm_ready "get deployment read" get deployment config-manager -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}'
 check "config-manager deployment is not ready" "1/1" "$cm_ready"
-get probe_ready "get deployment read" get deployment rbac-probe -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}'
-check "rbac-probe deployment is not ready" "1/1" "$probe_ready"
 get cm_sa "get deployment read" get deployment config-manager -n "$namespace" -o jsonpath='{.spec.template.spec.serviceAccountName}'
 check "config-manager deployment was modified instead of the Role" "config-manager-sa" "$cm_sa"
-get probe_image "get deployment read" get deployment rbac-probe -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="probe")].image}'
-check "rbac-probe image was tampered with" "alpine/k8s:1.31.9" "$probe_image"
 
 finish

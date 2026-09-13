@@ -272,12 +272,26 @@ func identityManifests(profile *scenario.AuthorityProfile) []map[string]any {
 	// cluster role bindings) get a read-only ClusterRole over exactly the
 	// resources the profile named. Before this, such reads silently 403'd
 	// into empty strings - a false PASS.
+	//
+	// The second rule grants SubjectAccessReview creation: verifiers that
+	// measure EFFECTIVE permissions ask the apiserver's own authorizer
+	// instead of trusting any in-cluster object (an agent-writable oracle
+	// would break the ADR 0001 trust boundary). SAR is the sanctioned
+	// non-impersonating query, and only the trusted evidence identity gets
+	// it - the agent's plan never can.
 	if len(clusterRes) > 0 {
-		objs = append(objs, clusterRole("evidra-evidence-cluster-role", []map[string]any{{
-			"apiGroups": []string{"", "rbac.authorization.k8s.io", "networking.k8s.io", "storage.k8s.io", "apiextensions.k8s.io"},
-			"resources": clusterRes,
-			"verbs":     []string{"get", "list", "watch"},
-		}}))
+		objs = append(objs, clusterRole("evidra-evidence-cluster-role", []map[string]any{
+			{
+				"apiGroups": []string{"", "rbac.authorization.k8s.io", "networking.k8s.io", "storage.k8s.io", "apiextensions.k8s.io"},
+				"resources": clusterRes,
+				"verbs":     []string{"get", "list", "watch"},
+			},
+			{
+				"apiGroups": []string{"authorization.k8s.io"},
+				"resources": []string{"subjectaccessreviews"},
+				"verbs":     []string{"create"},
+			},
+		}))
 		objs = append(objs, clusterRoleBinding("evidra-evidence-cluster-role", EvidenceServiceAccount))
 	}
 	return objs

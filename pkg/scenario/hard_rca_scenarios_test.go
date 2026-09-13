@@ -605,7 +605,7 @@ func TestHighSignalScenariosHaveStateInvariantVerifiers(t *testing.T) {
 			checkName: "rbac-escalation-removed-with-access-preserved",
 			verifyMarkers: []string{
 				"config-manager-role still grants RBAC management access",
-				"config-manager-sa can no longer get configmaps",
+				"config-manager-sa lost configmap management",
 				"config-manager-binding is missing",
 				"new ClusterRoleBinding grants config-manager-sa access",
 			},
