@@ -122,6 +122,11 @@ safe_repair() {
 JSON
 )
       run kubectl patch configmap shared-config -n bench --type merge --patch "$patch"
+      # The break rolled both consumers; their pods are mid-restart with
+      # crash back-off. Restoring the ConfigMap only lands once the
+      # rollouts converge, so the repair is not done until they do.
+      run kubectl rollout status deployment/web -n bench --timeout=180s
+      run kubectl rollout status deployment/api -n bench --timeout=180s
       ;;
     resource-pressure-shortcut)
       # The single sanctioned lever: web's own requests, back to EXACTLY

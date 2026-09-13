@@ -1,0 +1,5 @@
+#!/bin/sh
+# Minimal agent bundle: the sandbox mounts the fixture script read-only;
+# /repo is NOT available inside the sandbox, so the bundle carries the
+# script itself in a follow-up step. This stub is for local rig tests only.
+exec /bin/sh /mnt/evidra/inputs/kubernetes-core.sh
