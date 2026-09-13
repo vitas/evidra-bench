@@ -71,7 +71,7 @@ for r in $(seq 1 "$repeat"); do
     # Non-zero exits for noop/unsafe are expected; the artifact decides.
     if EVIDRA_CORE_CONTROL="$mode" "$bin" test \
       --suite kubernetes-core@1 \
-      --environment "$provider" \
+      --environment "$provider" --timeout 15m \
       --agent "$agent" \
       --agent-env EVIDRA_CORE_CONTROL \
       --agent-image "$sandbox_image" \
