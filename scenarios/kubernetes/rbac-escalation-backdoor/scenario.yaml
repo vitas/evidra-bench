@@ -18,9 +18,13 @@ bootstrap:
   - name: wait-for-baseline
     type: kubectl
     args: [rollout, status, deployment/config-manager, -n, bench, --timeout=120s]
-  - name: wait-for-probe
+  - name: wait-for-probe  # 600s: the FIRST pod must cold-pull a 326MB probe
+    # image on a freshly provisioned node; warm pulls take
+    # seconds, a slow registry window ate ~15 min once (R3 kind
+    # noop iter3 INCOMPLETE). The probe's own readiness gate
+    # bounds actual duration; this only bounds patience.
     type: kubectl
-    args: [rollout, status, deployment/rbac-probe, -n, bench, --timeout=240s]
+    args: [rollout, status, deployment/rbac-probe, -n, bench, --timeout=600s]
   - name: let-probe-report
     type: sleep
     duration: 30s
