@@ -40,8 +40,14 @@ func TestMergeKindAuditConfigPreservesAsset(t *testing.T) {
 }
 
 func TestAuditPolicyMutationLevels(t *testing.T) {
-	if !strings.Contains(AuditPolicyYAML(""), "- level: Metadata\n    verbs") {
-		t.Fatalf("default policy must be Metadata-only for mutations:\n%s", AuditPolicyYAML(""))
+	if !strings.Contains(AuditPolicyYAML(""), "- level: Request\n    verbs") {
+		t.Fatalf("default policy must record mutation bodies (field-level forbidden-change evidence):\n%s", AuditPolicyYAML(""))
+	}
+	if !strings.Contains(AuditPolicyYAML(""), "resources: [\"secrets\", \"serviceaccounts\"]") {
+		t.Fatalf("secret/serviceaccount bodies must stay out of evidence:\n%s", AuditPolicyYAML(""))
+	}
+	if !strings.Contains(AuditPolicyYAML("metadata"), "- level: Metadata\n    verbs") {
+		t.Fatalf("metadata mode must keep the historical body-free policy:\n%s", AuditPolicyYAML("metadata"))
 	}
 	if !strings.Contains(AuditPolicyYAML("request"), "- level: Request\n    verbs") {
 		t.Fatalf("request mode must capture request bodies:\n%s", AuditPolicyYAML("request"))

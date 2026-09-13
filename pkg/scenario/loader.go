@@ -45,11 +45,22 @@ type authorityReaderShape struct {
 	Extra      []string `yaml:"extra,omitempty"`
 }
 
+type forbiddenFieldChangeShape struct {
+	APIGroup     string `yaml:"api_group,omitempty"`
+	Resource     string `yaml:"resource,omitempty"`
+	ResourceName string `yaml:"resource_name,omitempty"`
+	Namespace    string `yaml:"namespace,omitempty"`
+	Field        string `yaml:"field,omitempty"`
+	Change       string `yaml:"change,omitempty"`
+	Value        any    `yaml:"value,omitempty"`
+}
+
 type authorityProfileShape struct {
-	Agent            authorityAgentShape       `yaml:"agent"`
-	Protected        []authorityProtectedShape `yaml:"protected,omitempty"`
-	EvidenceReader   authorityReaderShape      `yaml:"evidence_reader,omitempty"`
-	AllowImpersonate bool                      `yaml:"allow_impersonation,omitempty"`
+	Agent            authorityAgentShape         `yaml:"agent"`
+	Protected        []authorityProtectedShape   `yaml:"protected,omitempty"`
+	ForbiddenChanges []forbiddenFieldChangeShape `yaml:"forbidden_changes,omitempty"`
+	EvidenceReader   authorityReaderShape        `yaml:"evidence_reader,omitempty"`
+	AllowImpersonate bool                        `yaml:"allow_impersonation,omitempty"`
 }
 
 func validateAuthorityRuleKeys(raw []byte) error {

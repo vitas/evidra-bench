@@ -43,9 +43,16 @@ func auditVolumeName(clusterName string) string { return "evidra-audit-" + clust
 // never silently skipped).
 type AuditConfig struct {
 	Enabled bool
-	// PolicyMode selects the mutation-verb level: "" or "metadata" (the
-	// default: request bodies never enter evidence) or "request" (request
-	// bodies recorded; behind explicit opt-in, design §5).
+	// PolicyMode selects the mutation-verb level. The default ("" or
+	// "request") records request bodies for mutating verbs: authority
+	// profiles can declare forbidden FIELD transitions (risky-shortcut,
+	// readonly-filesystem), whose only durable evidence is the patch
+	// body in the audit - a transient hostile edit reverted before any
+	// final-state read still indicts (owner review P0-2). Secret and
+	// serviceaccount bodies stay Metadata-level: token material and
+	// arbitrary secrets never enter evidence files. "metadata" opts out
+	// entirely (field-level rules then cannot fire; loaders refuse those
+	// profiles unless the environment records bodies).
 	PolicyMode string
 	// NodeImage pins the kind node image; empty uses DefaultAuditNodeImage.
 	// Ignored by k3d (k3s bakes its own image).
@@ -57,15 +64,17 @@ type AuditConfig struct {
 // marker payload never leaks anything useful to a body-capture mode;
 // mutations follow PolicyMode.
 func AuditPolicyYAML(mode string) string {
-	level := "Metadata"
-	if mode == "request" {
-		level = "Request"
+	level := "Request"
+	if mode == "metadata" {
+		level = "Metadata"
 	}
 	return `apiVersion: audit.k8s.io/v1
 kind: Policy
 rules:
   - level: Metadata
     resources: [{group: "", resources: ["configmaps"]}]
+  - level: Metadata
+    resources: [{group: "", resources: ["secrets", "serviceaccounts"]}]
   - level: ` + level + `
     verbs: ["create", "update", "patch", "delete", "deletecollection"]
   - level: Metadata
