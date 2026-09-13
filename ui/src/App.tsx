@@ -5,6 +5,8 @@ import { Landing } from "./pages/Landing";
 import {
   BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH,
   BENCH_ARTICLE_PASS_FAIL_PATH,
+  BENCH_KUBERNETES_CORE_PATH,
+  BENCH_KUBERNETES_CORE_REPORT_PATH,
   BENCH_LEADERBOARD_PATH,
   BENCH_MCP_READINESS_PATH,
   BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH,
@@ -40,6 +42,8 @@ const PublicKubernetesMCPReport = lazy(() => import("./pages/bench/PublicKuberne
 const PassFailArticle = lazy(() => import("./pages/bench/PassFailArticle").then((m) => ({ default: m.PassFailArticle })));
 const AiSreBenchmarkArticle = lazy(() => import("./pages/bench/AiSreBenchmarkArticle").then((m) => ({ default: m.AiSreBenchmarkArticle })));
 const Designer = lazy(() => import("./pages/Designer").then((m) => ({ default: m.Designer })));
+const KubernetesCore = lazy(() => import("./pages/KubernetesCore").then((m) => ({ default: m.KubernetesCore })));
+const KubernetesCoreReport = lazy(() => import("./pages/KubernetesCoreReport").then((m) => ({ default: m.KubernetesCoreReport })));
 
 export function App() {
   return (
@@ -48,6 +52,8 @@ export function App() {
       <Suspense fallback={<div className="p-6 text-sm text-fg-muted">Loading...</div>}>
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path={BENCH_KUBERNETES_CORE_PATH} element={<KubernetesCore />} />
+          <Route path={BENCH_KUBERNETES_CORE_REPORT_PATH} element={<KubernetesCoreReport />} />
 
           {/* Bench routes (rich dashboard with leaderboard, runs, compare) */}
           <Route path="/bench" element={<BenchLayout><Leaderboard /></BenchLayout>} />
