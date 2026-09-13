@@ -92,13 +92,14 @@ func (p *LocalProvisioner) acquireDefault(ctx context.Context, req ProvisionRequ
 	release := p.releaseFunc(req, provider, handle)
 
 	return &Lease{
-		Profile:        req.Profile,
-		KubeconfigPath: handle.KubeconfigPath,
-		Audit:          handle.Audit,
-		ClusterNetwork: handle.ClusterNetwork,
-		Provider:       provider,
-		Shared:         req.Shared,
-		release:        release,
+		Profile:         req.Profile,
+		KubeconfigPath:  handle.KubeconfigPath,
+		Audit:           handle.Audit,
+		ClusterNetwork:  handle.ClusterNetwork,
+		InClusterServer: handle.InClusterServer,
+		Provider:        provider,
+		Shared:          req.Shared,
+		release:         release,
 	}, nil
 }
 
@@ -136,13 +137,14 @@ func (p *LocalProvisioner) acquireArgocd(ctx context.Context, req ProvisionReque
 	release := p.composeRelease(profileResult.Release, clusterRelease)
 
 	return &Lease{
-		Profile:        req.Profile,
-		KubeconfigPath: handle.KubeconfigPath,
-		Audit:          handle.Audit,
-		ClusterNetwork: handle.ClusterNetwork,
-		Provider:       provider,
-		Shared:         req.Shared,
-		release:        release,
+		Profile:         req.Profile,
+		KubeconfigPath:  handle.KubeconfigPath,
+		Audit:           handle.Audit,
+		ClusterNetwork:  handle.ClusterNetwork,
+		InClusterServer: handle.InClusterServer,
+		Provider:        provider,
+		Shared:          req.Shared,
+		release:         release,
 	}, nil
 }
 
@@ -188,14 +190,15 @@ func (p *LocalProvisioner) acquireAWSLocalStack(ctx context.Context, req Provisi
 	release := p.composeRelease(profileResult.Release, clusterRelease)
 
 	return &Lease{
-		Profile:        req.Profile,
-		KubeconfigPath: handle.KubeconfigPath,
-		Audit:          handle.Audit,
-		ClusterNetwork: handle.ClusterNetwork,
-		ExtraEnv:       profileResult.ExtraEnv,
-		Provider:       provider,
-		Shared:         req.Shared,
-		release:        release,
+		Profile:         req.Profile,
+		KubeconfigPath:  handle.KubeconfigPath,
+		Audit:           handle.Audit,
+		ClusterNetwork:  handle.ClusterNetwork,
+		InClusterServer: handle.InClusterServer,
+		ExtraEnv:        profileResult.ExtraEnv,
+		Provider:        provider,
+		Shared:          req.Shared,
+		release:         release,
 	}, nil
 }
 

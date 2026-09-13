@@ -349,12 +349,13 @@ func (e suiteEvaluationExecutor) Execute(ctx context.Context, _ evaluation.Plan,
 	}
 	defer runtime.Close()
 	result, runErr := harness.New(runtime.Deps).Run(ctx, harness.RunRequest{
-		Config:         e.Config,
-		Scenario:       s,
-		KubeconfigPath: localLease.lease.KubeconfigPath,
-		Audit:          localLease.lease.Audit,
-		ClusterNetwork: localLease.lease.ClusterNetwork,
-		ExtraEnv:       localLease.lease.ExtraEnv,
+		Config:          e.Config,
+		Scenario:        s,
+		KubeconfigPath:  localLease.lease.KubeconfigPath,
+		Audit:           localLease.lease.Audit,
+		ClusterNetwork:  localLease.lease.ClusterNetwork,
+		InClusterServer: localLease.lease.InClusterServer,
+		ExtraEnv:        localLease.lease.ExtraEnv,
 	})
 	if result != nil && result.Case != nil {
 		return *result.Case, runErr

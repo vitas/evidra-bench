@@ -44,12 +44,16 @@ var ErrSandboxUnavailable = errors.New("sandbox unavailable")
 // SandboxSpec describes one sandboxed agent execution.
 type SandboxSpec struct {
 	RunID         string
-	Image         string            // caller-supplied agent image
-	BundleDir     string            // host dir: entrypoint "run" + declared files
-	Entrypoint    []string          // exec argv inside the sandbox (default /agent/run)
-	PromptContent string            // run prompt, staged as /agent/prompt.md
-	Kubeconfig    string            // per-run identity kubeconfig (host-visible path content read now)
-	ExtraFiles    map[string]string // staged name -> content (whitelisted inputs)
+	Image         string   // caller-supplied agent image
+	BundleDir     string   // host dir: entrypoint "run" + declared files
+	Entrypoint    []string // exec argv inside the sandbox (default /agent/run)
+	PromptContent string   // run prompt, staged as /agent/prompt.md
+	Kubeconfig    string   // per-run identity kubeconfig (host-visible path content read now)
+	// InClusterServer, when set, replaces the `server:` in the packed
+	// kubeconfig: the sandbox shares ClusterNetwork with the nodes but not
+	// the host's loopback, so a published-port endpoint is unreachable.
+	InClusterServer string
+	ExtraFiles      map[string]string // staged name -> content (whitelisted inputs)
 	// AgentEnv passes EXPLICIT named env vars into the sandbox (no runner
 	// inheritance — this map is the whole channel; the harness sends e.g.
 	// INFRA_BENCH_SCENARIO, which fixture agents legitimately need).
@@ -174,6 +178,9 @@ func (s *DockerSandbox) buildTar(spec SandboxSpec) ([]byte, error) {
 		data, err := os.ReadFile(spec.Kubeconfig)
 		if err != nil {
 			return nil, fmt.Errorf("sandbox: kubeconfig: %w", err)
+		}
+		if spec.InClusterServer != "" {
+			data = rewriteKubeconfigServer(data, spec.InClusterServer)
 		}
 		if err := write("run/agent.kubeconfig", 0o644, data); err != nil {
 			return nil, err
@@ -353,4 +360,14 @@ func DockerNetworkOf(container string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// rewriteKubeconfigServer replaces every `server:` endpoint in a
+// single-cluster kubeconfig document. Purely textual to keep the pack step
+// free of YAML dependencies; kubeconfigs written by the providers have
+// exactly one cluster entry.
+var kubeconfigServerRe = regexp.MustCompile(`(?m)^(\s*server:\s*).*$`)
+
+func rewriteKubeconfigServer(data []byte, endpoint string) []byte {
+	return kubeconfigServerRe.ReplaceAll(data, []byte("${1}"+endpoint))
 }

@@ -71,6 +71,10 @@ type RunRequest struct {
 	// ClusterNetwork is the docker network of the provisioned cluster
 	// (agent sandbox attaches there; "" = unknown = sandbox unavailable).
 	ClusterNetwork string
+	// InClusterServer is the API endpoint the sandbox reaches the cluster
+	// on (see environment.Handle.InClusterServer); empty = use the
+	// kubeconfig server as-is.
+	InClusterServer string
 }
 
 // RunResult holds the outcome of a harness run.

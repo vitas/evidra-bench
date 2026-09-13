@@ -14,6 +14,14 @@ type Handle struct {
 	// ClusterNetwork is the docker network the cluster's nodes share; the
 	// agent sandbox must attach to it to reach the API server.
 	ClusterNetwork string
+	// InClusterServer is the API endpoint reachable FROM a container on
+	// ClusterNetwork (node DNS name), when the public kubeconfig server is
+	// a host-loopback address the sandbox cannot use. Empty = no rewrite.
+	// kind publishes 127.0.0.1:<port>; the sandboxed agent's kubeconfig
+	// therefore gets rewritten to https://<cluster>-control-plane:6443 at
+	// pack time. k3d kubeconfigs already carry an in-cluster name, so k3d
+	// leaves this empty.
+	InClusterServer string
 }
 
 // AuditAccess tells evidence collectors where the audit log lives: node
