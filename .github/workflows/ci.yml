@@ -187,10 +187,12 @@ jobs:
   core-contract-kind:
     name: Kubernetes core contract matrix (kind)
     runs-on: ubuntu-latest
-    # Calibrate against `EVIDRA_CORE_REPEAT=3 make core-contract-kind`
-    # wall time before merging; this is one repetition (three
-    # full-suite evaluations) plus margin.
-    timeout-minutes: 90
+    # Measured (host-kept reference run, REPEAT=1 = this job's 3
+    # evaluations x 12 cases): 47 min wall on warm local docker. Budget
+    # = ~2x measured to absorb CI-runner pull variance; the full
+    # 3-repetition calibration (`EVIDRA_CORE_REPEAT=3`, 9 evaluations)
+    # measured 126 min for kind and 157 min for k3d.
+    timeout-minutes: 100
     env:
       EVIDRA_CORE_SANDBOX_IMAGE: evidra-bench:contract-ci
     steps:
@@ -209,7 +211,9 @@ jobs:
   core-contract-k3d:
     name: Kubernetes core contract matrix (k3d)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # REPEAT=1 measured 50 min; k3d node pulls are slower, so a wider
+    # margin than kind (see kind job comment for calibration runs).
+    timeout-minutes: 120
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     env:
       EVIDRA_CORE_SANDBOX_IMAGE: evidra-bench:contract-ci
