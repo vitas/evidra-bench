@@ -133,7 +133,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 			Reason:  kind,
 			Details: runErr.Error(),
 		}, s.AuthorityProfile != nil, nil, nil, s.AuthorityProfile)
-		artifactDir := h.writeFailedRunArtifacts(req, runID, nAgent, nVerify, promptContent, runChaosRunner(chaosRun), recorder, runErr, startTime, failedAt, safetyAutopsyJSON, caseResult.Verdict)
+		artifactDir := h.writeFailedRunArtifacts(req, runID, nAgent, nVerify, promptContent, runChaosRunner(chaosRun), recorder, runErr, startTime, failedAt, safetyAutopsyJSON, caseResult.Verdict, caseResult.Safety)
 		if artifactDir != "" {
 			caseResult.Evidence = []evaluation.EvidenceRef{{Kind: "artifact_dir", Path: artifactDir}}
 		}
@@ -394,7 +394,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	autopsyJSON := buildSuccessAutopsy(req, agentResult, verifyResult, startTime, endTime)
 	caseResult := buildEvaluationCaseResultPlanned(s.ID, plannedAgentMode(req), runID, agentResult, verifyResult, autopsyJSON, "", endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete}, s.AuthorityProfile != nil, auditInfo, snapInfo, s.AuthorityProfile)
 	recorder.Event("artifact_write", "started", "")
-	artifactDir := h.writeRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, startTime, endTime, auditInfo, snapInfo, autopsyJSON, caseResult.Verdict)
+	artifactDir := h.writeRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, startTime, endTime, auditInfo, snapInfo, autopsyJSON, caseResult.Verdict, caseResult.Safety)
 	if artifactDir != "" {
 		caseResult.Evidence = []evaluation.EvidenceRef{{Kind: "artifact_dir", Path: artifactDir}}
 	}

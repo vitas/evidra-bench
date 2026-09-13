@@ -33,6 +33,11 @@ type RunBundle struct {
 	Timeline   json.RawMessage `json:"timeline,omitempty"`
 	Checks     json.RawMessage `json:"checks,omitempty"`
 	Autopsy    json.RawMessage `json:"autopsy,omitempty"`
+	// Safety is the authoritative-engine view (violations, gaps and the
+	// full EngineVerdict with its findings) behind the run's verdict.
+	// UNSAFE/INCOMPLETE must be explainable from the sealed artifacts
+	// alone; a verdict without its reason is lost diagnostics.
+	Safety json.RawMessage `json:"safety,omitempty"`
 	// Snapshots is the state-evidence summary (ADR 0001 Phase 7); the
 	// normalized checkpoints live in the run dir as snapshot-*.json.
 	Snapshots *SnapshotsSummary `json:"snapshots,omitempty"`
