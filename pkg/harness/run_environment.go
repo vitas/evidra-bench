@@ -49,22 +49,31 @@ func (h *Harness) prepareRunEnvironment(ctx context.Context, req RunRequest, han
 	// Step 2: Force-clean stale namespace before bootstrap.
 	// Namespace deletion is async and can leave finalizers hanging (kubernetes#53327),
 	// so we force-delete the namespace entirely and wait for actual removal before recreating.
+	// Shared suite mode hands the ENTIRE namespace lifecycle to the single
+	// isolation stage (resetScenarioNamespaces): deleting bench here and
+	// again there cost every case a redundant 10-30s namespace cascade and
+	// timed out repeatedly on CI runners. Cluster-scoped sweeps always run.
 	if kubeconfigExists && h.deps.EnvProvider != nil {
-		h.cleanupCluster(ctx, handle.KubeconfigPath, ns)
+		h.cleanupClusterScoped(ctx, handle.KubeconfigPath)
 	}
-
-	// Step 2b: Recreate target namespace.
-	if handle.KubeconfigPath != "" && h.deps.EnvProvider != nil {
-		if err := h.deps.EnvProvider.CreateNamespace(ctx, handle.KubeconfigPath, ns); err != nil {
-			log.Printf("[harness] namespace create (non-fatal): %v", err)
+	if !req.Config.ResetNamespacesBeforeCase {
+		if kubeconfigExists && h.deps.EnvProvider != nil {
+			h.cleanupClusterNamespace(ctx, handle.KubeconfigPath, ns)
 		}
-	}
 
-	// Canary pod — verify scheduling before bootstrap.
-	if kubeconfigExists && h.deps.EnvProvider != nil {
-		if err := h.deps.EnvProvider.RunCanary(ctx, handle.KubeconfigPath, ns); err != nil {
-			cleanupExtraEnv()
-			return nil, &InfraError{Err: fmt.Errorf("harness.Run: canary failed on leased cluster: %w", err)}
+		// Step 2b: Recreate target namespace.
+		if handle.KubeconfigPath != "" && h.deps.EnvProvider != nil {
+			if err := h.deps.EnvProvider.CreateNamespace(ctx, handle.KubeconfigPath, ns); err != nil {
+				log.Printf("[harness] namespace create (non-fatal): %v", err)
+			}
+		}
+
+		// Canary pod — verify scheduling before bootstrap.
+		if kubeconfigExists && h.deps.EnvProvider != nil {
+			if err := h.deps.EnvProvider.RunCanary(ctx, handle.KubeconfigPath, ns); err != nil {
+				cleanupExtraEnv()
+				return nil, &InfraError{Err: fmt.Errorf("harness.Run: canary failed on leased cluster: %w", err)}
+			}
 		}
 	}
 
@@ -97,12 +106,20 @@ func applyRunExtraEnv(extraEnv []string) (func(), error) {
 	}, nil
 }
 
-func (h *Harness) cleanupCluster(ctx context.Context, kubeconfigPath, ns string) {
+// cleanupClusterNamespace force-deletes the run namespace and waits for
+// removal. Legacy (non-suite) paths only - suite mode owns the namespace
+// lifecycle inside resetScenarioNamespaces.
+func (h *Harness) cleanupClusterNamespace(ctx context.Context, kubeconfigPath, ns string) {
 	if err := h.deps.EnvProvider.ForceDeleteNamespace(ctx, kubeconfigPath, ns); err != nil {
 		log.Printf("[harness] namespace cleanup %s (non-fatal): %v", ns, err)
 	}
+}
 
-	// Also clean cluster-scoped resources that scenarios may create.
+// cleanupClusterScoped sweeps cluster-scoped debris scenarios may leave
+// behind. It runs on EVERY path, including suite mode, where the
+// namespace reset happens in the isolation stage instead.
+func (h *Harness) cleanupClusterScoped(ctx context.Context, kubeconfigPath string) {
+	// Clean cluster-scoped resources that scenarios may create.
 	for _, res := range []string{"pv", "storageclass", "validatingwebhookconfiguration", "mutatingwebhookconfiguration"} {
 		cleanCmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfigPath,
 			"delete", res, "--all", "--ignore-not-found", "--timeout=10s")

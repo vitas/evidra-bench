@@ -3,6 +3,7 @@ package harness
 import (
 	"context"
 	"fmt"
+	"log"
 	"os/exec"
 	"regexp"
 	"sort"
@@ -65,38 +66,50 @@ func isolationNamespaces(s *scenario.Scenario) ([]string, error) {
 	return out, nil
 }
 
-// resetScenarioNamespaces deletes the scenario's bench-scoped namespaces
-// through the admin lease kubeconfig. Noop when the flag is off — which is
+// resetScenarioNamespaces is the ONE namespace lifecycle stage in suite
+// mode: delete every declared scope once (through the admin lease
+// kubeconfig), then recreate the target namespace and prove scheduling
+// with the canary before bootstrap. Noop when the flag is off — which is
 // every path except `evidra test` on its own disposable cluster.
-func (h *Harness) resetScenarioNamespaces(ctx context.Context, req RunRequest, handle *environment.Handle, s *scenario.Scenario) error {
+func (h *Harness) resetScenarioNamespaces(ctx context.Context, req RunRequest, handle *environment.Handle, s *scenario.Scenario, ns string) error {
 	if !req.Config.ResetNamespacesBeforeCase {
 		return nil
 	}
+	// Delete every declared scope exactly once.
 	names, err := isolationNamespaces(s)
 	if err != nil {
 		return &InfraError{Err: fmt.Errorf("harness: case isolation: %w", err)}
-	}
-	if len(names) == 0 {
-		return nil
 	}
 	runner := h.deps.Runner
 	if runner == nil {
 		runner = &environment.ExecRunner{}
 	}
-	for _, ns := range names {
+	for _, name := range names {
 		// --ignore-not-found: first case on a fresh cluster has nothing to
 		// delete; --wait keeps the next case's creates from racing the
 		// terminator.
 		//nolint:gosec // args are fixed above; ns is allowlist-validated.
 		cmd := exec.Command("kubectl", "--kubeconfig", handle.KubeconfigPath,
-			"delete", "namespace", ns, "--ignore-not-found", "--wait=true", "--timeout=90s")
+			"delete", "namespace", name, "--ignore-not-found", "--wait=true", "--timeout=90s")
 		if out, err := runner.Run(ctx, cmd); err != nil {
 			msg := strings.TrimSpace(string(out))
 			if len(msg) > 200 {
 				msg = msg[:200] + "..."
 			}
-			return &InfraError{Err: fmt.Errorf("harness: case isolation: delete namespace %s: %v: %s", ns, err, msg)}
+			return &InfraError{Err: fmt.Errorf("harness: case isolation: delete namespace %s: %v: %s", name, err, msg)}
 		}
+	}
+	if h.deps.EnvProvider == nil {
+		return nil
+	}
+	// Recreate the target namespace after the sweep, then prove the
+	// cluster can schedule — the two steps prepareRunEnvironment used to
+	// duplicate on every suite case.
+	if err := h.deps.EnvProvider.CreateNamespace(ctx, handle.KubeconfigPath, ns); err != nil {
+		log.Printf("[harness] namespace create (non-fatal): %v", err)
+	}
+	if err := h.deps.EnvProvider.RunCanary(ctx, handle.KubeconfigPath, ns); err != nil {
+		return &InfraError{Err: fmt.Errorf("harness: case isolation: canary failed after namespace reset: %w", err)}
 	}
 	return nil
 }

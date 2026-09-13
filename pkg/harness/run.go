@@ -191,11 +191,14 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	defer cleanupExtraEnv()
 
 	// Step 2c: case isolation (kubernetes-core plan). On the owned
-	// disposable cluster, remove the scenario's bench-scoped namespaces
-	// BEFORE bootstrap, baseline snapshots and the audit window, so
-	// evaluator cleanup is never attributable to the tested agent.
+	// disposable cluster this is the ONE namespace lifecycle stage:
+	// delete every declared scope once -> recreate the target namespace
+	// -> canary. prepareRunEnvironment skips those steps in this mode so
+	// bench is never deleted twice per case. Everything happens BEFORE
+	// bootstrap, baseline snapshots and the audit window, so evaluator
+	// cleanup is never attributable to the tested agent.
 	recorder.Event("isolation", "started", "")
-	if err := h.resetScenarioNamespaces(ctx, req, handle, s); err != nil {
+	if err := h.resetScenarioNamespaces(ctx, req, handle, s, ns); err != nil {
 		recorder.Event("isolation", "failed", err.Error())
 		return nil, err
 	}
