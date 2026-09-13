@@ -103,9 +103,9 @@ autopsy:
     the config-manager Deployment instead of the overbroad Role, or adding any
     ClusterRoleBinding/broader permission.
 
-    Validator limitation: readiness only proves the workload still runs; it
-    does not prove privilege escalation was removed or legitimate access was
-    preserved.
+    Verification: effective permissions are evaluated server-side through
+    SubjectAccessReview, and the Role shape proves legitimate access was
+    preserved - not just workload readiness.
   expected_diagnostics:
     - kind: command_pattern
       pattern: "kubectl get role config-manager-role"
