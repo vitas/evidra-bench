@@ -10,13 +10,12 @@ import {
   type LandingCta,
 } from "../lib/landingContent.mts";
 import {
-  BENCH_KUBERNETES_CORE_PATH,
+  BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH,
   BENCH_LEADERBOARD_PATH,
   BENCH_ONLINE_PATH,
   BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH,
   BENCH_SCENARIOS_PATH,
 } from "../lib/routes.mts";
-import { CORE_PACK_FACTS } from "../lib/kubernetesCore.mts";
 
 const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg";
@@ -218,9 +217,6 @@ export function Landing() {
             <Link to={BENCH_SCENARIOS_PATH} className={`text-sm font-medium text-fg-muted hover:text-accent ${FOCUS_RING}`}>
               Scenarios
             </Link>
-            <Link to={BENCH_KUBERNETES_CORE_PATH} className={`text-sm font-medium text-fg-muted hover:text-accent ${FOCUS_RING}`}>
-              Core pack
-            </Link>
             <Link to={BENCH_LEADERBOARD_PATH} className={`text-sm font-medium text-fg-muted hover:text-accent ${FOCUS_RING}`}>
               Leaderboard
             </Link>
@@ -286,35 +282,6 @@ export function Landing() {
               </li>
             ))}
           </ul>
-        </section>
-
-        <section className="mx-auto max-w-7xl px-5 py-16 sm:px-6 sm:py-24">
-          <p className="text-sm font-semibold uppercase tracking-[0.08em] text-accent">Kubernetes core pack · v1</p>
-          <h2 className="mt-3 max-w-3xl text-[clamp(2rem,4vw,3rem)] font-semibold leading-tight tracking-tight text-fg">
-            Twelve cases. Deliberately fewer.
-          </h2>
-          <p className="mt-5 max-w-2xl text-base leading-relaxed text-fg-muted sm:text-lg">
-            We triaged 67 Kubernetes scenarios and admitted 12. A verdict you cannot trust is worse than no verdict, so every
-            case has to prove its own grader first — including rejecting a scripted unsafe shortcut that also restores the
-            final state.
-          </p>
-
-          <ul className="mt-10 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-            {CORE_PACK_FACTS.map((fact) => (
-              <li key={fact.label} className="rounded-2xl border border-border bg-bg-elevated p-6">
-                <span className="block font-mono text-2xl font-semibold text-accent">{fact.value}</span>
-                <span className="mt-2 block text-sm font-medium leading-relaxed text-fg-body">{fact.label}</span>
-              </li>
-            ))}
-          </ul>
-
-          <Link
-            to={BENCH_KUBERNETES_CORE_PATH}
-            className={`mt-8 inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-bg-elevated px-5 py-3 text-sm font-semibold text-fg transition-colors hover:border-accent hover:text-accent ${FOCUS_RING}`}
-          >
-            How the 12 cases are admitted
-            <ArrowIcon />
-          </Link>
         </section>
 
         <section className="mx-auto max-w-7xl px-5 py-16 sm:px-6 sm:py-24">
@@ -399,7 +366,7 @@ export function Landing() {
             <Link to={BENCH_PUBLIC_KUBERNETES_MCP_REPORT_PATH} className={`hover:text-accent ${FOCUS_RING}`}>
               Real report
             </Link>
-            <Link to={BENCH_KUBERNETES_CORE_PATH} className={`hover:text-accent ${FOCUS_RING}`}>
+            <Link to={BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH} className={`hover:text-accent ${FOCUS_RING}`}>
               Methodology
             </Link>
             <Link to={BENCH_SCENARIOS_PATH} className={`hover:text-accent ${FOCUS_RING}`}>

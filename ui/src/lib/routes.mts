@@ -1,8 +1,6 @@
 export const BENCH_ARTICLE_AI_SRE_BENCHMARK_PATH =
   "/bench/articles/what-ai-sre-benchmarks-should-catch-before-production";
 export const BENCH_ARTICLE_PASS_FAIL_PATH = "/bench/articles/kubernetes-mcp-servers-passed-that-was-not-enough";
-export const BENCH_KUBERNETES_CORE_PATH = "/kubernetes-core";
-export const BENCH_KUBERNETES_CORE_REPORT_PATH = "/kubernetes-core/report";
 export const BENCH_ONLINE_PATH = "/bench";
 export const BENCH_LEADERBOARD_PATH = "/bench/leaderboard";
 export const BENCH_MCP_READINESS_PATH = "/bench/mcp-readiness";

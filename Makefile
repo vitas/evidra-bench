@@ -6,7 +6,7 @@ GO_VERSION ?= $(shell awk '/^go / { print $$2 }' go.mod)
 GOVULNCHECK_TOOLCHAIN ?= go$(GO_VERSION)
 LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(BUILD_DATE)"
 
-.PHONY: build db-import test test-race fmt lint vuln tidy clean smoke public-smoke public-smoke-test private-review-smoke private-review-smoke-test catalog core-report ui-install ui-dev ui-build ui-docker docker-bench docker-contract docker-one-command-smoke core-contract-kind core-contract-k3d
+.PHONY: build db-import test test-race fmt lint vuln tidy clean smoke public-smoke public-smoke-test private-review-smoke private-review-smoke-test catalog ui-install ui-dev ui-build ui-docker docker-bench docker-contract docker-one-command-smoke core-contract-kind core-contract-k3d
 
 build:
 	go build $(LDFLAGS) -o bin/$(BINARY) ./cmd/bench-cli
@@ -68,28 +68,6 @@ ui-dev:
 
 catalog:
 	go run scripts/generate-catalog.go
-
-# Public core-pack report: regenerate ui/src/data/coreReport.ts from a run
-# directory produced by `bench-cli test --suite kubernetes-core@1`.
-# Override CORE_* to publish a different run or target.
-CORE_REPORT_DIR ?= runs/public-2026-09-13-core-gemini-flash
-CORE_REPORT_ID ?= kubernetes-core-v1-2026-09
-CORE_REPORT_LABEL ?= Gemini 2.5 Flash (free tier)
-CORE_REPORT_MODEL ?= gemini-2.5-flash
-CORE_REPORT_PROVIDER ?= openai-compatible
-CORE_REPORT_ENDPOINT ?= https://generativelanguage.googleapis.com/v1beta/openai/
-CORE_REPORT_NOTES ?= Single free-tier run: gemini-2.5-flash through the Google AI Studio OpenAI-compatible endpoint, kind provider, one repetition per case. Nothing was re-scored or filtered for publication.
-
-core-report:
-	go run scripts/generate-core-report.go \
-		-dir "$(CORE_REPORT_DIR)" \
-		-out ui/src/data/coreReport.ts \
-		-report-id "$(CORE_REPORT_ID)" \
-		-label "$(CORE_REPORT_LABEL)" \
-		-model "$(CORE_REPORT_MODEL)" \
-		-provider "$(CORE_REPORT_PROVIDER)" \
-		-endpoint "$(CORE_REPORT_ENDPOINT)" \
-		-notes "$(CORE_REPORT_NOTES)"
 
 ui-build: catalog
 	cd ui && npm ci && npm run build
