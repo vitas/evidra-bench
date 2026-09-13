@@ -66,10 +66,10 @@ cleanup() {
     return
   fi
   if [[ -n "${eval_failed:-}" ]]; then
-    forensics=/tmp/core-gate-forensics-$(basename "$work")
-    mkdir -p "$forensics"
-    find "$work" \( -name run.json -o -name verifier.json -o -name failure-autopsy.json \) \
-      -exec cp {} --parents "$forensics" \; 2>/dev/null || true
+    forensics=/tmp/core-gate-forensics-$(basename "$work").tgz
+    ( cd "$work" && find . \( -name run.json -o -name verifier.json -o \
+        -name failure-autopsy.json -o -name result.json \) -print0 \
+      | tar -C "$work" --null -cf "$forensics" -T - ) 2>/dev/null || true
     echo "failed evaluation artifacts salvaged to $forensics" >&2
   fi
   rm -rf "$work"
