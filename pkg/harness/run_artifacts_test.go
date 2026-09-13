@@ -717,7 +717,6 @@ func readRunJSONVerdict(t *testing.T, artifactRoot string) string {
 	return run.Verdict
 }
 
-
 // The engine view must be sealed INTO run.json: a UNSAFE verdict with no
 // persisted findings is an unexplainable accusation (owner review: lost
 // diagnostics).
