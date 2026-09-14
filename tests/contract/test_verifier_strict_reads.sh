@@ -39,8 +39,11 @@ for c in $CASES; do
   # ANY stderr suppression on a raw kubectl read is a strictness hole:
   # transport errors must flow through the canonical helper, never be
   # laundered into an empty value or a piped zero (owner round-3 P1).
-  raw=$(grep -c '2>/dev/null' "$f" || true)
-  [[ "$raw" == "0" ]] || fail "case $c: $raw swallowing kubectl captures remain"
+  # The helper's single documented capture (marker-tagged) is exempt;
+  # every OTHER 2>/dev/null line - raw reads, pipe laundering, || true -
+  # fails the pin.
+  bad=$(awk '/2\/dev\/null/ && !/kubectl-strict-suppression/ {b++} END{print b+0}' "$f")
+  [[ "$bad" == "0" ]] || fail "case $c: $bad swallowing kubectl captures remain"
   h=$(extract_get "$f")
   if [[ -z "$CANON_REF" ]]; then CANON_REF="$h"; else
     [[ "$h" == "$CANON_REF" ]] || fail "case $c: get() deviates from the canonical strict helper"

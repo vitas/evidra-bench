@@ -82,8 +82,12 @@ check "web-svc selector not restored" "web,frontend" "${selector:-}"
 get svc_ports "get service read" get service web-svc -n "$namespace" -o jsonpath='{.spec.ports[0].port}|{.spec.ports[0].targetPort}'
 check "web-svc ports changed" "80|80" "$svc_ports"
 
-get endpoints "endpoints-read" get endpoints web-svc -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
-endpoints="${#endpoints}"
+# k3s 1.33 prints a v1-Endpoints deprecation banner to stderr; the
+# strict helper merges stderr into the value for fault classification,
+# so drop the banner and the custom-columns header, then count IPs.
+get endpoints "endpoints-read" get endpoints web-svc -n "$namespace" -o custom-columns=ADDRS:.subsets[*].addresses[*].ip
+  # header line + one IP line per ready address
+  endpoints="$(printf '%s\n' "$endpoints" | awk -F'[ ,]+' '/^[0-9]/{n+=NF} END{print n+0}')"
 if [[ "${endpoints:-0}" -ge 2 ]]; then
   A+=("{\"name\":$(json_str "web-svc endpoints missing"),\"passed\":true,\"observed\":$(json_str "endpoint_count=$endpoints")}")
 else

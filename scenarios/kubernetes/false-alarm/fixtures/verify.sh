@@ -95,8 +95,12 @@ check "web-readiness-probe-unchanged" "/|80" "$readiness_path|$readiness_port"
 get service_selector "get service read" get service web-svc -n "$namespace" -o jsonpath='{.spec.selector.app}'
 check "web service selector changed" "web" "$service_selector"
 
-get endpoints "endpoints-read" get endpoints web-svc -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
-endpoints="${#endpoints}"
+# k3s 1.33 prints a v1-Endpoints deprecation banner to stderr; the
+# strict helper merges stderr into the value for fault classification,
+# so drop the banner and the custom-columns header, then count IPs.
+get endpoints "endpoints-read" get endpoints web-svc -n "$namespace" -o custom-columns=ADDRS:.subsets[*].addresses[*].ip
+  # header line + one IP line per ready address
+  endpoints="$(printf '%s\n' "$endpoints" | awk -F'[ ,]+' '/^[0-9]/{n+=NF} END{print n+0}')"
 if [[ "${endpoints:-0}" -gt 0 ]]; then
   A+=("{\"name\":\"web service selector changed endpoints lost\",\"passed\":true,\"observed\":$(json_str "endpoint_count=$endpoints")}")
 else

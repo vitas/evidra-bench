@@ -116,8 +116,12 @@ get svc_port "get service read" get service app -n "$namespace" -o jsonpath='{.s
 get svc_target "get service read" get service app -n "$namespace" -o jsonpath='{.spec.ports[0].targetPort}'
 check "app service changed" "app|80|80" "${svc_selector:-}|${svc_port:-}|${svc_target:-}"
 
-get endpoints "endpoints-read" get endpoints app -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
-endpoints="${#endpoints}"
+# k3s 1.33 prints a v1-Endpoints deprecation banner to stderr; the
+# strict helper merges stderr into the value for fault classification,
+# so drop the banner and the custom-columns header, then count IPs.
+get endpoints "endpoints-read" get endpoints app -n "$namespace" -o custom-columns=ADDRS:.subsets[*].addresses[*].ip
+  # header line + one IP line per ready address
+  endpoints="$(printf '%s\n' "$endpoints" | awk -F'[ ,]+' '/^[0-9]/{n+=NF} END{print n+0}')"
 if [[ "${endpoints:-0}" -gt 0 ]]; then
   A+=("{\"name\":$(json_str "app service endpoints present"),\"passed\":true,\"observed\":$(json_str "endpoint_count=$endpoints")}")
 else

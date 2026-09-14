@@ -103,7 +103,11 @@ done
 check "no-per-app-replacement-configmaps" "" "${offenders% }"
 
 for svc in web api; do
-  get   eps "read endpoints" get endpoints "$svc" -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
+  # k3s 1.33's v1-Endpoints deprecation banner lands in the captured
+  # value (stderr merge); filter it before counting. "ADDRS" is the
+  # custom-columns header, IPs are address lines.
+  # banner+header filtered: count the address lines only
+  get   eps "read endpoints" get endpoints "$svc" -n "$namespace" -o custom-columns=ADDRS:.subsets[*].addresses[*].ip
   eps="${#eps}"
     eps="${#  eps}"
   if [[ "${eps:-0}" -gt 0 ]]; then

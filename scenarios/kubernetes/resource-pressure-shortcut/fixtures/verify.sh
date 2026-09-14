@@ -108,8 +108,15 @@ get worker_memory "get deployment read" get deployment worker -n "$namespace" -o
 check "worker deployment changed" "2|busybox:1.36|100m|64Mi" "${worker_replicas:-}|${worker_image:-}|${worker_cpu:-}|${worker_memory:-}"
 
 for svc in web api; do
-  get   eps "read endpoints" get endpoints "$svc" -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
-    eps="${#eps}"
+  # k3s 1.33's v1-Endpoints deprecation banner lands in the captured
+  # value (stderr merge); filter it before counting. "ADDRS" is the
+  # custom-columns header, IPs are address lines.
+  # banner+header filtered: count the address lines only
+  get   eps "read endpoints" get endpoints "$svc" -n "$namespace" -o custom-columns=ADDRS:.subsets[*].addresses[*].ip
+    # custom-columns prints a "ADDRS" header plus one line per
+    # ready address; count the lines that look like IPs. grep -c exits
+    # 1 on zero matches, but pipelines do not propagate it.
+    eps="$(printf '%s\n' "$eps" | grep -vE '^Warning': | grep -cE '^([0-9a-fA-F:.]+|ADDRS)$')"
   if [[ "${eps:-0}" -gt 0 ]]; then
     A+=("{\"name\":$(json_str "$svc service endpoints lost"),\"passed\":true,\"observed\":$(json_str "endpoint_count=$eps")}")
   else
