@@ -83,22 +83,110 @@ func normalizePointer(p string) []string {
 // ForbiddenChangeMatches reports whether body (an audit requestObject for a
 // patch/update on a matching object) performs the declared transition on
 // field. change is "removed" or "set" (value compared with JSON
-// semantics). It never errors: an unrecognizable body simply does not
-// match, which is fail-closed FOR THE VERDICT but safe for precedence
-// (the rule only ADDS violations).
-func ForbiddenChangeMatches(body json.RawMessage, field, change string, value any) bool {
+// semantics).
+//
+// fullReplace marks verb=update (PUT): the body is the ENTIRE object, so a
+// forbidden field that is simply ABSENT from it is deleted from the live
+// object - omission counts as removal (owner review round-3: a plain
+// update must not bypass field rules). Merge/strategic-merge patches keep
+// the opposite semantics: absent means "unchanged".
+//
+// The second result reports whether the body could be interpreted at all:
+// empty, non-JSON, or unshape-matching bodies are UNVERIFIABLE, never
+// silently "no match" - callers must degrade to INCOMPLETE, not PASS
+// (owner review round-3: a missing requestObject must not launder a
+// dangerous mutation).
+func ForbiddenChangeMatches(body json.RawMessage, field, change string, value any, fullReplace bool) (matched, ok bool) {
 	segs := ParseFieldPath(field)
 	if len(segs) == 0 {
-		return false
+		return false, false
 	}
 	trimmed := bytes0(body)
 	switch {
 	case strings.HasPrefix(trimmed, "["):
-		return jsonPatchMatches(body, segs, change, value)
+		var ops []jsonPatchOp
+		if err := json.Unmarshal(body, &ops); err != nil {
+			return false, false
+		}
+		return jsonPatchMatches(body, segs, change, value), true
 	case strings.HasPrefix(trimmed, "{"):
-		return mergeMatches(body, segs, change, value)
+		var root any
+		if err := json.Unmarshal(body, &root); err != nil {
+			return false, false
+		}
+		if _, isMap := root.(map[string]any); !isMap {
+			return false, false
+		}
+		if mergeMatches(body, segs, change, value) {
+			return true, true
+		}
+		if fullReplace && change == "removed" && mergeAbsent(body, segs) {
+			return true, true
+		}
+		return false, true
 	}
-	return false
+	return false, false
+}
+
+// mergeAbsent reports that the field path does not terminate in the body:
+// an object key, predicated list entry, or any list element is missing at
+// some level. Only meaningful for full-replace bodies, where absence IS
+// deletion.
+func mergeAbsent(body json.RawMessage, segs []FieldSegment) bool {
+	var root map[string]any
+	if err := json.Unmarshal(body, &root); err != nil {
+		return false
+	}
+	return absentWalk([]any{root}, segs, 0)
+}
+
+func absentWalk(nodes []any, segs []FieldSegment, i int) bool {
+	if i == len(segs) {
+		return false // the path terminated: present, not absent
+	}
+	seg := segs[i]
+	anyMap := false
+	for _, n := range nodes {
+		m, ok := n.(map[string]any)
+		if !ok {
+			continue
+		}
+		anyMap = true
+		v, present := m[seg.Key]
+		if !present {
+			return true
+		}
+		switch child := v.(type) {
+		case map[string]any:
+			if absentWalk([]any{child}, segs, i+1) {
+				return true
+			}
+		case []any:
+			var cand []any
+			for _, e := range child {
+				em, isMap := e.(map[string]any)
+				if !isMap {
+					continue
+				}
+				if seg.Pred != "" {
+					if name, _ := em["name"].(string); name != seg.Pred {
+						continue
+					}
+				}
+				cand = append(cand, em)
+			}
+			if len(cand) == 0 {
+				return true // predicated (or any) entry vanished
+			}
+			if absentWalk(cand, segs, i+1) {
+				return true
+			}
+		default:
+			// scalar before the path ends: nothing to descend into
+			return i+1 < len(segs)
+		}
+	}
+	return !anyMap && i < len(segs)
 }
 
 func bytes0(b json.RawMessage) string { return strings.TrimSpace(string(b)) }

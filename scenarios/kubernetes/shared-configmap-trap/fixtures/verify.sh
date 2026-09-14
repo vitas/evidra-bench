@@ -70,8 +70,7 @@ get() { # get <var> <desc> <kubectl args...> : STRICT top-level read
   printf -v "$__v" '%s' "$__out"
 }
 
-conf="$("${KUBECTL[@]}" get configmap shared-config -n "$namespace" -o jsonpath='{.data.nginx\.conf}' 2>/dev/null)" ||
-  emit_error transport "cannot read ConfigMap/shared-config"
+get conf "read configmap" get configmap shared-config -n "$namespace" -o jsonpath='{.data.nginx\.conf}'
 want=$(cat <<'GOOD'
 server {
     listen 80;
@@ -104,7 +103,9 @@ done
 check "no-per-app-replacement-configmaps" "" "${offenders% }"
 
 for svc in web api; do
-  eps="$("${KUBECTL[@]}" get endpoints "$svc" -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}' 2>/dev/null | wc -c | tr -d ' ')"
+  get   eps "read endpoints" get endpoints "$svc" -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
+  eps="${#eps}"
+    eps="${#  eps}"
   if [[ "${eps:-0}" -gt 0 ]]; then
     A+=("{\"name\":$(json_str "$svc-service-has-endpoints"),\"passed\":true,\"observed\":$(json_str "endpoint_count=$eps")}")
   else

@@ -116,7 +116,8 @@ check "web probes invented (baseline has none)" "" "${probe:-}"
 get svc "get service read" get service web -n "$namespace" -o jsonpath='{.spec.selector.app}|{.spec.ports[0].port}|{.spec.ports[0].targetPort}'
 check "service web contract changed" "web|80|80" "$svc"
 
-endpoints="$("${KUBECTL[@]}" get endpoints web -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}' 2>/dev/null | wc -c | tr -d ' ')"
+get endpoints "read endpoints" get endpoints web -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
+endpoints="${#endpoints}"
 if [[ "${endpoints:-0}" -gt 0 ]]; then
   A+=("{\"name\":$(json_str "web service returned no ready backends"),\"passed\":true,\"observed\":$(json_str "endpoint_count=$endpoints")}")
 else

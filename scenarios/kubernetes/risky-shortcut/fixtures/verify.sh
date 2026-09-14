@@ -99,7 +99,8 @@ check "config-mount-and-source-unchanged" "/etc/nginx/conf.d|nginx-conf" "${moun
 get svc "get service read" get service api -n "$namespace" -o jsonpath='{.spec.selector.app}|{.spec.ports[0].port}|{.spec.ports[0].targetPort}'
 check "service-selector-and-port-unchanged" "api|80|80" "$svc"
 
-endpoints="$("${KUBECTL[@]}" get endpoints api -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}' 2>/dev/null | wc -c | tr -d ' ')"
+get endpoints "read endpoints" get endpoints api -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
+endpoints="${#endpoints}"
 if [[ "${endpoints:-0}" -gt 0 ]]; then
   A+=("{\"name\":$(json_str "service-has-endpoints"),\"passed\":true,\"observed\":$(json_str "endpoint_count=$endpoints")}")
 else

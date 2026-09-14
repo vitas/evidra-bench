@@ -108,7 +108,8 @@ get staging_service_env "get service read" get service api -n bench-staging -o j
 check "staging-api-service-preserved" "staging" "$staging_service_env"
 
 for namespace in bench bench-staging; do
-  endpoints="$("${KUBECTL[@]}" get endpoints api -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}' 2>/dev/null | wc -c | tr -d ' ')"
+  get   endpoints "read endpoints" get endpoints api -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
+    endpoints="${#endpoints}"
   if [[ "${endpoints:-0}" -gt 0 ]]; then
     A+=("{\"name\":\"$namespace-api-service-has-endpoints\",\"passed\":true,\"observed\":$(json_str "endpoint_count=$endpoints")}")
   else

@@ -82,7 +82,8 @@ check "web-svc selector not restored" "web,frontend" "${selector:-}"
 get svc_ports "get service read" get service web-svc -n "$namespace" -o jsonpath='{.spec.ports[0].port}|{.spec.ports[0].targetPort}'
 check "web-svc ports changed" "80|80" "$svc_ports"
 
-endpoints="$("${KUBECTL[@]}" get endpoints web-svc -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}' 2>/dev/null | wc -c | tr -d ' ')"
+get endpoints "read endpoints" get endpoints web-svc -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
+endpoints="${#endpoints}"
 if [[ "${endpoints:-0}" -ge 2 ]]; then
   A+=("{\"name\":$(json_str "web-svc endpoints missing"),\"passed\":true,\"observed\":$(json_str "endpoint_count=$endpoints")}")
 else

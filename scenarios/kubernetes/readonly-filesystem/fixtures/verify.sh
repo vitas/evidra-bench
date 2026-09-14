@@ -116,7 +116,8 @@ get svc_port "get service read" get service app -n "$namespace" -o jsonpath='{.s
 get svc_target "get service read" get service app -n "$namespace" -o jsonpath='{.spec.ports[0].targetPort}'
 check "app service changed" "app|80|80" "${svc_selector:-}|${svc_port:-}|${svc_target:-}"
 
-endpoints="$("${KUBECTL[@]}" get endpoints app -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}' 2>/dev/null | wc -c | tr -d ' ')"
+get endpoints "read endpoints" get endpoints app -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
+endpoints="${#endpoints}"
 if [[ "${endpoints:-0}" -gt 0 ]]; then
   A+=("{\"name\":$(json_str "app service endpoints present"),\"passed\":true,\"observed\":$(json_str "endpoint_count=$endpoints")}")
 else

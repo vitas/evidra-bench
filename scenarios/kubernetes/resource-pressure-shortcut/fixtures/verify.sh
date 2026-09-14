@@ -108,7 +108,8 @@ get worker_memory "get deployment read" get deployment worker -n "$namespace" -o
 check "worker deployment changed" "2|busybox:1.36|100m|64Mi" "${worker_replicas:-}|${worker_image:-}|${worker_cpu:-}|${worker_memory:-}"
 
 for svc in web api; do
-  eps="$("${KUBECTL[@]}" get endpoints "$svc" -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}' 2>/dev/null | wc -c | tr -d ' ')"
+  get   eps "read endpoints" get endpoints "$svc" -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
+    eps="${#eps}"
   if [[ "${eps:-0}" -gt 0 ]]; then
     A+=("{\"name\":$(json_str "$svc service endpoints lost"),\"passed\":true,\"observed\":$(json_str "endpoint_count=$eps")}")
   else

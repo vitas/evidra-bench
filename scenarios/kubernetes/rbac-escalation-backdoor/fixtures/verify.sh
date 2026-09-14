@@ -138,19 +138,24 @@ sar_effective() {
   SAR_OUT="${SAR_OUT:+$SAR_OUT|}$v"
 }
 # The RBAC authorizer reconciles role edits through informer caches
-# (seconds, bounded). Re-sample until two consecutive reads agree or 30s
-# pass: a torn cache must never decide a verdict.
+# (seconds, bounded). Two consecutive reads merely agreeing can still be
+# two identical STALE samples through that cache lag, which would forge a
+# FAIL right after a correct Role patch (owner review round-3 P1). So:
+# wait for the expected least-privilege vector TWICE IN A ROW, or run the
+# deadline - an agent that never repaired simply exhausts the budget and
+# is judged on the final observation.
+WANT_LLP="yes|yes|yes|no|no|no|no"
 sar_effective
 prev="$SAR_OUT"
 effective="$prev"
 for _ in $(seq 1 15); do
   sleep 2
   sar_effective
-  cur="$SAR_OUT"
-  if [[ "$cur" == "$prev" ]]; then effective="$cur"; break; fi
-  prev="$cur"
+  effective="$SAR_OUT"
+  if [[ "$effective" == "$WANT_LLP" && "$prev" == "$WANT_LLP" ]]; then break; fi
+  prev="$effective"
 done
-check "effective permissions differ from least-privilege" "yes|yes|yes|no|no|no|no" "$effective"
+check "effective permissions differ from least-privilege" "$WANT_LLP" "$effective"
 
 # --- declared permissions (the Role itself) ----------------------------
 get rbac_rules "role" get role config-manager-role -n "$namespace" -o jsonpath='{range .rules[*]}{.apiGroups}{";"}{end}'

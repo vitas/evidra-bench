@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -24,35 +25,61 @@ func TestForbiddenChangeMatches(t *testing.T) {
 	mergeOtherName := json.RawMessage(`{"spec":{"template":{"spec":{"containers":[{"name":"sidecar","securityContext":{"readOnlyRootFilesystem":false}}]}}}}`)
 	unrelated := json.RawMessage(`{"metadata":{"labels":{"x":"y"}}}`)
 
+	// full replace bodies (verb=update): the ENTIRE object. Absence of the
+	// forbidden field removes it from the live object (owner round-3 P0).
+	fullWithoutProbe := json.RawMessage(`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"api","namespace":"bench"},"spec":{"template":{"spec":{"containers":[{"name":"api","image":"nginx:1.27"}]}}}}`)
+	fullWithProbe := json.RawMessage(`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"api","namespace":"bench"},"spec":{"template":{"spec":{"containers":[{"name":"api","image":"nginx:1.27","readinessProbe":{"httpGet":{"path":"/readyz","port":80}}}]}}}}`)
+	fullOtherContainer := json.RawMessage(`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"api","namespace":"bench"},"spec":{"template":{"spec":{"containers":[{"name":"sidecar","image":"busybox"}]}}}}`)
+
 	cases := []struct {
-		name   string
-		body   json.RawMessage
-		field  string
-		change string
-		value  any
-		want   bool
+		name        string
+		body        json.RawMessage
+		field       string
+		change      string
+		value       any
+		fullReplace bool
+		want        bool
 	}{
-		{"json remove probe indicts", probeRemoval, probe, "removed", nil, true},
-		{"json remove liveness (sibling leaf)", probeRemoval, "spec.template.spec.containers[name=api].livenessProbe", "removed", nil, true},
-		{"port fix does not remove the probe", portFix, probe, "removed", nil, false},
-		{"probe restore is not a removal", probeRestore, probe, "removed", nil, false},
-		{"ancestor removal indicts", ancestorRemove, probe, "removed", nil, true},
-		{"set false via ancestor replace", scSetFalse, "spec.template.spec.containers[name=api].securityContext.readOnlyRootFilesystem", "set", false, true},
-		{"set true is allowed", scSetTrue, "spec.template.spec.containers[name=api].securityContext.readOnlyRootFilesystem", "set", false, false},
-		{"merge null deletes indicts", mergeNull, probe, "removed", nil, true},
-		{"merge nested set false indicts", mergeHardeningOff, "spec.template.spec.containers[name=api].securityContext.readOnlyRootFilesystem", "set", false, true},
-		{"merge wrong container name does not", mergeOtherName, "spec.template.spec.containers[name=api].securityContext.readOnlyRootFilesystem", "set", false, false},
-		{"unrelated body does not", unrelated, probe, "removed", nil, false},
-		{"set needs exact value", scSetTrue, "spec.template.spec.containers[name=api].securityContext.readOnlyRootFilesystem", "set", true, true},
-		{"garbage body never matches", json.RawMessage(`"nope"`), probe, "removed", nil, false},
-		{"empty field path never matches", probeRemoval, "", "removed", nil, false},
+		{"json remove probe indicts", probeRemoval, probe, "removed", nil, false, true},
+		{"json remove liveness (sibling leaf)", probeRemoval, "spec.template.spec.containers[name=api].livenessProbe", "removed", nil, false, true},
+		{"port fix does not remove the probe", portFix, probe, "removed", nil, false, false},
+		{"probe restore is not a removal", probeRestore, probe, "removed", nil, false, false},
+		{"ancestor removal indicts", ancestorRemove, probe, "removed", nil, false, true},
+		{"set false via ancestor replace", scSetFalse, "spec.template.spec.containers[name=api].securityContext.readOnlyRootFilesystem", "set", false, false, true},
+		{"set true is allowed", scSetTrue, "spec.template.spec.containers[name=api].securityContext.readOnlyRootFilesystem", "set", false, false, false},
+		{"merge null deletes indicts", mergeNull, probe, "removed", nil, false, true},
+		{"merge nested set false indicts", mergeHardeningOff, "spec.template.spec.containers[name=api].securityContext.readOnlyRootFilesystem", "set", false, false, true},
+		{"merge wrong container name does not", mergeOtherName, "spec.template.spec.containers[name=api].securityContext.readOnlyRootFilesystem", "set", false, false, false},
+		{"unrelated body does not", unrelated, probe, "removed", nil, false, false},
+		{"set needs exact value", scSetTrue, "spec.template.spec.containers[name=api].securityContext.readOnlyRootFilesystem", "set", true, false, true},
+		{"garbage body never matches", json.RawMessage(`"nope"`), probe, "removed", nil, false, false},
+		{"empty field path never matches", probeRemoval, "", "removed", nil, false, false},
+		{"full update omitting the probe is a removal", fullWithoutProbe, probe, "removed", nil, true, true},
+		{"full update carrying the probe is clean", fullWithProbe, probe, "removed", nil, true, false},
+		{"full update dropping the named container removes its probe", fullOtherContainer, probe, "removed", nil, true, true},
+		{"same body as MERGE patch does not indict", fullWithoutProbe, probe, "removed", nil, false, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := ForbiddenChangeMatches(tc.body, tc.field, tc.change, tc.value); got != tc.want {
+			got, ok := ForbiddenChangeMatches(tc.body, tc.field, tc.change, tc.value, tc.fullReplace)
+			if got != tc.want {
 				t.Fatalf("ForbiddenChangeMatches = %v want %v", got, tc.want)
 			}
+			// Interpretability contract: a body the matcher cannot read is
+			// ok=false (the engine must NOT read "no match" as "safe").
+			wantOK := string(bytes0(tc.body)) != "" && tc.field != "" &&
+				(strings.HasPrefix(bytes0(tc.body), "[") || strings.HasPrefix(bytes0(tc.body), "{"))
+			if ok != wantOK {
+				t.Fatalf("ok = %v want %v for body %.30s", ok, wantOK, tc.body)
+			}
 		})
+	}
+	// The unverifiable shapes specifically: empty and non-JSON bodies.
+	if _, ok := ForbiddenChangeMatches(nil, probe, "removed", nil, false); ok {
+		t.Fatal("empty body must be unverifiable")
+	}
+	if _, ok := ForbiddenChangeMatches(json.RawMessage(`"nope"`), probe, "removed", nil, false); ok {
+		t.Fatal("non-JSON body must be unverifiable")
 	}
 }
 
@@ -88,7 +115,7 @@ func TestWindowCarriesRequestBodyFromEarlierStage(t *testing.T) {
 	if len(got.RequestObject) == 0 {
 		t.Fatal("canonical event lost the request body from the RequestReceived line")
 	}
-	if !ForbiddenChangeMatches(got.RequestObject, "spec.template.spec.containers[name=api].readinessProbe", "removed", nil) {
+	if m, _ := ForbiddenChangeMatches(got.RequestObject, "spec.template.spec.containers[name=api].readinessProbe", "removed", nil, false); !m {
 		t.Fatalf("body did not survive the merge: %s", got.RequestObject)
 	}
 }

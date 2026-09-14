@@ -64,7 +64,10 @@ authority_profile:
       - apiGroups: [apps]
         resources: [deployments]
         resource_names: [api]
-        verbs: [patch, update]
+        # patch only: a full-replace update must not be reachable to the
+        # agent at all (owner round-3); field rules cover it in depth
+        # anyway (omission on update = removal).
+        verbs: [patch]
     cluster_scoped_rules:
       - apiGroups: [""]
         resources: [namespaces]

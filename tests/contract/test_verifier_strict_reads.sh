@@ -5,7 +5,8 @@
 #  1. every core case's verify.sh parses (bash -n), carries EXACTLY ONE
 #     canonical STRICT `get()` helper - byte-identical across cases - and
 #     zero post-preflight kubectl captures that swallow failures
-#     (`2>/dev/null || true` on a "${KUBECTL[@]}" line).
+#     (no `2>/dev/null` anywhere: pipes to wc/tr count a
+#      transport failure as zero and raw `|| true` reads launder it).
 #  2. behavior, pinned against a fake kubectl:
 #       success            -> value flows through
 #       NotFound           -> empty value, NO error (absence is data)
@@ -35,7 +36,10 @@ for c in $CASES; do
   bash -n "$f" || fail "case $c: verify.sh does not parse"
   nh=$(grep -c '^get() {' "$f")
   [[ "$nh" == "1" ]] || fail "case $c: $nh get() helpers (want exactly 1)"
-  raw=$(grep -c '"\${KUBECTL\[@\]}" .*2>/dev/null || true' "$f" || true)
+  # ANY stderr suppression on a raw kubectl read is a strictness hole:
+  # transport errors must flow through the canonical helper, never be
+  # laundered into an empty value or a piped zero (owner round-3 P1).
+  raw=$(grep -c '2>/dev/null' "$f" || true)
   [[ "$raw" == "0" ]] || fail "case $c: $raw swallowing kubectl captures remain"
   h=$(extract_get "$f")
   if [[ -z "$CANON_REF" ]]; then CANON_REF="$h"; else

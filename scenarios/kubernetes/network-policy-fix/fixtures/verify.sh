@@ -111,7 +111,8 @@ for t in frontend backend database; do
   check "$t deployment image changed" "nginx:1.27-alpine" "$image"
   get ready "get deployment read" get deployment "$t" -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}'
   check "$t deployment is not ready" "1/1" "$ready"
-  eps="$("${KUBECTL[@]}" get endpoints "$t" -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}' 2>/dev/null | wc -c | tr -d ' ')"
+  get   eps "read endpoints" get endpoints "$t" -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
+    eps="${#eps}"
   check "$t service endpoints wrong population" "1" "${eps:-0}"
 done
 

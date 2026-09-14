@@ -23,8 +23,9 @@ break:
   path: fixtures/broken-rbac.yaml
 after_break:
   # Let the RBAC authorizer informers absorb the widened Role before the
-  # agent starts; the verifier re-samples SubjectAccessReviews until two
-  # reads agree, so this bound is patience, not correctness.
+  # agent starts; the verifier keeps re-sampling SubjectAccessReviews
+  # until the expected least-privilege vector is seen twice in a row (or
+  # its deadline passes), so this bound is patience, not correctness.
   - name: let-authorizer-settle
     type: sleep
     duration: 10s

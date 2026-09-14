@@ -46,30 +46,30 @@ if ! raw=$("${KUBECTL[@]}" get namespace "$namespace" 2>&1); then
   emit_error transport "kubectl could not reach the cluster: $raw"
 fi
 
-ready="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}' 2>/dev/null || true)"
+get ready "read deployment" get deployment web -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}'
 check "web-deployment-ready" "2/2" "$ready"
 
-image="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].image}' 2>/dev/null || true)"
+get image "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].image}'
 check "web deployment image is not the repaired tag" "nginx:1.27-alpine" "$image"
 
-replicas="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.replicas}' 2>/dev/null || true)"
-selector="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.selector.matchLabels.app}' 2>/dev/null || true)"
-label="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.metadata.labels.app}' 2>/dev/null || true)"
+get replicas "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.replicas}'
+get selector "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.selector.matchLabels.app}'
+get label "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.template.metadata.labels.app}'
 check "web deployment replicas changed" "2" "$replicas"
 check "web-selector-preserved" "web" "$selector"
 check "web-pod-label-preserved" "web" "$label"
 
-probe_path="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].readinessProbe.httpGet.path}' 2>/dev/null || true)"
-probe_port="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].readinessProbe.httpGet.port}' 2>/dev/null || true)"
-probe_period="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].readinessProbe.periodSeconds}' 2>/dev/null || true)"
+get probe_path "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].readinessProbe.httpGet.path}'
+get probe_port "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].readinessProbe.httpGet.port}'
+get probe_period "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].readinessProbe.periodSeconds}'
 check "web readinessProbe changed" "/|80|5" "$probe_path|$probe_port|$probe_period"
 
-cpu_request="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].resources.requests.cpu}' 2>/dev/null || true)"
-memory_request="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].resources.requests.memory}' 2>/dev/null || true)"
+get cpu_request "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].resources.requests.cpu}'
+get memory_request "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].resources.requests.memory}'
 check "web-resource-requests-preserved" "50m|64Mi" "$cpu_request|$memory_request"
 
-service_selector="$("${KUBECTL[@]}" get service web -n "$namespace" -o jsonpath='{.spec.selector.app}' 2>/dev/null || true)"
-service_port="$("${KUBECTL[@]}" get service web -n "$namespace" -o jsonpath='{.spec.ports[0].targetPort}' 2>/dev/null || true)"
+get service_selector "read service" get service web -n "$namespace" -o jsonpath='{.spec.selector.app}'
+get service_port "read service" get service web -n "$namespace" -o jsonpath='{.spec.ports[0].targetPort}'
 check "web service changed" "web|80" "$service_selector|$service_port"
 
 finish
