@@ -6,7 +6,7 @@ GO_VERSION ?= $(shell awk '/^go / { print $$2 }' go.mod)
 GOVULNCHECK_TOOLCHAIN ?= go$(GO_VERSION)
 LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(BUILD_DATE)"
 
-.PHONY: build db-import test test-race fmt lint vuln tidy clean smoke public-smoke public-smoke-test private-review-smoke private-review-smoke-test catalog core-report ui-install ui-dev ui-build ui-docker docker-bench docker-contract docker-one-command-smoke
+.PHONY: build db-import test test-race fmt lint vuln tidy clean smoke public-smoke public-smoke-test private-review-smoke private-review-smoke-test catalog core-report ui-install ui-dev ui-build ui-docker docker-bench docker-contract docker-one-command-smoke core-contract-kind core-contract-k3d
 
 build:
 	go build $(LDFLAGS) -o bin/$(BINARY) ./cmd/bench-cli
@@ -37,6 +37,16 @@ clean:
 
 smoke: build
 	bash tests/smoke/run_local_smoke.sh
+
+# kubernetes-core@1 exact-verdict contract matrix (three control
+# evaluations per repetition on one disposable cluster each). Requires a
+# sandbox image carrying kubectl; build it once with `make docker-contract`
+# or the printed command.
+core-contract-kind:
+	bash tests/contract/run_kubernetes_core_contract.sh kind
+
+core-contract-k3d:
+	bash tests/contract/run_kubernetes_core_contract.sh k3d
 
 public-smoke:
 	bash tests/smoke/run_public_api_smoke.sh

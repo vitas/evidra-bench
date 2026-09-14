@@ -1,6 +1,8 @@
 package verifier
 
 import (
+	"log"
+
 	"context"
 	"fmt"
 	"os"
@@ -93,11 +95,15 @@ func (c *AssertV2Check) Check(ctx context.Context, kubeconfigPath string) CheckR
 			kind = ErrorKindTransport
 			msg = "assert-v2 script could not run (exit " + fmt.Sprint(exitCode) + "): " + errText(err)
 		}
+		log.Printf("verifier: %s: verifier protocol fault (%s): %s; stdout tail: %s", name, kind, msg, truncateTail(string(out), 400))
 		return errorResult(name, "assert-v2", VerdictError,
 			&CheckError{Kind: kind, Message: msg}, truncateTail(string(out), 2048))
 	}
 	switch doc.Status {
 	case ProtocolStatusError:
+		// The run-error path can discard the per-check payload; the log
+		// line is the last surviving carrier of WHY the verifier faulted.
+		log.Printf("verifier: %s: verifier protocol error (%s): %s", name, doc.Error.Kind, doc.Error.Message)
 		return errorResult(name, "assert-v2", VerdictError,
 			&CheckError{Kind: doc.Error.Kind, Message: doc.Error.Message}, "")
 	case ProtocolStatusPass:

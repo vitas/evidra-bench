@@ -221,12 +221,24 @@ func (s *Store) Window(start, end Event) WindowResult {
 	for _, opID := range s.Ops() {
 		group := byOp[opID]
 		var canonical Event
+		var earliestBody Event
 		found := false
 		for _, e := range group {
+			// Level-"Request" policies attach requestObject to the
+			// RequestReceived line only; the terminal stage (canonical)
+			// carries none. Field-level forbidden-change rules consume the
+			// body, so the earliest stage that has one lends it to the
+			// canonical event (same auditID = same operation).
+			if len(earliestBody.RequestObject) == 0 && len(e.RequestObject) > 0 {
+				earliestBody = e
+			}
 			if TerminalStage(e.Stage) {
 				canonical, found = e, true
 				break
 			}
+		}
+		if found && len(canonical.RequestObject) == 0 && len(earliestBody.RequestObject) > 0 {
+			canonical.RequestObject = earliestBody.RequestObject
 		}
 		if !found {
 			// CONNECT subresources (exec/attach/portforward/proxy) never

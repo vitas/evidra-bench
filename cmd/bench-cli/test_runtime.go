@@ -80,6 +80,10 @@ func prepareTestEvaluation(ctx context.Context, req testRequest, lookupEnv func(
 	cfg.ScenariosDir = filepath.Join(root, "scenarios")
 	cfg.RunsDir = filepath.Join(req.OutputDir, "runs")
 	cfg.Timeout = req.Timeout
+	// `test` always provisions and owns its disposable cluster, so cases
+	// running suite-by-suite may reset their declared bench scopes between
+	// cases (kubernetes-core plan Task 2). No other command sets this.
+	cfg.ResetNamespacesBeforeCase = true
 	cfg.ClusterName = oneCommandClusterName(os.Getpid(), time.Now())
 	cfg.Adapter = "cli"
 
@@ -236,8 +240,10 @@ func testSuiteManifest(id string) (string, error) {
 	switch strings.TrimSpace(id) {
 	case "", "kubernetes-demo", "kubernetes-demo@1":
 		return "suites/kubernetes-demo-v1.yaml", nil
+	case "kubernetes-core", "kubernetes-core@1":
+		return "suites/kubernetes-core-v1.yaml", nil
 	default:
-		return "", fmt.Errorf("test: unknown suite %q (available: kubernetes-demo@1)", id)
+		return "", fmt.Errorf("test: unknown suite %q (available: kubernetes-demo@1, kubernetes-core@1)", id)
 	}
 }
 
@@ -343,12 +349,13 @@ func (e suiteEvaluationExecutor) Execute(ctx context.Context, _ evaluation.Plan,
 	}
 	defer runtime.Close()
 	result, runErr := harness.New(runtime.Deps).Run(ctx, harness.RunRequest{
-		Config:         e.Config,
-		Scenario:       s,
-		KubeconfigPath: localLease.lease.KubeconfigPath,
-		Audit:          localLease.lease.Audit,
-		ClusterNetwork: localLease.lease.ClusterNetwork,
-		ExtraEnv:       localLease.lease.ExtraEnv,
+		Config:          e.Config,
+		Scenario:        s,
+		KubeconfigPath:  localLease.lease.KubeconfigPath,
+		Audit:           localLease.lease.Audit,
+		ClusterNetwork:  localLease.lease.ClusterNetwork,
+		InClusterServer: localLease.lease.InClusterServer,
+		ExtraEnv:        localLease.lease.ExtraEnv,
 	})
 	if result != nil && result.Case != nil {
 		return *result.Case, runErr

@@ -168,17 +168,33 @@ type ChaosConfig struct {
 	Steps           []ChaosStep `yaml:"steps,omitempty"`
 }
 
-// ChaosStep describes one scheduled runtime disruption.
+// ChaosStep describes one scheduled runtime disruption. Exactly one of
+// At (timer) and AfterChange (observed resource change) arms the step.
 type ChaosStep struct {
-	Name         string   `yaml:"name,omitempty"`
-	Type         string   `yaml:"type"`
-	At           Duration `yaml:"at"`
-	Path         string   `yaml:"path,omitempty"`
-	Release      string   `yaml:"release,omitempty"`
-	Namespace    string   `yaml:"namespace,omitempty"`
-	Duration     string   `yaml:"duration,omitempty"`
-	Args         []string `yaml:"args,omitempty"`
-	AllowFailure bool     `yaml:"allow_failure,omitempty"`
+	Name string   `yaml:"name,omitempty"`
+	Type string   `yaml:"type"`
+	At   Duration `yaml:"at,omitempty"`
+	// AfterChange fires the step as soon as the observed
+	// metadata.resourceVersion of the named object differs from the
+	// value captured (armed) before the agent started. Used for
+	// deterministic mid-fix disruptions — the chaos happens in reaction
+	// to the agent's own write, never on a guess about wall time.
+	AfterChange  *ResourceChangeTrigger `yaml:"after_change,omitempty"`
+	Path         string                 `yaml:"path,omitempty"`
+	Release      string                 `yaml:"release,omitempty"`
+	Namespace    string                 `yaml:"namespace,omitempty"`
+	Duration     string                 `yaml:"duration,omitempty"`
+	Args         []string               `yaml:"args,omitempty"`
+	AllowFailure bool                   `yaml:"allow_failure,omitempty"`
+}
+
+// ResourceChangeTrigger names one namespaced object whose
+// resourceVersion the chaos scheduler watches.
+type ResourceChangeTrigger struct {
+	APIVersion string `yaml:"api_version"`
+	Resource   string `yaml:"resource"`
+	Namespace  string `yaml:"namespace"`
+	Name       string `yaml:"name"`
 }
 
 // EnvironmentConfig describes additional infrastructure for a scenario.

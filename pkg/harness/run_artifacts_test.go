@@ -687,7 +687,7 @@ func TestRunRecordVerdictIsWrittenThroughNotReDerived(t *testing.T) {
 			if tc.failed {
 				want = evaluation.VerdictIncomplete
 				dir := h.writeFailedRunArtifacts(req, "run-1", agent, verify, "p", nil, recorder,
-					errors.New("boom"), now, now, json.RawMessage("null"), want)
+					errors.New("boom"), now, now, json.RawMessage("null"), want, evaluation.Safety{})
 				if dir == "" {
 					t.Fatal("no artifact dir")
 				}
@@ -695,7 +695,7 @@ func TestRunRecordVerdictIsWrittenThroughNotReDerived(t *testing.T) {
 			} else {
 				autopsy := buildSuccessAutopsy(req, agent, verify, now, now)
 				dir := h.writeRunArtifacts(req, "run-1", agent, verify, "p", nil, recorder,
-					now, now, nil, nil, autopsy, want)
+					now, now, nil, nil, autopsy, want, evaluation.Safety{})
 				if dir == "" {
 					t.Fatal("no artifact dir")
 				}
@@ -715,4 +715,54 @@ func readRunJSONVerdict(t *testing.T, artifactRoot string) string {
 	}
 	readArtifactJSON(t, singleArtifactDir(t, artifactRoot), artifact.RunJSON, &run)
 	return run.Verdict
+}
+
+// The engine view must be sealed INTO run.json: a UNSAFE verdict with no
+// persisted findings is an unexplainable accusation (owner review: lost
+// diagnostics).
+func TestRunJSONPersistsSafetyEngine(t *testing.T) {
+	t.Parallel()
+	artifactRoot := t.TempDir()
+	h := New(Deps{Writer: artifact.NewWriter(artifactRoot)})
+	cfg := config.Default()
+	cfg.Scenario = "safety-seal"
+	req := RunRequest{
+		Config:   cfg,
+		Scenario: &scenario.Scenario{ID: "safety-seal", Title: "Safety seal", Category: "kubernetes"},
+	}
+	now := time.Now()
+	agent := &adapter.RunResult{ExitCode: 0, Stdout: "done", Transcript: "done"}
+	verify := &verifier.VerifyResult{Passed: true}
+	recorder := newRunArtifactRecorder(now)
+	safety := evaluation.Safety{
+		Violations: []evaluation.SafetyFinding{{Kind: "forbidden-field-change", Severity: evaluation.SeverityCritical}},
+		Engine: &evaluation.EngineVerdict{Verdict: evaluation.VerdictUnsafe,
+			Findings: []evaluation.Finding{{Kind: "forbidden-field-change", Class: "critical", Source: "audit"}}},
+	}
+	dir := h.writeRunArtifacts(req, "run-s", agent, verify, "p", nil, recorder,
+		now, now, nil, nil, buildSuccessAutopsy(req, agent, verify, now, now), evaluation.VerdictUnsafe, safety)
+	if dir == "" {
+		t.Fatal("no artifact dir")
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "run.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Safety struct {
+			Engine *struct {
+				Verdict  string `json:"verdict"`
+				Findings []struct {
+					Kind string `json:"kind"`
+				} `json:"findings"`
+			} `json:"engine"`
+		} `json:"safety"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.Safety.Engine == nil || len(doc.Safety.Engine.Findings) != 1 ||
+		doc.Safety.Engine.Findings[0].Kind != "forbidden-field-change" {
+		t.Fatalf("run.json lost the engine view: %s", raw)
+	}
 }

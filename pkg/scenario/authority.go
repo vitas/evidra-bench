@@ -26,10 +26,34 @@ import (
 // suites keep working) but can NEVER qualify: the gap
 // "authority_profile_missing" marks the case as check-only forever.
 type AuthorityProfile struct {
-	Agent            AgentAuthority      `yaml:"agent"`
-	Protected        []ProtectedResource `yaml:"protected,omitempty"`
-	EvidenceReader   EvidenceReader      `yaml:"evidence_reader,omitempty"`
-	AllowImpersonate bool                `yaml:"allow_impersonation,omitempty"`
+	Agent            AgentAuthority         `yaml:"agent"`
+	Protected        []ProtectedResource    `yaml:"protected,omitempty"`
+	ForbiddenChanges []ForbiddenFieldChange `yaml:"forbidden_changes,omitempty"`
+	EvidenceReader   EvidenceReader         `yaml:"evidence_reader,omitempty"`
+	AllowImpersonate bool                   `yaml:"allow_impersonation,omitempty"`
+}
+
+// ForbiddenFieldChange declares a field-level transition that is a
+// violation WHEN THE AGENT PERFORMS IT, even though the target object is
+// writable by grant. Evidence is the audit request body (providers record
+// mutation bodies for this contract), so a transient change - reverted
+// before any final-state read - still indicts. This is the mechanism that
+// makes "the dangerous shortcut itself is the violation" gradeable when
+// RBAC alone would permit the patch (owner review P0-2: unsafe legs must
+// indict for the DANGER, not for an unrelated tacked-on violation).
+type ForbiddenFieldChange struct {
+	APIGroup     string `yaml:"api_group"`
+	Resource     string `yaml:"resource"`
+	ResourceName string `yaml:"resource_name"`
+	Namespace    string `yaml:"namespace"`
+	// Field is a dotted path; list steps may carry a name selector:
+	// spec.template.spec.containers[name=api].readinessProbe
+	Field string `yaml:"field"`
+	// Change: "removed" (the field is deleted/nulled by the request) or
+	// "set" (the field is written to Value).
+	Change string `yaml:"change"`
+	// Value is required for change: set and compared with JSON semantics.
+	Value any `yaml:"value,omitempty"`
 }
 
 // AgentAuthority declares the agent identity's namespace scope and rules.
@@ -175,6 +199,35 @@ func validateAuthorityProfile(s *Scenario) error {
 	for i, e := range p.EvidenceReader.Extra {
 		if err := validateEvidenceReaderExtra(s.ID, i, e); err != nil {
 			return err
+		}
+	}
+	// forbidden_changes: strict shape, and the target must not be a
+	// protected object (verb-level protection already indicts it - a
+	// field rule there would be dead config).
+	for i, f := range p.ForbiddenChanges {
+		where := fmt.Sprintf("forbidden_changes[%d]", i)
+		if f.Resource == "" || f.Field == "" {
+			return fmt.Errorf("scenario %s: %s: resource and field are required", s.ID, where)
+		}
+		if f.ResourceName == "" || f.Namespace == "" {
+			return fmt.Errorf("scenario %s: %s: resource_name and namespace are required (field rules are object-exact)", s.ID, where)
+		}
+		if strings.TrimSpace(f.Field) == "" {
+			return fmt.Errorf("scenario %s: %s: field must be a path", s.ID, where)
+		}
+		switch f.Change {
+		case "removed":
+		case "set":
+			if f.Value == nil {
+				return fmt.Errorf("scenario %s: %s: change=set requires value", s.ID, where)
+			}
+		default:
+			return fmt.Errorf("scenario %s: %s: change must be removed|set, got %q", s.ID, where, f.Change)
+		}
+		for _, pr := range p.Protected {
+			if pr.Resource == f.Resource && pr.Name == f.ResourceName && pr.Namespace == f.Namespace {
+				return fmt.Errorf("scenario %s: %s: targets protected object %s/%s in %s - verb-level protection already indicts it", s.ID, where, f.Resource, f.ResourceName, f.Namespace)
+			}
 		}
 	}
 	if p.AllowImpersonate {

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -44,12 +45,16 @@ var ErrSandboxUnavailable = errors.New("sandbox unavailable")
 // SandboxSpec describes one sandboxed agent execution.
 type SandboxSpec struct {
 	RunID         string
-	Image         string            // caller-supplied agent image
-	BundleDir     string            // host dir: entrypoint "run" + declared files
-	Entrypoint    []string          // exec argv inside the sandbox (default /agent/run)
-	PromptContent string            // run prompt, staged as /agent/prompt.md
-	Kubeconfig    string            // per-run identity kubeconfig (host-visible path content read now)
-	ExtraFiles    map[string]string // staged name -> content (whitelisted inputs)
+	Image         string   // caller-supplied agent image
+	BundleDir     string   // host dir: entrypoint "run" + declared files
+	Entrypoint    []string // exec argv inside the sandbox (default /agent/run)
+	PromptContent string   // run prompt, staged as /agent/prompt.md
+	Kubeconfig    string   // per-run identity kubeconfig (host-visible path content read now)
+	// InClusterServer, when set, replaces the `server:` in the packed
+	// kubeconfig: the sandbox shares ClusterNetwork with the nodes but not
+	// the host's loopback, so a published-port endpoint is unreachable.
+	InClusterServer string
+	ExtraFiles      map[string]string // staged name -> content (whitelisted inputs)
 	// AgentEnv passes EXPLICIT named env vars into the sandbox (no runner
 	// inheritance — this map is the whole channel; the harness sends e.g.
 	// INFRA_BENCH_SCENARIO, which fixture agents legitimately need).
@@ -174,6 +179,12 @@ func (s *DockerSandbox) buildTar(spec SandboxSpec) ([]byte, error) {
 		data, err := os.ReadFile(spec.Kubeconfig)
 		if err != nil {
 			return nil, fmt.Errorf("sandbox: kubeconfig: %w", err)
+		}
+		if spec.InClusterServer != "" {
+			data = rewriteKubeconfigServer(data, spec.InClusterServer)
+			log.Printf("[sandbox] packed kubeconfig server rewritten to %s", spec.InClusterServer)
+		} else {
+			log.Printf("[sandbox] packing kubeconfig %s WITHOUT in-cluster rewrite (spec.InClusterServer empty)", spec.Kubeconfig)
 		}
 		if err := write("run/agent.kubeconfig", 0o644, data); err != nil {
 			return nil, err
@@ -353,4 +364,21 @@ func DockerNetworkOf(container string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// rewriteKubeconfigServer replaces the API endpoint in a single-cluster
+// kubeconfig, in either serialization: providers write YAML (`server: x`
+// on its own line) while the identity bundle marshals JSON (`"server":
+// "x"`, one compact document). Purely textual on purpose; both forms
+// carry exactly one cluster entry.
+var (
+	kubeconfigServerYAMLRe = regexp.MustCompile(`(?m)^(\s*server:\s*)[^\n]*`)
+	kubeconfigServerJSONRe = regexp.MustCompile(`"server"\s*:\s*"[^"]*"`)
+)
+
+func rewriteKubeconfigServer(data []byte, endpoint string) []byte {
+	if out := kubeconfigServerJSONRe.ReplaceAll(data, []byte(`"server":"`+endpoint+`"`)); string(out) != string(data) {
+		return out
+	}
+	return kubeconfigServerYAMLRe.ReplaceAll(data, []byte("${1}"+endpoint))
 }

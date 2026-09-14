@@ -176,6 +176,11 @@ func (p *K3dProvider) Create(ctx context.Context, clusterName string, spec Clust
 		ClusterName:    clusterName,
 		KubeconfigPath: kubeconfigPath,
 		ClusterNetwork: firstNonEmpty(DockerNetworkOf("k3d-"+clusterName+"-server-0"), "k3d-"+clusterName),
+		// The host kubeconfig is localized to 127.0.0.1:<published>; a
+		// sandbox on the cluster network reaches the server by its k3d
+		// container name instead (same name internalizeK3dKubeconfigServer
+		// writes for in-network consumers).
+		InClusterServer: fmt.Sprintf("https://k3d-%s-server-0:6443", clusterName),
 	}
 	if spec.Audit.Enabled {
 		handle.Audit = &AuditAccess{

@@ -53,6 +53,9 @@ type Deps struct {
 	// Sandbox overrides the docker-CLI sandbox runner (tests); nil uses the
 	// production DockerSandbox.
 	Sandbox environment.SandboxRunner
+	// Runner executes supporting CLI commands (case isolation deletes);
+	// nil uses environment.ExecRunner.
+	Runner environment.CommandRunner
 }
 
 // RunRequest describes what to run.
@@ -68,6 +71,10 @@ type RunRequest struct {
 	// ClusterNetwork is the docker network of the provisioned cluster
 	// (agent sandbox attaches there; "" = unknown = sandbox unavailable).
 	ClusterNetwork string
+	// InClusterServer is the API endpoint the sandbox reaches the cluster
+	// on (see environment.Handle.InClusterServer); empty = use the
+	// kubeconfig server as-is.
+	InClusterServer string
 }
 
 // RunResult holds the outcome of a harness run.
@@ -126,7 +133,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 			Reason:  kind,
 			Details: runErr.Error(),
 		}, s.AuthorityProfile != nil, nil, nil, s.AuthorityProfile)
-		artifactDir := h.writeFailedRunArtifacts(req, runID, nAgent, nVerify, promptContent, runChaosRunner(chaosRun), recorder, runErr, startTime, failedAt, safetyAutopsyJSON, caseResult.Verdict)
+		artifactDir := h.writeFailedRunArtifacts(req, runID, nAgent, nVerify, promptContent, runChaosRunner(chaosRun), recorder, runErr, startTime, failedAt, safetyAutopsyJSON, caseResult.Verdict, caseResult.Safety)
 		if artifactDir != "" {
 			caseResult.Evidence = []evaluation.EvidenceRef{{Kind: "artifact_dir", Path: artifactDir}}
 		}
@@ -182,6 +189,20 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	}
 	recorder.Event("environment", "completed", "")
 	defer cleanupExtraEnv()
+
+	// Step 2c: case isolation (kubernetes-core plan). On the owned
+	// disposable cluster this is the ONE namespace lifecycle stage:
+	// delete every declared scope once -> recreate the target namespace
+	// -> canary. prepareRunEnvironment skips those steps in this mode so
+	// bench is never deleted twice per case. Everything happens BEFORE
+	// bootstrap, baseline snapshots and the audit window, so evaluator
+	// cleanup is never attributable to the tested agent.
+	recorder.Event("isolation", "started", "")
+	if err := h.resetScenarioNamespaces(ctx, req, handle, s, ns); err != nil {
+		recorder.Event("isolation", "failed", err.Error())
+		return nil, err
+	}
+	recorder.Event("isolation", "completed", "")
 
 	// Step 2d: Bootstrap.
 	if h.deps.Bootstrapper != nil {
@@ -310,7 +331,14 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		return nil, err
 	}
 	recorder.Event("agent_prepare", "completed", "")
-	chaosRun = h.startRunChaos(ctx, s, handle.KubeconfigPath)
+	{
+		var chaosErr error
+		chaosRun, chaosErr = h.startRunChaos(ctx, s, handle.KubeconfigPath)
+		if chaosErr != nil {
+			recorder.Event("agent_prepare", "failed", chaosErr.Error())
+			return nil, chaosErr
+		}
+	}
 
 	// Step 4: Execute agent (+ concurrent stages for multi-stage).
 	recorder.Event("agent_run", "started", "")
@@ -323,6 +351,12 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 		return nil, wrapRunAgentError(err)
 	}
 	chaosRun.stopAfterAgentDone(s.Chaos)
+	if cr := runChaosRunner(chaosRun); cr.TriggerFaulted() {
+		// Evaluator-side watch fault: the disruption that was supposed to
+		// happen may not have happened — the outcome cannot be attributed.
+		recorder.Event("agent_run", "failed", cr.TriggerFault().Error())
+		return nil, &InfraError{Err: fmt.Errorf("harness.Run: %w", cr.TriggerFault())}
+	}
 	recorder.Event("agent_run", "completed", "")
 
 	// Step 4c: Wait for rollouts to settle before verification.
@@ -360,7 +394,7 @@ func (h *Harness) Run(ctx context.Context, req RunRequest) (result *RunResult, r
 	autopsyJSON := buildSuccessAutopsy(req, agentResult, verifyResult, startTime, endTime)
 	caseResult := buildEvaluationCaseResultPlanned(s.ID, plannedAgentMode(req), runID, agentResult, verifyResult, autopsyJSON, "", endTime.Sub(startTime), evaluation.Termination{Kind: evaluation.TerminationComplete}, s.AuthorityProfile != nil, auditInfo, snapInfo, s.AuthorityProfile)
 	recorder.Event("artifact_write", "started", "")
-	artifactDir := h.writeRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, startTime, endTime, auditInfo, snapInfo, autopsyJSON, caseResult.Verdict)
+	artifactDir := h.writeRunArtifacts(req, runID, agentResult, verifyResult, promptContent, runChaosRunner(chaosRun), recorder, startTime, endTime, auditInfo, snapInfo, autopsyJSON, caseResult.Verdict, caseResult.Safety)
 	if artifactDir != "" {
 		caseResult.Evidence = []evaluation.EvidenceRef{{Kind: "artifact_dir", Path: artifactDir}}
 	}

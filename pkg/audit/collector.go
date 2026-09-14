@@ -1,6 +1,9 @@
 package audit
 
 import (
+	"log"
+	"path/filepath"
+
 	"context"
 	"errors"
 	"fmt"
@@ -61,8 +64,25 @@ type FileSource struct {
 // NodeName implements Source.
 func (f FileSource) NodeName() string { return f.Node }
 
-// Read implements Source.
-func (f FileSource) Read(context.Context) ([]byte, error) { return os.ReadFile(f.Path) }
+// Read implements Source. It follows the chain convention: the base file
+// plus <path>.* rotated siblings, merged (the drain dedupes by
+// (auditID, stage), order is immaterial).
+func (f FileSource) Read(context.Context) ([]byte, error) {
+	out, err := os.ReadFile(f.Path)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	matches, _ := filepath.Glob(f.Path + ".*")
+	sort.Strings(matches)
+	for _, m := range matches {
+		extra, rerr := os.ReadFile(m)
+		if rerr != nil {
+			continue
+		}
+		out = append(out, extra...)
+	}
+	return out, nil
+}
 
 // DockerExecSource reads an audit log from inside a sibling container —
 // the DooD-safe pattern proven in the spike (docker exec cat; never a bind
@@ -86,15 +106,25 @@ func (d DockerExecSource) Read(ctx context.Context) ([]byte, error) {
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	//nolint:gosec // fixed arguments; container/path come from provisioning, not user input.
-	cmd := exec.CommandContext(cctx, "docker", "exec", d.Container, "cat", d.Path)
+	// The shell glob reads the CURRENT file plus every rotated sibling
+	// (audit.log.<ts>) in one pass: rotation is expected over a long
+	// evaluation, and the drain dedupes by (auditID, stage), so ordering
+	// is immaterial as long as no rotation races the cat mid-window.
+	// `|| true`: an unmatched glob makes cat exit non-zero even though the
+	// base file streamed fine - the errors are already suppressed, and the
+	// drain judges content, not the shell's mood. A dead container still
+	// fails (docker exec's own rc), which is a real reader fault.
+	cmd := exec.CommandContext(cctx, "docker", "exec", d.Container,
+		"sh", "-c", fmt.Sprintf("cat %s %s.* 2>/dev/null || true", d.Path, d.Path))
 	out, err := cmd.Output()
 	if err != nil {
-		// Rotation: audit.log may vanish briefly while audit.log.<ts>
-		// exists; tolerate ENOENT only if some rotated file is listed.
+		// Rotation: audit.log may vanish briefly while a rotated sibling
+		// is being created; tolerate ENOENT only if some rotated file is
+		// listed. With a chain glob this should never fire.
 		if isNoFileError(err) && d.rotatedExists(cctx) {
 			return nil, ErrLogRotated
 		}
-		return nil, fmt.Errorf("audit: docker exec %s cat %s: %w", d.Container, d.Path, err)
+		return nil, fmt.Errorf("audit: docker exec %s cat %s.*: %w", d.Container, d.Path, err)
 	}
 	return out, nil
 }
@@ -186,6 +216,7 @@ func Collect(ctx context.Context, req CollectRequest) (*Result, error) {
 					rotated[src.NodeName()] = true
 				}
 				res.NodeFailures = append(res.NodeFailures, src.NodeName()+": "+err.Error())
+				log.Printf("audit: node read failed: %v", err)
 				continue
 			}
 			// A full re-read shorter than, or diverging from the prefix
@@ -229,7 +260,14 @@ func Collect(ctx context.Context, req CollectRequest) (*Result, error) {
 	switch {
 	case lastFailures == len(req.Sources) && len(rotated) == 0:
 		res.Coverage, res.Reasons = CoverageAbsent, append(res.Reasons, ReasonReaderFailure)
-		res.NodeFailures = nil // one clean reason beats N repeats
+		// The first concrete error rides into the reason: a reader that
+		// fails uniformly is diagnosable from the artifacts alone.
+		if len(res.NodeFailures) > 0 {
+			res.Reasons = append(res.Reasons, "first: "+res.NodeFailures[0])
+			if len(res.NodeFailures) > len(req.Sources) {
+				res.NodeFailures = nil // one clean reason beats N repeats
+			}
+		}
 		return res, nil
 	case lastFailures == len(req.Sources) && !haveStart:
 		// rotated before the start marker ever landed: nothing in the
@@ -247,6 +285,10 @@ func Collect(ctx context.Context, req CollectRequest) (*Result, error) {
 		res.Window = store.Window(start, end)
 		switch {
 		case len(rotated) > 0:
+			// Fail-closed stays TRUE for any source that loses data (the
+			// generic contract). The provisioned chain-glob reader cannot
+			// produce this signature from a routine rotation: its merged
+			// stream (base + siblings) is monotonic.
 			res.Coverage = CoverageIncomplete
 			nodes := make([]string, 0, len(rotated))
 			for n := range rotated {

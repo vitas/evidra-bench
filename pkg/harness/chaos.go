@@ -18,6 +18,103 @@ type ChaosRunner struct {
 	KubeconfigPath string
 	Config         scenario.ChaosConfig
 	events         []chaosEvent
+
+	// armed maps after_change steps to the resourceVersion observed
+	// BEFORE the agent started (captured by ArmResourceTriggers).
+	armed map[string]string
+	// observed records the resourceVersion that fired the trigger.
+	observed map[string]string
+	// triggerErr is the first fatal trigger-watch fault (evaluator-side);
+	// the harness maps it to INCOMPLETE — never a behavioral FAIL.
+	triggerErr error
+}
+
+// TriggerFaulted reports a fatal evaluator-side chaos trigger failure.
+func (r *ChaosRunner) TriggerFaulted() bool { return r != nil && r.triggerErr != nil }
+
+// TriggerFault returns the fault to surface in the run error (nil-safe).
+func (r *ChaosRunner) TriggerFault() error {
+	if r == nil {
+		return nil
+	}
+	return r.triggerErr
+}
+
+// ArmResourceTriggers synchronously captures the initial resourceVersion
+// of every after_change step's watched object. A required trigger that
+// cannot be armed MUST prevent the agent from starting (round: plan
+// Task 3) — the caller maps the error to INCOMPLETE.
+func (r *ChaosRunner) ArmResourceTriggers(ctx context.Context) error {
+	for _, step := range r.Config.Steps {
+		if step.AfterChange == nil {
+			continue
+		}
+		rv, err := r.resourceVersion(ctx, step.AfterChange)
+		if err != nil {
+			return fmt.Errorf("chaos step %q: arm trigger: %w", step.Name, err)
+		}
+		if r.armed == nil {
+			r.armed = map[string]string{}
+		}
+		r.armed[step.Name] = rv
+	}
+	return nil
+}
+
+// resourceVersion reads ONLY metadata.resourceVersion of the watched
+// object (kubectl get --raw + targeted decode), so no object payload —
+// let alone secret data — ever reaches chaos.json.
+func (r *ChaosRunner) resourceVersion(ctx context.Context, ac *scenario.ResourceChangeTrigger) (string, error) {
+	prefix := "/api/v1"
+	if ac.APIVersion != "v1" && ac.APIVersion != "" {
+		prefix = "/apis/" + strings.Trim(ac.APIVersion, "/")
+	}
+	path := fmt.Sprintf("%s/namespaces/%s/%s/%s", prefix, ac.Namespace, strings.ToLower(ac.Resource), ac.Name)
+	//nolint:gosec // argv is fixed here; trigger fields are loader-validated.
+	cmd := makeCmd([]string{"kubectl", "--kubeconfig", r.KubeconfigPath, "get", "--raw", path})
+	out, err := r.Runner.Run(ctx, cmd)
+	if err != nil {
+		return "", fmt.Errorf("read %s: %v", path, err)
+	}
+	var obj struct {
+		Metadata struct {
+			ResourceVersion string `json:"resourceVersion"`
+		} `json:"metadata"`
+	}
+	if err := json.Unmarshal(out, &obj); err != nil {
+		return "", fmt.Errorf("read %s: unparseable response: %v", path, err)
+	}
+	if obj.Metadata.ResourceVersion == "" {
+		return "", fmt.Errorf("read %s: empty resourceVersion", path)
+	}
+	return obj.Metadata.ResourceVersion, nil
+}
+
+// waitForResourceChange polls (bounded 200ms) until the object's
+// resourceVersion differs from the armed value. Returns the fire time.
+// context.Canceled = agent finished first (step legitimately cancelled,
+// not a fault); any other read error is a trigger fault.
+func (r *ChaosRunner) waitForResourceChange(ctx context.Context, step scenario.ChaosStep, initial string) (time.Time, error) {
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return time.Time{}, ctx.Err()
+		case <-ticker.C:
+			current, err := r.resourceVersion(ctx, step.AfterChange)
+			if err != nil {
+				return time.Time{}, err
+			}
+			if current != initial {
+				if r.observed == nil {
+					r.observed = map[string]string{}
+				}
+				r.observed[step.Name] = current
+				return time.Now(), nil
+			}
+		}
+	}
 }
 
 // Run executes the configured chaos schedule until completion or cancellation.
@@ -29,11 +126,45 @@ func (r *ChaosRunner) Run(ctx context.Context) {
 	for {
 		cycleStart := time.Now()
 		for _, step := range r.Config.Steps {
-			scheduledAt := cycleStart.Add(step.At.Duration)
-			if err := waitForChaosStep(ctx, cycleStart, step.At.Duration); err != nil {
-				return
+			var (
+				scheduledAt time.Time
+				trigger     string
+			)
+			if step.AfterChange != nil {
+				initial := r.armed[step.Name]
+				if initial == "" {
+					// Unarmed required trigger: never run the step blind.
+					r.triggerErr = fmt.Errorf("chaos step %q: trigger was never armed", step.Name)
+					r.events = append(r.events, chaosEvent{Name: step.Name, Type: step.Type, Trigger: "after_change", ScheduledAt: time.Now(), FinishedAt: time.Now(), Error: r.triggerErr.Error()})
+					return
+				}
+				fireAt, err := r.waitForResourceChange(ctx, step, initial)
+				if err != nil {
+					if ctx.Err() != nil {
+						return // agent finished first: step legitimately cancelled
+					}
+					r.triggerErr = fmt.Errorf("chaos step %q: %w", step.Name, err)
+					r.events = append(r.events, chaosEvent{
+						Name: step.Name, Type: step.Type, Trigger: "after_change",
+						ScheduledAt: cycleStart.Add(step.At.Duration), FinishedAt: time.Now(),
+						InitialResourceVersion: initial, Error: r.triggerErr.Error(),
+					})
+					return
+				}
+				scheduledAt, trigger = fireAt, "after_change"
+			} else {
+				scheduledAt = cycleStart.Add(step.At.Duration)
+				trigger = "timer"
+				if err := waitForChaosStep(ctx, cycleStart, step.At.Duration); err != nil {
+					return
+				}
 			}
 			event := r.executeStep(ctx, step, scheduledAt)
+			event.Trigger = trigger
+			if step.AfterChange != nil {
+				event.InitialResourceVersion = r.armed[step.Name]
+				event.ObservedResourceVersion = r.observed[step.Name]
+			}
 			r.events = append(r.events, event)
 			if event.Error != "" {
 				if step.AllowFailure {
@@ -41,6 +172,15 @@ func (r *ChaosRunner) Run(ctx context.Context) {
 					continue
 				}
 				log.Printf("[chaos] step %s failed: %s", step.Name, event.Error)
+				// A trigger-armed step is load-bearing for the case
+				// premise (the drift IS the test): its failure is an
+				// evaluator fault, reported through the same channel as
+				// a faulted watch — never silently swallowed. Timer
+				// steps keep their historical log-only behavior.
+				if step.AfterChange != nil {
+					r.triggerErr = fmt.Errorf("chaos step %q failed: %s", step.Name, event.Error)
+					return
+				}
 			}
 		}
 		if mode != "repeat" {
@@ -177,16 +317,21 @@ type chaosSummary struct {
 }
 
 type chaosEvent struct {
-	Name         string    `json:"name"`
-	Type         string    `json:"type"`
-	ScheduledAt  time.Time `json:"scheduled_at"`
-	StartedAt    time.Time `json:"started_at"`
-	FinishedAt   time.Time `json:"finished_at"`
-	Command      []string  `json:"command,omitempty"`
-	Success      bool      `json:"success"`
-	AllowFailure bool      `json:"allow_failure,omitempty"`
-	Output       string    `json:"output,omitempty"`
-	Error        string    `json:"error,omitempty"`
+	Name string `json:"name"`
+	Type string `json:"type"`
+	// Trigger is "timer" or "after_change"; the versions describe an
+	// after_change firing (payloads are never recorded).
+	Trigger                 string    `json:"trigger,omitempty"`
+	InitialResourceVersion  string    `json:"initial_resource_version,omitempty"`
+	ObservedResourceVersion string    `json:"observed_resource_version,omitempty"`
+	ScheduledAt             time.Time `json:"scheduled_at"`
+	StartedAt               time.Time `json:"started_at"`
+	FinishedAt              time.Time `json:"finished_at"`
+	Command                 []string  `json:"command,omitempty"`
+	Success                 bool      `json:"success"`
+	AllowFailure            bool      `json:"allow_failure,omitempty"`
+	Output                  string    `json:"output,omitempty"`
+	Error                   string    `json:"error,omitempty"`
 }
 
 func (s chaosSummary) Log() string {
