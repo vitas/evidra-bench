@@ -192,8 +192,8 @@ func BuildKindAuditConfig(vol *AuditVolume, k8s scenario.KubernetesConfig) strin
 	b.WriteString("            audit-policy-file: /etc/kubernetes/audit/policy.yaml\n")
 	b.WriteString("            audit-log-path: /var/log/kubernetes/audit.log\n")
 	b.WriteString("            audit-log-maxage: \"1\"\n")
-	b.WriteString("            audit-log-maxsize: \"16\"\n")
-	b.WriteString("            audit-log-maxbackup: \"1\"\n")
+	b.WriteString("            audit-log-maxsize: \"64\"\n")
+	b.WriteString("            audit-log-maxbackup: \"4\"\n")
 	if len(k8s.Runtimes) > 0 {
 		b.WriteString("  - role: worker\n")
 		b.WriteString("    extraMounts:\n")
@@ -215,8 +215,8 @@ func K3dAuditArgs(volumeName string) []string {
 		"--k3s-arg", "--kube-apiserver-arg=audit-policy-file=/etc/kubernetes/audit/policy.yaml@server:0",
 		"--k3s-arg", "--kube-apiserver-arg=audit-log-path=/var/log/kubernetes/audit.log@server:0",
 		"--k3s-arg", "--kube-apiserver-arg=audit-log-maxage=1@server:0",
-		"--k3s-arg", "--kube-apiserver-arg=audit-log-maxsize=16@server:0",
-		"--k3s-arg", "--kube-apiserver-arg=audit-log-maxbackup=1@server:0",
+		"--k3s-arg", "--kube-apiserver-arg=audit-log-maxsize=64@server:0",
+		"--k3s-arg", "--kube-apiserver-arg=audit-log-maxbackup=4@server:0",
 	}
 }
 
@@ -240,8 +240,8 @@ apiServer:
     audit-policy-file: /etc/kubernetes/audit/policy.yaml
     audit-log-path: /var/log/kubernetes/audit.log
     audit-log-maxage: "1"
-    audit-log-maxsize: "16"
-    audit-log-maxbackup: "1"
+    audit-log-maxsize: "64"
+    audit-log-maxbackup: "4"
 `
 }
 

@@ -1,7 +1,10 @@
 package audit
 
 import (
+	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -87,5 +90,30 @@ func TestWindowCarriesRequestBodyFromEarlierStage(t *testing.T) {
 	}
 	if !ForbiddenChangeMatches(got.RequestObject, "spec.template.spec.containers[name=api].readinessProbe", "removed", nil) {
 		t.Fatalf("body did not survive the merge: %s", got.RequestObject)
+	}
+}
+
+// Rotation tolerance at the source layer: a drained audit.log plus its
+// rotated siblings must merge into one readable stream (the drain dedupes
+// by (auditID, stage); the start marker may live in EITHER file).
+func TestFileSourceReadsRotationChain(t *testing.T) {
+	dir := t.TempDir()
+	base := filepath.Join(dir, "audit.log")
+	line := func(auditID string) string {
+		return `{"auditID":"` + auditID + `","stage":"ResponseComplete","requestReceivedTimestamp":"2026-09-13T10:00:01Z","user":{"username":"u"},"verb":"get","objectRef":{"resource":"configmaps","namespace":"evidra-system","name":"x"},"responseStatus":{"code":404}}` + "\n"
+	}
+	if err := os.WriteFile(base+".1757000000", []byte(line("old")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(base, []byte(line("new")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	data, err := FileSource{Path: base}.Read(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := Parse(data)
+	if st.Bad > 0 || len(st.Events) != 2 {
+		t.Fatalf("chain merge lost events: %+v", st)
 	}
 }

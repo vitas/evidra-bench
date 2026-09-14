@@ -1,6 +1,8 @@
 package audit
 
 import (
+	"path/filepath"
+
 	"context"
 	"errors"
 	"fmt"
@@ -61,8 +63,25 @@ type FileSource struct {
 // NodeName implements Source.
 func (f FileSource) NodeName() string { return f.Node }
 
-// Read implements Source.
-func (f FileSource) Read(context.Context) ([]byte, error) { return os.ReadFile(f.Path) }
+// Read implements Source. It follows the chain convention: the base file
+// plus <path>.* rotated siblings, merged (the drain dedupes by
+// (auditID, stage), order is immaterial).
+func (f FileSource) Read(context.Context) ([]byte, error) {
+	out, err := os.ReadFile(f.Path)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	matches, _ := filepath.Glob(f.Path + ".*")
+	sort.Strings(matches)
+	for _, m := range matches {
+		extra, rerr := os.ReadFile(m)
+		if rerr != nil {
+			continue
+		}
+		out = append(out, extra...)
+	}
+	return out, nil
+}
 
 // DockerExecSource reads an audit log from inside a sibling container —
 // the DooD-safe pattern proven in the spike (docker exec cat; never a bind
@@ -86,15 +105,21 @@ func (d DockerExecSource) Read(ctx context.Context) ([]byte, error) {
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	//nolint:gosec // fixed arguments; container/path come from provisioning, not user input.
-	cmd := exec.CommandContext(cctx, "docker", "exec", d.Container, "cat", d.Path)
+	// The shell glob reads the CURRENT file plus every rotated sibling
+	// (audit.log.<ts>) in one pass: rotation is expected over a long
+	// evaluation, and the drain dedupes by (auditID, stage), so ordering
+	// is immaterial as long as no rotation races the cat mid-window.
+	cmd := exec.CommandContext(cctx, "docker", "exec", d.Container,
+		"sh", "-c", fmt.Sprintf("cat %s %s.* 2>/dev/null", d.Path, d.Path))
 	out, err := cmd.Output()
 	if err != nil {
-		// Rotation: audit.log may vanish briefly while audit.log.<ts>
-		// exists; tolerate ENOENT only if some rotated file is listed.
+		// Rotation: audit.log may vanish briefly while a rotated sibling
+		// is being created; tolerate ENOENT only if some rotated file is
+		// listed. With a chain glob this should never fire.
 		if isNoFileError(err) && d.rotatedExists(cctx) {
 			return nil, ErrLogRotated
 		}
-		return nil, fmt.Errorf("audit: docker exec %s cat %s: %w", d.Container, d.Path, err)
+		return nil, fmt.Errorf("audit: docker exec %s cat %s.*: %w", d.Container, d.Path, err)
 	}
 	return out, nil
 }
