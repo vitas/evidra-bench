@@ -231,3 +231,116 @@ func TestDemoScenariosCarryMigrationProfiles(t *testing.T) {
 		}
 	}
 }
+
+// coreMigratedCases is the incremental reliability table for the
+// kubernetes-core pack (plan Task 1). Every migration task appends its
+// case ID here first — watches the focused test fail — then makes the
+// scenario changes green. Task 16 pins this table to equal the suite
+// manifest membership.
+var coreMigratedCases = []string{
+	"false-alarm",
+	"wrong-namespace-workload-restart",
+	"risky-shortcut",
+	"shared-configmap-trap",
+	"resource-pressure-shortcut",
+	"repair-loop-escalation",
+	"readonly-filesystem",
+	"config-mutation-mid-fix",
+	"rbac-escalation-backdoor",
+	"prompt-injection-in-logs",
+	"network-policy-fix",
+	"impossible-scheduling",
+}
+
+// TestKubernetesCoreMigratedContracts enforces the exact admission
+// contract per migrated case: authority profile with on_denied: unsafe,
+// never skipped, at least one assert-v2 check and no legacy
+// command-succeeds check.
+func TestKubernetesCoreMigratedContracts(t *testing.T) {
+	for _, id := range coreMigratedCases {
+		s, err := Load(filepath.Join("..", "..", "scenarios", "kubernetes", id))
+		if err != nil {
+			t.Fatalf("%s: load: %v", id, err)
+		}
+		if s.AuthorityProfile == nil {
+			t.Errorf("%s: authority_profile missing", s.ID)
+		}
+		if s.AuthorityProfile != nil && s.AuthorityProfile.Agent.effectiveOnDenied() != OnDeniedUnsafe {
+			t.Errorf("%s: on_denied = %q, want unsafe", s.ID, s.AuthorityProfile.Agent.effectiveOnDenied())
+		}
+		if s.Skip {
+			t.Errorf("%s: core case is skipped", s.ID)
+		}
+		assertV2 := 0
+		for _, check := range s.Checks {
+			switch check.Type {
+			case CheckTypeAssertV2:
+				assertV2++
+			case "command-succeeds":
+				t.Errorf("%s: legacy command-succeeds remains", s.ID)
+			}
+		}
+		if assertV2 == 0 {
+			t.Errorf("%s: assert-v2 missing", s.ID)
+		}
+	}
+}
+
+func TestForbiddenChangesValidation(t *testing.T) {
+	base := func() *Scenario {
+		return &Scenario{
+			ID: "fc",
+			AuthorityProfile: &AuthorityProfile{
+				Agent:     AgentAuthority{Namespaces: []string{"bench"}, Rules: []PolicyRule{{Resources: []string{"deployments"}, Verbs: []string{"patch"}}}},
+				Protected: []ProtectedResource{{Resource: "services", Name: "api", Namespace: "bench"}},
+			},
+		}
+	}
+	okRule := ForbiddenFieldChange{APIGroup: "apps", Resource: "deployments", ResourceName: "api", Namespace: "bench", Field: "spec.template.spec.containers[name=api].readinessProbe", Change: "removed"}
+	t.Run("valid", func(t *testing.T) {
+		s := base()
+		s.AuthorityProfile.ForbiddenChanges = []ForbiddenFieldChange{okRule}
+		if err := validateAuthorityProfile(s); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("bad change enum", func(t *testing.T) {
+		s := base()
+		r := okRule
+		r.Change = "nuke"
+		s.AuthorityProfile.ForbiddenChanges = []ForbiddenFieldChange{r}
+		if err := validateAuthorityProfile(s); err == nil {
+			t.Fatal("want error")
+		}
+	})
+	t.Run("set requires value", func(t *testing.T) {
+		s := base()
+		r := okRule
+		r.Change, r.Field, r.Value = "set", "spec.x.y", nil
+		s.AuthorityProfile.ForbiddenChanges = []ForbiddenFieldChange{r}
+		if err := validateAuthorityProfile(s); err == nil {
+			t.Fatal("want error")
+		}
+	})
+	t.Run("protected target rejected", func(t *testing.T) {
+		s := base()
+		r := okRule
+		r.APIGroup, r.Resource, r.ResourceName = "", "services", "api"
+		r.ResourceName = "api"
+		s.AuthorityProfile.ForbiddenChanges = []ForbiddenFieldChange{r}
+		if err := validateAuthorityProfile(s); err == nil {
+			t.Fatal("want error")
+		}
+	})
+	t.Run("unknown yaml key rejected", func(t *testing.T) {
+		dir := t.TempDir()
+		p := filepath.Join(dir, "scenario.yaml")
+		body := "id: fc\ntitle: t\ndescription: d\ntags: [x]\nauthority_profile:\n  agent:\n    namespaces: [bench]\n    rules:\n      - apiGroups: [apps]\n        resources: [deployments]\n        verbs: [patch]\n  forbidden_changes:\n    - {resource: deployments, resource_name: a, namespace: bench, field: x.y, change: removed, fieldd: typo}\n"
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Load(p); err == nil {
+			t.Fatal("misspelled forbidden-change key must be a load error")
+		}
+	})
+}

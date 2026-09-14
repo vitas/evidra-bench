@@ -181,7 +181,8 @@ func (p *KindProvider) Create(ctx context.Context, clusterName string, spec Clus
 		KubeconfigPath: kubeconfigPath,
 		// kind may run the cluster on the shared "kind" network (or a
 		// custom one); ask the node container instead of guessing.
-		ClusterNetwork: DockerNetworkOf(clusterName + "-control-plane"),
+		ClusterNetwork:  DockerNetworkOf(clusterName + "-control-plane"),
+		InClusterServer: "https://" + clusterName + "-control-plane:6443",
 	}
 	if spec.Audit.Enabled {
 		handle.Audit = &AuditAccess{

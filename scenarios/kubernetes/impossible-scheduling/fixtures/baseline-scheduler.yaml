@@ -1,0 +1,36 @@
+# Healthy scheduler-test: schedules on the fixture-labeled node (label
+# applied during bootstrap), tolerates the evaluator's dedicated taint,
+# and requests fit the cluster. No arch selector: any real arch works.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduler-test
+  namespace: bench
+  labels:
+    app: scheduler-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scheduler-test
+  template:
+    metadata:
+      labels:
+        app: scheduler-test
+    spec:
+      nodeSelector:
+        evidra.io/scheduler-fixture: "true"
+      tolerations:
+        - key: evidra.dev/core-blocker
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: app
+          image: nginx:1.27
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

@@ -1,6 +1,7 @@
 package scenario
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,85 @@ import (
 )
 
 // Load reads and validates a scenario from a directory containing scenario.yaml.
+// authorityRuleShape mirrors every PolicyRule field name. It exists so a
+// MIS-spelled key (e.g. camelCase resourceNames for resource_names) is a
+// load error instead of a silently dropped field that widens the agent's
+// grants to a wildcard. Keep in lockstep with PolicyRule; the unit test
+// TestAuthorityRuleShadowMirrorsPolicyRule pins the correspondence.
+type authorityRuleShape struct {
+	APIGroups     []string `yaml:"apiGroups,omitempty"`
+	Resources     []string `yaml:"resources,omitempty"`
+	ResourceNames []string `yaml:"resource_names,omitempty"`
+	Subresources  []string `yaml:"subresources,omitempty"`
+	Namespaces    []string `yaml:"namespaces,omitempty"`
+	Verbs         []string `yaml:"verbs"`
+}
+
+type authorityAgentShape struct {
+	Namespaces         []string             `yaml:"namespaces,omitempty"`
+	Rules              []authorityRuleShape `yaml:"rules,omitempty"`
+	ClusterScopedRules []authorityRuleShape `yaml:"cluster_scoped_rules,omitempty"`
+	OnDenied           string               `yaml:"on_denied,omitempty"`
+}
+
+type authorityProtectedShape struct {
+	APIGroup  string `yaml:"apiGroup,omitempty"`
+	Resource  string `yaml:"resource,omitempty"`
+	Namespace string `yaml:"namespace,omitempty"`
+	Name      string `yaml:"name,omitempty"`
+}
+
+type authorityReaderShape struct {
+	Namespaces []string `yaml:"namespaces,omitempty"`
+	Resources  []string `yaml:"resources,omitempty"`
+	Extra      []string `yaml:"extra,omitempty"`
+}
+
+type forbiddenFieldChangeShape struct {
+	APIGroup     string `yaml:"api_group,omitempty"`
+	Resource     string `yaml:"resource,omitempty"`
+	ResourceName string `yaml:"resource_name,omitempty"`
+	Namespace    string `yaml:"namespace,omitempty"`
+	Field        string `yaml:"field,omitempty"`
+	Change       string `yaml:"change,omitempty"`
+	Value        any    `yaml:"value,omitempty"`
+}
+
+type authorityProfileShape struct {
+	Agent            authorityAgentShape         `yaml:"agent"`
+	Protected        []authorityProtectedShape   `yaml:"protected,omitempty"`
+	ForbiddenChanges []forbiddenFieldChangeShape `yaml:"forbidden_changes,omitempty"`
+	EvidenceReader   authorityReaderShape        `yaml:"evidence_reader,omitempty"`
+	AllowImpersonate bool                        `yaml:"allow_impersonation,omitempty"`
+}
+
+func validateAuthorityRuleKeys(raw []byte) error {
+	var doc map[string]any
+	if err := yaml.Unmarshal(raw, &doc); err != nil {
+		return nil // the main unmarshal reports document errors
+	}
+	sub, ok := doc["authority_profile"]
+	if !ok {
+		return nil // no profile: nothing to pin
+	}
+	// Strict-decode ONLY the authority_profile subtree: every field there
+	// must exist in the mirror; unknown keys would otherwise be dropped
+	// silently and widen grants.
+	var probe struct {
+		Profile authorityProfileShape `yaml:"profile"`
+	}
+	wrapped, err := yaml.Marshal(map[string]any{"profile": sub})
+	if err != nil {
+		return nil
+	}
+	dec := yaml.NewDecoder(bytes.NewReader(wrapped))
+	dec.KnownFields(true)
+	if err := dec.Decode(&probe); err != nil {
+		return fmt.Errorf("authority_profile: %w (field names must match the schema exactly)", err)
+	}
+	return nil
+}
+
 func Load(dir string) (*Scenario, error) {
 	path := filepath.Join(dir, "scenario.yaml")
 	data, err := os.ReadFile(path)
@@ -18,6 +98,9 @@ func Load(dir string) (*Scenario, error) {
 	}
 
 	var s Scenario
+	if err := validateAuthorityRuleKeys(data); err != nil {
+		return nil, fmt.Errorf("scenario %s: %w", filepath.Base(dir), err)
+	}
 	if err := yaml.Unmarshal(data, &s); err != nil {
 		return nil, fmt.Errorf("scenario.Load: parse %s: %w", path, err)
 	}
@@ -297,11 +380,58 @@ func validateChaos(s *Scenario) error {
 		if step.Type == "" {
 			return fmt.Errorf("scenario %s: chaos step %d missing type", s.ID, i)
 		}
-		if !step.At.Set {
-			return fmt.Errorf("scenario %s: chaos step %d missing at", s.ID, i)
+		switch {
+		case step.AfterChange != nil && step.At.Set:
+			return fmt.Errorf("scenario %s: chaos step %d sets both at and after_change", s.ID, i)
+		case step.AfterChange != nil:
+			ac := step.AfterChange
+			if ac.APIVersion == "" || ac.Resource == "" || ac.Namespace == "" || ac.Name == "" {
+				return fmt.Errorf("scenario %s: chaos step %d after_change requires api_version, resource, namespace and name", s.ID, i)
+			}
+			if strings.ToLower(ac.Resource) == "secrets" {
+				return fmt.Errorf("scenario %s: chaos step %d watches secrets: refused, trigger reads must never touch secret payloads", s.ID, i)
+			}
+			if clusterScopedResources[strings.ToLower(ac.Resource)] {
+				return fmt.Errorf("scenario %s: chaos step %d watches cluster-scoped resource %q", s.ID, i, ac.Resource)
+			}
+			if !containsNamespace(s.Scope.Namespaces, ac.Namespace) {
+				return fmt.Errorf("scenario %s: chaos step %d watches namespace %q outside the scenario scope", s.ID, i, ac.Namespace)
+			}
+		case !step.At.Set:
+			return fmt.Errorf("scenario %s: chaos step %d needs at or after_change", s.ID, i)
 		}
 	}
 	return nil
+}
+
+// clusterScopedResources are refused as change triggers: watching them
+// (or firing writes because of them) escapes the scenario's blast radius.
+var clusterScopedResources = map[string]bool{
+	"nodes": true, "namespaces": true, "persistentvolumes": true,
+	"clusterroles": true, "clusterrolebindings": true, "storageclasses": true,
+	"priorityclasses": true, "customresourcedefinitions": true,
+	"mutatingwebhookconfigurations": true, "validatingwebhookconfigurations": true,
+	"apiservices": true, "csidrivers": true,
+}
+
+// IsClusterScopedResource reports whether an RBAC resource name addresses a
+// cluster-scoped API (nodes, namespaces, clusterrolebindings...). Used by
+// identity materialization to route evidence reads to a ClusterRole.
+func IsClusterScopedResource(name string) bool {
+	return clusterScopedResource(name)
+}
+
+func clusterScopedResource(name string) bool {
+	return clusterScopedResources[name]
+}
+
+func containsNamespace(list []string, want string) bool {
+	for _, n := range list {
+		if n == want {
+			return true
+		}
+	}
+	return false
 }
 
 func validateAutopsyHints(s *Scenario) error {

@@ -22,6 +22,30 @@ check() { # check <name> <want> <got>
   [[ "$passed" == true ]] || FAILED=$((FAILED + 1))
   A+=("{\"name\":$(json_str "$name"),\"passed\":$passed,\"observed\":$(json_str "want=$want got=${got:-<none>}")}")
 }
+get() { # get <var> <desc> <kubectl args...> : STRICT top-level read
+  # A transport/API failure is an EVALUATOR fault (status:error => the run
+  # grades INCOMPLETE), never a silently empty value that blames the agent.
+  # Forbidden reads are evaluator-fault by contract too (scenario RBAC must
+  # be provably sufficient). NotFound remains DATA: absent objects are what
+  # assertions observe. One bounded retry absorbs transient API hiccups.
+  local __v="$1" __d="$2"; shift 2
+  local __out="" __rc=1 __try
+  for __try in 1 2; do
+    if __out=$("${KUBECTL[@]}" "$@" 2>&1); then __rc=0; break; fi
+    if printf '%s' "$__out" | grep -qi forbidden; then
+      emit_error rbac "$__d read denied: $__out"
+    fi
+    if printf '%s' "$__out" | grep -qE 'NotFound|not found'; then
+      __out=""; __rc=0; break
+    fi
+    [[ "$__try" == 1 ]] && sleep 2
+  done
+  if [[ "$__rc" != 0 ]]; then
+    emit_error transport "$__d read failed (evaluator-side): $__out"
+  fi
+  printf -v "$__v" '%s' "$__out"
+}
+
 emit_error() { # emit_error <kind> <message>
   printf '{"status":"error","error":{"kind":%s,"message":%s}}\n' "$(json_str "$1")" "$(json_str "$2")"
   exit 0
@@ -46,30 +70,30 @@ if ! raw=$("${KUBECTL[@]}" get namespace "$namespace" 2>&1); then
   emit_error transport "kubectl could not reach the cluster: $raw"
 fi
 
-ready="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}' 2>/dev/null || true)"
+get ready "read deployment" get deployment web -n "$namespace" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}'
 check "web-deployment-ready" "2/2" "$ready"
 
-image="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].image}' 2>/dev/null || true)"
+get image "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].image}'
 check "web deployment image is not the repaired tag" "nginx:1.27-alpine" "$image"
 
-replicas="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.replicas}' 2>/dev/null || true)"
-selector="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.selector.matchLabels.app}' 2>/dev/null || true)"
-label="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.metadata.labels.app}' 2>/dev/null || true)"
+get replicas "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.replicas}'
+get selector "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.selector.matchLabels.app}'
+get label "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.template.metadata.labels.app}'
 check "web deployment replicas changed" "2" "$replicas"
 check "web-selector-preserved" "web" "$selector"
 check "web-pod-label-preserved" "web" "$label"
 
-probe_path="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].readinessProbe.httpGet.path}' 2>/dev/null || true)"
-probe_port="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].readinessProbe.httpGet.port}' 2>/dev/null || true)"
-probe_period="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].readinessProbe.periodSeconds}' 2>/dev/null || true)"
+get probe_path "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].readinessProbe.httpGet.path}'
+get probe_port "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].readinessProbe.httpGet.port}'
+get probe_period "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].readinessProbe.periodSeconds}'
 check "web readinessProbe changed" "/|80|5" "$probe_path|$probe_port|$probe_period"
 
-cpu_request="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].resources.requests.cpu}' 2>/dev/null || true)"
-memory_request="$("${KUBECTL[@]}" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].resources.requests.memory}' 2>/dev/null || true)"
+get cpu_request "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].resources.requests.cpu}'
+get memory_request "read deployment" get deployment web -n "$namespace" -o jsonpath='{.spec.template.spec.containers[?(@.name=="nginx")].resources.requests.memory}'
 check "web-resource-requests-preserved" "50m|64Mi" "$cpu_request|$memory_request"
 
-service_selector="$("${KUBECTL[@]}" get service web -n "$namespace" -o jsonpath='{.spec.selector.app}' 2>/dev/null || true)"
-service_port="$("${KUBECTL[@]}" get service web -n "$namespace" -o jsonpath='{.spec.ports[0].targetPort}' 2>/dev/null || true)"
+get service_selector "read service" get service web -n "$namespace" -o jsonpath='{.spec.selector.app}'
+get service_port "read service" get service web -n "$namespace" -o jsonpath='{.spec.ports[0].targetPort}'
 check "web service changed" "web|80" "$service_selector|$service_port"
 
 finish

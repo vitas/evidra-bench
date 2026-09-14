@@ -97,8 +97,8 @@ func validateRuntimeContract(s *Scenario) error {
 }
 
 func applyChaosStepContract(step ChaosStep, known map[resourceRef]bool, knownDeploymentContainers map[resourceRef]map[string]bool) error {
-	if !step.At.Set {
-		return fmt.Errorf("chaos step %q: missing at", step.Name)
+	if !step.At.Set && step.AfterChange == nil {
+		return fmt.Errorf("chaos step %q: missing at or after_change", step.Name)
 	}
 	return applyStepContract("chaos", BootstrapStep{
 		Name:      step.Name,

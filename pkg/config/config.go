@@ -39,6 +39,13 @@ type Config struct {
 	// runtime.unconfined=true and can never qualify.
 	AgentImage     string
 	AgentBundleDir string
+	// ResetNamespacesBeforeCase is an INTERNAL switch (no CLI flag):
+	// `evidra test`, which always provisions and owns its disposable
+	// cluster, sets it to delete the scenario's bench-scoped namespaces
+	// before each case (shared-suite-cluster isolation, kubernetes-core
+	// plan Task 2). Legacy bench/run, external kubeconfigs and reused
+	// clusters keep the default false and never auto-delete namespaces.
+	ResetNamespacesBeforeCase bool
 	// Sandbox resource ceilings (empty = docker defaults).
 	SandboxMemory     string
 	SandboxCPUs       string

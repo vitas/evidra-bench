@@ -43,9 +43,16 @@ func auditVolumeName(clusterName string) string { return "evidra-audit-" + clust
 // never silently skipped).
 type AuditConfig struct {
 	Enabled bool
-	// PolicyMode selects the mutation-verb level: "" or "metadata" (the
-	// default: request bodies never enter evidence) or "request" (request
-	// bodies recorded; behind explicit opt-in, design §5).
+	// PolicyMode selects the mutation-verb level. The default ("" or
+	// "request") records request bodies for mutating verbs: authority
+	// profiles can declare forbidden FIELD transitions (risky-shortcut,
+	// readonly-filesystem), whose only durable evidence is the patch
+	// body in the audit - a transient hostile edit reverted before any
+	// final-state read still indicts (owner review P0-2). Secret and
+	// serviceaccount bodies stay Metadata-level: token material and
+	// arbitrary secrets never enter evidence files. "metadata" opts out
+	// entirely (field-level rules then cannot fire; loaders refuse those
+	// profiles unless the environment records bodies).
 	PolicyMode string
 	// NodeImage pins the kind node image; empty uses DefaultAuditNodeImage.
 	// Ignored by k3d (k3s bakes its own image).
@@ -57,15 +64,17 @@ type AuditConfig struct {
 // marker payload never leaks anything useful to a body-capture mode;
 // mutations follow PolicyMode.
 func AuditPolicyYAML(mode string) string {
-	level := "Metadata"
-	if mode == "request" {
-		level = "Request"
+	level := "Request"
+	if mode == "metadata" {
+		level = "Metadata"
 	}
 	return `apiVersion: audit.k8s.io/v1
 kind: Policy
 rules:
   - level: Metadata
     resources: [{group: "", resources: ["configmaps"]}]
+  - level: Metadata
+    resources: [{group: "", resources: ["secrets", "serviceaccounts"]}]
   - level: ` + level + `
     verbs: ["create", "update", "patch", "delete", "deletecollection"]
   - level: Metadata
@@ -183,8 +192,8 @@ func BuildKindAuditConfig(vol *AuditVolume, k8s scenario.KubernetesConfig) strin
 	b.WriteString("            audit-policy-file: /etc/kubernetes/audit/policy.yaml\n")
 	b.WriteString("            audit-log-path: /var/log/kubernetes/audit.log\n")
 	b.WriteString("            audit-log-maxage: \"1\"\n")
-	b.WriteString("            audit-log-maxsize: \"16\"\n")
-	b.WriteString("            audit-log-maxbackup: \"1\"\n")
+	b.WriteString("            audit-log-maxsize: \"64\"\n")
+	b.WriteString("            audit-log-maxbackup: \"4\"\n")
 	if len(k8s.Runtimes) > 0 {
 		b.WriteString("  - role: worker\n")
 		b.WriteString("    extraMounts:\n")
@@ -206,8 +215,8 @@ func K3dAuditArgs(volumeName string) []string {
 		"--k3s-arg", "--kube-apiserver-arg=audit-policy-file=/etc/kubernetes/audit/policy.yaml@server:0",
 		"--k3s-arg", "--kube-apiserver-arg=audit-log-path=/var/log/kubernetes/audit.log@server:0",
 		"--k3s-arg", "--kube-apiserver-arg=audit-log-maxage=1@server:0",
-		"--k3s-arg", "--kube-apiserver-arg=audit-log-maxsize=16@server:0",
-		"--k3s-arg", "--kube-apiserver-arg=audit-log-maxbackup=1@server:0",
+		"--k3s-arg", "--kube-apiserver-arg=audit-log-maxsize=64@server:0",
+		"--k3s-arg", "--kube-apiserver-arg=audit-log-maxbackup=4@server:0",
 	}
 }
 
@@ -231,8 +240,8 @@ apiServer:
     audit-policy-file: /etc/kubernetes/audit/policy.yaml
     audit-log-path: /var/log/kubernetes/audit.log
     audit-log-maxage: "1"
-    audit-log-maxsize: "16"
-    audit-log-maxbackup: "1"
+    audit-log-maxsize: "64"
+    audit-log-maxbackup: "4"
 `
 }
 

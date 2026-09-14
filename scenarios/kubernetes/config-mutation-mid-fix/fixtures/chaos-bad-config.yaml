@@ -5,3 +5,11 @@ metadata:
   namespace: bench
 data:
   mode: drifted
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: core-drift-evidence
+  namespace: bench
+data:
+  state: drifted

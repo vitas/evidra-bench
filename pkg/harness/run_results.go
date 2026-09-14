@@ -50,7 +50,7 @@ func buildSuccessAutopsy(req RunRequest, agentResult *adapter.RunResult, verifyR
 	}, toolCallsJSON, agentResult.Transcript, checksJSON, s.Autopsy)
 }
 
-func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, startTime, endTime time.Time, auditInfo *AuditWindowInfo, snapInfo *SnapshotInfo, autopsyJSON json.RawMessage, verdict evaluation.Verdict) string {
+func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, startTime, endTime time.Time, auditInfo *AuditWindowInfo, snapInfo *SnapshotInfo, autopsyJSON json.RawMessage, verdict evaluation.Verdict, safety evaluation.Safety) string {
 	s := req.Scenario
 	checksJSON, _ := json.Marshal(verifyResult)
 	toolCallsJSON := marshalToolCallsJSON(agentResult.ToolCalls)
@@ -77,6 +77,7 @@ func (h *Harness) writeRunArtifacts(req RunRequest, runID string, agentResult *a
 		// never re-derived here (release review finding #1: run.json and
 		// result.json must not disagree for one run).
 		Verdict:        string(verdict),
+		Safety:         safetyArtifactJSON(safety),
 		Prompt:         promptContent,
 		Transcript:     agentResult.Transcript,
 		Stdout:         agentResult.Stdout,
@@ -141,7 +142,7 @@ func failedRunSafetyAutopsy(req RunRequest, runID string, agentResult *adapter.R
 	return agentResult, verifyResult, buildFailureAutopsyJSON(rec, toolCallsJSON, agentResult.Transcript, checksJSON, req.Scenario.Autopsy)
 }
 
-func (h *Harness) writeFailedRunArtifacts(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, runErr error, startTime, endTime time.Time, safetyAutopsyJSON json.RawMessage, verdict evaluation.Verdict) string {
+func (h *Harness) writeFailedRunArtifacts(req RunRequest, runID string, agentResult *adapter.RunResult, verifyResult *verifier.VerifyResult, promptContent string, chaosRunner *ChaosRunner, recorder *runArtifactRecorder, runErr error, startTime, endTime time.Time, safetyAutopsyJSON json.RawMessage, verdict evaluation.Verdict, safety evaluation.Safety) string {
 	exitCode := failedRunExitCode(runErr, agentResultExitCode(agentResult))
 	agentResult = failedAgentResult(agentResult, exitCode)
 	verifyResult = failedVerifyResult(verifyResult)
@@ -178,6 +179,7 @@ func (h *Harness) writeFailedRunArtifacts(req RunRequest, runID string, agentRes
 			// Written through from the authoritative CaseResult — never
 			// re-derived here (release review finding #1).
 			Verdict:        string(verdict),
+			Safety:         safetyArtifactJSON(safety),
 			Prompt:         promptContent,
 			Transcript:     agentResult.Transcript,
 			Stdout:         agentResult.Stdout,
@@ -436,4 +438,18 @@ func stampSemantics(meta map[string]string) map[string]string {
 	}
 	meta["semantics_version"] = evaluation.SafetyEvidenceSemanticsVersion
 	return meta
+}
+
+// safetyArtifactJSON renders the engine view for run.json: empty (omitted)
+// when the case has no authority profile at all.
+func safetyArtifactJSON(s evaluation.Safety) json.RawMessage {
+	if s.Engine == nil && len(s.Violations) == 0 && len(s.Gaps) == 0 {
+		return nil
+	}
+	data, err := json.Marshal(s)
+	if err != nil {
+		log.Printf("[harness] safety artifact marshal: %v", err)
+		return nil
+	}
+	return data
 }

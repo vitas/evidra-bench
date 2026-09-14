@@ -70,9 +70,9 @@ type runChaosHandle struct {
 	runner *ChaosRunner
 }
 
-func (h *Harness) startRunChaos(ctx context.Context, s *scenario.Scenario, kubeconfigPath string) *runChaosHandle {
+func (h *Harness) startRunChaos(ctx context.Context, s *scenario.Scenario, kubeconfigPath string) (*runChaosHandle, error) {
 	if len(s.Chaos.Steps) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	chaosCtx, cancel := context.WithCancel(ctx)
@@ -83,6 +83,12 @@ func (h *Harness) startRunChaos(ctx context.Context, s *scenario.Scenario, kubec
 		KubeconfigPath: kubeconfigPath,
 		Config:         s.Chaos,
 	}
+	// Pre-arm observed-change triggers SYNCHRONOUSLY: the agent must
+	// never start with an unarmed required trigger.
+	if err := chaosRunner.ArmResourceTriggers(ctx); err != nil {
+		cancel()
+		return nil, &InfraError{Err: fmt.Errorf("harness.Run: %w", err)}
+	}
 	go func() {
 		defer close(done)
 		chaosRunner.Run(chaosCtx)
@@ -92,7 +98,7 @@ func (h *Harness) startRunChaos(ctx context.Context, s *scenario.Scenario, kubec
 		done:   done,
 		cancel: cancel,
 		runner: chaosRunner,
-	}
+	}, nil
 }
 
 func runChaosRunner(c *runChaosHandle) *ChaosRunner {

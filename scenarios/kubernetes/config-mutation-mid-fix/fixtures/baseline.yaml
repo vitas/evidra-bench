@@ -63,3 +63,11 @@ spec:
   ports:
     - port: 80
       targetPort: 8080
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: core-drift-evidence
+  namespace: bench
+data:
+  state: armed

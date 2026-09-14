@@ -594,3 +594,68 @@ func TestValidateAgentInputsRejectsEscapes(t *testing.T) {
 		}
 	}
 }
+
+// kubernetes-core plan Task 3: chaos steps may be armed on an OBSERVED
+// resource change instead of a timer.
+func chaosTriggerScenario(steps string) string {
+	return "id: config-mutation\n" +
+		"title: t\ncategory: kubernetes\nprompt: prompts/task.md\ntimeout: \"3m\"\n" +
+		"scope:\n  namespaces: [bench, bench-staging]\n" +
+		"break:\n  type: apply\n  path: fixtures/broken.yaml\n" +
+		"checks:\n  - type: deployment-ready\n    namespace: bench\n    name: web\n" +
+		"chaos:\n  stop_on_agent_done: true\n  steps:\n" + steps
+}
+
+func TestChaosAfterChangeTrigger(t *testing.T) {
+	load := func(t *testing.T, steps string) (*Scenario, error) {
+		t.Helper()
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "scenario.yaml"), []byte(chaosTriggerScenario(steps)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return Load(dir)
+	}
+	t.Run("valid after_change step loads; at stays optional", func(t *testing.T) {
+		s, err := load(t, "    - name: second-drift\n      after_change:\n        api_version: v1\n        resource: configmaps\n        namespace: bench\n        name: web-config\n      type: kubectl-apply\n      path: fixtures/chaos-bad.yaml\n")
+		if err != nil {
+			t.Fatal(err)
+		}
+		step := s.Chaos.Steps[0]
+		if step.AfterChange == nil {
+			t.Fatal("AfterChange not parsed")
+		}
+		if step.AfterChange.APIVersion != "v1" || step.AfterChange.Resource != "configmaps" || step.AfterChange.Namespace != "bench" || step.AfterChange.Name != "web-config" {
+			t.Fatalf("trigger = %+v", step.AfterChange)
+		}
+	})
+	t.Run("at and after_change are mutually exclusive", func(t *testing.T) {
+		if _, err := load(t, "    - name: both\n      at: 5s\n      after_change:\n        api_version: v1\n        resource: configmaps\n        namespace: bench\n        name: web-config\n      type: sleep\n"); err == nil {
+			t.Fatal("want error for at+after_change")
+		}
+	})
+	t.Run("exactly one of at / after_change is required", func(t *testing.T) {
+		if _, err := load(t, "    - name: naked\n      type: sleep\n      duration: 1s\n"); err == nil {
+			t.Fatal("want error for missing both")
+		}
+	})
+	t.Run("after_change requires all four fields", func(t *testing.T) {
+		if _, err := load(t, "    - name: partial\n      after_change:\n        api_version: v1\n        resource: configmaps\n        namespace: bench\n      type: sleep\n"); err == nil {
+			t.Fatal("want error for missing name")
+		}
+	})
+	t.Run("trigger namespace must be scenario-declared", func(t *testing.T) {
+		if _, err := load(t, "    - name: foreign\n      after_change:\n        api_version: v1\n        resource: configmaps\n        namespace: kube-system\n        name: web-config\n      type: sleep\n"); err == nil {
+			t.Fatal("want error for out-of-scope namespace")
+		}
+	})
+	t.Run("watching secrets is refused", func(t *testing.T) {
+		if _, err := load(t, "    - name: s\n      after_change:\n        api_version: v1\n        resource: secrets\n        namespace: bench\n        name: web-config\n      type: sleep\n"); err == nil {
+			t.Fatal("want error for secrets trigger")
+		}
+	})
+	t.Run("cluster-scoped trigger resources are refused", func(t *testing.T) {
+		if _, err := load(t, "    - name: wide\n      after_change:\n        api_version: v1\n        resource: nodes\n        namespace: bench\n        name: x\n      type: sleep\n"); err == nil {
+			t.Fatal("want error for node-scoped trigger")
+		}
+	})
+}

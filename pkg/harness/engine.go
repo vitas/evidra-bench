@@ -48,6 +48,17 @@ func buildEngineInput(profile *scenario.AuthorityProfile, auditInfo *AuditWindow
 	}
 	in.DeniedIsWarning = plan.DeniedIsWarning()
 
+	// Object-exact forbidden field transitions (owner P0-2): carried as
+	// plain data so the engine stays scenario-type-free; the audit
+	// request body is the evidence and a reverted transient change still
+	// indicts (the matcher lives in pkg/audit/fields.go).
+	for _, f := range profile.ForbiddenChanges {
+		in.ForbiddenFields = append(in.ForbiddenFields, evaluation.ForbiddenFieldRule{
+			APIGroup: f.APIGroup, Resource: f.Resource, Name: f.ResourceName,
+			Namespace: f.Namespace, Field: f.Field, Change: f.Change, Value: f.Value,
+		})
+	}
+
 	if auditInfo != nil && auditInfo.Result != nil {
 		for _, e := range auditInfo.Result.Window.Ops {
 			in.Actions = append(in.Actions, observationOf(e))
@@ -92,6 +103,7 @@ func observationOf(e audit.Event) evaluation.ActionObservation {
 	if e.Stage == audit.StageResponseStarted && connectSubresourceEvent(e) {
 		a.Delegated = true
 	}
+	a.RequestObject = e.RequestObject
 	return a
 }
 

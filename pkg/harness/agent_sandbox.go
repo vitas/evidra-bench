@@ -64,11 +64,12 @@ func (h *Harness) runAgentSandboxed(ctx context.Context, req RunRequest, s *scen
 		// adapter sets, so real agents behave identically in both modes
 		// (round-4 review finding #1). Credentials cross only through the
 		// explicit --agent-env NAME allowlist.
-		AgentEnv: buildAgentEnv(s, req),
-		Network:  req.ClusterNetwork,
-		Memory:   req.Config.SandboxMemory,
-		CPUs:     req.Config.SandboxCPUs,
-		Timeout:  timeout,
+		AgentEnv:        buildAgentEnv(s, req),
+		Network:         req.ClusterNetwork,
+		InClusterServer: req.InClusterServer,
+		Memory:          req.Config.SandboxMemory,
+		CPUs:            req.Config.SandboxCPUs,
+		Timeout:         timeout,
 	}
 	argv := []string{"/mnt/evidra/agent/run", "/mnt/evidra/agent/prompt.md"}
 	res, err := sbx.Run(ctx, spec, argv)

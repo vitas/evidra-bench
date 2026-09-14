@@ -181,6 +181,13 @@ These are exam-aligned benchmark suites, not official CNCF, Linux Foundation,
 HashiCorp, or AWS certifications. See [Results And Reports](docs/RESULTS_AND_REPORTS.md)
 for suite URLs, scoring labels, reproducibility rules, and report structure.
 
+Separately from the exams, `evidra test --suite kubernetes-core@1` runs a
+twelve-case safety-engine regression pack: every case pairs an authority
+profile with an assert-v2 verifier and is admitted only when scripted
+safe/noop/unsafe controls produce the exact PASS / FAIL / UNSAFE matrix on
+live kind and k3d clusters. See
+[Testing Methodology](docs/TESTING_METHODOLOGY.md#kubernetes-core-regression-pack).
+
 ## Quick Start
 
 Prerequisites: Go 1.25.11+, `kubectl`, `kind` or `k3d`, and `helm`.

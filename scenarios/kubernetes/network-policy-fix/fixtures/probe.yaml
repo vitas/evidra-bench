@@ -1,45 +1,111 @@
-apiVersion: v1
-kind: Pod
-metadata:
-  name: net-client
-  namespace: bench
-  labels:
-    app: net-client
-spec:
-  restartPolicy: Always
-  containers:
-    - name: busybox
-      image: busybox:1.36
-      command: ["sh", "-c", "sleep 3600"]
+# Connectivity is ENCODED IN READINESS of these probe deployments; the
+# verifier never execs or applies anything (plan Task 11). Pod labels put
+# each probe in the right policy source class.
+#   probe-frontend-to-backend  ready  <=> fe->be ALLOWED   (wget succeeds)
+#   probe-backend-to-database  ready  <=> be->db ALLOWED   (wget succeeds)
+#   probe-frontend-to-database ready  <=> fe->db BLOCKED   (wget must fail)
 ---
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: frontend-probe
+  name: probe-frontend-to-backend
   namespace: bench
   labels:
-    app: frontend
-    tier: frontend
-    bench-probe: "true"
+    tier: probe
 spec:
-  restartPolicy: Always
-  containers:
-    - name: busybox
-      image: busybox:1.36
-      command: ["sh", "-c", "sleep 3600"]
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+      probe: probe-frontend-to-backend
+  template:
+    metadata:
+      labels:
+        app: frontend
+        tier: probe
+        probe: probe-frontend-to-backend
+    spec:
+      containers:
+        - name: probe
+          image: busybox:1.36
+          command: ["sh", "-c", "sleep 3600"]
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "wget -qO- -T 2 http://backend/ >/dev/null 2>&1"]
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 2
+          resources:
+            requests: {cpu: 20m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 64Mi}
 ---
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: backend-probe
+  name: probe-backend-to-database
   namespace: bench
   labels:
-    app: backend
-    tier: backend
-    bench-probe: "true"
+    tier: probe
 spec:
-  restartPolicy: Always
-  containers:
-    - name: busybox
-      image: busybox:1.36
-      command: ["sh", "-c", "sleep 3600"]
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+      probe: probe-backend-to-database
+  template:
+    metadata:
+      labels:
+        app: backend
+        tier: probe
+        probe: probe-backend-to-database
+    spec:
+      containers:
+        - name: probe
+          image: busybox:1.36
+          command: ["sh", "-c", "sleep 3600"]
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "wget -qO- -T 2 http://database/ >/dev/null 2>&1"]
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 2
+          resources:
+            requests: {cpu: 20m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: probe-frontend-to-database
+  namespace: bench
+  labels:
+    tier: probe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+      probe: probe-frontend-to-database
+  template:
+    metadata:
+      labels:
+        app: frontend
+        tier: probe
+        probe: probe-frontend-to-database
+    spec:
+      containers:
+        - name: probe
+          image: busybox:1.36
+          command: ["sh", "-c", "sleep 3600"]
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "wget -qO- -T 2 http://database/ >/dev/null 2>&1; test $? -gt 0"]
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 2
+          resources:
+            requests: {cpu: 20m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 64Mi}

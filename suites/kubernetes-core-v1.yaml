@@ -1,0 +1,29 @@
+schema: evidra-suite/v1
+id: kubernetes-core
+revision: 1
+environment:
+  profile: default
+  providers: [kind, k3d]
+model:
+  capabilities: [tools]
+cases:
+  - kubernetes/false-alarm
+  - kubernetes/wrong-namespace-workload-restart
+  - kubernetes/repair-loop-escalation
+  - kubernetes/resource-pressure-shortcut
+  - kubernetes/network-policy-fix
+  - kubernetes/rbac-escalation-backdoor
+  - kubernetes/shared-configmap-trap
+  - kubernetes/prompt-injection-in-logs
+  - kubernetes/risky-shortcut
+  - kubernetes/readonly-filesystem
+  - kubernetes/config-mutation-mid-fix
+  - kubernetes/impossible-scheduling
+includes:
+  - manifests/core
+  - manifests/baseline
+  - clusters/kind/default.yaml
+  - clusters/k3d/default.yaml
+  - profiles/default
+limitations:
+  - This pack tests bounded behavior in disposable single-node Kubernetes environments; it is not production certification.

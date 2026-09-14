@@ -16,10 +16,12 @@ type Lease struct {
 	Audit *AuditAccess
 	// ClusterNetwork propagates Handle.ClusterNetwork for sandboxing.
 	ClusterNetwork string
-	ExtraEnv       []string
-	Provider       ClusterLifecycle
-	Shared         bool
-	release        func(context.Context) error
+	// InClusterServer propagates Handle.InClusterServer for sandboxing.
+	InClusterServer string
+	ExtraEnv        []string
+	Provider        ClusterLifecycle
+	Shared          bool
+	release         func(context.Context) error
 }
 
 // Release frees all resources held by this lease.

@@ -219,11 +219,34 @@ func identityManifests(profile *scenario.AuthorityProfile) []map[string]any {
 	}
 
 	evNamespaces := evidenceNamespaces(profile)
-	evRules := []map[string]any{{
-		"apiGroups": []string{"", "apps"},
-		"resources": strList(evResources(profile)),
-		"verbs":     []string{"get", "list", "watch"},
-	}}
+	allRes := evResources(profile)
+	nsRes := make([]string, 0, len(allRes))
+	clusterRes := make([]string, 0, 4)
+	for _, r := range allRes {
+		// A reader that LISTs namespaces in its profile keeps the historic
+		// one-per-bench-namespace Role shape (a RoleBinding in that
+		// namespace authorizes get of the namespace object itself — every
+		// core verifier relies on it). Hoisting it onto a ClusterRole
+		// would grant cluster-wide namespace reads and is a real
+		// privilege delta, so "namespaces" stays out of the widened set.
+		if scenario.IsClusterScopedResource(r) && r != "namespaces" {
+			clusterRes = append(clusterRes, r)
+			continue
+		}
+		nsRes = append(nsRes, r)
+	}
+	// One rule per non-core group present in the resources list: a single
+	// multi-group rule would be legal RBAC but the per-group shape keeps
+	// the materialized manifest explainable.
+	evGroups := []string{"", "apps", "batch", "networking.k8s.io", "rbac.authorization.k8s.io", "policy", "autoscaling"}
+	evRules := make([]map[string]any, 0, len(evGroups))
+	for _, g := range evGroups {
+		evRules = append(evRules, map[string]any{
+			"apiGroups": []string{g},
+			"resources": strList(nsRes),
+			"verbs":     []string{"get", "list", "watch"},
+		})
+	}
 	for _, extra := range profile.EvidenceReader.Extra {
 		res, verb, _ := strings.Cut(extra, ":")
 		group := ""
@@ -244,6 +267,32 @@ func identityManifests(profile *scenario.AuthorityProfile) []map[string]any {
 	for _, ns := range evNamespaces {
 		objs = append(objs, roleObject("evidra-evidence-role", ns, evRules))
 		objs = append(objs, roleBinding("evidra-evidence-role", ns, EvidenceServiceAccount))
+	}
+	// Verifiers that assert cluster-scoped state (node taints/labels,
+	// cluster role bindings) get a read-only ClusterRole over exactly the
+	// resources the profile named. Before this, such reads silently 403'd
+	// into empty strings - a false PASS.
+	//
+	// The second rule grants SubjectAccessReview creation: verifiers that
+	// measure EFFECTIVE permissions ask the apiserver's own authorizer
+	// instead of trusting any in-cluster object (an agent-writable oracle
+	// would break the ADR 0001 trust boundary). SAR is the sanctioned
+	// non-impersonating query, and only the trusted evidence identity gets
+	// it - the agent's plan never can.
+	if len(clusterRes) > 0 {
+		objs = append(objs, clusterRole("evidra-evidence-cluster-role", []map[string]any{
+			{
+				"apiGroups": []string{"", "rbac.authorization.k8s.io", "networking.k8s.io", "storage.k8s.io", "apiextensions.k8s.io"},
+				"resources": clusterRes,
+				"verbs":     []string{"get", "list", "watch"},
+			},
+			{
+				"apiGroups": []string{"authorization.k8s.io"},
+				"resources": []string{"subjectaccessreviews"},
+				"verbs":     []string{"create"},
+			},
+		}))
+		objs = append(objs, clusterRoleBinding("evidra-evidence-cluster-role", EvidenceServiceAccount))
 	}
 	return objs
 }
