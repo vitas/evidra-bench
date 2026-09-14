@@ -95,7 +95,7 @@ check "web-readiness-probe-unchanged" "/|80" "$readiness_path|$readiness_port"
 get service_selector "get service read" get service web-svc -n "$namespace" -o jsonpath='{.spec.selector.app}'
 check "web service selector changed" "web" "$service_selector"
 
-get endpoints "read endpoints" get endpoints web-svc -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
+get endpoints "endpoints-read" get endpoints web-svc -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
 endpoints="${#endpoints}"
 if [[ "${endpoints:-0}" -gt 0 ]]; then
   A+=("{\"name\":\"web service selector changed endpoints lost\",\"passed\":true,\"observed\":$(json_str "endpoint_count=$endpoints")}")

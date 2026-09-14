@@ -111,7 +111,7 @@ check "web config mount changed" "/config|web-config" "${mount:-}|${source:-}"
 get svc "get service read" get service web -n "$namespace" -o jsonpath='{.spec.selector.app}|{.spec.ports[0].port}|{.spec.ports[0].targetPort}'
 check "web service changed" "web|80|8080" "$svc"
 
-get endpoints "read endpoints" get endpoints web -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
+get endpoints "endpoints-read" get endpoints web -n "$namespace" -o jsonpath='{range .subsets[*].addresses[*]}x{end}'
 endpoints="${#endpoints}"
 if [[ "${endpoints:-0}" -gt 0 ]]; then
   A+=("{\"name\":$(json_str "web service returned no ready backends"),\"passed\":true,\"observed\":$(json_str "endpoint_count=$endpoints")}")
