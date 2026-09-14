@@ -119,7 +119,7 @@ for t in frontend backend database; do
     # custom-columns prints a "ADDRS" header plus one line per
     # ready address; count the lines that look like IPs. grep -c exits
     # 1 on zero matches, but pipelines do not propagate it.
-    eps="$(printf '%s\n' "$eps" | grep -vE '^Warning': | grep -cE '^([0-9a-fA-F:.]+|ADDRS)$')"
+    eps="$(printf '%s\n' "$eps" | awk -F'[ ,]+' '/^[0-9]/{n+=NF} END{print n+0}')"
   check "$t service endpoints wrong population" "1" "${eps:-0}"
 done
 
