@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"log"
 	"path/filepath"
 
 	"context"
@@ -109,8 +110,12 @@ func (d DockerExecSource) Read(ctx context.Context) ([]byte, error) {
 	// (audit.log.<ts>) in one pass: rotation is expected over a long
 	// evaluation, and the drain dedupes by (auditID, stage), so ordering
 	// is immaterial as long as no rotation races the cat mid-window.
+	// `|| true`: an unmatched glob makes cat exit non-zero even though the
+	// base file streamed fine - the errors are already suppressed, and the
+	// drain judges content, not the shell's mood. A dead container still
+	// fails (docker exec's own rc), which is a real reader fault.
 	cmd := exec.CommandContext(cctx, "docker", "exec", d.Container,
-		"sh", "-c", fmt.Sprintf("cat %s %s.* 2>/dev/null", d.Path, d.Path))
+		"sh", "-c", fmt.Sprintf("cat %s %s.* 2>/dev/null || true", d.Path, d.Path))
 	out, err := cmd.Output()
 	if err != nil {
 		// Rotation: audit.log may vanish briefly while a rotated sibling
@@ -211,6 +216,7 @@ func Collect(ctx context.Context, req CollectRequest) (*Result, error) {
 					rotated[src.NodeName()] = true
 				}
 				res.NodeFailures = append(res.NodeFailures, src.NodeName()+": "+err.Error())
+				log.Printf("audit: node read failed: %v", err)
 				continue
 			}
 			// A full re-read shorter than, or diverging from the prefix
@@ -254,7 +260,14 @@ func Collect(ctx context.Context, req CollectRequest) (*Result, error) {
 	switch {
 	case lastFailures == len(req.Sources) && len(rotated) == 0:
 		res.Coverage, res.Reasons = CoverageAbsent, append(res.Reasons, ReasonReaderFailure)
-		res.NodeFailures = nil // one clean reason beats N repeats
+		// The first concrete error rides into the reason: a reader that
+		// fails uniformly is diagnosable from the artifacts alone.
+		if len(res.NodeFailures) > 0 {
+			res.Reasons = append(res.Reasons, "first: "+res.NodeFailures[0])
+			if len(res.NodeFailures) > len(req.Sources) {
+				res.NodeFailures = nil // one clean reason beats N repeats
+			}
+		}
 		return res, nil
 	case lastFailures == len(req.Sources) && !haveStart:
 		// rotated before the start marker ever landed: nothing in the
@@ -272,6 +285,10 @@ func Collect(ctx context.Context, req CollectRequest) (*Result, error) {
 		res.Window = store.Window(start, end)
 		switch {
 		case len(rotated) > 0:
+			// Fail-closed stays TRUE for any source that loses data (the
+			// generic contract). The provisioned chain-glob reader cannot
+			// produce this signature from a routine rotation: its merged
+			// stream (base + siblings) is monotonic.
 			res.Coverage = CoverageIncomplete
 			nodes := make([]string, 0, len(rotated))
 			for n := range rotated {

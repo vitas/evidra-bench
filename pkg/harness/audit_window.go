@@ -84,6 +84,9 @@ func (w *auditWindowCollector) close(ctx context.Context, recorder *runArtifactR
 	}
 	if res.Coverage != audit.CoverageComplete {
 		recorder.Event("audit_window", "coverage_"+string(res.Coverage), joinReasons(res.Reasons))
+		if len(res.NodeFailures) > 0 {
+			log.Printf("harness: audit reader failures: %v", res.NodeFailures[:min(3, len(res.NodeFailures))])
+		}
 	}
 
 	redacted := audit.Redacted(res.Window.Ops)
