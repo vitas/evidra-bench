@@ -17,9 +17,8 @@ bin/bench-cli export-bundle --run 01SMOKE... --out ./my-run-bundle
 # or point at the artifact directory directly
 bin/bench-cli export-bundle --run-dir ./runs/artifacts/<run-id> --out ./my-run-bundle
 
-# consume with the Evidra flight recorder
-evidra validate  --evidence-dir ./my-run-bundle   # chain + signatures
-evidra scorecard --evidence-dir ./my-run-bundle   # signals + score
+# verify the bundle's chain + signatures with the Evidra flight recorder
+evidra verify --dir ./my-run-bundle
 ```
 
 ## What lands in the bundle
@@ -48,25 +47,24 @@ Bundles exported before ADR 0001 report no version and decode as legacy
 tells the evidence eras apart — while the certification-era rule that
 REFUSED mixed-cohort joins was removed with that layer; treat a preview-era
 verdict and an evidence-era verdict as different contracts when you
-compare them. Verify any bundle with `evidra validate --evidence-dir
-<dir>`; see [ADR 0001](adr/0001-process-safety-matching.md).
+compare them. Verify any bundle with `evidra verify --dir <dir>`; see
+[ADR 0001](adr/0001-process-safety-matching.md).
 
 ## Integrity and trust
 
 - The bundle is signed with an **ephemeral Ed25519 key** generated per export;
   the public half is embedded in `bundle.json`, the private half is discarded.
-  `evidra validate` verifies every entry hash, the chain links, and every
-  signature against it automatically.
 - Trust level is `ephemeral`: this proves nobody edited the bundle after the
   export and that all entries were produced atomically by the same process. It
   does **not** attest who ran the export — that is inherent to local tools and
   the reason hosted/verified signing (a long-lived producer key) is a separate
-  future step.
+  future step. `evidra verify` checks every entry hash, the chain links, and
+  every signature against it automatically.
 
 ## Protocol location
 
 The wire format lives in Evidra core
-([docs/external-evidence-bundle-v1.md](https://github.com/vitas/evidra/blob/main/docs/external-evidence-bundle-v1.md)).
+([docs/evidence-format.md](https://github.com/vitas/evidra/blob/main/docs/evidence-format.md)).
 This repo carries a pinned, byte-checked copy of the minimal producer surface
 in `pkg/evidrawire/` (chosen over a module dependency because the
 `samebits.com/evidra` vanity import is not yet resolvable by `go get`). Drift

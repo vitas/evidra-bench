@@ -3,7 +3,7 @@
 [![CI](https://github.com/vitas/evidra-bench/actions/workflows/ci.yml/badge.svg)](https://github.com/vitas/evidra-bench/actions/workflows/ci.yml)
 [![Release](https://github.com/vitas/evidra-bench/actions/workflows/release.yml/badge.svg)](https://github.com/vitas/evidra-bench/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/go-1.25.11%2B-00ADD8.svg)](go.mod)
+[![Go](https://img.shields.io/badge/go-1.25.14%2B-00ADD8.svg)](go.mod)
 [![Bench](https://img.shields.io/badge/bench-live%20reports-4b5563.svg)](https://bench.evidra.cc)
 
 Evidra Bench is a live regression benchmark for infrastructure agents. It puts a
@@ -66,8 +66,8 @@ docker run --rm \
 
 You get a PASS / FAIL / UNSAFE verdict per case, a standalone
 `evidra-results/report.html`, `result.json`, and signed evidence bundles for
-every run under `evidra-results/bundles/` (open them with
-`evidra validate --evidence-dir <bundle>` from the [Evidra
+every run under `evidra-results/bundles/` (verify one with
+`evidra verify --dir <bundle>` from the [Evidra
 CLI](https://github.com/vitas/evidra)). The first run pulls a ~1 GB
 Kubernetes node image, cached afterwards.
 
@@ -190,7 +190,7 @@ live kind and k3d clusters. See
 
 ## Quick Start
 
-Prerequisites: Go 1.25.11+, `kubectl`, `kind` or `k3d`, and `helm`.
+Prerequisites: Go 1.25.14+ (matching `go.mod`), `kubectl`, `kind` or `k3d`, and `helm`.
 
 ```bash
 # Build the CLI

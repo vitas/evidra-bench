@@ -25,10 +25,9 @@ func newExportBundleCommand(defaultRunsDir, producerVersion string) *cobra.Comma
 		Long: `Convert one benchmark run's artifact directory into an
 evidra-external-bundle/v1 evidence store (append-only signed chain).
 
-The bundle opens with the Evidra flight recorder CLI:
+The bundle is verified with the Evidra flight recorder CLI:
 
-  evidra validate  --evidence-dir <out>
-  evidra scorecard --evidence-dir <out>
+  evidra verify --dir <out>
 
 Select the run either directly with --run-dir or by --run <run-id>
 (resolved against --runs-dir).`,
@@ -56,7 +55,7 @@ Select the run either directly with --run-dir or by --run <run-id>
 				return err
 			}
 			writef(cmd.OutOrStdout(),
-				"bundle written to %s (%d entries, %d tool calls; verify with: evidra validate --evidence-dir %s)\n",
+				"bundle written to %s (%d entries, %d tool calls; verify with: evidra verify --dir %s)\n",
 				res.BundlePath, res.Entries, res.ToolCalls, res.BundlePath)
 			return nil
 		},
