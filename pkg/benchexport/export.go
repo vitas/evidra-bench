@@ -2,8 +2,8 @@
 // samebits.com/evidra external evidence bundle (evidra-external-bundle/v1).
 //
 // The bundle reuses the core's append-only chain format verbatim (see
-// pkg/evidrawire), so a consumer can open any exported run with
-// `evidra validate --evidence-dir <bundle>` and `evidra scorecard`.
+// pkg/evidrawire), so a consumer can verify any exported run with
+// `evidra verify --dir <bundle>`.
 package benchexport
 
 import (

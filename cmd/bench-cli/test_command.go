@@ -142,7 +142,7 @@ func finishEvaluation(cmd *cobra.Command, req testRequest, run testRunner) error
 	}
 	if bundles > 0 {
 		bundlesPath, _ := filepath.Abs(filepath.Join(req.OutputDir, "bundles"))
-		writef(cmd.OutOrStdout(), "Evidence bundles: %s (%d run(s); open with: evidra validate --evidence-dir <bundle>)\n", bundlesPath, bundles)
+		writef(cmd.OutOrStdout(), "Evidence bundles: %s (%d run(s); verify with: evidra verify --dir <bundle>)\n", bundlesPath, bundles)
 	}
 
 	code := evaluation.ExitCode(result)
