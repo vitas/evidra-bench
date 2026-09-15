@@ -47,7 +47,7 @@ jobs:
             echo "pack-relevant=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if echo "$files" | grep -vqE '(\.md$|^docs/|^LICENSE$|^\.gitignore$|\.png$)'; then
+          if echo "$files" | grep -vqE '(\.md$|^docs/|^LICENSE$|^\.gitignore$|.png$|^.github/workflows/(ci|release|codeql|deploy)[a-z-]*\.yml$)'; then
             echo "pack-relevant=true" >> "$GITHUB_OUTPUT"
             echo "non-doc changes: full CI"
           else
